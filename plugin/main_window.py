@@ -3,6 +3,21 @@ from pathlib import Path
 
 from kipy import KiCad
 from PySide6.QtCore import QSize, QTimer, QUrl, Slot, Signal
+from PySide6.QtGui import QAction, QColor, QKeySequence
+from PySide6.QtQuick import QQuickView
+from PySide6.QtWidgets import QFileDialog, QMainWindow, QWidget, QVBoxLayout
+
+from config_dialog import ConfigDialog
+from expression import Expression
+from kicad_icons import get_kicad_icon, KiCadIcon, load_kicad_icons
+from plugin_config import PluginConfig
+from run_xyce_simulation import run_xyce_simulation, XyceSimulationRunner
+from simulation_dialog import SimulationDialog
+from window import load_app_icon, log_screen_info
+
+logger = logging.getLogger(__name__)
+
+_QML_FILE = Path(__file__).parent / "main_window.qml"
 
 # background color matching the KiCad schematic window
 _BG = "#efefe8"
@@ -38,20 +53,24 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(f"QMainWindow {{ background: {_BG}; }}")
         # single QQuickView hosts the entire multi-chart scene — one Metal swap chain
         self._qml_view = QQuickView()
+        # connect qml-ready lifecycle hook before loading qml
         self._qml_view.statusChanged.connect(self._on_qml_ready)
+        # keep the qml root sized to the embedded window container
         self._qml_view.setResizeMode(QQuickView.ResizeMode.SizeRootObjectToView)
+        # match the window background to the rest of the application
         self._qml_view.setColor(QColor(_BG))
+        # load the simulation dialog qml component
         self._qml_view.setSource(QUrl.fromLocalFile(str(_QML_FILE)))
-        # embed the single QWindow into the main window's central area
+        # wrap the qml view in a widget so it can be hosted by qdialog
         self._container = QWidget.createWindowContainer(self._qml_view, self)
-        self.setCentralWidget(self._container)
-        # create the native main menu structure
-        self._create_main_menu()
-        # create the native toolbar
-        self._create_toolbar()
-
-    def sizeHint(self):
-        return QSize(1200, 800)
+        # set up a simple one-widget dialog layout
+        self._layout = QVBoxLayout(self)
+        # remove margins so qml controls align edge-to-edge
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        # insert the qml container into the dialog layout
+        self._layout.addWidget(self._container)
+        # set an initial size that fits both tab forms on first open
+        self.resize(640, 680)
 
     @Slot(QQuickView.Status)
     def _on_qml_ready(self, status: QQuickView.Status):
@@ -94,149 +113,10 @@ class MainWindow(QMainWindow):
         if logger.isEnabledFor(logging.DEBUG):
             QTimer.singleShot(0, lambda: log_screen_info(self.screen()))
 
-    def _create_main_menu(self):
-        # menu bar
-        menu_bar = self.menuBar()
-
-        # File menu
-        file_menu = menu_bar.addMenu("&File")
-
-        # File | Open
-        open_action = QAction("Open...", self)
-        open_action.setShortcut(QKeySequence.Open)
-        open_action.triggered.connect(self._on_menu_open_file)
-        file_menu.addAction(open_action)
-
-        # File | Quit
-        quit_action = QAction("Quit", self)
-        quit_action.setShortcut(QKeySequence.Quit)
-        quit_action.triggered.connect(self.close)
-        file_menu.addAction(quit_action)
-
-        # Tools menu
-        tools_menu = menu_bar.addMenu("&Tools")
-
-        # Tools | Open in JupyterLab
-        jupyter_action = QAction("Open in JupyterLab...", self)
-        tools_menu.addAction(jupyter_action)
-
-        # Tools | Configuration
-        config_action = QAction("Configuration...", self)
-        config_action.triggered.connect(self._on_menu_configuration)
-        tools_menu.addAction(config_action)
-
-        # Window menu
-        window_menu = menu_bar.addMenu("&Window")
-
-        # Window | Add Chart
-        add_chart_action = QAction(get_kicad_icon(KiCadIcon.ADD_CHART, dark=False), "Add Chart", self)
-        # add_chart_action.triggered.connect(lambda: self._on_menu_add_chart(len(self._charts) - 1))
-        window_menu.addAction(add_chart_action)
-
-        # Window | New Window
-        new_window_action = QAction(get_kicad_icon(KiCadIcon.NEW_WINDOW, dark=False), "New Window", self)
-        # new_window_action.triggered.connect(self._on_menu_new_window)
-        window_menu.addAction(new_window_action)
-
-        # Help menu
-        help_menu = menu_bar.addMenu("&Help")
-
-        # Help | About
-        about_action = QAction("About", self)
-        about_action.triggered.connect(lambda: None)
-        help_menu.addAction(about_action)
-
-    def _create_toolbar(self):
-        # create a native toolbar with common file operations
-        toolbar = self.addToolBar("File")
-        # keep toolbar position stable in the main window
-        toolbar.setMovable(False)
-        # set toolbar icon size for better visibility
-        toolbar.setIconSize(QSize(24, 24))
-
-        # add an open action with standard icon and platform shortcut
-        open_action = QAction(get_kicad_icon(KiCadIcon.FILE_OPEN, dark=False), "Open", self)
-        open_action.setShortcut(QKeySequence.StandardKey.Open)
-        open_action.setToolTip("Open simulation file (Cmd+O)")
-        open_action.triggered.connect(self._on_menu_open_file)
-        toolbar.addAction(open_action)
-
-        # add a save action with standard icon and platform shortcut
-        save_action = QAction(get_kicad_icon(KiCadIcon.FILE_SAVE, dark=False), "Save", self)
-        save_action.setShortcut(QKeySequence.StandardKey.Save)
-        save_action.setToolTip("Save simulation file (Cmd+S)")
-        # save_action.triggered.connect(self._on_menu_save_file)
-        toolbar.addAction(save_action)
-
-        # add a separator for visual grouping
-        toolbar.addSeparator()
-
-        # simulation command
-        simulation_cmd_action = QAction(get_kicad_icon(KiCadIcon.SIM_COMMAND, dark=False), "Configure Simulation", self)
-        simulation_cmd_action.setToolTip("Configure simulation parameters")
-        simulation_cmd_action.triggered.connect(self._on_menu_configure_simulation)
-        toolbar.addAction(simulation_cmd_action)
-
-        # simulation run
-        simulation_run_action = QAction(get_kicad_icon(KiCadIcon.SIM_RUN, dark=False), "Run Simulation", self)
-        simulation_run_action.setToolTip("Run the simulation")
-        simulation_run_action.triggered.connect(self._on_menu_run_simulation)
-        toolbar.addAction(simulation_run_action)
-
-        # add a separator for visual grouping
-        toolbar.addSeparator()
-
-        # preference/configuration action
-        config_action = QAction(get_kicad_icon(KiCadIcon.PREFERENCE, dark=False), "Configuration", self)
-        config_action.setToolTip("Open plugin configuration")
-        config_action.triggered.connect(self._on_menu_configuration)
-        toolbar.addAction(config_action)
-
-    @Slot()
-    def _on_menu_open_file(self) -> None:
-        # open netlist file
-        input_path_str, _ = QFileDialog.getOpenFileName(self, "Open Netlist File", "", "Netlist Files (*.cir);;All Files (*)")
-        # exit when the user cancels the dialog
-        if not input_path_str:
-            return
-        # parse selected path
-        # input_path = Path(input_path_str)
-
-    def _populate_charts(self):
-        # fall back to one empty chart when there are none
-        # if not self._plot_suggestions:
-        #     # add a single chart with the default type for this file, but no series (empty)
-        #     self._add_chart(self._default_chart_type, [])
-        #     # exit
-        #     return
-        # loop suggestions — each suggestion carries its own chart type
-        # for suggestion in self._plot_suggestions:
-        #     # append chart using the type encoded in the suggestion
-        #     self._add_chart(suggestion.chart_type, suggestion.expressions)
-        self._add_chart("", [])
-
-    def _add_chart(self, chart_type: str, expressions: list[Expression]):
-        # chart index
-        # chart_index = len(self._charts)
-        # create chart ui component in QML
-        self._root.addChart()
-        # get a reference to the chart's QML object so we can manipulate it
-        # chart_root = self._root.getChart(chart_index)
-        # # create chart instance
-        # chart = Chart(chart_root, chart_type, self._expression_manager, self._abscissa, self._step_information, self._decimate_target)
-        # # apply initial step selection when provided (e.g. FFT window inheriting source chart visibility)
-        # if self._initial_selected_steps is not None:
-        #     chart.selected_steps = self._initial_selected_steps
-        # # add it to the list of charts so we can keep track of it
-        # self._charts.append(chart)
-        # # render chart
-        # chart.render("", self._abscissa_scale.value, set(expressions))
-
     def _setup_netlist(self) -> str:
         # returns a placeholder netlist for simulation execution
         return "* Xyce Simulation\nV1 1 0 5V\nR1 1 0 1k\n.END"
 
-    @Slot(str)
     @Slot(str)
     def _on_simulation_started(self, netlist_path: str, output_path: str) -> None:
         # update status bar to indicate simulation started
@@ -257,7 +137,6 @@ class MainWindow(QMainWindow):
         logger.error("Xyce stderr: %s", text)
         self.logAppendRequested.emit(f"ERROR: {text}")
         self.statusBar().showMessage(f"Simulation error: {text}", 5000)
-
 
     @Slot(int, int, bool, str)
     def _on_simulation_finished(self, exit_code: int, exit_status: int, was_canceled: bool, output_path: str) -> None:
