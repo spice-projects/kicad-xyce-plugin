@@ -40,8 +40,8 @@ class MainWindow(QMainWindow):
 
         # initialize data structures
         self._charts = []  # : list[Chart] = []
-        # store currently selected transient setup from the dialog
-        self._transient_parameters = None
+        # store currently selected simulation parameters from the dialog
+        self._simulation_parameters = None
 
         # set window title to include the loaded filename
         self.setWindowTitle("Xyce Simulation - No file loaded")
@@ -134,12 +134,12 @@ class MainWindow(QMainWindow):
         window_menu = menu_bar.addMenu("&Window")
 
         # Window | Add Chart
-        add_chart_action = QAction("Add Chart", self)
+        add_chart_action = QAction(get_kicad_icon(KiCadIcon.ADD_CHART, dark=False), "Add Chart", self)
         # add_chart_action.triggered.connect(lambda: self._on_menu_add_chart(len(self._charts) - 1))
         window_menu.addAction(add_chart_action)
 
         # Window | New Window
-        new_window_action = QAction("New Window", self)
+        new_window_action = QAction(get_kicad_icon(KiCadIcon.NEW_WINDOW, dark=False), "New Window", self)
         # new_window_action.triggered.connect(self._on_menu_new_window)
         window_menu.addAction(new_window_action)
 
@@ -238,19 +238,19 @@ class MainWindow(QMainWindow):
         # chart.render("", self._abscissa_scale.value, set(expressions))
 
     def _on_menu_configure_simulation(self):
-        # open the transient setup dialog and wait for user input
-        dialog = SimulationDialog(self)
+        # open the simulation dialog and wait for user input
+        dialog = SimulationDialog(self, initial_parameters=self._simulation_parameters)
         # capture the result only when the dialog is accepted
-        transient_parameters = dialog.get_transient_parameters()
+        simulation_parameters = dialog.get_parameters()
         # keep the existing configuration when the dialog is canceled
-        if transient_parameters is None:
+        if simulation_parameters is None:
             return
         # store the latest parameters for future simulation execution
-        self._transient_parameters = transient_parameters
+        self._simulation_parameters = simulation_parameters
         # log a netlist-ready directive so simulation wiring can reuse it later
-        logger.info("Configured Xyce transient directive: %s", transient_parameters.to_xyce_directive())
+        logger.info("Configured Xyce simulation directive: %s", simulation_parameters.to_xyce_directive())
         # show immediate confirmation in the status bar for the user
-        self.statusBar().showMessage("Transient simulation parameters updated", 3000)
+        self.statusBar().showMessage("Simulation parameters updated", 3000)
 
     def _on_menu_run_simulation(self):
         ...

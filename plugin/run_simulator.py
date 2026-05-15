@@ -15,6 +15,7 @@ KICAD_API_TOKEN = os.environ.get("KICAD_API_TOKEN")
 
 PLUGIN_ID = "com.github.spice-projects.kicad-xyce-plugin"
 
+
 def main():
     # configure argument parser
     parser = argparse.ArgumentParser(description="Xyce Simulator Plugin for KiCad")

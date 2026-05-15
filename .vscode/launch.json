@@ -22,16 +22,6 @@
             },
             "args": ["--log-level=DEBUG"],
             "justMyCode": false
-        },
-        {
-            "name": "Run Simulator",
-            "type": "debugpy",
-            "request": "launch",
-            "cwd": "${workspaceFolder}/plugin",
-            "module": ".",
-            "console": "integratedTerminal",
-            "args": ["--log-level=DEBUG"],
-            "justMyCode": false
         }
     ]
 }
