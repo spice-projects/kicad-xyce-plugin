@@ -17,6 +17,15 @@ _DC_SECONDARY_MODES = {"LIN", "DEC", "OCT"}
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass(frozen=True)
+class OpSimulationParameters:
+
+    def to_xyce_directive(self) -> str:
+        # return the standard op directive string
+        return ".OP"
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass(frozen=True)
 class TransientSchedulePoint:
     time_value: str
     max_time_step_value: str
@@ -136,13 +145,13 @@ def _parse_list_values(list_values_text: str) -> tuple[str, ...]:
 
 class SimulationDialog(QDialog):
 
-    def __init__(self, parent: QWidget | None = None, initial_parameters: TransientSimulationParameters | DCSimulationParameters | None = None):
+    def __init__(self, parent: QWidget | None = None, initial_parameters: TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters | None = None):
         # initialize the modal dialog container
         super().__init__(parent)
         # capture initial parameters for form pre-population
         self._initial_parameters = initial_parameters
         # keep the result empty until the user confirms valid values
-        self._result: TransientSimulationParameters | DCSimulationParameters | None = None
+        self._result: TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters | None = None
         # set dialog metadata for the native window frame
         self.setWindowTitle("Xyce Simulation")
         # create the qml surface that renders the form
@@ -180,6 +189,7 @@ class SimulationDialog(QDialog):
         # connect qml submit signals to python validation handlers
         self._root.submitTransient.connect(self._on_submit_transient)
         self._root.submitDC.connect(self._on_submit_dc)
+        self._root.submitOP.connect(self._on_submit_op)
         # connect qml cancel signal to close without a result
         self._root.cancelRequested.connect(self.reject)
 
@@ -187,13 +197,15 @@ class SimulationDialog(QDialog):
         # dispatch to specialized methods based on parameter type
         p = self._initial_parameters
 
-        # always initialize both tabs to ensure a clean state
+        # always initialize all tabs to ensure a clean state
         self._apply_transient_parameters(p if isinstance(p, TransientSimulationParameters) else None)
         self._apply_dc_parameters(p if isinstance(p, DCSimulationParameters) else None)
 
         # select the appropriate tab based on the parameter type
         if isinstance(p, DCSimulationParameters):
             self._root.setProperty("initialTabIndex", 1)
+        elif isinstance(p, OpSimulationParameters):
+            self._root.setProperty("initialTabIndex", 2)
         else:
             self._root.setProperty("initialTabIndex", 0)
 

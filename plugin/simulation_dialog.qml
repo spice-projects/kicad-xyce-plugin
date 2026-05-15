@@ -42,6 +42,7 @@ Item {
 
     signal submitTransient(string initialStep, string finalTime, string startTime, string stepCeiling, string opKeyword, bool scheduleEnabled, string schedulePairsText)
     signal submitDC(string sweepMode, string primaryVariable, string startValue, string stopValue, string stepValue, string pointsValue, string listValuesText, string dataTableName, bool secondaryEnabled, string secondaryVariable, string secondaryStart, string secondaryStop, string secondaryStep, string secondaryPoints)
+    signal submitOP()
     signal cancelRequested()
 
     function opKeywordValue() {
@@ -122,15 +123,21 @@ Item {
             Layout.fillWidth: true
 
             TabButton {
+                text: "Operating Point (.OP)"
+                // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
+                width: (root.width - 40) / 3
+            }
+
+            TabButton {
                 text: "Transient (.TRAN)"
                 // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
-                width: (root.width - 40) / 2
+                width: (root.width - 40) / 3
             }
 
             TabButton {
                 text: "DC Sweep (.DC)"
                 // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
-                width: (root.width - 40) / 2
+                width: (root.width - 40) / 3
             }
         }
 
@@ -147,7 +154,36 @@ Item {
                 anchors.margins: 16
                 currentIndex: simTabBar.currentIndex
 
-                // --- Tab 0: Transient ---
+                // --- Tab 0: Operating Point ---
+                ScrollView {
+                    clip: true
+                    contentWidth: availableWidth
+
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 12
+
+                        Label {
+                            text: "Operating Point (.OP)"
+                            font.pixelSize: 16
+                            font.bold: true
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: "Compute the DC operating point of the circuit. No additional parameters are required for this analysis."
+                            color: "#4a5560"
+                            wrapMode: Text.Wrap
+                            Layout.fillWidth: true
+                        }
+
+                        Item {
+                            Layout.fillHeight: true
+                        }
+                    }
+                }
+
+                // --- Tab 1: Transient ---
                 ScrollView {
                     clip: true
                     contentWidth: availableWidth
@@ -509,6 +545,8 @@ Item {
                 icon.height: 24
                 onClicked: {
                     if (simTabBar.currentIndex === 0) {
+                        root.submitOP()
+                    } else if (simTabBar.currentIndex === 1) {
                         root.submitTransient(root.initialStep, root.finalTime, root.startTime, root.stepCeiling, root.opKeywordValue(), root.scheduleEnabled, root.schedulePairsText)
                     } else {
                         root.submitDC(root.sweepModeValue(), root.primaryVariable, root.startValue, root.stopValue, root.stepValue, root.pointsValue, root.listValuesText, root.dataTableName, root.secondaryEnabled, root.secondaryVariable, root.secondaryStart, root.secondaryStop, root.secondaryStep, root.secondaryPoints)
