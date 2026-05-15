@@ -13,6 +13,7 @@ from kicad_icons import get_kicad_icon, KiCadIcon, load_kicad_icons
 from plugin_config import PluginConfig
 from simulation_dialog import SimulationDialog
 from window import load_app_icon, log_screen_info
+from run_xyce_simulation import run_xyce_simulation, XyceSimulationRunner
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class MainWindow(QMainWindow):
 
         # initialize data structures
         self._charts = []  # : list[Chart] = []
+        self._runner: XyceSimulationRunner | None = None
         # store currently selected simulation parameters from the dialog
         self._simulation_parameters = None
 
@@ -235,6 +237,60 @@ class MainWindow(QMainWindow):
         # # render chart
         # chart.render("", self._abscissa_scale.value, set(expressions))
 
+    def _setup_netlist(self) -> str:
+        # returns a placeholder netlist for simulation execution
+        return "* Xyce Simulation\nV1 1 0 5V\nR1 1 0 1k\n.END"
+
+    @Slot(str)
+    def _on_simulation_started(self, netlist_path: str, output_path: str) -> None:
+        # update status bar to indicate simulation started
+        self.statusBar().showMessage("Simulation started...")
+
+    @Slot(str)
+    def _on_stdout_received(self, text: str) -> None:
+        # append simulation output to logs or status bar
+        logger.info("Xyce: %s", text)
+
+    @Slot(str)
+    def _on_stderr_received(self, text: str) -> None:
+        # report simulation errors
+        logger.error("Xyce error: %s", text)
+        self.statusBar().showMessage(f"Simulation error: {text}", 5000)
+
+    @Slot(int, int, bool, str)
+    def _on_simulation_finished(self, exit_code: int, exit_status: int, was_canceled: bool, output_path: str) -> None:
+        # clean up and notify user
+        if was_canceled:
+            self.statusBar().showMessage("Simulation canceled")
+        elif exit_code == 0:
+            self.statusBar().showMessage("Simulation finished successfully")
+        else:
+            self.statusBar().showMessage(f"Simulation failed (exit code: {exit_code})", 5000)
+        # release the runner reference now that simulation is complete
+        self._runner = None
+
+    def _on_menu_run_simulation(self):
+        # prompt user for parameters if none are configured
+        if self._simulation_parameters is None:
+            self._on_menu_configure_simulation()
+        # return early if user cancelled parameter configuration
+        if self._simulation_parameters is None:
+            return
+        # construct the full netlist with the user-selected directive
+        netlist = f"{self._setup_netlist()}\n{self._simulation_parameters.to_xyce_directive()}"
+        # launch simulation and store the runner reference
+        try:
+            self._runner = run_xyce_simulation(self._plugin_config, netlist)
+            # wire signal handlers for UI progress updates
+            self._runner.started.connect(self._on_simulation_started)
+            self._runner.stdout_received.connect(self._on_stdout_received)
+            self._runner.stderr_received.connect(self._on_stderr_received)
+            self._runner.finished.connect(self._on_simulation_finished)
+        except ValueError as e:
+            # report configuration errors
+            self.statusBar().showMessage(str(e), 5000)
+            logger.error("Simulation startup failed: %s", e)
+
     def _on_menu_configure_simulation(self):
         # open the simulation dialog and wait for user input
         dialog = SimulationDialog(self, initial_parameters=self._simulation_parameters)
@@ -249,9 +305,6 @@ class MainWindow(QMainWindow):
         logger.info("Configured Xyce simulation directive: %s", simulation_parameters.to_xyce_directive())
         # show immediate confirmation in the status bar for the user
         self.statusBar().showMessage("Simulation parameters updated", 3000)
-
-    def _on_menu_run_simulation(self):
-        ...
 
     def _on_menu_configuration(self):
         # open plugin configuration dialog with current values
