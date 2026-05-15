@@ -152,6 +152,10 @@ class SimulationDialog(QDialog):
         self._initial_parameters = initial_parameters
         # keep the result empty until the user confirms valid values
         self._result: TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters | None = None
+        # run ui setup logic
+        self._setup_ui()
+
+    def _setup_ui(self) -> None:
         # set dialog metadata for the native window frame
         self.setWindowTitle("Xyce Simulation")
         # create the qml surface that renders the form
@@ -302,6 +306,13 @@ class SimulationDialog(QDialog):
         self._root.setProperty("transientErrorText", "")
         # capture the validated dialog output for the caller
         self._result = TransientSimulationParameters(normalized_initial_step, normalized_final_time, normalized_start_time, normalized_step_ceiling, normalized_op_keyword, schedule_points)
+        # close the dialog and return acceptance to the caller
+        self.accept()
+
+    @Slot()
+    def _on_submit_op(self) -> None:
+        # capture the result for OP simulation which has no parameters
+        self._result = OpSimulationParameters()
         # close the dialog and return acceptance to the caller
         self.accept()
 
