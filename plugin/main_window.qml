@@ -608,7 +608,7 @@ Item {
             Column {
                 id: chartsColumn
                 anchors.fill: parent
-                spacing: 0 // Remove gap between charts
+                spacing: 0
 
                 Repeater {
                     id: chartsRepeater
@@ -644,6 +644,8 @@ Item {
 
         SimulationLogPanel {
             visible: root.logVisible
+            Layout.topMargin: 0
+            Layout.bottomMargin: 0
         }
     }
 
