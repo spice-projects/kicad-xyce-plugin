@@ -1,11 +1,9 @@
 import logging
-import time
 from pathlib import Path
 
-import numpy as np
 from kipy import KiCad
 from PySide6.QtCore import QSize, QTimer, QUrl, Slot
-from PySide6.QtGui import QAction, QColor, QGuiApplication, QIcon, QKeySequence
+from PySide6.QtGui import QAction, QColor, QKeySequence
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QWidget
 
@@ -14,7 +12,7 @@ from expression import Expression
 from kicad_icons import get_kicad_icon, KiCadIcon, load_kicad_icons
 from plugin_config import PluginConfig
 from simulation_dialog import SimulationDialog
-from window import load_app_icon, log_screen_info, register_child_window, unregister_child_window
+from window import load_app_icon, log_screen_info
 
 logger = logging.getLogger(__name__)
 
@@ -222,11 +220,11 @@ class MainWindow(QMainWindow):
 
     def _add_chart(self, chart_type: str, expressions: list[Expression]):
         # chart index
-        chart_index = len(self._charts)
+        # chart_index = len(self._charts)
         # create chart ui component in QML
         self._root.addChart()
         # get a reference to the chart's QML object so we can manipulate it
-        chart_root = self._root.getChart(chart_index)
+        # chart_root = self._root.getChart(chart_index)
         # # create chart instance
         # chart = Chart(chart_root, chart_type, self._expression_manager, self._abscissa, self._step_information, self._decimate_target)
         # # apply initial step selection when provided (e.g. FFT window inheriting source chart visibility)

@@ -26,7 +26,6 @@ jobs:
 
       - name: Dependencies
         run: |
-          pip install --no-deps .
           pip install dataclasses-json>=0.6.7
           pip install kicad-python>=0.7.1
           pip install numpy>=2.4.4
