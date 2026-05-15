@@ -140,13 +140,13 @@ class XyceSimulationRunner(QObject):
         self.stderr_received.emit(error_message)
         # cleanup temp netlist when process fails before finished callback
         if process_error == QProcess.ProcessError.FailedToStart:
-            self._finalize(0, int(QProcess.ExitStatus.NormalExit))
+            self._finalize(0, QProcess.ExitStatus.NormalExit)
 
     def _on_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
         # forward completion state and perform one-time cleanup
-        self._finalize(exit_code, int(exit_status))
+        self._finalize(exit_code, exit_status)
 
-    def _finalize(self, exit_code: int, exit_status: int) -> None:
+    def _finalize(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
         # prevent duplicate finalization from overlapping Qt callbacks
         if self._finished_emitted:
             return
@@ -159,7 +159,7 @@ class XyceSimulationRunner(QObject):
         # remove temporary netlist file now that Xyce no longer needs it
         self._cleanup_netlist_file()
         # emit terminal process state including cancellation and output path
-        self.finished.emit(exit_code, exit_status, self._was_canceled, self._output_file_path)
+        self.finished.emit(exit_code, int(exit_status), self._was_canceled, self._output_file_path)
 
     def _cleanup_netlist_file(self) -> None:
         # skip filesystem operations when netlist path is unavailable
