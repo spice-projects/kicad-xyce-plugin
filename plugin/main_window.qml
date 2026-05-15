@@ -644,8 +644,9 @@ Item {
 
         SimulationLogPanel {
             visible: root.logVisible
-            Layout.topMargin: 0
+            Layout.topMargin: -1 // Force it up to hide the boundary
             Layout.bottomMargin: 0
+            Layout.preferredHeight: root.logVisible ? 200 : 0
         }
     }
 
