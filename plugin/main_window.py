@@ -2,28 +2,17 @@ import logging
 from pathlib import Path
 
 from kipy import KiCad
-from PySide6.QtCore import QSize, QTimer, QUrl, Slot
-from PySide6.QtGui import QAction, QColor, QKeySequence
-from PySide6.QtQuick import QQuickView
-from PySide6.QtWidgets import QFileDialog, QMainWindow, QWidget
-
-from config_dialog import ConfigDialog
-from expression import Expression
-from kicad_icons import get_kicad_icon, KiCadIcon, load_kicad_icons
-from plugin_config import PluginConfig
-from simulation_dialog import SimulationDialog
-from window import load_app_icon, log_screen_info
-from run_xyce_simulation import run_xyce_simulation, XyceSimulationRunner
-
-logger = logging.getLogger(__name__)
-
-_QML_FILE = Path(__file__).parent / "main_window.qml"
+from PySide6.QtCore import QSize, QTimer, QUrl, Slot, Signal
 
 # background color matching the KiCad schematic window
 _BG = "#efefe8"
 
 
 class MainWindow(QMainWindow):
+
+    # signals for log panel updates
+    logAppendRequested = Signal(str)
+    logClearRequested = Signal()
 
     def __init__(self, kicad_client: KiCad, plugin_config: PluginConfig):
         super().__init__()
@@ -93,7 +82,13 @@ class MainWindow(QMainWindow):
         # connect pointer hover signals to update the status bar
         # self._root.pointerMoved.connect(self._on_pointer_moved)
         # self._root.pointerExited.connect(self._on_pointer_exited)
+
+        # wire custom log signals to qml panel
+        self.logAppendRequested.connect(self._root.logAppendRequested)
+        self.logClearRequested.connect(self._root.logClearRequested)
+
         # populate charts after the event loop starts so the window is visible first
+
         QTimer.singleShot(0, self._populate_charts)
         # log screen information for debugging purposes
         if logger.isEnabledFor(logging.DEBUG):
@@ -242,20 +237,27 @@ class MainWindow(QMainWindow):
         return "* Xyce Simulation\nV1 1 0 5V\nR1 1 0 1k\n.END"
 
     @Slot(str)
+    @Slot(str)
     def _on_simulation_started(self, netlist_path: str, output_path: str) -> None:
         # update status bar to indicate simulation started
         self.statusBar().showMessage("Simulation started...")
+        # open the log panel and clear any previous session output
+        self._root.setProperty("logVisible", True)
+        self.logClearRequested.emit()
 
     @Slot(str)
     def _on_stdout_received(self, text: str) -> None:
         # append simulation output to logs or status bar
         logger.info("Xyce: %s", text)
+        self.logAppendRequested.emit(text)
 
     @Slot(str)
     def _on_stderr_received(self, text: str) -> None:
         # log simulation errors
         logger.error("Xyce stderr: %s", text)
+        self.logAppendRequested.emit(f"ERROR: {text}")
         self.statusBar().showMessage(f"Simulation error: {text}", 5000)
+
 
     @Slot(int, int, bool, str)
     def _on_simulation_finished(self, exit_code: int, exit_status: int, was_canceled: bool, output_path: str) -> None:

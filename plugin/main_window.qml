@@ -1,6 +1,8 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
 import QtGraphs
 
 Item {
@@ -12,6 +14,9 @@ Item {
     property bool fftVisible: false
     property bool stepToolVisible: false
     property bool smithChartVisible: false
+
+    // simulation log panel
+    property bool logVisible: false
 
     signal zoomRegionSelected(int chartIndex, real x0Ratio, real y0Ratio, real x1Ratio, real y1Ratio)
     signal menuZoomToFit(int chartIndex)
@@ -27,6 +32,77 @@ Item {
     signal menuSmithChart(int chartIndex)
     signal pointerMoved(int chartIndex, real xRatio)
     signal pointerExited(int chartIndex)
+
+    // exposed log signals
+    signal logAppendRequested(string text)
+    signal logClearRequested()
+
+    component SimulationLogPanel: Rectangle {
+        id: logPanel
+        Layout.fillWidth: true
+        Layout.preferredHeight: 200
+        color: "#12131a"
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 0
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 28
+                color: "#1e2028"
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 8
+                    anchors.rightMargin: 8
+                    Label {
+                        text: "Simulation Log"
+                        color: "#b0b8c8"
+                        font.pixelSize: 12
+                        font.bold: true
+                    }
+                    Item { Layout.fillWidth: true }
+                    ToolButton {
+                        text: "×"
+                        onClicked: root.logVisible = false
+                        contentItem: Text {
+                            text: "×"
+                            color: "#b0b8c8"
+                            font.pixelSize: 16
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                }
+            }
+
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+
+                TextArea {
+                    id: logTextArea
+                    readOnly: true
+                    color: "#b0b8c8"
+                    font.family: "Monospace"
+                    font.pixelSize: 12
+                    textFormat: TextEdit.PlainText
+
+                    Connections {
+                        target: root
+                        function onLogAppendRequested(text) {
+                            logTextArea.append(text);
+                        }
+                        function onLogClearRequested() {
+                            logTextArea.clear();
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     component ChartPanel: Item {
         id: panel
@@ -509,48 +585,61 @@ Item {
         id: chartsModel
     }
 
-    Column {
-        id: chartsColumn
+    ColumnLayout {
         anchors.fill: parent
-        spacing: 2
+        spacing: 0
 
-        Repeater {
-            id: chartsRepeater
-            model: chartsModel
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Column {
+                id: chartsColumn
+                anchors.fill: parent
+                spacing: 2
 
-            delegate: ChartPanel {
-                // index is a required property under pragma ComponentBehavior: Bound
-                required property int index
+                Repeater {
+                    id: chartsRepeater
+                    model: chartsModel
 
-                chartIndex: index
-                width: chartsColumn.width
-                // distribute height equally, accounting for inter-panel spacing
-                height: (chartsColumn.height - chartsColumn.spacing * Math.max(0, chartsModel.count - 1)) / Math.max(1, chartsModel.count)
+                    delegate: ChartPanel {
+                        // index is a required property under pragma ComponentBehavior: Bound
+                        required property int index
 
-                onZoomRegionSelected: (x0, y0, x1, y1) => root.zoomRegionSelected(index, x0, y0, x1, y1)
-                // bubble menu action signals up to root, adding chartIndex
-                onMenuZoomToFit: root.menuZoomToFit(index)
-                onMenuAutorange: root.menuAutorange(index)
-                onMenuZoomAbscissaExtent: root.menuZoomAbscissaExtent(index)
-                onMenuAddRemovePlots: root.menuAddRemovePlots(index)
-                onMenuDeleteAllPlots: root.menuDeleteAllPlots(index)
-                onMenuDeleteChart: root.menuDeleteChart(index)
-                // bubble pointer hover signals up to root, adding chartIndex
-                onPointerMoved: xRatio => root.pointerMoved(index, xRatio)
-                onPointerExited: root.pointerExited(index)
-                // position and reveal the single shared context menu on right-click
-                onMenuOpenRequested: (localX, localY, sc) => {
-                    // map from panel-local coordinates to root-local coordinates
-                    var pt = mapToItem(root, localX, localY);
-                    root._activeChartIndex = index;
-                    root._activeChartSeriesCount = sc;
-                    // clamp so the menu never overflows the root boundary
-                    contextMenu.x = Math.min(pt.x, root.width - contextMenu.width - 2);
-                    contextMenu.y = Math.min(pt.y, root.height - contextMenu.height - 2);
-                    // show menu
-                    contextMenu.visible = true;
+                        chartIndex: index
+                        width: chartsColumn.width
+                        // distribute height equally, accounting for inter-panel spacing
+                        height: (chartsColumn.height - chartsColumn.spacing * Math.max(0, chartsModel.count - 1)) / Math.max(1, chartsModel.count)
+
+                        onZoomRegionSelected: (x0, y0, x1, y1) => root.zoomRegionSelected(index, x0, y0, x1, y1)
+                        // bubble menu action signals up to root, adding chartIndex
+                        onMenuZoomToFit: root.menuZoomToFit(index)
+                        onMenuAutorange: root.menuAutorange(index)
+                        onMenuZoomAbscissaExtent: root.menuZoomAbscissaExtent(index)
+                        onMenuAddRemovePlots: root.menuAddRemovePlots(index)
+                        onMenuDeleteAllPlots: root.menuDeleteAllPlots(index)
+                        onMenuDeleteChart: root.menuDeleteChart(index)
+                        // bubble pointer hover signals up to root, adding chartIndex
+                        onPointerMoved: xRatio => root.pointerMoved(index, xRatio)
+                        onPointerExited: root.pointerExited(index)
+                        // position and reveal the single shared context menu on right-click
+                        onMenuOpenRequested: (localX, localY, sc) => {
+                            // map from panel-local coordinates to root-local coordinates
+                            var pt = mapToItem(root, localX, localY);
+                            root._activeChartIndex = index;
+                            root._activeChartSeriesCount = sc;
+                            // clamp so the menu never overflows the root boundary
+                            contextMenu.x = Math.min(pt.x, root.width - contextMenu.width - 2);
+                            contextMenu.y = Math.min(pt.y, root.height - contextMenu.height - 2);
+                            // show menu
+                            contextMenu.visible = true;
+                        }
+                    }
                 }
             }
+        }
+
+        SimulationLogPanel {
+            visible: root.logVisible
         }
     }
 
