@@ -159,7 +159,7 @@ class XyceSimulationRunner(QObject):
         # remove temporary netlist file now that Xyce no longer needs it
         self._cleanup_netlist_file()
         # emit terminal process state including cancellation and output path
-        self.finished.emit(exit_code, int(exit_status), self._was_canceled, self._output_file_path)
+        self.finished.emit(exit_code, exit_status.value, self._was_canceled, self._output_file_path)
 
     def _cleanup_netlist_file(self) -> None:
         # skip filesystem operations when netlist path is unavailable
