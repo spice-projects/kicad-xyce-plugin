@@ -642,12 +642,16 @@ Item {
             }
         }
 
-        SimulationLogPanel {
-            visible: root.logVisible
-            Layout.topMargin: -1 // Force it up to hide the boundary
-            Layout.bottomMargin: 0
+        Loader {
+            Layout.fillWidth: true
             Layout.preferredHeight: root.logVisible ? 200 : 0
+            sourceComponent: root.logVisible ? logComponent : undefined
         }
+    }
+
+    Component {
+        id: logComponent
+        SimulationLogPanel {}
     }
 
     MouseArea {
