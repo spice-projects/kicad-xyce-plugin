@@ -9,23 +9,5 @@
   "python.testing.pytestEnabled": false,
   "python.testing.unittestEnabled": true,
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
-  "python.terminal.activateEnvironment": true,
-  "chat.tools.terminal.autoApprove": {
-    "gh": true,
-    "git add": true,
-    "git commit": true,
-    "git push": true,
-    "git switch": true,
-    "/Users/rogelio/Projects/qspice-qraw-viewer/.venv/bin/python": true,
-    "exit": true,
-    ".venv/bin/python": true,
-    "/^source \\.env/bin/activate && python -c \"import virtualenv\\.discovery\\.builtin as builtin; has_attr = hasattr\\(builtin, 'propose_interpreters'\\); print\\(f'propose_interpreters exists: \\{has_attr\\}'\\); print\\('Nearby attributes:', \\[attr for attr in dir\\(builtin\\) if not attr\\.startswith\\('__'\\)\\]\\)\"$/": {
-      "approve": true,
-      "matchCommandLine": true
-    },
-    "/^source \\.venv/bin/activate && python3 -c '\nimport sys, pypdf\nreader = pypdf\\.PdfReader\\(\"docs/Xyce_RG\\.pdf\"\\)\nfor i, page in enumerate\\(reader\\.pages\\):\n    text = page\\.extract_text\\(\\)\n    if text and \"\\.TRAN \" in text and \\(\"General Form\" in text or \"Syntax\" in text\\):\n        # Avoid \\.EMBEDDEDSAMPLING, look for just \\.TRAN\n        if \"\\.TRAN <print step>\" in text or \"\\.TRAN <initial step>\" in text:\n            print\\(f\"--- Document Excerpt \\(Page \\{i\\+1\\}\\) ---\"\\)\n            print\\(text\\)\n'$/": {
-      "approve": true,
-      "matchCommandLine": true
-    }
-  }
+  "python.terminal.activateEnvironment": true
 }
