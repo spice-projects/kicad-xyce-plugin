@@ -278,8 +278,8 @@ class MainWindow(QMainWindow):
             return
         # construct the full netlist with the user-selected directive
         directive = self._simulation_parameters.to_xyce_directive()
-        # combine netlist and directive
-        netlist = f"{self._setup_netlist()}\n{directive}"
+        # insert directive before .END
+        netlist = self._setup_netlist().replace(".END", f"{directive}\n.END")
         # log simulation netlist
         logger.info("Running simulation with netlist:\n%s", netlist)
         # launch simulation and store the runner reference
