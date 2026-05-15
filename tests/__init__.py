@@ -5,8 +5,11 @@ from unittest.mock import MagicMock
 mock_qt = MagicMock()
 
 # Slot decorator should return the original function so it can be called in tests
+
+
 def mock_slot(*args, **kwargs):
     return lambda func: func
+
 
 mock_qt.QtCore.Slot = mock_slot
 
