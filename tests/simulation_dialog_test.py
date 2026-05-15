@@ -2,6 +2,7 @@ from unittest import TestCase
 from unittest.mock import MagicMock, patch
 from plugin.simulation_dialog import SimulationDialog, OpSimulationParameters, TransientSimulationParameters
 
+
 class TestSimulationDialog(TestCase):
 
     def test_on_submit_op_sets_result(self):
