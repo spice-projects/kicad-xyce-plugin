@@ -253,8 +253,8 @@ class MainWindow(QMainWindow):
 
     @Slot(str)
     def _on_stderr_received(self, text: str) -> None:
-        # report simulation errors
-        logger.error("Xyce error: %s", text)
+        # log simulation errors
+        logger.error("Xyce stderr: %s", text)
         self.statusBar().showMessage(f"Simulation error: {text}", 5000)
 
     @Slot(int, int, bool, str)
