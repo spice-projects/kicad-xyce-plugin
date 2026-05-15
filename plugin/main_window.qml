@@ -72,20 +72,18 @@ Item {
                     }
                     Item { Layout.fillWidth: true }
                     ToolButton {
-                        text: "×"
                         onClicked: root.logVisible = false
                         background: Rectangle {
                             color: hovered ? "#d0d0c8" : "transparent"
                             radius: 3
                         }
-                        contentItem: Text {
-                            text: "×"
-                            color: "#4a5060"
-                            font.pixelSize: 16
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
+                        contentItem: Image {
+                            source: "kicad-icons/cancel_24.png"
+                            sourceSize: Qt.size(16, 16)
+                            fillMode: Image.PreserveAspectFit
                         }
                     }
+
                 }
             }
 
