@@ -57,35 +57,37 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 28
-                color: "#e0e0d8" // Slightly darker header
+                height: 24
+                color: "#dcdcd4" // Slightly darker header
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: 8
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 4
                     Label {
                         text: "Simulation Output"
-                        color: "#4a5060" // Professional dark gray
-                        font.pixelSize: 12
+                        color: "#4a5060"
+                        font.pixelSize: 11
                         font.bold: true
                     }
                     Item { Layout.fillWidth: true }
                     ToolButton {
                         onClicked: root.logVisible = false
+                        padding: 0
                         background: Rectangle {
                             color: hovered ? "#d0d0c8" : "transparent"
                             radius: 3
                         }
                         contentItem: Image {
                             source: "kicad-icons/cancel_24.png"
-                            sourceSize: Qt.size(16, 16)
+                            sourceSize: Qt.size(14, 14)
                             fillMode: Image.PreserveAspectFit
+                            opacity: 0.7
                         }
                     }
-
                 }
             }
+
 
             ScrollView {
                 Layout.fillWidth: true
@@ -606,42 +608,33 @@ Item {
             Column {
                 id: chartsColumn
                 anchors.fill: parent
-                spacing: 2
+                spacing: 0 // Remove gap between charts
 
                 Repeater {
                     id: chartsRepeater
                     model: chartsModel
-
                     delegate: ChartPanel {
-                        // index is a required property under pragma ComponentBehavior: Bound
                         required property int index
-
                         chartIndex: index
                         width: chartsColumn.width
-                        // distribute height equally, accounting for inter-panel spacing
-                        height: (chartsColumn.height - chartsColumn.spacing * Math.max(0, chartsModel.count - 1)) / Math.max(1, chartsModel.count)
-
+                        // use full height minus spacing
+                        height: (chartsColumn.height - (chartsColumn.spacing * Math.max(0, chartsModel.count - 1))) / Math.max(1, chartsModel.count)
+                        // ... event handlers
                         onZoomRegionSelected: (x0, y0, x1, y1) => root.zoomRegionSelected(index, x0, y0, x1, y1)
-                        // bubble menu action signals up to root, adding chartIndex
                         onMenuZoomToFit: root.menuZoomToFit(index)
                         onMenuAutorange: root.menuAutorange(index)
                         onMenuZoomAbscissaExtent: root.menuZoomAbscissaExtent(index)
                         onMenuAddRemovePlots: root.menuAddRemovePlots(index)
                         onMenuDeleteAllPlots: root.menuDeleteAllPlots(index)
                         onMenuDeleteChart: root.menuDeleteChart(index)
-                        // bubble pointer hover signals up to root, adding chartIndex
                         onPointerMoved: xRatio => root.pointerMoved(index, xRatio)
                         onPointerExited: root.pointerExited(index)
-                        // position and reveal the single shared context menu on right-click
                         onMenuOpenRequested: (localX, localY, sc) => {
-                            // map from panel-local coordinates to root-local coordinates
                             var pt = mapToItem(root, localX, localY);
                             root._activeChartIndex = index;
                             root._activeChartSeriesCount = sc;
-                            // clamp so the menu never overflows the root boundary
                             contextMenu.x = Math.min(pt.x, root.width - contextMenu.width - 2);
                             contextMenu.y = Math.min(pt.y, root.height - contextMenu.height - 2);
-                            // show menu
                             contextMenu.visible = true;
                         }
                     }
