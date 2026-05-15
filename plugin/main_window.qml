@@ -41,39 +41,47 @@ Item {
         id: logPanel
         Layout.fillWidth: true
         Layout.preferredHeight: 200
-        color: "#0d0e10" // Darker, professional background
+        color: "#efefe8" // Match main window background
+
+        // visual separator from charts
+        Rectangle {
+            anchors { top: parent.top; left: parent.left; right: parent.right }
+            height: 1
+            color: "#d0d0c8"
+        }
 
         ColumnLayout {
             anchors.fill: parent
+            anchors.topMargin: 1
             spacing: 0
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 32
-                color: "#1a1b1e"
+                height: 28
+                color: "#e0e0d8" // Slightly darker header
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 12
+                    anchors.leftMargin: 8
                     anchors.rightMargin: 8
                     Label {
                         text: "Simulation Output"
-                        color: "#e0e6ed" // Brighter text for readability
+                        color: "#4a5060" // Professional dark gray
                         font.pixelSize: 12
                         font.bold: true
                     }
                     Item { Layout.fillWidth: true }
                     ToolButton {
-                        text: "Close"
+                        text: "×"
                         onClicked: root.logVisible = false
                         background: Rectangle {
-                            color: hovered ? "#3a3d4a" : "transparent"
-                            radius: 4
+                            color: hovered ? "#d0d0c8" : "transparent"
+                            radius: 3
                         }
                         contentItem: Text {
                             text: "×"
-                            color: "#e0e6ed"
-                            font.pixelSize: 18
+                            color: "#4a5060"
+                            font.pixelSize: 16
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -89,7 +97,7 @@ Item {
                 TextArea {
                     id: logTextArea
                     readOnly: true
-                    color: "#ffffff" // Pure white for readability
+                    color: "#2a2d35" // Dark text for light background
                     font.family: "Monospace"
                     font.pixelSize: 12
                     textFormat: TextEdit.PlainText
