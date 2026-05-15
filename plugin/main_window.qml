@@ -41,7 +41,7 @@ Item {
         id: logPanel
         Layout.fillWidth: true
         Layout.preferredHeight: 200
-        color: "#12131a"
+        color: "#0d0e10" // Darker, professional background
 
         ColumnLayout {
             anchors.fill: parent
@@ -49,27 +49,31 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 28
-                color: "#1e2028"
+                height: 32
+                color: "#1a1b1e"
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 8
+                    anchors.leftMargin: 12
                     anchors.rightMargin: 8
                     Label {
-                        text: "Simulation Log"
-                        color: "#b0b8c8"
+                        text: "Simulation Output"
+                        color: "#e0e6ed" // Brighter text for readability
                         font.pixelSize: 12
                         font.bold: true
                     }
                     Item { Layout.fillWidth: true }
                     ToolButton {
-                        text: "×"
+                        text: "Close"
                         onClicked: root.logVisible = false
+                        background: Rectangle {
+                            color: hovered ? "#3a3d4a" : "transparent"
+                            radius: 4
+                        }
                         contentItem: Text {
                             text: "×"
-                            color: "#b0b8c8"
-                            font.pixelSize: 16
+                            color: "#e0e6ed"
+                            font.pixelSize: 18
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -85,10 +89,11 @@ Item {
                 TextArea {
                     id: logTextArea
                     readOnly: true
-                    color: "#b0b8c8"
+                    color: "#ffffff" // Pure white for readability
                     font.family: "Monospace"
                     font.pixelSize: 12
                     textFormat: TextEdit.PlainText
+                    padding: 8
 
                     Connections {
                         target: root
