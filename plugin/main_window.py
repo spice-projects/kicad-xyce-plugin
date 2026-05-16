@@ -276,19 +276,23 @@ class MainWindow(QMainWindow):
         self._show_status("Simulation started...")
         # open the log panel and clear any previous session output
         self._root.setProperty("logVisible", True)
+        # clear previous logs to prepare for new simulation output
         self.logClearRequested.emit()
 
     @Slot(str)
     def _on_stdout_received(self, text: str) -> None:
         # append simulation output to logs or status bar
         logger.info("Xyce: %s", text)
+        # append line in log panel with info styling
         self.logAppendRequested.emit(text)
 
     @Slot(str)
     def _on_stderr_received(self, text: str) -> None:
         # log simulation errors
         logger.error("Xyce stderr: %s", text)
+        # show log in simulation log panel with error styling
         self.logAppendRequested.emit(f"ERROR: {text}")
+        # update status bar
         self._show_status(f"Simulation error: {text}", 5000)
 
     @Slot(int, int, bool, str)
@@ -318,15 +322,20 @@ class MainWindow(QMainWindow):
         logger.info("Running simulation with netlist:\n%s", netlist)
         # launch simulation and store the runner reference
         try:
+            # create simulation runner
             self._runner = run_xyce_simulation(self._plugin_config, netlist)
             # wire signal handlers for UI progress updates
             self._runner.started.connect(self._on_simulation_started)
             self._runner.stdout_received.connect(self._on_stdout_received)
             self._runner.stderr_received.connect(self._on_stderr_received)
             self._runner.finished.connect(self._on_simulation_finished)
+            # start simulation process
+            self._runner.start()
         except ValueError as e:
+            # show error details
             self._show_status(str(e), 5000)
-            logger.error("Simulation startup failed: %s", e)
+            # log information for diagnostics
+            logger.error("Simulation startup failed", exc_info=True)
 
     def _on_menu_configure_simulation(self):
         # open the simulation dialog and wait for user input
@@ -341,7 +350,7 @@ class MainWindow(QMainWindow):
         # log a netlist-ready directive so simulation wiring can reuse it later
         logger.info("Configured Xyce simulation directive: %s", simulation_parameters.to_xyce_directive())
         # show immediate confirmation in the status bar for the user
-        # self.statusBar().showMessage("Simulation parameters updated", 3000)
+        self.statusBar().showMessage("Simulation parameters updated", 3000)
 
     def _on_menu_configuration(self):
         # open plugin configuration dialog with current values

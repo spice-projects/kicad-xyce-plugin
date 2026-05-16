@@ -191,7 +191,5 @@ def run_xyce_simulation(plugin_config: PluginConfig, netlist: str) -> XyceSimula
     os.close(output_fd)
     # create the asynchronous runner that owns process and stream wiring
     runner = XyceSimulationRunner(plugin_config.xyce_executable_path, netlist_file_path, output_file_path)
-    # launch Xyce immediately so caller can subscribe to runtime signals
-    runner.start()
     # return runner to caller for signal subscription and cancellation
     return runner
