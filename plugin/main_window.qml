@@ -104,7 +104,7 @@ Item {
                     id: logTextArea
                     readOnly: true
                     color: "#2a2d35" // Dark text for light background
-                    font.family: "Menlo, Courier New, Courier"
+                    font.family: "Menlo"
                     font.pixelSize: 12
                     textFormat: TextEdit.PlainText
                     padding: 8

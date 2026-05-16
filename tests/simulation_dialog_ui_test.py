@@ -67,8 +67,8 @@ class TestSimulationDialogConstruction(TestCase):
         dialog = _make_dialog(initial_parameters=None)
         # act
         dialog._apply_initial_parameters()
-        # assert — setProperty was called for tab index (defaults to transient=0)
-        dialog._root.setProperty.assert_any_call("initialTabIndex", 0)
+        # assert — setProperty was called for tab index (defaults to transient=1)
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 1)
 
     def test_apply_initial_parameters_selects_dc_tab(self):
         # arrange
@@ -76,8 +76,8 @@ class TestSimulationDialogConstruction(TestCase):
         dialog = _make_dialog(initial_parameters=params)
         # act
         dialog._apply_initial_parameters()
-        # assert — DC tab is index 1
-        dialog._root.setProperty.assert_any_call("initialTabIndex", 1)
+        # assert — DC tab is index 2 (QML order: 0=OP, 1=Transient, 2=DC)
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 2)
 
     def test_apply_initial_parameters_selects_op_tab(self):
         # arrange
@@ -85,8 +85,17 @@ class TestSimulationDialogConstruction(TestCase):
         dialog = _make_dialog(initial_parameters=params)
         # act
         dialog._apply_initial_parameters()
-        # assert — OP tab is index 2
-        dialog._root.setProperty.assert_any_call("initialTabIndex", 2)
+        # assert — OP tab is index 0 (QML order: 0=OP, 1=Transient, 2=DC)
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 0)
+
+    def test_apply_initial_parameters_selects_transient_tab(self):
+        # arrange
+        params = TransientSimulationParameters("1u", "1m", "", "", "", tuple())
+        dialog = _make_dialog(initial_parameters=params)
+        # act
+        dialog._apply_initial_parameters()
+        # assert — Transient tab is index 1 (QML order: 0=OP, 1=Transient, 2=DC)
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 1)
 
 
 class TestSimulationDialogApplyTransientParameters(TestCase):
