@@ -4,7 +4,7 @@ from unittest import TestCase
 from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtGui import QIcon
 
-from window import load_app_icon, log_screen_info, register_child_window, unregister_child_window
+from window import load_app_icon, register_child_window, unregister_child_window
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

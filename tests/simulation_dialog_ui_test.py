@@ -3,7 +3,7 @@ from unittest.mock import patch
 from unittest.mock import MagicMock
 from unittest import TestCase
 
-from PySide6.QtWidgets import QDialog, QWidget
+from PySide6.QtWidgets import QDialog
 from PySide6.QtQuick import QQuickView
 
 from simulation_dialog import TransientSchedulePoint

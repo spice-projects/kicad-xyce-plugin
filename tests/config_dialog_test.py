@@ -16,6 +16,7 @@ from plugin_config import PluginConfig
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
+
 def _make_dialog(initial_config: PluginConfig | None = None) -> ConfigDialog:
 
     """Create a ConfigDialog bypassing QML setup, with a mock QML root."""

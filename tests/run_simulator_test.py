@@ -1,6 +1,5 @@
 import sys
 from unittest import TestCase
-from unittest.mock import patch
 
 from PySide6.QtWidgets import QApplication
 
