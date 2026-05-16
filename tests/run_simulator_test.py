@@ -17,7 +17,7 @@ import plugin.main_window
 import plugin.plugin_config
 import plugin.run_xyce_simulation
 import plugin.simulation_dialog
-import plugin.window
+import plugin.window  # noqa: F401
 for _name in ["config_dialog", "expression", "kicad_icons", "main_window", "plugin_config", "run_xyce_simulation", "simulation_dialog", "window"]:
     sys.modules.setdefault(_name, sys.modules[f"plugin.{_name}"])
 

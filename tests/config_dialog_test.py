@@ -7,7 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 # config_dialog.py uses bare intra-package imports; expose the plugin dir
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "plugin"))
 # alias bare module names to the package versions before importing plugin modules
-import plugin.plugin_config
+import plugin.plugin_config  # noqa: F401
 sys.modules.setdefault("plugin_config", sys.modules["plugin.plugin_config"])
 
 from unittest import TestCase

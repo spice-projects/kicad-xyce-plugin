@@ -8,7 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "plugin"))
 
 from unittest import TestCase
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
 
 from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QApplication
@@ -128,7 +128,7 @@ class TestXyceSimulationRunnerEmitBufferedLines(TestCase):
         signal_mock = MagicMock()
         buffer = "windows line\r\n"
         # act
-        remaining = runner._emit_buffered_lines(buffer, signal_mock, False)
+        runner._emit_buffered_lines(buffer, signal_mock, False)
         # assert
         signal_mock.emit.assert_called_once_with("windows line")
 
@@ -138,7 +138,7 @@ class TestXyceSimulationRunnerEmitBufferedLines(TestCase):
         signal_mock = MagicMock()
         buffer = "partial crlf\r"
         # act
-        remaining = runner._emit_buffered_lines(buffer, signal_mock, True)
+        runner._emit_buffered_lines(buffer, signal_mock, True)
         # assert
         signal_mock.emit.assert_called_once_with("partial crlf")
 

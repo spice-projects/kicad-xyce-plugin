@@ -17,7 +17,7 @@ import plugin.kicad_icons
 import plugin.plugin_config
 import plugin.run_xyce_simulation
 import plugin.simulation_dialog
-import plugin.window
+import plugin.window  # noqa: F401
 for _name in ["config_dialog", "expression", "kicad_icons", "plugin_config", "run_xyce_simulation", "simulation_dialog", "window"]:
     sys.modules.setdefault(_name, sys.modules[f"plugin.{_name}"])
 
@@ -28,7 +28,6 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 from plugin.kicad_icons import load_kicad_icons
 from plugin.main_window import MainWindow
 from plugin.plugin_config import PluginConfig
-from plugin.simulation_dialog import OpSimulationParameters, TransientSimulationParameters
 
 _app = QApplication.instance() or QApplication(sys.argv)
 load_kicad_icons()
