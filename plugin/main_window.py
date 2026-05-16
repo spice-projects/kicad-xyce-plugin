@@ -63,12 +63,26 @@ class MainWindow(QMainWindow):
         self._central_widget = QWidget()
         self._layout = QVBoxLayout(self._central_widget)
         self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
         self._layout.addWidget(self._container)
+        # hide the built-in QMainWindow status bar so it never takes any space
+        self.statusBar().hide()
         self.setCentralWidget(self._central_widget)
         # create the native main menu structure
         self._create_main_menu()
         # create the native toolbar
         self._create_toolbar()
+        # timer used to auto-clear timed status messages
+        self._status_timer = QTimer(self)
+        self._status_timer.setSingleShot(True)
+        self._status_timer.timeout.connect(lambda: self._show_status(""))
+
+    def _show_status(self, message: str, timeout_ms: int = 0) -> None:
+        # display a status message as an overlay inside the QML view
+        self._status_timer.stop()
+        self._root.setProperty("statusText", message)
+        if timeout_ms > 0:
+            self._status_timer.start(timeout_ms)
 
     def sizeHint(self):
         return QSize(1200, 800)
@@ -258,8 +272,8 @@ class MainWindow(QMainWindow):
 
     @Slot(str)
     def _on_simulation_started(self, netlist_path: str, output_path: str) -> None:
-        # update status bar to indicate simulation started
-        self.statusBar().showMessage("Simulation started...")
+        # update status to indicate simulation started
+        self._show_status("Simulation started...")
         # open the log panel and clear any previous session output
         self._root.setProperty("logVisible", True)
         self.logClearRequested.emit()
@@ -275,17 +289,17 @@ class MainWindow(QMainWindow):
         # log simulation errors
         logger.error("Xyce stderr: %s", text)
         self.logAppendRequested.emit(f"ERROR: {text}")
-        self.statusBar().showMessage(f"Simulation error: {text}", 5000)
+        self._show_status(f"Simulation error: {text}", 5000)
 
     @Slot(int, int, bool, str)
     def _on_simulation_finished(self, exit_code: int, exit_status: int, was_canceled: bool, output_path: str) -> None:
         # clean up and notify user
         if was_canceled:
-            self.statusBar().showMessage("Simulation canceled")
+            self._show_status("Simulation canceled")
         elif exit_code == 0:
-            self.statusBar().showMessage("Simulation finished successfully")
+            self._show_status("Simulation finished successfully")
         else:
-            self.statusBar().showMessage(f"Simulation failed (exit code: {exit_code})", 5000)
+            self._show_status(f"Simulation failed (exit code: {exit_code})", 5000)
         # release the runner reference now that simulation is complete
         self._runner = None
 
@@ -311,8 +325,7 @@ class MainWindow(QMainWindow):
             self._runner.stderr_received.connect(self._on_stderr_received)
             self._runner.finished.connect(self._on_simulation_finished)
         except ValueError as e:
-            # report configuration errors
-            self.statusBar().showMessage(str(e), 5000)
+            self._show_status(str(e), 5000)
             logger.error("Simulation startup failed: %s", e)
 
     def _on_menu_configure_simulation(self):
@@ -343,4 +356,4 @@ class MainWindow(QMainWindow):
         # log configured executable path for diagnostics
         logger.info("Configured Xyce executable path: %s", self._plugin_config.xyce_executable_path)
         # show immediate confirmation in status bar
-        # self.statusBar().showMessage("Plugin configuration updated", 3000)
+        self.statusBar().showMessage("Plugin configuration updated", 3000)

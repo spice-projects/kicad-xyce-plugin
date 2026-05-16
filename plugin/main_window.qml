@@ -18,6 +18,9 @@ Item {
     // simulation log panel
     property bool logVisible: false
 
+    // status bar message shown as an overlay at the bottom of the view
+    property string statusText: ""
+
     signal zoomRegionSelected(int chartIndex, real x0Ratio, real y0Ratio, real x1Ratio, real y1Ratio)
     signal menuZoomToFit(int chartIndex)
     signal menuAutorange(int chartIndex)
@@ -100,7 +103,7 @@ Item {
                     id: logTextArea
                     readOnly: true
                     color: "#2a2d35" // Dark text for light background
-                    font.family: "Monospace"
+                    font.family: "Menlo, Courier New, Courier"
                     font.pixelSize: 12
                     textFormat: TextEdit.PlainText
                     padding: 8
@@ -431,8 +434,8 @@ Item {
                 bottom: parent.bottom
             }
             color: "#1a1b1e"
-            height: 20
-            opacity: panel.legendVisible ? 1 : 0
+            height: panel.legendVisible ? 20 : 0
+            visible: panel.legendVisible
 
             Row {
                 anchors.top: parent.top
@@ -601,7 +604,10 @@ Item {
     }
 
     ColumnLayout {
-        anchors.fill: parent
+        anchors {
+            fill: parent
+            bottomMargin: root.statusText !== "" ? 22 : 0
+        }
         spacing: 0
 
         Item {
@@ -663,6 +669,41 @@ Item {
         z: 998
         acceptedButtons: Qt.AllButtons
         onPressed: contextMenu.visible = false
+    }
+
+    // status bar overlay — rendered inside the QML view so Qt widget layout
+    // is never affected and no gap can appear
+    Rectangle {
+        id: statusBar
+        visible: root.statusText !== ""
+        anchors {
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+        }
+        height: 22
+        color: "#efefe8"
+        z: 997
+
+        Rectangle {
+            anchors { top: parent.top; left: parent.left; right: parent.right }
+            height: 1
+            color: "#d0d0c8"
+        }
+
+        Text {
+            anchors {
+                left: parent.left
+                right: parent.right
+                verticalCenter: parent.verticalCenter
+                leftMargin: 8
+                rightMargin: 8
+            }
+            text: root.statusText
+            color: "#333333"
+            font.pixelSize: 11
+            elide: Text.ElideRight
+        }
     }
 
     Rectangle {
