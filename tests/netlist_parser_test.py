@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from plugin.netlist_parser import Device, NetlistTopology, SubcircuitDefinition, parse_netlist
+from netlist_parser import Device, NetlistTopology, parse_netlist
 
 
 class TestNetlistParser(TestCase):
@@ -267,7 +267,7 @@ class TestNetlistParser(TestCase):
         self.assertEqual(topology.devices[0].nodes, ["IN", "OUT", "VCC", "GND"])
 
     def test_subcircuit_instance_with_params_keyword(self):
-        # arrange — PARAMS: keyword separates node list from parameter assignments
+        # arrange — PARAMS: keyword separates node list from plugin.parameter assignments
         netlist = "Title\nX1 IN OUT VCC GND opamp PARAMS: gain=100\n.END\n"
         # act
         topology = parse_netlist(netlist)
@@ -555,10 +555,22 @@ class TestNetlistParser(TestCase):
         # assert
         self.assertIsInstance(topology.devices[0], Device)
 
-    def test_subcircuit_definition_is_dataclass_instance(self):
+    def test_directive_extraction(self):
         # arrange
-        netlist = "Title\n.SUBCKT myblock IN OUT\n.ENDS\n.END\n"
+        netlist = "Title\n.OP\n.PRINT DC V(1)\n.SAVE TYPE=IC\n.NODESET V(2)=5\n.END\n"
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertIsInstance(topology.subcircuit_definitions["MYBLOCK"], SubcircuitDefinition)
+        self.assertIn(".OP", topology.directives)
+        self.assertIn(".PRINT DC V(1)", topology.directives)
+        self.assertIn(".SAVE TYPE=IC", topology.directives)
+        self.assertIn(".NODESET V(2)=5", topology.directives)
+        self.assertEqual(len(topology.directives), 4)
+
+    def test_directive_extraction_ignores_non_simulation_directives(self):
+        # arrange
+        netlist = "Title\n.MODEL M1 NMOS\n.SUBCKT S1 A B\n.ENDS\n.END\n"
+        # act
+        topology = parse_netlist(netlist)
+        # assert
+        self.assertEqual(len(topology.directives), 0)

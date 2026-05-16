@@ -13,12 +13,12 @@
             "name": "Run Plugin",
             "type": "debugpy",
             "request": "launch",
-            "cwd": "${workspaceFolder}/plugin",
+            "cwd": "${workspaceFolder}/src",
             "module": "run_simulator",
             "console": "integratedTerminal",
             "env": {
                 "KICAD_API_SOCKET": "ipc:///tmp/kicad/api.sock",
-                "KICAD_API_TOKEN": "16077905-fb16-4eb0-a586-5db87ace4c87"
+                "KICAD_API_TOKEN": "33ad5108-67db-426b-b253-ac5c4b504d75"
             },
             "args": ["--log-level=DEBUG"],
             "justMyCode": false

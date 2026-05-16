@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from plugin.simulation_dialog import _parse_list_values, DCSimulationParameters
+from simulation_dialog import _parse_list_values, DCSimulationParameters
 
 
 def _lin(primary_variable="VIN", start="0", stop="5", step="0.1", secondary_variable="", secondary_start="", secondary_stop="", secondary_step="") -> DCSimulationParameters:

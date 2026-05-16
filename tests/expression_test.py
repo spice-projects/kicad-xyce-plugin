@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import numpy as np
 
-from plugin.expression import Expression
+from expression import Expression
 
 
 class TestExpression(TestCase):

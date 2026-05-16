@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from plugin.simulation_dialog import TransientSchedulePoint, TransientSimulationParameters
+from simulation_dialog import TransientSchedulePoint, TransientSimulationParameters
 
 
 def _tran(initial_step="1u", final_time="1m", start_time="", step_ceiling="", op_keyword="", schedule_points=tuple()) -> TransientSimulationParameters:

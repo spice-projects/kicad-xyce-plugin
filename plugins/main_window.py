@@ -10,9 +10,11 @@ from PySide6.QtWidgets import QFileDialog, QMainWindow, QWidget, QVBoxLayout
 from config_dialog import ConfigDialog
 from expression import Expression
 from kicad_icons import get_kicad_icon, KiCadIcon, load_kicad_icons
+from netlist_parser import parse_netlist
+from netlist_viewer_dialog import NetlistViewerDialog
 from plugin_config import PluginConfig
 from run_xyce_simulation import run_xyce_simulation, XyceSimulationRunner
-from simulation_dialog import SimulationDialog
+from simulation_dialog import OpSimulationParameters, SimulationDialog
 from window import load_app_icon, log_screen_info
 
 logger = logging.getLogger(__name__)
@@ -220,6 +222,15 @@ class MainWindow(QMainWindow):
         # add a separator for visual grouping
         toolbar.addSeparator()
 
+        # show netlist
+        show_netlist_action = QAction(get_kicad_icon(KiCadIcon.SHOW_NETLIST, dark=False), "Show Netlist", self)
+        show_netlist_action.setToolTip("Show processed netlist")
+        show_netlist_action.triggered.connect(self._on_menu_show_netlist)
+        toolbar.addAction(show_netlist_action)
+
+        # add a separator for visual grouping
+        toolbar.addSeparator()
+
         # preference/configuration action
         config_action = QAction(get_kicad_icon(KiCadIcon.PREFERENCE, dark=False), "Configuration", self)
         config_action.setToolTip("Open plugin configuration")
@@ -267,8 +278,18 @@ class MainWindow(QMainWindow):
         # chart.render("", self._abscissa_scale.value, set(expressions))
 
     def _setup_netlist(self) -> str:
-        # returns a placeholder netlist for simulation execution
-        return "* Xyce Simulation\nV1 1 0 5V\nR1 1 0 1k\n.END"
+        # returns a complex test netlist for simulation execution
+        return (
+            "* Xyce Complex Test Circuit\n"
+            "V1 1 0 5V\n"
+            "R1 1 2 1k\n"
+            "R2 2 0 2k\n"
+            "R3 2 3 500\n"
+            "R4 3 0 1k\n"
+            ".OP\n"
+            ".PRINT DC V(2) I(R1)\n"
+            ".END"
+        )
 
     @Slot(str)
     def _on_simulation_started(self, netlist_path: str, output_path: str) -> None:
@@ -308,16 +329,33 @@ class MainWindow(QMainWindow):
         self._runner = None
 
     def _on_menu_run_simulation(self):
+        # construct the initial netlist
+        netlist = self._setup_netlist()
+        # parse the netlist topology
+        topology = parse_netlist(netlist)
+        # initialize parameters if not already set
+        if self._simulation_parameters is None:
+            # create from existing directives
+            params = OpSimulationParameters.from_directives(topology.directives)
+            # only set if directives were actually found
+            if params.print_dc_enabled or params.save_enabled or params.nodeset_entries:
+                self._simulation_parameters = params
         # prompt user for parameters if none are configured
         if self._simulation_parameters is None:
+            # open the configuration dialog
             self._on_menu_configure_simulation()
         # return early if user cancelled parameter configuration
         if self._simulation_parameters is None:
+            # stop execution
             return
-        # construct the full netlist with the user-selected directive
-        directive = self._simulation_parameters.to_xyce_directive()
+        # remove existing simulation directives from the netlist
+        for directive in topology.directives:
+            # replace directive line with empty string
+            netlist = netlist.replace(directive, "")
+        # generate the simulation directive
+        directive = self._simulation_parameters.to_xyce_directive(topology=topology)
         # insert directive before .END
-        netlist = self._setup_netlist().replace(".END", f"{directive}\n.END")
+        netlist = netlist.replace(".END", f"{directive.strip()}\n.END")
         # log simulation netlist
         logger.info("Running simulation with netlist:\n%s", netlist)
         # launch simulation and store the runner reference
@@ -326,31 +364,53 @@ class MainWindow(QMainWindow):
             self._runner = run_xyce_simulation(self._plugin_config, netlist)
             # wire signal handlers for UI progress updates
             self._runner.started.connect(self._on_simulation_started)
+            # wire stdout signal
             self._runner.stdout_received.connect(self._on_stdout_received)
+            # wire stderr signal
             self._runner.stderr_received.connect(self._on_stderr_received)
+            # wire finished signal
             self._runner.finished.connect(self._on_simulation_finished)
             # start simulation process
             self._runner.start()
+        # show error details
         except ValueError as e:
-            # show error details
+            # log failure
+            logger.error("Simulation failed to start: %s", e)
+            # update status
+            self._show_status(f"Simulation failed: {e}", 5000)
             self._show_status(str(e), 5000)
             # log information for diagnostics
             logger.error("Simulation startup failed", exc_info=True)
+
+    def _on_menu_show_netlist(self):
+        # construct the initial netlist
+        netlist = self._setup_netlist()
+        # parse the netlist topology
+        topology = parse_netlist(netlist)
+        # initialize parameters if not already set
+        if self._simulation_parameters is None:
+            # create from existing directives
+            self._simulation_parameters = OpSimulationParameters.from_directives(topology.directives)
+        # remove existing simulation directives from the netlist
+        for directive in topology.directives:
+            # replace directive line with empty string
+            netlist = netlist.replace(directive, "")
+        # generate the simulation directive
+        directive = self._simulation_parameters.to_xyce_directive(topology=topology)
+        # insert directive before .END
+        netlist = netlist.replace(".END", f"{directive.strip()}\n.END")
+        # create the viewer dialog
+        dialog = NetlistViewerDialog(parent=self, netlist=netlist)
+        # show the dialog
+        dialog.exec()
 
     def _on_menu_configure_simulation(self):
         # open the simulation dialog and wait for user input
         dialog = SimulationDialog(self, initial_parameters=self._simulation_parameters)
         # capture the result only when the dialog is accepted
-        simulation_parameters = dialog.get_parameters()
-        # keep the existing configuration when the dialog is canceled
-        if simulation_parameters is None:
-            return
-        # store the latest parameters for future simulation execution
-        self._simulation_parameters = simulation_parameters
-        # log a netlist-ready directive so simulation wiring can reuse it later
-        logger.info("Configured Xyce simulation directive: %s", simulation_parameters.to_xyce_directive())
-        # show immediate confirmation in the status bar for the user
-        self.statusBar().showMessage("Simulation parameters updated", 3000)
+        if dialog.exec() == SimulationDialog.Accepted:
+            # update parameters
+            self._simulation_parameters = dialog.get_parameters()
 
     def _on_menu_configuration(self):
         # open plugin configuration dialog with current values

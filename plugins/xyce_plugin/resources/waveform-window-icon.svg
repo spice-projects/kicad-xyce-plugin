@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="QSPICE Waveform icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c1f25" />
+      <stop offset="100%" stop-color="#0f1115" />
+    </linearGradient>
+    <linearGradient id="trace" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#50ffa7" />
+      <stop offset="100%" stop-color="#4fccff" />
+    </linearGradient>
+  </defs>
+  <rect x="12" y="24" width="232" height="208" rx="32" ry="32" fill="url(#bg)" stroke="#2a2d34" stroke-width="8" />
+  <g stroke="#21252b" stroke-width="2">
+    <path d="M40 64h176" />
+    <path d="M40 96h176" />
+    <path d="M40 128h176" />
+    <path d="M40 160h176" />
+    <path d="M40 192h176" />
+    <path d="M72 32v176" />
+    <path d="M112 32v176" />
+    <path d="M152 32v176" />
+    <path d="M192 32v176" />
+  </g>
+  <path d="M40 152 L64 152 L96 120 L128 96 L160 120 L192 110 L216 102" fill="none" stroke="url(#trace)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="176" y="32" width="56" height="28" rx="8" fill="#d36b30" />
+  <text x="204" y="52" font-size="12" fill="#111" text-anchor="middle" font-weight="700">QRAW</text>
+</svg>

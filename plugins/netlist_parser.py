@@ -63,6 +63,7 @@ class NetlistTopology:
     nodes: set[str]
     subcircuit_definitions: dict[str, SubcircuitDefinition]
     global_nodes: set[str]
+    directives: list[str] = field(default_factory=list)
 
 
 def _join_continuation_lines(raw_lines: list[str]) -> list[str]:
@@ -157,6 +158,7 @@ def parse_netlist(text: str) -> NetlistTopology:
     top_level_nodes: set[str] = set()
     subcircuit_definitions: dict[str, SubcircuitDefinition] = {}
     global_nodes: set[str] = set()
+    directives: list[str] = []
     # track the currently open .SUBCKT context; None means top-level scope
     current_subckt: SubcircuitDefinition | None = None
     # process all logical lines that follow the title
@@ -175,6 +177,9 @@ def parse_netlist(text: str) -> NetlistTopology:
             break
         # dispatch directive lines separately from device element lines
         if stripped.startswith("."):
+            # capture simulation directives
+            if first_upper in (".OP", ".PRINT", ".SAVE", ".NODESET"):
+                directives.append(stripped)
             # open a new subcircuit definition block on .SUBCKT
             if first_upper == ".SUBCKT":
                 # require at least the subcircuit name token to proceed
@@ -225,7 +230,7 @@ def parse_netlist(text: str) -> NetlistTopology:
                 top_level_nodes.add(node)
         # register any $G-prefixed node as global regardless of nesting scope
         for node in node_names:
-            # only process nodes that carry the global $G prefix
+            # only process nodes that carry the global $G$ prefix
             if node.startswith("$G"):
                 global_nodes.add(node)
-    return NetlistTopology(title=title, devices=top_level_devices, nodes=top_level_nodes, subcircuit_definitions=subcircuit_definitions, global_nodes=global_nodes)
+    return NetlistTopology(title=title, devices=top_level_devices, nodes=top_level_nodes, subcircuit_definitions=subcircuit_definitions, global_nodes=global_nodes, directives=directives)

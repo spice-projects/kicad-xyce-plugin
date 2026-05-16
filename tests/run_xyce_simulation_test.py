@@ -13,8 +13,8 @@ from unittest.mock import MagicMock
 from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QApplication
 
-from plugin.plugin_config import PluginConfig
-from plugin.run_xyce_simulation import XyceSimulationRunner, run_xyce_simulation
+from plugin_config import PluginConfig
+from run_xyce_simulation import XyceSimulationRunner, run_xyce_simulation
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

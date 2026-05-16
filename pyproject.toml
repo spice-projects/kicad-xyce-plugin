@@ -9,12 +9,6 @@ description = "Xyce Simulation Plugin for KiCad"
 requires-python = ">=3.12"
 authors = [{ name = "SPICE Projects" }]
 license = { text = "Apache-2.0" }
-dependencies = [
-    "dataclasses-json>=0.6.7",
-    "kicad-python>=0.7.1",
-    "numpy>=2.4.4",
-    "PySide6>=6.11.1"
-]
 
 [project.urls]
 Homepage = "https://github.com/spice-projects/kicad-xyce-plugin"
@@ -22,16 +16,15 @@ Repository = "https://github.com/spice-projects/kicad-xyce-plugin"
 Issues = "https://github.com/spice-projects/kicad-xyce-plugin/issues"
 
 [tool.hatch.build.targets.kicad-package]
-identifier = "com.github.spice-projects.kicad-xyce-plugin"
 name = "Xyce Simulation Plugin for KiCad"
 description = "Xyce Simulation Plugin for KiCad"
-description_full = "Xyce Simulation Plugin for KiCad"
+description_full = "Xyce Simulation Plugin for KiCad - TODO: change this to a more detailed description"
+identifier = "com.github.spice-projects.kicad-xyce-plugin"
 status = "development"
 kicad_version = "10.99"
 icon = "plugin-icon-48x48.png"
+download_url = "https://spice-projects.github.io/kicad-xyce-plugin/{zip_name}"
+sources = ["src"]
 include = [
-    "plugin/**/*",
-]
-sources = [
-    "plugin"
+  "src/**"
 ]

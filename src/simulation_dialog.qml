@@ -40,9 +40,18 @@ Item {
     property alias secondaryPoints: secondaryPointsField.text
     property string dcErrorText: ""
 
+    // --- OP simulation properties
+    property bool printDcEnabled: false
+    property bool printDcAllNodes: false
+    property bool printDcAllCurrents: false
+    property string printDcVariables: ""
+    property bool saveEnabled: false
+    property string saveType: "NODESET"
+    property string nodesetEntries: ""
+
     signal submitTransient(string initialStep, string finalTime, string startTime, string stepCeiling, string opKeyword, bool scheduleEnabled, string schedulePairsText)
     signal submitDC(string sweepMode, string primaryVariable, string startValue, string stopValue, string stepValue, string pointsValue, string listValuesText, string dataTableName, bool secondaryEnabled, string secondaryVariable, string secondaryStart, string secondaryStop, string secondaryStep, string secondaryPoints)
-    signal submitOP()
+    signal submitOP(bool printDcEnabled, bool printDcAllNodes, bool printDcAllCurrents, string printDcVariables, bool saveEnabled, string saveType, string nodesetEntries)
     signal cancelRequested()
 
     function opKeywordValue() {
@@ -170,15 +179,67 @@ Item {
                             Layout.fillWidth: true
                         }
 
-                        Label {
-                            text: "Compute the DC operating point of the circuit. No additional parameters are required for this analysis."
-                            color: "#4a5560"
-                            wrapMode: Text.Wrap
+                        // --- Print DC ---
+                        CheckBox {
+                            text: "Enable .PRINT DC output"
+                            checked: printDcEnabled
+                            onCheckedChanged: printDcEnabled = checked
+                        }
+                        GridLayout {
+                            visible: printDcEnabled
+                            columns: 2
                             Layout.fillWidth: true
+                            CheckBox {
+                                text: "All node voltages"
+                                checked: printDcAllNodes
+                                onCheckedChanged: printDcAllNodes = checked
+                            }
+                            CheckBox {
+                                text: "All device currents"
+                                checked: printDcAllCurrents
+                                onCheckedChanged: printDcAllCurrents = checked
+                            }
+                            TextField {
+                                placeholderText: "Specific Variables (V(1), I(Vsource))"
+                                text: printDcVariables
+                                onTextChanged: printDcVariables = text
+                                Layout.columnSpan: 2
+                                Layout.fillWidth: true
+                            }
                         }
 
-                        Item {
-                            Layout.fillHeight: true
+                        // --- Save ---
+                        CheckBox {
+                            text: "Enable .SAVE operating point"
+                            checked: saveEnabled
+                            onCheckedChanged: saveEnabled = checked
+                        }
+                        GridLayout {
+                            visible: saveEnabled
+                            columns: 2
+                            Layout.fillWidth: true
+                            RadioButton {
+                                text: "Save as .IC"
+                                checked: saveType === "IC"
+                                onClicked: saveType = "IC"
+                            }
+                            RadioButton {
+                                text: "Save as .NODESET"
+                                checked: saveType === "NODESET"
+                                onClicked: saveType = "NODESET"
+                            }
+                        }
+
+                        // --- Nodeset ---
+                        Label {
+                            text: "Convergence Hints (.NODESET)"
+                            font.bold: true
+                        }
+                        TextField {
+                            placeholderText: "Nodeset (e.g. V(1)=5.0)"
+                            text: nodesetEntries
+                            onTextChanged: nodesetEntries = text
+                            Layout.fillWidth: true
                         }
                     }
                 }
@@ -545,7 +606,7 @@ Item {
                 icon.height: 24
                 onClicked: {
                     if (simTabBar.currentIndex === 0) {
-                        root.submitOP()
+                        root.submitOP(root.printDcEnabled, root.printDcAllNodes, root.printDcAllCurrents, root.printDcVariables, root.saveEnabled, root.saveType, root.nodesetEntries)
                     } else if (simTabBar.currentIndex === 1) {
                         root.submitTransient(root.initialStep, root.finalTime, root.startTime, root.stepCeiling, root.opKeywordValue(), root.scheduleEnabled, root.schedulePairsText)
                     } else {

@@ -16,6 +16,7 @@ class KiCadIcon(Enum):
     CHECKED_OK = 0x06
     ADD_CHART = 0x07
     NEW_WINDOW = 0x08
+    SHOW_NETLIST = 0x09
 
 
 _LIGHT_ICONS: dict[KiCadIcon, QIcon] = {}
@@ -45,6 +46,8 @@ def load_kicad_icons() -> None:
     _DARK_ICONS[KiCadIcon.ADD_CHART] = QIcon(str(_RESOURCE_DIR / "sim_add_plot_dark_24.png"))
     _LIGHT_ICONS[KiCadIcon.NEW_WINDOW] = QIcon(str(_RESOURCE_DIR / "new_generic_24.png"))
     _DARK_ICONS[KiCadIcon.NEW_WINDOW] = QIcon(str(_RESOURCE_DIR / "new_generic_dark_24.png"))
+    _LIGHT_ICONS[KiCadIcon.SHOW_NETLIST] = QIcon(str(_RESOURCE_DIR / "netlist_24.png"))
+    _DARK_ICONS[KiCadIcon.SHOW_NETLIST] = QIcon(str(_RESOURCE_DIR / "netlist_dark_24.png"))
 
 
 def get_kicad_icon(icon: KiCadIcon, dark: bool = False) -> QIcon:

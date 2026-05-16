@@ -1,35 +1,18 @@
 import logging
-import os
 import sys
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
-# main_window.py uses bare intra-package imports; expose the plugin dir
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "plugin"))
-# mock kipy before any plugin imports since main_window.py imports from kipy
-sys.modules.setdefault("kipy", MagicMock())
-# pre-import plugin modules in dependency order so bare-name aliases resolve correctly
-import plugin.config_dialog
-import plugin.expression
-import plugin.kicad_icons
-import plugin.plugin_config
-import plugin.run_xyce_simulation
-import plugin.simulation_dialog
-import plugin.window  # noqa: F401
-for _name in ["config_dialog", "expression", "kicad_icons", "plugin_config", "run_xyce_simulation", "simulation_dialog", "window"]:
-    sys.modules.setdefault(_name, sys.modules[f"plugin.{_name}"])
 
 from PySide6.QtCore import QSize
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QApplication, QMainWindow
 
-from plugin.kicad_icons import load_kicad_icons
-from plugin.main_window import MainWindow
-from plugin.plugin_config import PluginConfig
+from kicad_icons import load_kicad_icons
+from main_window import MainWindow
+from plugin_config import PluginConfig
 
 _app = QApplication.instance() or QApplication(sys.argv)
+
 load_kicad_icons()
 
 
@@ -212,19 +195,23 @@ class TestMainWindowOnMenuRunSimulation(TestCase):
     def test_prompts_for_parameters_when_none_configured(self):
         # arrange
         window = _make_window()
+        window._simulation_parameters = None
         window._on_menu_configure_simulation = MagicMock()
-        # act
-        window._on_menu_run_simulation()
-        # assert
-        window._on_menu_configure_simulation.assert_called_once()
-        self.assertIsNone(window._runner)
+        # mock parse_netlist to return empty directives so simulation parameters remain None
+        with patch("main_window.parse_netlist") as mock_parse:
+            mock_parse.return_value = MagicMock(directives=[])
+            # act
+            window._on_menu_run_simulation()
+            # assert
+            window._on_menu_configure_simulation.assert_called_once()
+            self.assertIsNone(window._runner)
 
     def test_runs_simulation_with_configured_parameters(self):
         # arrange
         window = _make_window()
         window._simulation_parameters = MagicMock()
         window._simulation_parameters.to_xyce_directive.return_value = ".TRAN 1u 1m"
-        with patch("plugin.main_window.run_xyce_simulation") as mock_run:
+        with patch("main_window.run_xyce_simulation") as mock_run:
             mock_run.return_value = MagicMock()
             # act
             window._on_menu_run_simulation()
@@ -236,7 +223,7 @@ class TestMainWindowOnMenuRunSimulation(TestCase):
         window = _make_window()
         window._simulation_parameters = MagicMock()
         window._simulation_parameters.to_xyce_directive.return_value = ".TRAN 1u 1m"
-        with patch("plugin.main_window.run_xyce_simulation", side_effect=ValueError("Invalid executable")):
+        with patch("main_window.run_xyce_simulation", side_effect=ValueError("Invalid executable")):
             # act
             window._on_menu_run_simulation()
         # assert
@@ -249,7 +236,7 @@ class TestMainWindowOnMenuConfigureSimulation(TestCase):
     def test_keeps_existing_parameters_when_dialog_canceled(self):
         # arrange
         window = _make_window()
-        with patch("plugin.main_window.SimulationDialog") as mock_dialog_cls:
+        with patch("main_window.SimulationDialog") as mock_dialog_cls:
             mock_dialog_cls.return_value.get_parameters.return_value = None
             # act
             window._on_menu_configure_simulation()
@@ -261,7 +248,9 @@ class TestMainWindowOnMenuConfigureSimulation(TestCase):
         window = _make_window()
         mock_params = MagicMock()
         mock_params.to_xyce_directive.return_value = ".TRAN 1u 1m"
-        with patch("plugin.main_window.SimulationDialog") as mock_dialog_cls:
+        with patch("main_window.SimulationDialog") as mock_dialog_cls:
+            mock_dialog_cls.Accepted = 1
+            mock_dialog_cls.return_value.exec.return_value = 1
             mock_dialog_cls.return_value.get_parameters.return_value = mock_params
             # act
             window._on_menu_configure_simulation()
@@ -275,7 +264,7 @@ class TestMainWindowOnMenuConfiguration(TestCase):
         # arrange
         window = _make_window()
         original_config = window._plugin_config
-        with patch("plugin.main_window.ConfigDialog") as mock_dialog_cls:
+        with patch("main_window.ConfigDialog") as mock_dialog_cls:
             mock_dialog_cls.return_value.get_config.return_value = None
             # act
             window._on_menu_configuration()
@@ -287,7 +276,7 @@ class TestMainWindowOnMenuConfiguration(TestCase):
         window = _make_window()
         new_config = MagicMock()
         new_config.xyce_executable_path = "/usr/bin/Xyce"
-        with patch("plugin.main_window.ConfigDialog") as mock_dialog_cls:
+        with patch("main_window.ConfigDialog") as mock_dialog_cls:
             mock_dialog_cls.return_value.get_config.return_value = new_config
             # act
             window._on_menu_configuration()
@@ -300,14 +289,14 @@ class TestMainWindowOnMenuOpenFile(TestCase):
     def test_returns_early_when_no_file_selected(self):
         # arrange
         window = _make_window()
-        with patch("plugin.main_window.QFileDialog.getOpenFileName", return_value=("", "")):
+        with patch("main_window.QFileDialog.getOpenFileName", return_value=("", "")):
             # act / assert — no exception raised
             window._on_menu_open_file()
 
     def test_accepts_path_when_file_selected(self):
         # arrange
         window = _make_window()
-        with patch("plugin.main_window.QFileDialog.getOpenFileName", return_value=("/tmp/test.cir", "")):
+        with patch("main_window.QFileDialog.getOpenFileName", return_value=("/tmp/test.cir", "")):
             # act / assert — no exception raised
             window._on_menu_open_file()
 

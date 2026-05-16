@@ -1,14 +1,11 @@
 import os
 import sys
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
 from unittest import TestCase
 
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
-from plugin.kicad_icons import KiCadIcon, get_kicad_icon, load_kicad_icons
+from kicad_icons import KiCadIcon, get_kicad_icon, load_kicad_icons
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -43,7 +40,7 @@ class TestKiCadIconEnum(TestCase):
 
     def test_nine_icons_total(self):
         # assert
-        self.assertEqual(len(list(KiCadIcon)), 9)
+        self.assertEqual(len(list(KiCadIcon)), 10)
 
 
 class TestLoadKiCadIcons(TestCase):

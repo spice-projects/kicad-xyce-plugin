@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from PySide6.QtCore import QUrl, Slot
+from PySide6.QtCore import Qt, QUrl, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QDialog, QFileDialog, QVBoxLayout, QWidget
@@ -14,8 +14,9 @@ _BG = "#efefe8"
 class ConfigDialog(QDialog):
 
     def __init__(self, parent: QWidget | None = None, initial_config: PluginConfig | None = None):
-        # initialize dialog infrastructure
         super().__init__(parent)
+        # set modal
+        self.setWindowModality(Qt.ApplicationModal)
         # capture initial config for form defaults
         self._initial_config = initial_config if initial_config is not None else PluginConfig.default()
         # keep accepted result available to caller

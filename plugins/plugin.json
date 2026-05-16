@@ -1,0 +1,25 @@
+{
+    "$schema": "https://go.kicad.org/api/schemas/v1",
+    "identifier": "com.github.spice-projects.kicad-xyce-plugin",
+    "name": "Xyce Simulation Plugin",
+    "description": "Integrates the Xyce circuit simulator into KiCad, allowing users to run simulations directly from the KiCad interface.",
+    "runtime": {
+        "type": "python",
+        "min_version": "3.12"
+    },
+    "actions": [
+        {
+            "identifier": "run_simulator",
+            "name": "Run Xyce Circuit Simulator",
+            "description": "Launches the Xyce circuit simulator",
+            "show-button": true,
+            "scopes": [
+                "schematic"
+            ],
+            "entrypoint": "xyce_plugin.run_simulator",
+            "icons-light": [
+                "toolbar-icon-24x24.png"
+            ]
+        }
+    ]
+}

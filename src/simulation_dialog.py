@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from dataclasses_json import LetterCase, dataclass_json
-from PySide6.QtCore import QUrl, Slot
+from PySide6.QtCore import Qt, QUrl, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
@@ -17,11 +17,131 @@ _DC_SECONDARY_MODES = {"LIN", "DEC", "OCT"}
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass(frozen=True)
-class OpSimulationParameters:
+class NodesetEntry:
+    node: str
+    voltage: str
 
-    def to_xyce_directive(self) -> str:
-        # return the standard op directive string
-        return ".OP"
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass(frozen=True)
+class OpSimulationParameters:
+    # enable print dc
+    print_dc_enabled: bool = False
+    # include all nodes
+    print_dc_all_nodes: bool = False
+    # include all currents
+    print_dc_all_currents: bool = False
+    # custom print variables
+    print_dc_specific_variables: tuple[str, ...] = ()
+    # print format
+    print_dc_format: str = ""
+    # print file
+    print_dc_file: str = ""
+    # enable save
+    save_enabled: bool = False
+    # save type
+    save_type: str = "NODESET"
+    # save file
+    save_file: str = ""
+    # nodeset entries
+    nodeset_entries: tuple[NodesetEntry, ...] = ()
+
+    @classmethod
+    def from_directives(cls, directives: list[str]) -> "OpSimulationParameters":
+        # init flag
+        print_dc_enabled = False
+        # init list
+        print_dc_vars = []
+        # init flag
+        save_enabled = False
+        # init list
+        nodeset_entries = []
+        # parse directives
+        for d in directives:
+            # get tokens
+            tokens = d.split()
+            # check command
+            cmd = tokens[0].upper()
+            # handle print dc
+            if cmd == ".PRINT" and len(tokens) > 1 and tokens[1].upper() == "DC":
+                # set enabled
+                print_dc_enabled = True
+                # add vars
+                print_dc_vars.extend(tokens[2:])
+            # handle save
+            elif cmd == ".SAVE":
+                # set enabled
+                save_enabled = True
+            # handle nodeset
+            elif cmd == ".NODESET":
+                # process pairs
+                for pair in tokens[1:]:
+                    # check if pair valid
+                    if "=" in pair:
+                        # split node and voltage
+                        node_part, voltage = pair.split("=", 1)
+                        # validate
+                        if node_part.startswith("V(") and node_part.endswith(")"):
+                            # append entry
+                            nodeset_entries.append(NodesetEntry(node=node_part[2:-1], voltage=voltage))
+        # return instance
+        return cls(print_dc_enabled=print_dc_enabled, print_dc_specific_variables=tuple(print_dc_vars), save_enabled=save_enabled, nodeset_entries=tuple(nodeset_entries))
+
+    def to_xyce_directive(self, topology=None) -> str:
+        # start lines
+        lines = [".OP"]
+        # check enabled
+        if self.print_dc_enabled:
+            # start tokens
+            tokens = [".PRINT DC"]
+            # check format
+            if self.print_dc_format:
+                # append format
+                tokens.append(f"FORMAT={self.print_dc_format}")
+            # check file
+            if self.print_dc_file:
+                # append file
+                tokens.append(f"FILE={self.print_dc_file}")
+            # get custom vars
+            vars = list(self.print_dc_specific_variables)
+            # check topology
+            if topology:
+                # check all nodes
+                if self.print_dc_all_nodes:
+                    # iterate nodes
+                    for node in topology.nodes:
+                        # append node
+                        vars.append(f"V({node})")
+                # check all currents
+                if self.print_dc_all_currents:
+                    # iterate devices
+                    for dev in topology.devices:
+                        # append current
+                        vars.append(f"I({dev.name})")
+            # add unique
+            tokens.extend(dict.fromkeys(vars))
+            # join tokens
+            lines.append(" ".join(tokens))
+        # check save enabled
+        if self.save_enabled:
+            # build tokens
+            tokens = [".SAVE"]
+            # append type
+            tokens.append(f"TYPE={self.save_type}")
+            # check file
+            if self.save_file:
+                # append file
+                tokens.append(f"FILE={self.save_file}")
+            # join tokens
+            lines.append(" ".join(tokens))
+        # check nodeset entries
+        if self.nodeset_entries:
+            # format pairs
+            pairs = " ".join(f"V({e.node})={e.voltage}" for e in self.nodeset_entries)
+            # append directive
+            lines.append(f".NODESET {pairs}")
+        # return directives
+        return "\n".join(lines)
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -148,6 +268,8 @@ class SimulationDialog(QDialog):
     def __init__(self, parent: QWidget | None = None, initial_parameters: TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters | None = None):
         # initialize the modal dialog container
         super().__init__(parent)
+        # set modal
+        self.setWindowModality(Qt.ApplicationModal)
         # capture initial parameters for form pre-population
         self._initial_parameters = initial_parameters
         # keep the result empty until the user confirms valid values
@@ -204,15 +326,14 @@ class SimulationDialog(QDialog):
         # always initialize all tabs to ensure a clean state
         self._apply_transient_parameters(p if isinstance(p, TransientSimulationParameters) else None)
         self._apply_dc_parameters(p if isinstance(p, DCSimulationParameters) else None)
+        self._apply_op_parameters(p if isinstance(p, OpSimulationParameters) else None)
 
         # select the appropriate tab based on the parameter type
         # QML tab order: 0 = Operating Point, 1 = Transient, 2 = DC Sweep
         if isinstance(p, DCSimulationParameters):
             self._root.setProperty("initialTabIndex", 2)
-        elif isinstance(p, OpSimulationParameters):
-            self._root.setProperty("initialTabIndex", 0)
         else:
-            self._root.setProperty("initialTabIndex", 1)
+            self._root.setProperty("initialTabIndex", 0)
 
     def _apply_transient_parameters(self, p: TransientSimulationParameters | None) -> None:
         # set values from parameters or defaults
@@ -310,10 +431,39 @@ class SimulationDialog(QDialog):
         # close the dialog and return acceptance to the caller
         self.accept()
 
-    @Slot()
-    def _on_submit_op(self) -> None:
-        # capture the result for OP simulation which has no parameters
-        self._result = OpSimulationParameters()
+    def _apply_op_parameters(self, p: OpSimulationParameters | None) -> None:
+        # set default values when no parameters are provided
+        self._root.setProperty("printDcEnabled", p.print_dc_enabled if p else False)
+        self._root.setProperty("printDcAllNodes", p.print_dc_all_nodes if p else False)
+        self._root.setProperty("printDcAllCurrents", p.print_dc_all_currents if p else False)
+        self._root.setProperty("printDcVariables", ", ".join(p.print_dc_specific_variables) if p else "")
+        self._root.setProperty("saveEnabled", p.save_enabled if p else False)
+        self._root.setProperty("saveType", p.save_type if p else "NODESET")
+        self._root.setProperty("nodesetEntries", " ".join(f"V({e.node})={e.voltage}" for e in p.nodeset_entries) if p else "")
+
+    @Slot(bool, bool, bool, str, bool, str, str)
+    def _on_submit_op(self, print_dc_enabled: bool, print_dc_all_nodes: bool, print_dc_all_currents: bool, print_dc_variables: str, save_enabled: bool, save_type: str, nodeset_text: str) -> None:
+        # split variable string into a tuple of tokens
+        specific_variables = tuple(v.strip() for v in print_dc_variables.split(",") if v.strip())
+        # parse nodeset text into entry objects
+        nodeset_entries = []
+        # basic pattern for V(node)=voltage
+        for pair in nodeset_text.split():
+            if "=" in pair:
+                node_part, voltage = pair.split("=", 1)
+                if node_part.startswith("V(") and node_part.endswith(")"):
+                    node = node_part[2:-1]
+                    nodeset_entries.append(NodesetEntry(node=node, voltage=voltage))
+        # capture the validated dialog output for the caller
+        self._result = OpSimulationParameters(
+            print_dc_enabled=print_dc_enabled,
+            print_dc_all_nodes=print_dc_all_nodes,
+            print_dc_all_currents=print_dc_all_currents,
+            print_dc_specific_variables=specific_variables,
+            save_enabled=save_enabled,
+            save_type=save_type,
+            nodeset_entries=tuple(nodeset_entries)
+        )
         # close the dialog and return acceptance to the caller
         self.accept()
 
