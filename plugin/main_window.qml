@@ -62,7 +62,7 @@ Item {
             Rectangle {
 
                 Layout.fillWidth: true
-                height: 24
+                Layout.preferredHeight: 24
                 color: "#dcdcd4" // Slightly darker header
 
                 RowLayout {
@@ -77,10 +77,11 @@ Item {
                     }
                     Item { Layout.fillWidth: true }
                     ToolButton {
+                        id: closeButton
                         onClicked: root.logVisible = false
                         padding: 0
                         background: Rectangle {
-                            color: hovered ? "#d0d0c8" : "transparent"
+                            color: closeButton.hovered ? "#d0d0c8" : "transparent"
                             radius: 3
                         }
                         contentItem: Image {
