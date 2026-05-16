@@ -51,11 +51,13 @@ Item {
         }
 
         ColumnLayout {
+
             anchors.fill: parent
             anchors.topMargin: 1
             spacing: 0
 
             Rectangle {
+
                 Layout.fillWidth: true
                 height: 24
                 color: "#dcdcd4" // Slightly darker header
@@ -88,8 +90,8 @@ Item {
                 }
             }
 
-
             ScrollView {
+
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
@@ -645,6 +647,7 @@ Item {
         Loader {
             Layout.fillWidth: true
             Layout.preferredHeight: root.logVisible ? 200 : 0
+            Layout.maximumHeight: root.logVisible ? 200 : 0
             sourceComponent: root.logVisible ? logComponent : undefined
         }
     }
