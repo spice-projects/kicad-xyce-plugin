@@ -59,7 +59,12 @@ class MainWindow(QMainWindow):
         self._qml_view.setSource(QUrl.fromLocalFile(str(_QML_FILE)))
         # embed the single QWindow into the main window's central area
         self._container = QWidget.createWindowContainer(self._qml_view, self)
-        self.setCentralWidget(self._container)
+        # Wrap the container in a widget to handle resizing better
+        self._central_widget = QWidget()
+        self._layout = QVBoxLayout(self._central_widget)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.addWidget(self._container)
+        self.setCentralWidget(self._central_widget)
         # create the native main menu structure
         self._create_main_menu()
         # create the native toolbar
