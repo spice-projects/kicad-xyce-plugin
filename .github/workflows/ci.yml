@@ -34,7 +34,7 @@ jobs:
 
       - name: Unit Tests
         run: |
-          coverage run -m unittest discover -p '*_test.py'
+          coverage run --source=plugin -m unittest discover -p '*_test.py'
           coverage report -m
           coverage xml -o coverage.xml || true
 
