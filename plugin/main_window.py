@@ -3,6 +3,21 @@ from pathlib import Path
 
 from kipy import KiCad
 from PySide6.QtCore import QSize, QTimer, QUrl, Slot, Signal
+from PySide6.QtGui import QAction, QColor, QKeySequence
+from PySide6.QtQuick import QQuickView
+from PySide6.QtWidgets import QFileDialog, QMainWindow, QWidget, QVBoxLayout
+
+from config_dialog import ConfigDialog
+from expression import Expression
+from kicad_icons import get_kicad_icon, KiCadIcon, load_kicad_icons
+from plugin_config import PluginConfig
+from run_xyce_simulation import run_xyce_simulation, XyceSimulationRunner
+from simulation_dialog import SimulationDialog
+from window import load_app_icon, log_screen_info
+
+logger = logging.getLogger(__name__)
+
+_QML_FILE = Path(__file__).parent / "main_window.qml"
 
 # background color matching the KiCad schematic window
 _BG = "#efefe8"
@@ -237,7 +252,6 @@ class MainWindow(QMainWindow):
         return "* Xyce Simulation\nV1 1 0 5V\nR1 1 0 1k\n.END"
 
     @Slot(str)
-    @Slot(str)
     def _on_simulation_started(self, netlist_path: str, output_path: str) -> None:
         # update status bar to indicate simulation started
         self.statusBar().showMessage("Simulation started...")
@@ -257,7 +271,6 @@ class MainWindow(QMainWindow):
         logger.error("Xyce stderr: %s", text)
         self.logAppendRequested.emit(f"ERROR: {text}")
         self.statusBar().showMessage(f"Simulation error: {text}", 5000)
-
 
     @Slot(int, int, bool, str)
     def _on_simulation_finished(self, exit_code: int, exit_status: int, was_canceled: bool, output_path: str) -> None:
@@ -310,7 +323,7 @@ class MainWindow(QMainWindow):
         # log a netlist-ready directive so simulation wiring can reuse it later
         logger.info("Configured Xyce simulation directive: %s", simulation_parameters.to_xyce_directive())
         # show immediate confirmation in the status bar for the user
-        self.statusBar().showMessage("Simulation parameters updated", 3000)
+        # self.statusBar().showMessage("Simulation parameters updated", 3000)
 
     def _on_menu_configuration(self):
         # open plugin configuration dialog with current values
@@ -325,4 +338,4 @@ class MainWindow(QMainWindow):
         # log configured executable path for diagnostics
         logger.info("Configured Xyce executable path: %s", self._plugin_config.xyce_executable_path)
         # show immediate confirmation in status bar
-        self.statusBar().showMessage("Plugin configuration updated", 3000)
+        # self.statusBar().showMessage("Plugin configuration updated", 3000)
