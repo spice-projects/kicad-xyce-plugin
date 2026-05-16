@@ -17,7 +17,7 @@ class ConfigDialog(QDialog):
         # initialize dialog infrastructure
         super().__init__(parent)
         # capture initial config for form defaults
-        self._initial_config = initial_config if initial_config is not None else PluginConfig.load()
+        self._initial_config = initial_config if initial_config is not None else PluginConfig.default()
         # keep accepted result available to caller
         self._result: PluginConfig | None = None
         # set the native frame title

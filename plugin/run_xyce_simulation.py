@@ -135,7 +135,7 @@ class XyceSimulationRunner(QObject):
         # map process error enum into a readable diagnostic string
         error_message = self._process.errorString()
         # emit error details to typed error signal for caller state handling
-        self.process_error.emit(int(process_error), error_message)
+        self.process_error.emit(process_error.value, error_message)
         # mirror process errors to stderr stream to keep a unified log view
         self.stderr_received.emit(error_message)
         # cleanup temp netlist when process fails before finished callback
