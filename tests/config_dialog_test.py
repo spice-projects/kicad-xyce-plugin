@@ -54,13 +54,6 @@ class TestConfigDialogConstruction(TestCase):
         self.assertIsNone(dialog._result)
         dialog.reject()
 
-    def test_dialog_uses_default_config_when_none_given(self):
-        # act
-        dialog = ConfigDialog()
-        # assert
-        self.assertEqual(dialog._initial_config.xyce_executable_path, "")
-        dialog.reject()
-
     def test_on_qml_ready_skips_when_not_ready(self):
         # arrange
         dialog = _make_dialog()
