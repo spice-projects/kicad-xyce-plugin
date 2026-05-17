@@ -1,4 +1,0 @@
-dataclasses-json>=0.6.7
-kicad-python>=0.7.1
-numpy>=2.4.4
-PySide6>=6.11.1
