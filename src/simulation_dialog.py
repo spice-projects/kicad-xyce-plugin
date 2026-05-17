@@ -89,7 +89,7 @@ class OpSimulationParameters:
         # return instance
         return cls(print_dc_enabled=print_dc_enabled, print_dc_specific_variables=tuple(print_dc_vars), save_enabled=save_enabled, nodeset_entries=tuple(nodeset_entries))
 
-    def to_xyce_directive(self, topology: NetlistTopology | None =None) -> str:
+    def to_xyce_directive(self, topology: NetlistTopology | None = None) -> str:
         # start lines
         lines = [".OP"]
         # check enabled
@@ -164,7 +164,7 @@ class TransientSimulationParameters:
     op_keyword: str
     schedule_points: tuple[TransientSchedulePoint, ...]
 
-    def to_xyce_directive(self, topology: NetlistTopology | None =None) -> str:
+    def to_xyce_directive(self, topology: NetlistTopology | None = None) -> str:
         # build the required transient directive fields first
         tokens = [".TRAN", self.initial_step_value, self.final_time_value]
         # include start and step ceiling in positional order when either is provided
@@ -211,7 +211,7 @@ class DCSimulationParameters:
     secondary_step: str
     secondary_points: str
 
-    def to_xyce_directive(self, topology: NetlistTopology | None =None) -> str:
+    def to_xyce_directive(self, topology: NetlistTopology | None = None) -> str:
         # dispatch to the correct builder based on the selected sweep mode
         if self.sweep_mode == "DATA":
             return self._build_data_directive()
