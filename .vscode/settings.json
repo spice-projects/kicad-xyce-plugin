@@ -8,6 +8,7 @@
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
   "python.terminal.activateEnvironment": true,
   "chat.tools.terminal.autoApprove": {
-    "git remote": true
+    "git remote": true,
+    ".venv/bin/flake8": true
   }
 }

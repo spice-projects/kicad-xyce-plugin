@@ -22,6 +22,16 @@
             },
             "args": ["--log-level=DEBUG"],
             "justMyCode": false
+        },
+        {
+            "name": "Run App",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/src",
+            "module": "run_simulator",
+            "console": "integratedTerminal",
+            "args": ["--log-level=DEBUG"],
+            "justMyCode": false
         }
     ]
 }

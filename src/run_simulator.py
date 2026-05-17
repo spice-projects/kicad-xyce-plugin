@@ -10,10 +10,27 @@ from main_window import MainWindow
 from plugin_config import PluginConfig
 from window import load_app_icon
 
-KICAD_API_SOCKET = os.environ.get("KICAD_API_SOCKET")
-KICAD_API_TOKEN = os.environ.get("KICAD_API_TOKEN")
-
 PLUGIN_ID = "com.github.spice-projects.kicad-xyce-plugin"
+
+
+def _detect_kicad_mode() -> bool:
+    # both env vars must be non-empty for KiCad plugin mode
+    socket = os.environ.get("KICAD_API_SOCKET", "")
+    token = os.environ.get("KICAD_API_TOKEN", "")
+    return bool(socket and token)
+
+
+def _connect_kicad(logger: logging.Logger) -> KiCad | None:
+    # log connection details
+    logger.info("KICAD_API_SOCKET: %s", os.environ.get("KICAD_API_SOCKET"))
+    logger.info("KICAD_API_TOKEN: %s", os.environ.get("KICAD_API_TOKEN"))
+    # create KiCad instance and connect to the API
+    kicad_client = KiCad(client_name="Xyce Simulator Plugin")
+    # log some information about the KiCad instance
+    logger.info("Connected to KiCad API version: %s", kicad_client.get_api_version())
+    logger.info("KiCad version: %s", kicad_client.get_version())
+    # exit
+    return kicad_client
 
 
 def main():
@@ -31,14 +48,17 @@ def main():
     logging.basicConfig(level=getattr(logging, args.log_level), format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     # logger for this module (after configuring logging)
     logger = logging.getLogger(__name__)
-    # log KiCad API connection details (for debugging purposes)
-    logger.info("KICAD_API_SOCKET: %s", KICAD_API_SOCKET)
-    logger.info("KICAD_API_TOKEN: %s", KICAD_API_TOKEN)
-    # create KiCad instance and connect to the API
-    kicad_client = KiCad(client_name="Xyce Simulator Plugin")
-    # log some information about the KiCad instance
-    logger.info("Connected to KiCad API version: %s", kicad_client.get_api_version())
-    logger.info("KiCad version: %s", kicad_client.get_version())
+    # detect startup mode
+    is_kicad_mode = _detect_kicad_mode()
+    if is_kicad_mode:
+        # KiCad plugin mode: env vars are present, connect to the KiCad API
+        logger.info("Starting in KiCad plugin mode")
+        kicad_client = _connect_kicad(logger)
+    else:
+        # standalone mode: no KiCad API connection
+        logger.info("Starting in standalone mode")
+        kicad_client = None
+    # log current working directory
     logger.info("Current working directory: %s", os.getcwd())
     # create application
     app = QApplication(sys.argv)

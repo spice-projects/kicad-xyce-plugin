@@ -29,7 +29,7 @@ class MainWindow(QMainWindow):
     logAppendRequested = Signal(str)
     logClearRequested = Signal()
 
-    def __init__(self, kicad_client: KiCad, plugin_config: PluginConfig):
+    def __init__(self, kicad_client: KiCad | None, plugin_config: PluginConfig):
         super().__init__()
         # load icons
         load_kicad_icons()
