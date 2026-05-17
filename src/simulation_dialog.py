@@ -332,7 +332,9 @@ class SimulationDialog(QDialog):
 
         # select the appropriate tab based on the parameter type
         # QML tab order: 0 = Operating Point, 1 = Transient, 2 = DC Sweep
-        if isinstance(p, DCSimulationParameters):
+        if isinstance(p, TransientSimulationParameters):
+            self._root.setProperty("initialTabIndex", 1)
+        elif isinstance(p, DCSimulationParameters):
             self._root.setProperty("initialTabIndex", 2)
         else:
             self._root.setProperty("initialTabIndex", 0)
