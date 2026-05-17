@@ -85,6 +85,7 @@ dist
 *.egg-info
 .coverage
 coverage.xml
+.pytest_cache
 
 .env*
 .venv*

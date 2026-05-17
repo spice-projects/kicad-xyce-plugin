@@ -5,7 +5,7 @@ from .nodes import BinaryOperationNode, BinaryOperator, ExpressionNode, Function
 from .tokens import Token, TokenKind
 
 
-class QspiceParser:
+class XyceParser:
 
     def parse_expression(self, text: str) -> ExpressionNode:
         # tokenize the input
@@ -83,23 +83,35 @@ class QspiceParser:
 
     def _parse_logical_or(self) -> ExpressionNode:
         # parse the left-hand side
-        expression = self._parse_logical_and()
-        # fold any chained logical-or operators
-        while self._peek().kind == TokenKind.LOGICAL_OR:
+        expression = self._parse_logical_xor()
+        # fold any chained logical-or operators (single | or double ||)
+        while self._peek().kind in (TokenKind.LOGICAL_OR, TokenKind.PIPE):
             # consume the operator token
-            self._consume(TokenKind.LOGICAL_OR)
+            self._consume(self._peek().kind)
             # parse and fold the right-hand side
-            expression = BinaryOperationNode(expression, BinaryOperator.LOGICAL_OR, self._parse_logical_and())
+            expression = BinaryOperationNode(expression, BinaryOperator.LOGICAL_OR, self._parse_logical_xor())
+        # exit
+        return expression
+
+    def _parse_logical_xor(self) -> ExpressionNode:
+        # parse the left-hand side
+        expression = self._parse_logical_and()
+        # fold any chained logical-xor operators (^)
+        while self._peek().kind == TokenKind.CARET:
+            # consume the operator token
+            self._consume(TokenKind.CARET)
+            # parse and fold the right-hand side
+            expression = BinaryOperationNode(expression, BinaryOperator.LOGICAL_XOR, self._parse_logical_and())
         # exit
         return expression
 
     def _parse_logical_and(self) -> ExpressionNode:
         # parse the left-hand side
         expression = self._parse_equality()
-        # fold any chained logical-and operators
-        while self._peek().kind == TokenKind.LOGICAL_AND:
+        # fold any chained logical-and operators (single & or double &&)
+        while self._peek().kind in (TokenKind.LOGICAL_AND, TokenKind.AMPERSAND):
             # consume the operator token
-            self._consume(TokenKind.LOGICAL_AND)
+            self._consume(self._peek().kind)
             # parse and fold the right-hand side
             expression = BinaryOperationNode(expression, BinaryOperator.LOGICAL_AND, self._parse_equality())
         # exit
@@ -162,10 +174,10 @@ class QspiceParser:
     def _parse_multiplicative(self) -> ExpressionNode:
         # parse the left-hand side
         expression = self._parse_unary()
-        # handle implicit multiplication or fold explicit operators
+        # fold explicit operators (* / %) and implicit SPICE suffix multiplication (e.g. 1K, 10MEG)
         while True:
-            # check for implicit multiplication between primary tokens (NUMBER or IDENTIFIER)
-            if self._peek().kind in (TokenKind.STAR, TokenKind.SLASH):
+            # handle explicit multiplicative operators
+            if self._peek().kind in (TokenKind.STAR, TokenKind.SLASH, TokenKind.PERCENT):
                 # consume the operator token
                 operator = self._consume(self._peek().kind)
                 # parse the right-hand side
@@ -173,29 +185,17 @@ class QspiceParser:
                 # fold the operator
                 if operator.kind == TokenKind.STAR:
                     expression = BinaryOperationNode(expression, BinaryOperator.MUL, right)
-                else:
+                elif operator.kind == TokenKind.SLASH:
                     expression = BinaryOperationNode(expression, BinaryOperator.DIV, right)
-            # check for implicit multiplication: primary followed by identifier with bullet/hash
-            elif self._peek().kind == TokenKind.IDENTIFIER and self._last_was_primary(expression):
-                next_identifier = self._peek().text
-                if "•" in next_identifier or "#" in next_identifier:
-                    # this is a node name with QSPICE hierarchy/special chars; combine tokens
-                    self._consume(TokenKind.IDENTIFIER)
-                    if isinstance(expression, NumberNode):
-                        combined = expression.text + next_identifier
-                    elif isinstance(expression, IdentifierNode):
-                        combined = expression.name + next_identifier
-                    else:
-                        # not a simple primary; don't combine
-                        expression = BinaryOperationNode(expression, BinaryOperator.MUL, IdentifierNode(next_identifier))
-                        continue
-                    expression = IdentifierNode(combined)
                 else:
-                    # regular implicit multiplication
-                    right = self._consume(TokenKind.IDENTIFIER)
-                    expression = BinaryOperationNode(expression, BinaryOperator.MUL, IdentifierNode(right.text))
+                    expression = BinaryOperationNode(expression, BinaryOperator.MOD, right)
+            # handle implicit multiplication: a primary followed directly by an identifier (e.g. 1K, 1MEG)
+            elif self._peek().kind == TokenKind.IDENTIFIER and self._last_was_primary(expression):
+                # consume the identifier token and treat it as the right-hand side
+                right_token = self._consume(TokenKind.IDENTIFIER)
+                expression = BinaryOperationNode(expression, BinaryOperator.MUL, IdentifierNode(right_token.text))
             else:
-                # no more operators
+                # no more operators; exit
                 break
         # exit
         return expression
@@ -207,7 +207,7 @@ class QspiceParser:
             return True
         # a binary expression ending in a primary also qualifies — handles e.g. "a * 1" followed by "s"
         if isinstance(node, BinaryOperationNode):
-            return QspiceParser._last_was_primary(node.right)
+            return XyceParser._last_was_primary(node.right)
         return False
 
     def _parse_unary(self) -> ExpressionNode:
@@ -219,9 +219,9 @@ class QspiceParser:
         if self._peek().kind == TokenKind.MINUS:
             self._consume(TokenKind.MINUS)
             return UnaryOperationNode(UnaryOperator.NEG, self._parse_unary())
-        # parse logical negation
-        if self._peek().kind == TokenKind.BANG:
-            self._consume(TokenKind.BANG)
+        # parse logical negation — Xyce uses ~ (TILDE); also accept ! for compatibility
+        if self._peek().kind in (TokenKind.TILDE, TokenKind.BANG):
+            self._consume(self._peek().kind)
             return UnaryOperationNode(UnaryOperator.NOT, self._parse_unary())
         # exit
         return self._parse_power()
@@ -229,9 +229,9 @@ class QspiceParser:
     def _parse_power(self) -> ExpressionNode:
         # parse the base expression
         expression = self._parse_primary()
-        # fold a right-associative power operator
-        if self._peek().kind in (TokenKind.CARET, TokenKind.POWER):
-            self._consume(self._peek().kind)
+        # fold a right-associative power operator — Xyce uses ** only (^ is XOR)
+        if self._peek().kind == TokenKind.POWER:
+            self._consume(TokenKind.POWER)
             return BinaryOperationNode(expression, BinaryOperator.POW, self._parse_unary())
         # exit
         return expression
@@ -251,15 +251,14 @@ class QspiceParser:
                 return self._parse_postfix_reference(IdentifierNode(identifier))
             # consume the argument list opener
             self._consume(TokenKind.LPAREN)
-            # probe functions receive raw node-name arguments that may contain
-            # hyphens, slashes, and bullet-separated digit-prefixed identifiers
-            if identifier.casefold() in ("v", "i", "id"):
+            # V() and I() probe functions receive raw node-name arguments that may contain hyphens
+            if identifier.casefold() in ("v", "i"):
                 args = self._parse_probe_argument_list()
             else:
                 args = self._parse_argument_list()
             # consume the argument list closer
             self._consume(TokenKind.RPAREN)
-            # parse an optional selector suffix such as V(INOISE)@1 as a direct identifier lookup
+            # parse an optional step-selector suffix such as V(INOISE)@1
             return self._parse_postfix_reference(FunctionCallNode(identifier, args))
         # parse a parenthesized sub-expression
         if token.kind == TokenKind.LPAREN:
@@ -271,7 +270,7 @@ class QspiceParser:
         raise ValueError(f"Unexpected token {token.text!r} at offset {token.start}")
 
     def _parse_postfix_reference(self, expression: ExpressionNode) -> ExpressionNode:
-        # support probe selectors such as V(INOISE)@1 as a StepSelectorNode
+        # support step selectors such as V(OUT)@1 for stepped analyses
         if self._peek().kind != TokenKind.AT:
             return expression
         self._consume(TokenKind.AT)
@@ -285,7 +284,7 @@ class QspiceParser:
             step_index = int(selector_text)
         except ValueError:
             raise ValueError(f"Step selector @{selector_text!r} is not a valid integer")
-        # reject zero and negative step indices (1-based QSPICE convention)
+        # reject zero and negative step indices (1-based convention)
         if step_index < 1:
             raise ValueError(f"Step selector @{step_index} is invalid: indices must be >= 1")
         return StepSelectorNode(expression, step_index)
@@ -323,11 +322,11 @@ class QspiceParser:
             self._consume(TokenKind.COMMA)
 
     def _parse_probe_node_name(self) -> ExpressionNode:
-        # token kinds that are valid constituents of a SPICE/KiCad/QSPICE net name:
-        # - IDENTIFIER: alphabetic start (includes bullet-prefixed fragments after Fix 1)
-        # - NUMBER: digit-only prefix segments like "7" in "7•x1•xu302" or ground "0"
+        # token kinds that are valid constituents of a SPICE/KiCad net name:
+        # - IDENTIFIER: alphabetic start for named nodes
+        # - NUMBER: digit-only segments like "0" for ground or numeric node labels
         # - MINUS: hyphens in KiCad auto-generated names like "net-_u304a-g2_"
-        # - SLASH: hierarchy separators in QSPICE paths like "/power_amplifier/vcc1"
+        # - SLASH: hierarchy separators in Xyce subcircuit paths like "x1:y"
         _NODE_NAME_TOKENS = frozenset({
             TokenKind.IDENTIFIER, TokenKind.NUMBER,
             TokenKind.MINUS, TokenKind.SLASH,
@@ -360,9 +359,9 @@ class QspiceParser:
 
 def parse_expression(text: str) -> ExpressionNode:
     # parse a standalone expression with a fresh parser instance
-    return QspiceParser().parse_expression(text)
+    return XyceParser().parse_expression(text)
 
 
 def parse_function_definition(text: str) -> FunctionDefinitionNode:
     # parse a .func definition with a fresh parser instance
-    return QspiceParser().parse_function_definition(text)
+    return XyceParser().parse_function_definition(text)

@@ -7,6 +7,7 @@ from enum import Enum
 class BinaryOperator(Enum):
 
     LOGICAL_OR = "||"
+    LOGICAL_XOR = "^"
     LOGICAL_AND = "&&"
     EQUAL = "=="
     NOT_EQUAL = "!="
@@ -18,6 +19,7 @@ class BinaryOperator(Enum):
     SUB = "-"
     MUL = "*"
     DIV = "/"
+    MOD = "%"
     POW = "**"
 
 

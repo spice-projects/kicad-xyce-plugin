@@ -16,8 +16,12 @@ _SINGLE_CHAR_TOKENS: dict[str, TokenKind] = {
     "-": TokenKind.MINUS,
     "*": TokenKind.STAR,
     "/": TokenKind.SLASH,
+    "%": TokenKind.PERCENT,
     "^": TokenKind.CARET,
+    "~": TokenKind.TILDE,
     "!": TokenKind.BANG,
+    "&": TokenKind.AMPERSAND,
+    "|": TokenKind.PIPE,
     "<": TokenKind.LESS,
     ">": TokenKind.GREATER,
 }
@@ -33,7 +37,7 @@ _DOUBLE_CHAR_TOKENS: dict[str, TokenKind] = {
 }
 
 
-class QspiceLexer:
+class XyceLexer:
 
     def tokenize(self, text: str) -> list[Token]:
         # store the input buffer
@@ -190,15 +194,15 @@ class QspiceLexer:
 
     @staticmethod
     def _is_identifier_start(ch: str) -> bool:
-        # allow bullet as a start so digit-prefixed QSPICE node tokens like 7•x1•xu302 are split
-        # at the digit boundary and the remaining •-prefixed fragment becomes a valid identifier
-        return ch.isalpha() or ch in "_•"
+        # Xyce identifiers start with a letter or underscore; standard SPICE node names
+        return ch.isalpha() or ch == "_"
 
     @staticmethod
     def _is_identifier_part(ch: str) -> bool:
-        return ch.isalnum() or ch in "_[]•#"
+        # Xyce identifiers continue with alphanumeric characters, underscores, or square brackets
+        return ch.isalnum() or ch in "_[]"
 
 
 def tokenize(text: str) -> list[Token]:
     # tokenize the input with a fresh lexer instance
-    return QspiceLexer().tokenize(text)
+    return XyceLexer().tokenize(text)

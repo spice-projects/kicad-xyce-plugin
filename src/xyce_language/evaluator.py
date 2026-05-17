@@ -3,7 +3,7 @@ from typing import Any
 
 import numpy as np
 
-from .builtins import BUILTIN_CONSTANTS, BUILTIN_FUNCTIONS, QspiceValue
+from .builtins import BUILTIN_CONSTANTS, BUILTIN_FUNCTIONS, XyceValue
 from .nodes import BinaryOperationNode, BinaryOperator, ExpressionNode, FunctionCallNode, FunctionDefinitionNode, IdentifierNode, NumberNode, StepSelectorNode, TernaryOperationNode, UnaryOperationNode, UnaryOperator
 from .probe_names import is_network_parameter_probe_name
 
@@ -18,20 +18,21 @@ _NUMBER_SUFFIXES: dict[str, float] = {
     "N": 1e-9,
     "P": 1e-12,
     "F": 1e-15,
+    "MIL": 25.4e-6,
 }
 
 
 @dataclass(frozen=True)
 class EvaluationContext:
 
-    variables: dict[str, QspiceValue]
+    variables: dict[str, XyceValue]
     functions: dict[str, FunctionDefinitionNode]
-    constants: dict[str, QspiceValue]
+    constants: dict[str, XyceValue]
     # optional step slices for @N selector support; each slice gives the index range for one step
     step_slices: tuple[slice, ...] | None = None
 
 
-class QspiceEvaluator:
+class XyceEvaluator:
 
     def evaluate(self, expression: ExpressionNode, variables: dict[str, Any] | None = None, functions: dict[str, FunctionDefinitionNode] | None = None, constants: dict[str, Any] | None = None, step_slices: tuple[slice, ...] | None = None) -> Any:
         # build the evaluation context
@@ -41,7 +42,7 @@ class QspiceEvaluator:
         # convert the internal value to a public result
         return self._to_public_value(result)
 
-    def _evaluate(self, expression: ExpressionNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> QspiceValue:
+    def _evaluate(self, expression: ExpressionNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> XyceValue:
         # evaluate a numeric literal
         if isinstance(expression, NumberNode):
             return self._parse_number(expression.text)
@@ -66,7 +67,7 @@ class QspiceEvaluator:
         # fail on an unsupported node type
         raise ValueError(f"Unsupported expression node: {type(expression).__name__}")
 
-    def _evaluate_unary(self, expression: UnaryOperationNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> QspiceValue:
+    def _evaluate_unary(self, expression: UnaryOperationNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> XyceValue:
         # evaluate the operand value
         value = self._evaluate(expression.operand, context, call_stack)
         # apply unary plus
@@ -81,7 +82,7 @@ class QspiceEvaluator:
         # fail on an unsupported unary operator
         raise ValueError(f"Unsupported unary operator: {expression.operator.value}")
 
-    def _evaluate_binary(self, expression: BinaryOperationNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> QspiceValue:
+    def _evaluate_binary(self, expression: BinaryOperationNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> XyceValue:
         # short-circuit logical and
         if expression.operator == BinaryOperator.LOGICAL_AND:
             left_value = self._evaluate(expression.left, context, call_stack)
@@ -127,10 +128,16 @@ class QspiceEvaluator:
         # apply greater-than-or-equal comparison
         if expression.operator == BinaryOperator.GREATER_EQUAL:
             return self._boolean_result(np.real(left_value) >= np.real(right_value))
+        # apply logical xor (bitwise xor of truth masks)
+        if expression.operator == BinaryOperator.LOGICAL_XOR:
+            return self._boolean_result(self._truth_mask(left_value) ^ self._truth_mask(right_value))
+        # apply modulo
+        if expression.operator == BinaryOperator.MOD:
+            return np.mod(np.real(left_value), np.real(right_value))
         # fail on an unsupported binary operator
         raise ValueError(f"Unsupported binary operator: {expression.operator.value}")
 
-    def _evaluate_ternary(self, expression: TernaryOperationNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> QspiceValue:
+    def _evaluate_ternary(self, expression: TernaryOperationNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> XyceValue:
         # evaluate the condition value
         condition = self._evaluate(expression.condition, context, call_stack)
         # branch directly for scalar conditions
@@ -145,7 +152,7 @@ class QspiceEvaluator:
         # select element-wise between both branches
         return np.where(self._truth_mask(condition), if_true, if_false)
 
-    def _evaluate_function_call(self, expression: FunctionCallNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> QspiceValue:
+    def _evaluate_function_call(self, expression: FunctionCallNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> XyceValue:
         # normalize the function name
         function_name = expression.name.casefold()
         # check for probe-style references stored directly in the variable context
@@ -181,7 +188,7 @@ class QspiceEvaluator:
         # normalize the function name
         function_name = expression.name.casefold()
         # canonical SPICE probe families are always treated as probes
-        if function_name in ("v", "i", "id") and len(expression.args) > 0:
+        if function_name in ("v", "i") and len(expression.args) > 0:
             return True
         # only two-digit S/Z/Y/H names are treated as network-parameter probes
         if not is_network_parameter_probe_name(function_name):
@@ -204,7 +211,7 @@ class QspiceEvaluator:
         # ok
         return True
 
-    def _evaluate_probe(self, expression: FunctionCallNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> QspiceValue:
+    def _evaluate_probe(self, expression: FunctionCallNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> XyceValue:
         # reconstruct the probe reference name from arguments
         probe_name = self._reconstruct_probe_name(expression)
         # try to find the probe directly in variables
@@ -242,7 +249,7 @@ class QspiceEvaluator:
         # fail if probe not found
         raise ValueError(f"Unknown probe: {probe_name}")
 
-    def _evaluate_step_selector(self, expression: StepSelectorNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> QspiceValue:
+    def _evaluate_step_selector(self, expression: StepSelectorNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> XyceValue:
         # require step slice information in the evaluation context
         if context.step_slices is None:
             raise ValueError("Step selector @N requires step metadata in the evaluation context")
@@ -262,7 +269,7 @@ class QspiceEvaluator:
         # reconstruct probe name from function call structure
         probe_prefix = expression.name.upper()
         # rebuild the argument list
-        args_str = ", ".join(QspiceEvaluator._node_name_from_expr(arg) for arg in expression.args)
+        args_str = ", ".join(XyceEvaluator._node_name_from_expr(arg) for arg in expression.args)
         # format as probe reference
         return f"{probe_prefix}({args_str})"
 
@@ -287,7 +294,7 @@ class QspiceEvaluator:
         else:
             raise ValueError(f"Expected identifier or number for node reference, got {type(expr).__name__}")
 
-    def _evaluate_logical_and(self, left_value: QspiceValue, right_expression: ExpressionNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> QspiceValue:
+    def _evaluate_logical_and(self, left_value: XyceValue, right_expression: ExpressionNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> XyceValue:
         # short-circuit a false scalar left operand
         if self._is_scalar_value(left_value) and not bool(left_value.item()):
             return np.asarray(0.0)
@@ -296,7 +303,7 @@ class QspiceEvaluator:
         # combine both truth masks
         return self._boolean_result(self._truth_mask(left_value) & self._truth_mask(right_value))
 
-    def _evaluate_logical_or(self, left_value: QspiceValue, right_expression: ExpressionNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> QspiceValue:
+    def _evaluate_logical_or(self, left_value: XyceValue, right_expression: ExpressionNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> XyceValue:
         # short-circuit a true scalar left operand
         if self._is_scalar_value(left_value) and bool(left_value.item()):
             return np.asarray(1.0)
@@ -305,7 +312,7 @@ class QspiceEvaluator:
         # combine both truth masks
         return self._boolean_result(self._truth_mask(left_value) | self._truth_mask(right_value))
 
-    def _lookup_name(self, name: str, context: EvaluationContext) -> QspiceValue:
+    def _lookup_name(self, name: str, context: EvaluationContext) -> XyceValue:
         # normalize the identifier name
         key = name.casefold()
         # resolve a variable binding
@@ -318,9 +325,9 @@ class QspiceEvaluator:
         raise ValueError(f"Unknown identifier: {name}")
 
     @staticmethod
-    def _normalize_value_mapping(mapping: dict[str, Any] | None, defaults: dict[str, QspiceValue] | None = None) -> dict[str, QspiceValue]:
+    def _normalize_value_mapping(mapping: dict[str, Any] | None, defaults: dict[str, XyceValue] | None = None) -> dict[str, XyceValue]:
         # initialize the normalized mapping
-        normalized: dict[str, QspiceValue] = {}
+        normalized: dict[str, XyceValue] = {}
         # seed the mapping with defaults
         if defaults is not None:
             for key, value in defaults.items():
@@ -330,7 +337,7 @@ class QspiceEvaluator:
             return normalized
         # normalize explicit mapping keys
         for key, value in mapping.items():
-            normalized[key.casefold()] = QspiceEvaluator._normalize_value(value)
+            normalized[key.casefold()] = XyceEvaluator._normalize_value(value)
         # exit
         return normalized
 
@@ -348,7 +355,7 @@ class QspiceEvaluator:
         return normalized
 
     @staticmethod
-    def _normalize_value(value: Any) -> QspiceValue:
+    def _normalize_value(value: Any) -> XyceValue:
         # preserve ndarray inputs
         if isinstance(value, np.ndarray):
             return value
@@ -356,19 +363,19 @@ class QspiceEvaluator:
         return np.asarray(value)
 
     @staticmethod
-    def _is_scalar_value(value: QspiceValue) -> bool:
+    def _is_scalar_value(value: XyceValue) -> bool:
         return value.ndim == 0
 
     @staticmethod
-    def _truth_mask(value: QspiceValue) -> np.ndarray:
+    def _truth_mask(value: XyceValue) -> np.ndarray:
         return np.asarray(np.real(value) != 0)
 
     @staticmethod
-    def _boolean_result(value: Any) -> QspiceValue:
+    def _boolean_result(value: Any) -> XyceValue:
         return np.asarray(value, dtype=float)
 
     @staticmethod
-    def _to_public_value(value: QspiceValue) -> Any:
+    def _to_public_value(value: XyceValue) -> Any:
         # unpack scalar results for the public interface
         if value.ndim == 0:
             return value.item()
@@ -376,7 +383,7 @@ class QspiceEvaluator:
         return value
 
     @staticmethod
-    def _parse_number(text: str) -> QspiceValue:
+    def _parse_number(text: str) -> XyceValue:
         # normalize the suffix scan input
         upper_text = text.upper()
         # track the matched suffix
@@ -400,4 +407,4 @@ class QspiceEvaluator:
 
 def evaluate_expression(expression: ExpressionNode, variables: dict[str, Any] | None = None, functions: dict[str, FunctionDefinitionNode] | None = None, constants: dict[str, Any] | None = None, step_slices: tuple[slice, ...] | None = None) -> Any:
     # evaluate an expression with a fresh evaluator instance
-    return QspiceEvaluator().evaluate(expression, variables, functions, constants, step_slices)
+    return XyceEvaluator().evaluate(expression, variables, functions, constants, step_slices)

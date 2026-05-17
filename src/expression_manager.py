@@ -3,9 +3,9 @@ import logging
 import numpy as np
 
 from expression import Expression
-from xyce_language.evaluator import QspiceEvaluator
+from xyce_language.evaluator import XyceEvaluator
 from xyce_language.nodes import BinaryOperationNode, BinaryOperator, ExpressionNode, FunctionCallNode, FunctionDefinitionNode, IdentifierNode, NumberNode, StepSelectorNode, TernaryOperationNode, UnaryOperationNode
-from xyce_language.parser import QspiceParser
+from xyce_language.parser import XyceParser
 from xyce_language.probe_names import is_network_parameter_probe_name
 
 logger = logging.getLogger(__name__)
@@ -17,10 +17,12 @@ class ExpressionManager:
         "e": "",
         "f": "",
         "g": "",
+        "j": "",
         "k": "",
         "m": "",
         "meg": "",
         "mho": "S",
+        "mil": "",
         "n": "",
         "p": "",
         "pi": "",
@@ -33,8 +35,8 @@ class ExpressionManager:
         # create expression context; keys are lowercased so that evaluate() lookups always match
         self._context: dict[str, Expression] = {expression.name.lower(): expression for expression in expressions}
         # initialize the qspice language parser and evaluator for expression data
-        self._parser = QspiceParser()
-        self._evaluator = QspiceEvaluator()
+        self._parser = XyceParser()
+        self._evaluator = XyceEvaluator()
         # store optional step slice metadata for @N selector evaluation
         self._step_slices = step_slices
         # store function definitions
