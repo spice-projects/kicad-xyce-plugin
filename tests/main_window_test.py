@@ -24,6 +24,8 @@ def _make_window() -> MainWindow:
     window._plugin_config = PluginConfig.default()
     window._runner = None
     window._simulation_parameters = None
+    window._simulation_performed = False
+    window._simulation_output_action = None
     window._charts = []
     return window
 
@@ -300,7 +302,27 @@ class TestMainWindowOnMenuOpenFile:
             window._on_menu_open_file()
 
 
-class TestMainWindowPopulateCharts:
+class TestMainWindowViewSimulationOutput:
+
+    def test_view_simulation_output_enabled_after_simulation_starts(self):
+        # arrange
+        window = _make_window()
+        window._simulation_output_action = MagicMock()
+        # act
+        window._on_simulation_started("/tmp/test.cir", "/tmp/test.raw")
+        # assert
+        assert window._simulation_performed is True
+        window._simulation_output_action.setEnabled.assert_called_with(True)
+
+    def test_view_simulation_output_toggles_log_visibility(self):
+        # arrange
+        window = _make_window()
+        window._root = MagicMock()
+        window._root.property.return_value = False
+        # act
+        window._on_menu_view_simulation_output()
+        # assert
+        window._root.setProperty.assert_called_with("logVisible", True)
 
     def test_populate_charts_adds_one_chart(self):
         # arrange
