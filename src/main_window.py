@@ -10,10 +10,10 @@ from PySide6.QtWidgets import QFileDialog, QMainWindow, QVBoxLayout, QWidget
 from config_dialog import ConfigDialog
 from expression import Expression
 from kicad_icons import KiCadIcon, get_kicad_icon, load_kicad_icons
-from netlist_parser import parse_netlist
+from netlist_parser import NetlistTopology, parse_netlist
 from netlist_viewer_dialog import NetlistViewerDialog
 from plugin_config import PluginConfig
-from run_xyce_simulation import run_xyce_simulation
+from run_xyce_simulation import run_xyce_simulation, XyceSimulationRunner
 from simulation_dialog import OpSimulationParameters, SimulationDialog
 from window import load_app_icon, log_screen_info
 
@@ -41,11 +41,17 @@ class MainWindow(QMainWindow):
         self._kicad_client = kicad_client
         self._plugin_config = plugin_config
         # initialize state
-        self._charts = []
-        self._runner = None
-        self._simulation_parameters = None
-        self._simulation_performed = False
-        self._simulation_output_action = None
+        self._charts: list = []
+        self._runner: XyceSimulationRunner | None = None
+        self._simulation_parameters: OpSimulationParameters | None = None
+        self._simulation_performed: bool = False
+        self._simulation_output_action: QAction | None = None
+        self._simulation_cmd_action: QAction | None = None
+        self._simulation_run_action: QAction | None = None
+        self._show_netlist_action: QAction | None = None
+        # netlist file opened from the filesystem in standalone mode
+        self._netlist: str | None = None
+        self._topology: NetlistTopology | None = None
         # set title
         self.setWindowTitle("Xyce Simulation - No file loaded")
         # apply style
@@ -75,6 +81,8 @@ class MainWindow(QMainWindow):
         self._create_main_menu()
         # toolbar
         self._create_toolbar()
+        # apply startup mode restrictions
+        self._apply_startup_mode()
         # timer
         self._status_timer = QTimer(self)
         # set single shot
@@ -183,79 +191,121 @@ class MainWindow(QMainWindow):
     def _create_toolbar(self):
         # toolbar
         toolbar = self.addToolBar("File")
-        # set movable
         toolbar.setMovable(False)
-        # icon size
         toolbar.setIconSize(QSize(24, 24))
+
         # open action
         open_action = QAction(get_kicad_icon(KiCadIcon.FILE_OPEN, dark=False), "Open", self)
-        # shortcut
         open_action.setShortcut(QKeySequence.StandardKey.Open)
-        # tooltip
         open_action.setToolTip("Open simulation file (Cmd+O)")
-        # connect
         open_action.triggered.connect(self._on_menu_open_file)
-        # add
         toolbar.addAction(open_action)
+
         # save action
         save_action = QAction(get_kicad_icon(KiCadIcon.FILE_SAVE, dark=False), "Save", self)
-        # shortcut
         save_action.setShortcut(QKeySequence.StandardKey.Save)
-        # tooltip
         save_action.setToolTip("Save simulation file (Cmd+S)")
-        # add
         toolbar.addAction(save_action)
+
         # separator
         toolbar.addSeparator()
-        # sim command
-        simulation_cmd_action = QAction(get_kicad_icon(KiCadIcon.SIM_COMMAND, dark=False), "Configure Simulation", self)
-        # tooltip
-        simulation_cmd_action.setToolTip("Configure simulation parameters")
-        # connect
-        simulation_cmd_action.triggered.connect(self._on_menu_configure_simulation)
-        # add
-        toolbar.addAction(simulation_cmd_action)
-        # sim run
-        simulation_run_action = QAction(get_kicad_icon(KiCadIcon.SIM_RUN, dark=False), "Run Simulation", self)
-        # tooltip
-        simulation_run_action.setToolTip("Run the simulation")
-        # connect
-        simulation_run_action.triggered.connect(self._on_menu_run_simulation)
-        # add
-        toolbar.addAction(simulation_run_action)
+
+        # simulation settings
+        self._simulation_cmd_action = QAction(get_kicad_icon(KiCadIcon.SIM_COMMAND, dark=False), "Configure Simulation", self)
+        self._simulation_cmd_action.setToolTip("Configure simulation parameters")
+        self._simulation_cmd_action.triggered.connect(self._on_menu_configure_simulation)
+        toolbar.addAction(self._simulation_cmd_action)
+
+        # simulation run
+        self._simulation_run_action = QAction(get_kicad_icon(KiCadIcon.SIM_RUN, dark=False), "Run Simulation", self)
+        self._simulation_run_action.setToolTip("Run the simulation")
+        self._simulation_run_action.triggered.connect(self._on_menu_run_simulation)
+        toolbar.addAction(self._simulation_run_action)
+
         # separator
         toolbar.addSeparator()
+
         # show netlist
-        icon_netlist = get_kicad_icon(KiCadIcon.SHOW_NETLIST, dark=False)
-        show_netlist_action = QAction(icon_netlist, "Show Netlist", self)
-        # tooltip
-        show_netlist_action.setToolTip("Show processed netlist")
-        # connect
-        show_netlist_action.triggered.connect(self._on_menu_show_netlist)
-        # add
-        toolbar.addAction(show_netlist_action)
+        self._show_netlist_action = QAction(get_kicad_icon(KiCadIcon.SHOW_NETLIST, dark=False), "Show Netlist", self)
+        self._show_netlist_action.setToolTip("Show processed netlist")
+        self._show_netlist_action.triggered.connect(self._on_menu_show_netlist)
+        toolbar.addAction(self._show_netlist_action)
+
         # separator
         toolbar.addSeparator()
+
         # config action
-        icon_pref = get_kicad_icon(KiCadIcon.PREFERENCE, dark=False)
-        config_action = QAction(icon_pref, "Configuration", self)
-        # tooltip
+        config_action = QAction(get_kicad_icon(KiCadIcon.PREFERENCE, dark=False), "Configuration", self)
         config_action.setToolTip("Open plugin configuration")
-        # connect
-        config_action.triggered.connect(self._on_menu_configuration)
-        # add
+        config_action.triggered.connect(self._on_menu_configuration)        # add
         toolbar.addAction(config_action)
+
+    def _apply_startup_mode(self) -> None:
+        # in standalone mode, simulation actions are disabled until a netlist is loaded
+        if self._kicad_client is None:
+            # disable configure simulation
+            if self._simulation_cmd_action:
+                self._simulation_cmd_action.setEnabled(False)
+            # disable run simulation
+            if self._simulation_run_action:
+                self._simulation_run_action.setEnabled(False)
+            # disable show netlist
+            if self._show_netlist_action:
+                self._show_netlist_action.setEnabled(False)
 
     @Slot()
     def _on_menu_open_file(self) -> None:
+        # filters
+        netlist_filter = "Netlist Files (*.cir *.sp *.spi *.net *.spice *.ckt)"
+        raw_filter = "Raw Files (*.raw)"
+        all_filter = "All Files (*)"
+        # combined filter
+        filter = f"{netlist_filter};;{raw_filter};;{all_filter}"
         # get file
-        res = QFileDialog.getOpenFileName(self, "Open Netlist File", "", "Netlist Files (*.cir);;All Files (*)")
+        res = QFileDialog.getOpenFileName(self, "Open File", "", filter)
         # path
         input_path_str = res[0]
         # check
         if not input_path_str:
             # return
             return
+        # path object
+        input_path = Path(input_path_str)
+        # update title
+        self.setWindowTitle(f"Xyce Simulation - {input_path.name}")
+        # raw files are displayed only — simulation requires a netlist
+        if input_path.suffix.lower() == ".raw":
+            # return
+            return
+        try:
+            # load and parse netlist
+            content = input_path.read_text()
+            # parse netlist file
+            topology = parse_netlist(content)
+        except Exception as e:
+            # error
+            self._show_status(f"Failed to load netlist: {e}", 5000)
+            # return
+            return
+        # store
+        self._netlist = content
+        self._topology = topology
+        # feedback
+        device_count = len(topology.devices)
+        node_count = len(topology.nodes)
+        if device_count == 0:
+            # warn
+            self._show_status("No components found in netlist", 5000)
+        else:
+            # status
+            self._show_status(f"Loaded: {device_count} devices, {node_count} nodes")
+        # enable simulation actions now that a netlist is loaded
+        if self._simulation_cmd_action:
+            self._simulation_cmd_action.setEnabled(True)
+        if self._simulation_run_action:
+            self._simulation_run_action.setEnabled(True)
+        if self._show_netlist_action:
+            self._show_netlist_action.setEnabled(True)
 
     def _populate_charts(self):
         # charts
@@ -265,7 +315,8 @@ class MainWindow(QMainWindow):
         # add
         self._root.addChart()
 
-    def _setup_netlist(self) -> str:
+    def _extract_schematic_netlist(self) -> tuple[str, NetlistTopology]:
+        # plugin mode: extract from KiCad schematic (placeholder for future implementation)
         # line1
         l1 = "* Xyce Complex Test Circuit\n"
         # line2
@@ -286,8 +337,10 @@ class MainWindow(QMainWindow):
         l9 = ".END"
         # netlist
         netlist = l1 + l2 + l3 + l4 + l5 + l6 + l7 + l8 + l9
-        # return
-        return netlist
+        # parse
+        topology = parse_netlist(netlist)
+        # exit
+        return netlist, topology
 
     def _on_menu_view_simulation_output(self) -> None:
         # check root
@@ -346,10 +399,8 @@ class MainWindow(QMainWindow):
         self._runner = None
 
     def _on_menu_run_simulation(self):
-        # netlist
-        netlist = self._setup_netlist()
-        # topology
-        topology = parse_netlist(netlist)
+        # netlist and topology to use
+        netlist, topology = self._extract_schematic_netlist() if self._kicad_client is not None else (self._netlist, self._topology)
         # check
         if self._simulation_parameters is None:
             # params
@@ -401,10 +452,8 @@ class MainWindow(QMainWindow):
             logger.error("Simulation startup failed", exc_info=True)
 
     def _on_menu_show_netlist(self):
-        # netlist
-        netlist = self._setup_netlist()
-        # topology
-        topology = parse_netlist(netlist)
+        # netlist and topology to use
+        netlist, topology = self._extract_schematic_netlist() if self._kicad_client is not None else (self._netlist, self._topology)
         # check
         if self._simulation_parameters is None:
             # params
@@ -423,6 +472,15 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _on_menu_configure_simulation(self):
+        # extract topology to pre-populate parameters from schematic directives
+        if self._simulation_parameters is None:
+            # topology to use
+            _, topology = self._extract_schematic_netlist() if self._kicad_client is not None else (None, self._topology)
+            # load from directives if available
+            params = OpSimulationParameters.from_directives(topology.directives)
+            # process simulation parameters
+            if params.print_dc_enabled or params.save_enabled or params.nodeset_entries:
+                self._simulation_parameters = params
         # dialog
         dialog = SimulationDialog(self, initial_parameters=self._simulation_parameters)
         # result
