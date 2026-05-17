@@ -2,12 +2,10 @@ import os
 import sys
 import tempfile
 
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from PySide6.QtQuick import QQuickView
-from PySide6.QtWidgets import QApplication
-from PySide6.QtWidgets import QDialog
+from PySide6.QtWidgets import QApplication, QDialog
 
 from config_dialog import ConfigDialog
 from plugin_config import PluginConfig

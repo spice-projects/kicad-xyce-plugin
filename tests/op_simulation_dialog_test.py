@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock
 
-from simulation_dialog import NodesetEntry
-from simulation_dialog import OpSimulationParameters
+from simulation_dialog import NodesetEntry, OpSimulationParameters
 
 
 class TestOpSimulationParameters:

@@ -1,16 +1,10 @@
-import os
-from unittest.mock import patch
-from unittest.mock import MagicMock
+from unittest.mock import patch, MagicMock
 
+import pytest
 from PySide6.QtWidgets import QDialog
 from PySide6.QtQuick import QQuickView
 
-from simulation_dialog import TransientSchedulePoint
-from simulation_dialog import TransientSimulationParameters
-from simulation_dialog import SimulationDialog
-from simulation_dialog import OpSimulationParameters
-from simulation_dialog import DCSimulationParameters
-
+from simulation_dialog import TransientSchedulePoint, TransientSimulationParameters, SimulationDialog, OpSimulationParameters, DCSimulationParameters
 
 
 def _make_dialog(initial_parameters=None) -> SimulationDialog:
