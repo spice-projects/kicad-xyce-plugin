@@ -18,7 +18,6 @@ class XyceSimulationRunner(QObject):
     finished = Signal(int, int, bool, str)
 
     def __init__(self, program_path: str, netlist_file_path: str, output_file_path: str):
-        # initialize QObject infrastructure used by Qt signals
         super().__init__()
         # keep the external executable path for process launch
         self._program_path = program_path

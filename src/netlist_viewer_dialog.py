@@ -1,33 +1,32 @@
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton, QWidget
+from PySide6.QtWidgets import QDialog, QPushButton, QTextEdit, QVBoxLayout, QWidget
 
 
 class NetlistViewerDialog(QDialog):
 
     def __init__(self, parent: QWidget, netlist: str = ""):
-        # init parent
         super().__init__(parent)
         # set modal
         self.setWindowModality(Qt.ApplicationModal)
-        # set title
+        # set window title
         self.setWindowTitle("Netlist Preview")
-        # create layout
+        # create vertical layout
         self._layout = QVBoxLayout(self)
         # create text editor
         self._text_edit = QTextEdit(self)
-        # make it read-only
+        # make editor read-only
         self._text_edit.setReadOnly(True)
-        # set font
+        # set font to monospaced
         self._text_edit.setFontFamily("Courier")
-        # set content
+        # set text content
         self._text_edit.setText(netlist)
-        # add to layout
+        # add editor to layout
         self._layout.addWidget(self._text_edit)
         # create close button
         self._close_button = QPushButton("Close", self)
-        # connect close
+        # connect clicked signal to accept
         self._close_button.clicked.connect(self.accept)
-        # add to layout
+        # add button to layout
         self._layout.addWidget(self._close_button)
-        # set size
+        # set initial dialog size
         self.resize(600, 400)

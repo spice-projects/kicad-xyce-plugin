@@ -1,10 +1,12 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
 
 
-# multi-character Y-device type prefixes — must be checked before single-letter fallback
+# multi-character y-device type prefixes
 _Y_PREFIXES = ("YMEMRISTOR", "YPDE", "YACC", "YLIN")
 
-# fixed node counts for single-letter device types; value = number of nodes after device name
+
+# fixed node counts for single-letter device types
 _NODE_COUNTS: dict[str, int] = {
     "B": 2,
     "C": 2,
@@ -30,7 +32,8 @@ _NODE_COUNTS: dict[str, int] = {
     "Z": 3,
 }
 
-# fixed node counts for multi-character Y-type device prefixes
+
+# fixed node counts for multi-character y-type device prefixes
 _Y_NODE_COUNTS: dict[str, int] = {
     "YMEMRISTOR": 2,
     "YLIN": 2,
@@ -39,198 +42,245 @@ _Y_NODE_COUNTS: dict[str, int] = {
 }
 
 
+# device class
 @dataclass
 class Device:
-
+    # device name
     name: str
+    # device type letter
     type_letter: str
+    # device nodes
     nodes: list[str]
 
 
+# subcircuit definition class
 @dataclass
 class SubcircuitDefinition:
-
+    # subcircuit name
     name: str
+    # subcircuit ports
     ports: list[str]
+    # list of devices
     devices: list[Device] = field(default_factory=list)
 
 
+# netlist topology class
 @dataclass
 class NetlistTopology:
-
+    # netlist title
     title: str
+    # top-level devices
     devices: list[Device]
+    # top-level nodes
     nodes: set[str]
+    # subcircuit definitions
     subcircuit_definitions: dict[str, SubcircuitDefinition]
+    # global nodes
     global_nodes: set[str]
+    # simulation directives
     directives: list[str] = field(default_factory=list)
 
 
+# joins continuation lines
 def _join_continuation_lines(raw_lines: list[str]) -> list[str]:
     # build the result list of joined logical lines
     joined: list[str] = []
-    # process each physical line in order
+    # process each physical line
     for line in raw_lines:
-        # a line whose first non-whitespace char is '+' continues the previous logical line
+        # check for continuation character
         if line.lstrip().startswith("+"):
-            # only merge when there is a preceding logical line to attach to
+            # check for preceding lines
             if joined:
-                # strip the leading '+' and append the rest to the previous line
+                # append to the previous line
                 joined[-1] = joined[-1] + " " + line.lstrip()[1:].strip()
+        # else case
         else:
-            # start a new logical line
+            # append new line
             joined.append(line)
-    # return the assembled list of logical lines
+    # return the joined lines
     return joined
 
 
+# strips inline comments
 def _strip_inline_comment(line: str) -> str:
-    # find the position of the first semicolon
+    # find comment position
     idx = line.find(";")
-    # return only the portion before the semicolon when an inline comment is present
+    # return stripped string
     if idx >= 0:
+        # return part before semicolon
         return line[:idx]
-    # return the line unchanged when no inline comment is present
+    # return original line
     return line
 
 
+# gets type letter from name
 def _get_type_letter(upper_name: str) -> str:
-    # check multi-character Y-type prefixes before falling back to the first character
+    # iterate prefixes
     for prefix in _Y_PREFIXES:
-        # return immediately on the first matching Y-type prefix
+        # check for prefix
         if upper_name.startswith(prefix):
+            # return prefix
             return prefix
-    # use the single first character as the type letter for all other device types
+    # return first letter
     return upper_name[0]
 
 
+# extracts x-device nodes
 def _extract_x_nodes(fields: list[str]) -> list[str]:
-    # locate the PARAMS: keyword that marks the end of the node list
+    # parameter index
     params_idx: int | None = None
-    # scan each field token for the PARAMS: boundary
+    # iterate fields
     for i, f in enumerate(fields):
-        # normalise to uppercase for case-insensitive comparison
+        # get uppercase version
         upper_f = f.upper()
-        # record the position and stop scanning when the boundary is found
+        # check for parameters
         if upper_f == "PARAMS:" or upper_f.startswith("PARAMS:"):
+            # store index
             params_idx = i
+            # break loop
             break
-    # keep only the tokens before PARAMS: when the keyword was found
+    # slice the relevant part
     relevant = fields[:params_idx] if params_idx is not None else fields
-    # return empty list when there are not enough tokens to hold a node
+    # check length
     if len(relevant) <= 1:
+        # return empty list
         return []
-    # the last token is the subcircuit reference name, not a node
+    # return nodes
     return relevant[:-1]
 
 
+# extracts nodes from tokens
 def _extract_nodes(type_letter: str, tokens: list[str]) -> list[str]:
-    # strip the device name token; remaining fields contain nodes and parameters
+    # get fields
     fields = tokens[1:]
-    # subcircuit instances use their own variable-length parsing rule
+    # check for subcircuit
     if type_letter == "X":
+        # extract nodes
         return _extract_x_nodes(fields)
-    # Y-type devices use the multi-character prefix node count table
+    # check for y-type
     if type_letter in _Y_NODE_COUNTS:
-        # look up the fixed node count for this Y-type prefix
+        # get count
         count = _Y_NODE_COUNTS[type_letter]
-        # return empty list for variable-count Y types with no fixed count
+        # return slice
         return fields[:count] if count > 0 else []
-    # all other device types use the single-letter node count table
+    # check for standard type
     if type_letter in _NODE_COUNTS:
-        # look up the fixed node count for this device type letter
+        # get count
         count = _NODE_COUNTS[type_letter]
-        # return the first N field tokens which represent the node names
+        # return slice
         return fields[:count]
-    # unrecognised device type: return no nodes
+    # return empty
     return []
 
 
+# parses netlist
 def parse_netlist(text: str) -> NetlistTopology:
-    # join continuation lines before any other processing
+    # get logical lines
     logical_lines = _join_continuation_lines(text.splitlines())
-    # strip inline ';' comments from every logical line
+    # strip inline comments
     logical_lines = [_strip_inline_comment(line) for line in logical_lines]
-    # the very first logical line is always the netlist title
+    # set title
     title = logical_lines[0].strip() if logical_lines else ""
-    # accumulate top-level devices and node names separately from subcircuit contents
+    # initialize lists
     top_level_devices: list[Device] = []
+    # initialize node set
     top_level_nodes: set[str] = set()
+    # initialize subcircuit dict
     subcircuit_definitions: dict[str, SubcircuitDefinition] = {}
+    # initialize global nodes
     global_nodes: set[str] = set()
+    # initialize directives
     directives: list[str] = []
-    # track the currently open .SUBCKT context; None means top-level scope
+    # initialize subcircuit
     current_subckt: SubcircuitDefinition | None = None
-    # process all logical lines that follow the title
+    # iterate logical lines
     for line in logical_lines[1:]:
-        # strip leading and trailing whitespace for uniform processing
+        # strip line
         stripped = line.strip()
-        # skip blank lines and full-line comment lines starting with '*'
+        # skip empty or comments
         if not stripped or stripped.startswith("*"):
+            # continue loop
             continue
-        # split into tokens for keyword and field extraction
+        # split into tokens
         tokens = stripped.split()
-        # normalise the first token for case-insensitive keyword comparisons
+        # get upper token
         first_upper = tokens[0].upper()
-        # stop parsing when the .END directive is reached
+        # check for end
         if first_upper == ".END":
+            # stop parsing
             break
-        # dispatch directive lines separately from device element lines
+        # check for directives
         if stripped.startswith("."):
-            # capture simulation directives
+            # check directive types
             if first_upper in (".OP", ".PRINT", ".SAVE", ".NODESET"):
+                # add to directives
                 directives.append(stripped)
-            # open a new subcircuit definition block on .SUBCKT
+            # check subcircuit
             if first_upper == ".SUBCKT":
-                # require at least the subcircuit name token to proceed
+                # check length
                 if len(tokens) >= 2:
-                    # normalise the subcircuit name to uppercase
+                    # get subcircuit name
                     subckt_name = tokens[1].upper()
-                    # collect port node names up to any PARAMS: keyword
+                    # initialize ports
                     ports: list[str] = []
-                    # iterate the remaining tokens looking for port names
+                    # iterate tokens
                     for t in tokens[2:]:
-                        # stop collecting ports at the PARAMS: boundary
+                        # check for params
                         if t.upper() == "PARAMS:" or t.upper().startswith("PARAMS:"):
+                            # stop
                             break
-                        # add the normalised port name to the list
+                        # add port
                         ports.append(t.upper())
-                    # create the definition and record it under the open context
+                    # create definition
                     current_subckt = SubcircuitDefinition(name=subckt_name, ports=ports)
-                    # register the definition by name for later lookup
+                    # add to dict
                     subcircuit_definitions[subckt_name] = current_subckt
-            # close the currently open subcircuit definition block on .ENDS
+            # check ends
             elif first_upper == ".ENDS":
+                # reset subcircuit
                 current_subckt = None
-            # register explicitly declared global node names on .GLOBAL
+            # check global
             elif first_upper == ".GLOBAL":
-                # add each declared node name to the global node set
+                # iterate tokens
                 for t in tokens[1:]:
+                    # add to globals
                     global_nodes.add(t.upper())
+            # continue loop
             continue
-        # normalise the device name to uppercase for consistent storage
+        # get upper name
         upper_name = tokens[0].upper()
-        # determine the device type letter from the uppercased name
+        # get type letter
         type_letter = _get_type_letter(upper_name)
-        # extract the raw node name tokens for this device type
+        # get raw nodes
         raw_nodes = _extract_nodes(type_letter, tokens)
-        # normalise node names to uppercase for case-insensitive comparison
+        # normalize nodes
         node_names = [n.upper() for n in raw_nodes]
-        # construct the device instance with normalised fields
+        # create device
         device = Device(name=upper_name, type_letter=type_letter, nodes=node_names)
-        # add device to the open subcircuit or to the top-level list
+        # add device
         if current_subckt is not None:
-            # device belongs to the currently open subcircuit definition
+            # append to subcircuit
             current_subckt.devices.append(device)
+        # else case
         else:
-            # device is a top-level element; add it to the top-level device list
+            # append to top level
             top_level_devices.append(device)
-            # register each node name in the top-level node set
+            # add to nodes
             for node in node_names:
+                # add node
                 top_level_nodes.add(node)
-        # register any $G-prefixed node as global regardless of nesting scope
+        # handle global nodes
         for node in node_names:
-            # only process nodes that carry the global $G$ prefix
+            # check prefix
             if node.startswith("$G"):
+                # add to globals
                 global_nodes.add(node)
-    return NetlistTopology(title=title, devices=top_level_devices, nodes=top_level_nodes, subcircuit_definitions=subcircuit_definitions, global_nodes=global_nodes, directives=directives)
+    # return result
+    return NetlistTopology(
+        title=title,
+        devices=top_level_devices,
+        nodes=top_level_nodes,
+        subcircuit_definitions=subcircuit_definitions,
+        global_nodes=global_nodes,
+        directives=directives,
+    )

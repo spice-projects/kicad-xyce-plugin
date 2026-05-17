@@ -2,48 +2,47 @@ import numpy as np
 
 
 class Expression:
-    """A named, evaluated expression with a data array and a propagated unit.
-
-    Instances are produced by :class:`~viewer.expression_manager.ExpressionManager`
-    and represent any computed trace - whether derived from a .alias directive,
-    typed interactively by the user, or loaded directly from the QRAW file.
-    """
-
+    # expression class
     def __init__(self, name: str, data: np.ndarray, unit: str, source: str | None = None, variable_type: str | None = None):
-        # fields
+        # name field
         self._name = name
+        # data field
         self._data = data
+        # unit field
         self._unit = unit
+        # complex field
         self._complex = data.dtype == np.complex128
+        # source field
         self._source = source
+        # variable type field
         self._variable_type = variable_type
 
     @property
     def name(self) -> str:
-        """Display name of the expression (e.g. ``"V(R1)"`` or ``"10 * V(R1)"``."""
+        # return name
         return self._name
 
     @property
     def data(self) -> np.ndarray:
-        """Evaluated data array, one value per simulation point."""
+        # return data
         return self._data
 
     @property
     def unit(self) -> str:
-        """Physical unit propagated through the expression tree (e.g. ``"V"``, ``"A"``, ``"W"``)."""
+        # return unit
         return self._unit
 
     @property
     def complex(self) -> bool:
-        """Indicates whether the expression evaluates to a complex number."""
+        # return complex status
         return self._complex
 
     @property
     def source(self) -> str | None:
-        """Original source expression string, if available."""
+        # return source
         return self._source
 
     @property
     def variable_type(self) -> str | None:
-        """Original QRAW variable type, when available (e.g. ``"parameter"``)."""
+        # return variable type
         return self._variable_type

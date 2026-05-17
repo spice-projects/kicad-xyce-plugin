@@ -34,7 +34,7 @@ jobs:
 
       - name: Unit Tests
         run: |
-          coverage run --source=src -m unittest discover -v -p '*_test.py'
+          PYTHONPATH=src coverage run --source=src -m unittest discover -v -p '*_test.py'
           coverage report -m
           coverage xml -o coverage.xml || true
 

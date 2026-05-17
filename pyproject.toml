@@ -28,3 +28,7 @@ sources = ["src"]
 include = [
   "src/**"
 ]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["shibokensupport/*"]
