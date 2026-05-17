@@ -655,7 +655,8 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: root.logVisible ? 200 : 0
             Layout.maximumHeight: root.logVisible ? 200 : 0
-            sourceComponent: root.logVisible ? logComponent : undefined
+            visible: root.logVisible
+            sourceComponent: logComponent
         }
     }
 

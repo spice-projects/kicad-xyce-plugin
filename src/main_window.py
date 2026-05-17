@@ -35,31 +35,25 @@ class MainWindow(QMainWindow):
         load_kicad_icons()
         # load icon
         icon = load_app_icon()
-        # check icon
         if not icon.isNull():
-            # set icon
             self.setWindowIcon(icon)
-        # store
+        # store client and config
         self._kicad_client = kicad_client
-        # store
         self._plugin_config = plugin_config
-        # store
+        # initialize state
         self._charts = []
-        # store
         self._runner = None
-        # store
         self._simulation_parameters = None
+        self._simulation_performed = False
+        self._simulation_output_action = None
         # set title
         self.setWindowTitle("Xyce Simulation - No file loaded")
         # apply style
         self.setStyleSheet(f"QMainWindow {{ background: {_BG}; }}")
         # qml view
         self._qml_view = QQuickView()
-        # connect
         self._qml_view.statusChanged.connect(self._on_qml_ready)
-        # set mode
         self._qml_view.setResizeMode(QQuickView.ResizeMode.SizeRootObjectToView)
-        # set color
         self._qml_view.setColor(QColor(_BG))
         # set source
         source_url = QUrl.fromLocalFile(str(_QML_FILE))
@@ -70,11 +64,8 @@ class MainWindow(QMainWindow):
         self._central_widget = QWidget()
         # layout
         self._layout = QVBoxLayout(self._central_widget)
-        # set margins
         self._layout.setContentsMargins(0, 0, 0, 0)
-        # set spacing
         self._layout.setSpacing(0)
-        # add widget
         self._layout.addWidget(self._container)
         # status bar
         self.statusBar().hide()
@@ -156,6 +147,12 @@ class MainWindow(QMainWindow):
         # jupyter action
         jupyter_action = QAction("Open in JupyterLab...", self)
         tools_menu.addAction(jupyter_action)
+
+        # view output action
+        self._simulation_output_action = QAction("View Simulation Output", self)
+        self._simulation_output_action.setEnabled(False)
+        self._simulation_output_action.triggered.connect(self._on_menu_view_simulation_output)
+        tools_menu.addAction(self._simulation_output_action)
 
         # config action
         config_action = QAction("Configuration...", self)
@@ -292,10 +289,24 @@ class MainWindow(QMainWindow):
         # return
         return netlist
 
+    def _on_menu_view_simulation_output(self) -> None:
+        # check root
+        if self._root:
+            # toggle visibility
+            visible = self._root.property("logVisible")
+            # set property
+            self._root.setProperty("logVisible", not visible)
+
     @Slot(str, str)
     def _on_simulation_started(self, netlist_path: str, output_path: str) -> None:
         # status
         self._show_status("Simulation started...")
+        # set flag
+        self._simulation_performed = True
+        # enable action
+        if self._simulation_output_action:
+            # enable
+            self._simulation_output_action.setEnabled(True)
         # log
         self._root.setProperty("logVisible", True)
         # clear
