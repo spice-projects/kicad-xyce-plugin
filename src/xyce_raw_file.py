@@ -1,6 +1,5 @@
 import logging
 import mmap
-import re
 import time
 from enum import Enum
 from pathlib import Path
@@ -11,35 +10,6 @@ from expression import Expression
 from expression_manager import ExpressionManager
 
 logger = logging.getLogger(__name__)
-
-
-def _register_noise_spectrum_aliases(expression_manager: ExpressionManager, plotname: str) -> None:
-    # only create synthetic aliases for noise analysis files
-    if "noise" not in plotname.casefold():
-        return
-    # snapshot current expression names so synthetic aliases never override real variables or explicit aliases
-    existing_names = {expression.name.casefold() for expression in expression_manager.expressions}
-    # collect pending aliases first so iterating expressions remains stable while the manager cache grows
-    pending_aliases: list[tuple[str, str]] = []
-    # process existing expressions
-    for expression in expression_manager.expressions:
-        # skip non-spectrum expressions
-        if not expression.name.casefold().endswith("_spectrum)"):
-            continue
-        # derive the synthetic base name from the stored spectrum variable
-        alias_name = expression.name[:-10] + ")"
-        # only fill gaps; do not replace an existing variable or alias
-        if alias_name.casefold() in existing_names:
-            continue
-        # append new expression
-        pending_aliases.append((alias_name, expression.name))
-        existing_names.add(alias_name.casefold())
-    # register synthetic aliases through the expression manager cache
-    for alias_name, alias_expression in pending_aliases:
-        # log information
-        logger.debug("Registering synthetic alias '%s' for noise spectrum expression '%s'", alias_name, alias_expression)
-        # evaluate expression to register it in the manager cache; the actual value of the expression is not used since it's a direct alias, so we can skip the costly evaluation of the aliased expression and just store a reference to it in the cache
-        expression_manager.evaluate(alias_expression, alias_name)
 
 
 class AbscissaScale(Enum):
@@ -267,14 +237,119 @@ _MODE_TO_CHART: dict[str, str] = {
     "dc": "DC",
     "op": "DC",
     "noise": "AC",
-    # custom, not part of the QRAW specification
     "fft": "FFT"
 }
 
 
-class QRawFile:
+def _parse_binary_variables(data: mmap.mmap, offset: int, variable_definitions: list[tuple[int, str, VariableType | None]], is_complex: bool, num_variables: int, num_points: int) -> list[Expression] | None:
+    # xyce binary format: all variables stored as float64 (real) or complex128 (complex), row-major order; the point count may be unknown (0) when No. Points is not specified
+    if is_complex:
+        # each row contains num_variables complex128 values (16 bytes each); infer row count from available bytes when num_points is 0
+        if num_points == 0:
+            # calculate number of complete rows from available bytes after the offset
+            available_bytes = len(data) - offset
+            num_points = available_bytes // (num_variables * 16)
+        # read exactly num_points * num_variables complex128 values; the count cap prevents reading trailing non-data bytes
+        count = num_points * num_variables
+        flat = np.frombuffer(data, dtype="<c16", offset=offset, count=count)
+        # reshape to (num_points, num_variables) matrix
+        matrix = flat.reshape(num_points, num_variables)
+        # build expression list; abscissa (index 0) is frequency — stored as complex but only the real part is meaningful
+        variables: list[Expression] = []
+        for idx, name, vt in variable_definitions:
+            # unit and variable type derived from VariableType when known
+            unit = vt.value.unit if vt is not None else ""
+            vtype = vt.value.name if vt is not None else None
+            # frequency abscissa: take real component only; other variables remain complex
+            column_data = matrix[:, idx].real if idx == 0 else matrix[:, idx]
+            variables.append(Expression(name, column_data, unit, source=None, variable_type=vtype))
+    else:
+        # each row contains num_variables float64 values (8 bytes each); infer row count when num_points is 0
+        if num_points == 0:
+            # calculate number of complete rows from available bytes after the offset
+            available_bytes = len(data) - offset
+            num_points = available_bytes // (num_variables * 8)
+        # read exactly num_points * num_variables float64 values; the count cap prevents reading trailing non-data bytes
+        count = num_points * num_variables
+        flat = np.frombuffer(data, dtype="<f8", offset=offset, count=count)
+        # reshape to (num_points, num_variables) matrix
+        matrix = flat.reshape(num_points, num_variables)
+        # build expression list
+        variables = []
+        for idx, name, vt in variable_definitions:
+            # unit and variable type derived from VariableType when known
+            unit = vt.value.unit if vt is not None else ""
+            vtype = vt.value.name if vt is not None else None
+            variables.append(Expression(name, matrix[:, idx], unit, source=None, variable_type=vtype))
+    return variables
 
-    def __init__(self, filename: Path, title: str, date: str, plotname: str, complex: bool, step_information: StepInformation, abscissa: Expression, abscissa_scale: AbscissaScale, command: str, plot_suggestion: str, expression_manager: ExpressionManager, _mmap: mmap.mmap | None = None, chart_type: str | None = None):
+
+def _parse_ascii_variables(data: mmap.mmap, offset: int, variable_definitions: list[tuple[int, str, VariableType | None]], is_complex: bool, num_variables: int, num_points: int) -> list[Expression] | None:
+    # decode the values section as utf-8 text; replace unrecognised bytes rather than raising
+    text = data[offset:].decode("utf-8", errors="replace")
+    # for complex analysis each variable contributes a real and imaginary float; for real analysis each variable contributes one float
+    floats_per_point = num_variables * 2 if is_complex else num_variables
+    # accumulated float tokens across all lines; the point index tokens (integers) are stripped
+    all_floats: list[float] = []
+    # expected integer index of the next data point — used to identify and skip leading index tokens
+    expected_index = 0
+    for line in text.splitlines():
+        # skip blank lines
+        stripped = line.strip()
+        if not stripped:
+            continue
+        tokens = stripped.split()
+        start = 0
+        # check whether the first token is the point index and strip it
+        try:
+            if int(tokens[0]) == expected_index:
+                start = 1
+                expected_index += 1
+        except (ValueError, IndexError):
+            pass
+        # parse remaining tokens as floating-point values; skip tokens that are not numeric
+        for token in tokens[start:]:
+            try:
+                all_floats.append(float(token))
+            except ValueError:
+                pass
+        # stop early once the expected number of complete points has been collected
+        if num_points > 0 and len(all_floats) >= floats_per_point * num_points:
+            break
+    # determine how many complete points are available
+    actual_points = len(all_floats) // floats_per_point
+    if actual_points == 0:
+        # log error
+        logger.error("invalid Xyce RAW file: no data points parsed from values section")
+        return None
+    # build a numpy array from the collected floats, trimming any incomplete trailing point
+    flat = np.array(all_floats[: actual_points * floats_per_point], dtype=np.float64)
+    if is_complex:
+        # interleaved real/imag layout: reshape to (actual_points, num_variables, 2) then combine into complex128
+        pairs = flat.reshape(actual_points, num_variables, 2)
+        complex_matrix = pairs[:, :, 0] + 1j * pairs[:, :, 1]
+        # build expression list; abscissa (index 0) is frequency — only real part is meaningful
+        variables: list[Expression] = []
+        for idx, name, vt in variable_definitions:
+            unit = vt.value.unit if vt is not None else ""
+            vtype = vt.value.name if vt is not None else None
+            column_data = complex_matrix[:, idx].real if idx == 0 else complex_matrix[:, idx]
+            variables.append(Expression(name, column_data, unit, source=None, variable_type=vtype))
+    else:
+        # reshape to (actual_points, num_variables) float64 matrix
+        matrix = flat.reshape(actual_points, num_variables)
+        # build expression list
+        variables = []
+        for idx, name, vt in variable_definitions:
+            unit = vt.value.unit if vt is not None else ""
+            vtype = vt.value.name if vt is not None else None
+            variables.append(Expression(name, matrix[:, idx], unit, source=None, variable_type=vtype))
+    return variables
+
+
+class XyceRawFile:
+
+    def __init__(self, filename: Path, title: str, date: str, plotname: str, complex: bool, step_information: StepInformation, abscissa: Expression, abscissa_scale: AbscissaScale, command: str, expression_manager: ExpressionManager, _mmap: mmap.mmap | None = None):
         # fields
         self._filename = filename
         self._title = title
@@ -285,15 +360,11 @@ class QRawFile:
         self._abscissa = abscissa
         self._abscissa_scale = abscissa_scale
         self._command = command
-        self._plot_suggestion = plot_suggestion
         self._expression_manager = expression_manager
         # keep the mmap alive for as long as this object exists — Variable._values arrays are zero-copy views into the mmap buffer; closing the mmap would invalidate all of them
         self._mmap = _mmap
         # calculated
         self._abscissa_points = len(abscissa.data)
-        self._plot_suggestions: list[PlotSuggestion] | None = None
-        # pre-determined chart type
-        self._chart_type = chart_type
 
     @property
     def filename(self) -> Path:
@@ -333,10 +404,7 @@ class QRawFile:
 
     @property
     def chart_type(self) -> str:
-        # check initialized chart type
-        if self._chart_type is not None:
-            return self._chart_type
-        # type unambiguously determines the chart layout
+        # abscissa unit unambiguously determines the chart layout
         if self._abscissa.unit == "Hz":
             return "AC"
         if self._abscissa.unit == "s":
@@ -352,116 +420,73 @@ class QRawFile:
     def expression_manager(self) -> ExpressionManager:
         return self._expression_manager
 
-    def get_plot_suggestions(self) -> list[PlotSuggestion]:
-        # empty or whitespace-only suggestions string means no suggestions
-        if not self._plot_suggestion.strip():
-            return []
-        # calculate plot suggestions
-        if self._plot_suggestions is None:
-            # file chart type
-            file_chart_type = self.chart_type
-            # plot suggestions
-            self._plot_suggestions = []
-            # extract each «...» group in order, ``\xab``/``\xbb`` are the «» characters; using a raw string avoids accidental escaping.
-            for group_text in re.findall(r"\xab(.*?)\xbb", self._plot_suggestion):
-                # split group text into tokens; the first token may be a mode keyword
-                tokens: list[str] = group_text.split()
-                # chart type, defaults to chart type for file
-                chart_type = file_chart_type
-                # resolve chart type from an optional leading mode keyword (ac, tran, dc …)
-                if tokens and (resolved := _MODE_TO_CHART.get(tokens[0].lower())) is not None:
-                    # use chart type
-                    chart_type = resolved
-                    # remove mode token so the remaining tokens are variable names or expressions
-                    tokens = tokens[1:]
-                # expressions in group
-                expressions: list[Expression] = []
-                # avoid duplicate expressions within the same chart
-                seen: set[Expression] = set()
-                # loop tokens
-                for token in tokens:
-                    # evaluate expression
-                    expression = self._expression_manager.evaluate(token)
-                    # skip unmatched or already-added variables for this chart type
-                    if expression is None or expression in seen:
-                        continue
-                    # add this expression to the chart type's list and mark it as seen
-                    seen.add(expression)
-                    # append expression
-                    expressions.append(expression)
-                # append to list
-                self._plot_suggestions.append(PlotSuggestion(chart_type=chart_type, expressions=expressions))
-        # exit
-        return self._plot_suggestions
-
     @staticmethod
-    def load(filename: str | Path) -> "QRawFile | None":
+    def load(filename: str | Path) -> "XyceRawFile | None":
         # load file
         path = Path(filename)
         if not path.exists():
             # log error
-            logger.error("QRAW file not found: %s", path)
+            logger.error("Xyce RAW file not found: %s", path)
             # exit
             return None
         # measure time taken to load file
         start_time = time.perf_counter()
         try:
             # log information
-            logger.info("Loading QRAW file: %s", path)
+            logger.info("Loading Xyce RAW file: %s", path)
             # memory-map the file — the OS pages in only the regions that are actually read, so for a 300-variable file where only a few are displayed, the remaining columns are never loaded into physical RAM
             with open(path, "rb") as _file:
                 data = mmap.mmap(_file.fileno(), 0, access=mmap.ACCESS_READ)
-            # on POSIX (macOS/Linux) closing the fd after mmap() is safe — the OS keeps the mapping alive independently; the mmap object itself is stored in QRawFile to prevent GC
-            # single-pass progressive parser: scan line by line until Binary: is reached
+            # on POSIX (macOS/Linux) closing the fd after mmap() is safe — the OS keeps the mapping alive independently; the mmap object itself is stored in XyceRawFile to prevent GC
+            # single-pass progressive parser: scan line by line until the data section marker is reached
             header: dict[str, str] = {}
-            variable_definitions: list[tuple[int, str, VariableType]] = []
-            binary_offset = -1
+            variable_definitions: list[tuple[int, str, VariableType | None]] = []
+            data_offset = -1
+            is_ascii = False
             in_variables = False
             pos = 0
-            # aliases
-            aliasses: dict[str, str] = {}
-            # user-defined function definitions (.func directives)
-            func_definitions: list[str] = []
             # process file bytes
             while pos < len(data):
-                # find \n
+                # find newline
                 newline = data.find(b"\n", pos)
                 if newline == -1:
                     break
-                # line: decode header text using Windows-1252
-                line = data[pos:newline].decode("cp1252").strip()
+                # line: decode header text as utf-8; replace unrecognised bytes rather than raising
+                line = data[pos:newline].decode("utf-8", errors="replace").strip()
                 # log information
                 logger.debug(">> %s", line)
                 # advance position to next line
                 pos = newline + 1
-                # state machine to parse header and variables until binary section is reached
+                # state machine to parse header and variables until the data section is reached
                 if in_variables:
-                    # check for end of variables section
-                    if line == "Binary:":
+                    # check for end of variables section — either binary or ascii data marker
+                    if line in ("Binary:", "Values:"):
                         # log information
                         logger.debug(">> ...")
-                        # binary section starts at the current position in the file
-                        binary_offset = pos
+                        # data section starts at the current position in the file
+                        data_offset = pos
+                        # record whether the data is in ascii text format
+                        is_ascii = line == "Values:"
                         # exit loop
                         break
                     # parse variable line: expected format is "index\tname\ttype"
                     parts = line.split("\t")
-                    # only parse lines with exactly 3 parts; skip malformed lines
+                    # only parse lines with exactly 3 tab-separated parts; skip malformed lines
                     if len(parts) == 3:
-                        # find variable type from string by matching name
+                        # find variable type from string by matching name; unknown types are accepted as None rather than skipped, so variable count stays consistent with num_variables
                         variable_type = next((vt for vt in VariableType if vt.value.name == parts[2]), None)
                         if variable_type is None:
                             # log information
-                            logger.warning("Skipping variable with unknown type: %s", parts[2])
-                            # skip malformed or unknown variable type
-                            continue
+                            logger.warning("Unknown variable type '%s' for variable '%s'; treating as untyped", parts[2], parts[1])
                         # append variable to list
                         variable_definitions.append((int(parts[0]), parts[1], variable_type))
                         # next
                         continue
+                    # next
+                    continue
                 # check this is the start of the variables section
                 if line == "Variables:":
-                    # state machine: next lines will contain variable definitions until "Binary:" is reached
+                    # state machine: next lines will contain variable definitions until "Binary:" or "Values:" is reached
                     in_variables = True
                     # next
                     continue
@@ -471,73 +496,44 @@ class QRawFile:
                     key, _, value = line.partition(":")
                     # store in header dictionary
                     header[key.strip()] = value.strip()
-                # alias
-                if line.startswith(".alias"):
-                    # split line (space)
-                    parts = line.split()
-                    # should be three parts ".alias Name Expression"
-                    if len(parts) == 3:
-                        # append to aliasses
-                        aliasses[parts[1]] = parts[2]
-                # user-defined function directive
-                if line.startswith(".func"):
-                    # store the raw directive text for the expression manager to parse
-                    func_definitions.append(line)
-            # validate that we found the binary section
-            if binary_offset < 0:
+            # validate that we found the data section
+            if data_offset < 0:
                 # log error
-                logger.error("invalid QRAW file: Binary section not found")
+                logger.error("invalid Xyce RAW file: data section not found")
                 # exit
                 return None
-            # parse header values needed to interpret the binary data
-            complex = "complex" in header.get("Flags", "").lower()
-            stepped = "stepped" in header.get("Flags", "").lower()
+            # parse header values needed to interpret the data
+            is_complex = "complex" in header.get("Flags", "").lower()
+            is_stepped = "stepped" in header.get("Flags", "").lower()
             num_variables = int(header.get("No. Variables", 0))
             num_points = int(header.get("No. Points", "0").strip())
-            # parse abscissa range and optional scale keyword (dec / oct / lin)
-            abscissa_parts = header.get("Abscissa", "").split()
-            abscissa_scale = AbscissaScale(abscissa_parts[2]) if len(abscissa_parts) >= 3 else AbscissaScale.LINEAR
-            # check file contains vectors with complex numbers
-            if complex:
-                # complex files store the abscissa (index 0) as float64 and the remaining variables as complex128 in a structured array
-                row_dtype = np.dtype([("abscissa", "<f8"), ("data", "<c16", num_variables - 1)])
-                # parse binary data into a structured array with separate fields for abscissa and data variables; the abscissa is stored in a separate field to allow it to be read as float64 while the data variables are stored as complex128
-                matrix = np.frombuffer(data, dtype=row_dtype, offset=binary_offset)
-                # abscissa definition
-                abscissa_definition = variable_definitions[0]
-                # abscissa variable expression
-                abscissa_expression = Expression(abscissa_definition[1], matrix["abscissa"], abscissa_definition[2].value.unit, source=None, variable_type=abscissa_definition[2].value.name)
-                # all variable expressions
-                variables = [abscissa_expression] + [Expression(name, matrix["data"][:, idx - 1], var_type.value.unit, source=None, variable_type=var_type.value.name) for idx, name, var_type in variable_definitions[1:]]
+            # xyce raw files always use linear scale on the abscissa; the file format does not encode a scale keyword
+            abscissa_scale = AbscissaScale.LINEAR
+            # parse the data section — ascii (Values:) or binary (Binary:)
+            if is_ascii:
+                variables = _parse_ascii_variables(data, data_offset, variable_definitions, is_complex, num_variables, num_points)
             else:
-                # real files store all variables as float64 in a uniform layout; parse binary data into a 2D array with shape (num_points, num_variables)
-                flat = np.frombuffer(data, dtype="<f8", offset=binary_offset)
-                # reshape flat array into a 2D array with shape (num_points, num_variables); the data is stored in row-major order, so each row corresponds to a point and each column corresponds to a variable
-                matrix = flat.reshape(num_points, num_variables)
-                # extract variables
-                variables = [Expression(name, matrix[:, idx], var_type.value.unit, source=None, variable_type=var_type.value.name) for idx, name, var_type in variable_definitions]
-            # process scale (x axis) before step detection so abscissa values are correct
+                variables = _parse_binary_variables(data, data_offset, variable_definitions, is_complex, num_variables, num_points)
+            # validate that variable parsing succeeded
+            if variables is None or len(variables) == 0:
+                # log error
+                logger.error("invalid Xyce RAW file: failed to parse variable data")
+                # exit
+                return None
+            # actual point count after parsing (may differ from header when No. Points was 0)
+            actual_num_points = len(variables[0].data)
+            # process scale (no-op for linear) before step detection so abscissa values are correct
             abscissa = _process_scale(variables[0], abscissa_scale)
-            # process steps using the scaled abscissa values — slices are needed by the expression manager for @N
-            step_information = _process_steps(stepped, variables, abscissa, num_points)
-            # build step slices tuple for @N selector support in expressions and .func definitions
+            # process steps using the abscissa values — slices are needed by the expression manager for @N
+            step_information = _process_steps(is_stepped, variables, abscissa, actual_num_points)
+            # build step slices tuple for @N selector support in expressions
             step_slices: tuple[slice, ...] | None = tuple(step_information.abscissa_indices) if step_information.length > 1 else None
-            # create expression manager, passing any user-defined .func definitions and step slice metadata
-            expression_manager = ExpressionManager(variables, func_definitions if func_definitions else None, step_slices)
-            # register noise-specific synthetic aliases such as V(Onoise) -> V(onoise_spectrum) before user aliases are evaluated
-            _register_noise_spectrum_aliases(expression_manager, header.get("Plotname", ""))
-            # process aliasses
-            if len(aliasses) > 0:
-                # loop aliasses
-                for alias_name, alias_expression in aliasses.items():
-                    try:
-                        # evaluate expression using the variables we have so far; this allows aliasses to reference previously-defined aliasses as long as there are no circular references
-                        expression_manager.evaluate(alias_expression, alias_name)
-                    except Exception as ex:
-                        # log error but continue processing other aliasses
-                        logger.error("Failed to evaluate expression '%s': %s", alias_name, ex)
-            # create QRawFile instance with parsed header, variables, and binary data; pass the mmap so it stays alive for the lifetime of the QRawFile — Variable arrays are views into it
-            return QRawFile(filename=path, title=header.get("Title", ""), date=header.get("Date", ""), plotname=header.get("Plotname", ""), complex=complex, step_information=step_information, abscissa=abscissa, abscissa_scale=abscissa_scale, command=header.get("Command", ""), plot_suggestion=header.get("Plot Suggestion(s)", ""), expression_manager=expression_manager, _mmap=data)
+            # create expression manager with all parsed variables
+            expression_manager = ExpressionManager(variables, None, step_slices)
+            # command comes from the Command: header; fall back to the Version: line if present (Xyce optionally writes a Version: line)
+            command = header.get("Command", header.get("Version", ""))
+            # create XyceRawFile instance with parsed header, variables, and data; pass the mmap so it stays alive for the lifetime of the XyceRawFile — Variable arrays are views into it
+            return XyceRawFile(filename=path, title=header.get("Title", ""), date=header.get("Date", ""), plotname=header.get("Plotname", ""), complex=is_complex, step_information=step_information, abscissa=abscissa, abscissa_scale=abscissa_scale, command=command, expression_manager=expression_manager, _mmap=data)
         finally:
             # log information
-            logger.info("Finished loading QRAW file: %s, latency: %f seconds", path, time.perf_counter() - start_time)
+            logger.info("Finished loading Xyce RAW file: %s, latency: %f seconds", path, time.perf_counter() - start_time)
