@@ -415,11 +415,11 @@ class MainWindow(QMainWindow):
         # dialog
         dialog = SimulationDialog(self, initial_parameters=self._simulation_parameters)
         # result
-        res = dialog.exec()
+        params = dialog.get_parameters()
         # check
-        if res == SimulationDialog.Accepted:
+        if params is not None:
             # params
-            self._simulation_parameters = dialog.get_parameters()
+            self._simulation_parameters = params
 
     def _on_menu_configuration(self):
         # dialog
