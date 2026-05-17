@@ -1,11 +1,10 @@
-from unittest import TestCase
 from unittest.mock import MagicMock
 
 from simulation_dialog import NodesetEntry
 from simulation_dialog import OpSimulationParameters
 
 
-class TestOpSimulationParameters(TestCase):
+class TestOpSimulationParameters:
 
     def test_op_directive_default(self):
         # arrange
@@ -13,7 +12,7 @@ class TestOpSimulationParameters(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".OP")
+        assert directive == ".OP"
 
     def test_print_dc_directive(self):
         # arrange
@@ -24,7 +23,7 @@ class TestOpSimulationParameters(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".OP\n.PRINT DC V(1) I(V1)")
+        assert directive == ".OP\n.PRINT DC V(1) I(V1)"
 
     def test_save_directive(self):
         # arrange
@@ -36,7 +35,7 @@ class TestOpSimulationParameters(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".OP\n.SAVE TYPE=IC FILE=test.ic")
+        assert directive == ".OP\n.SAVE TYPE=IC FILE=test.ic"
 
     def test_nodeset_directive(self):
         # arrange
@@ -45,7 +44,7 @@ class TestOpSimulationParameters(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".OP\n.NODESET V(out)=1.2")
+        assert directive == ".OP\n.NODESET V(out)=1.2"
 
     def test_dynamic_resolution(self):
         # arrange
@@ -62,4 +61,4 @@ class TestOpSimulationParameters(TestCase):
         # act
         directive = params.to_xyce_directive(topology=topology)
         # assert
-        self.assertIn(".PRINT DC V(1) V(2) I(R1) I(V1)", directive)
+        assert ".PRINT DC V(1) V(2) I(R1) I(V1)" in directive

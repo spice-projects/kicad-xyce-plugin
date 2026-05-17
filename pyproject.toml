@@ -29,6 +29,9 @@ include = [
   "src/**"
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.coverage.run]
 source = ["src"]
 omit = ["shibokensupport/*"]

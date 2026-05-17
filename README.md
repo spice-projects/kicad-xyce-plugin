@@ -69,7 +69,7 @@ hatch build --target kicad-package
 ## Testing
 
 ```bash
-python -m unittest
+python -m pytest
 ```
 
 ## Configuration

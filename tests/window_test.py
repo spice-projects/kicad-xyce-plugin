@@ -1,5 +1,4 @@
 import sys
-from unittest import TestCase
 
 from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtGui import QIcon
@@ -9,7 +8,7 @@ from window import load_app_icon, register_child_window, unregister_child_window
 _app = QApplication.instance() or QApplication(sys.argv)
 
 
-class TestRegisterUnregisterChildWindow(TestCase):
+class TestRegisterUnregisterChildWindow:
 
     def test_register_adds_window_to_registry(self):
         # arrange
@@ -35,10 +34,10 @@ class TestRegisterUnregisterChildWindow(TestCase):
         unregister_child_window(window)
 
 
-class TestLoadAppIcon(TestCase):
+class TestLoadAppIcon:
 
     def test_returns_qicon_instance(self):
         # act
         icon = load_app_icon()
         # assert
-        self.assertIsInstance(icon, QIcon)
+        assert isinstance(icon, QIcon)

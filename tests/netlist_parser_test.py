@@ -1,9 +1,7 @@
-from unittest import TestCase
-
 from netlist_parser import Device, NetlistTopology, parse_netlist
 
 
-class TestNetlistParser(TestCase):
+class TestNetlistParser:
 
     def test_title_is_first_line(self):
         # arrange
@@ -11,7 +9,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.title, "My Circuit Title")
+        assert topology.title == "My Circuit Title"
 
     def test_title_line_treated_as_comment_not_device(self):
         # arrange
@@ -19,8 +17,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert — title captured even when it starts with *; R1 is the only device
-        self.assertEqual(topology.title, "* KiCad schematic")
-        self.assertEqual(len(topology.devices), 1)
+        assert topology.title == "* KiCad schematic"
+        assert len(topology.devices) == 1
 
     def test_parsing_stops_at_end_directive(self):
         # arrange — R2 appears after .END and must be ignored
@@ -28,8 +26,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(len(topology.devices), 1)
-        self.assertEqual(topology.devices[0].name, "R1")
+        assert len(topology.devices) == 1
+        assert topology.devices[0].name == "R1"
 
     def test_empty_netlist_returns_empty_topology(self):
         # arrange
@@ -37,9 +35,9 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.title, "Title")
-        self.assertEqual(topology.devices, [])
-        self.assertEqual(topology.nodes, set())
+        assert topology.title == "Title"
+        assert topology.devices == []
+        assert topology.nodes == set()
 
     def test_star_comment_lines_are_skipped(self):
         # arrange
@@ -47,7 +45,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(len(topology.devices), 1)
+        assert len(topology.devices) == 1
 
     def test_inline_semicolon_comment_stripped(self):
         # arrange — inline comment must not affect node extraction
@@ -55,7 +53,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].nodes, ["NET1", "NET2"])
+        assert topology.devices[0].nodes == ["NET1", "NET2"]
 
     def test_inline_comment_on_directive_stripped(self):
         # arrange
@@ -63,7 +61,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertIn("VDD", topology.global_nodes)
+        assert "VDD" in topology.global_nodes
 
     def test_continuation_line_joined_to_previous(self):
         # arrange — device line is split across two physical lines with '+'
@@ -71,8 +69,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(len(topology.devices), 1)
-        self.assertEqual(topology.devices[0].nodes, ["NET1", "NET2"])
+        assert len(topology.devices) == 1
+        assert topology.devices[0].nodes == ["NET1", "NET2"]
 
     def test_continuation_line_with_leading_whitespace(self):
         # arrange — the '+' can be preceded by whitespace per SPICE spec
@@ -80,7 +78,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].nodes, ["NET1", "NET2"])
+        assert topology.devices[0].nodes == ["NET1", "NET2"]
 
     def test_multiple_continuation_lines(self):
         # arrange — three continuation lines for a single X device
@@ -88,8 +86,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(len(topology.devices), 1)
-        self.assertEqual(topology.devices[0].nodes, ["IN", "OUT", "VCC", "GND"])
+        assert len(topology.devices) == 1
+        assert topology.devices[0].nodes == ["IN", "OUT", "VCC", "GND"]
 
     def test_lowercase_device_letter_recognised(self):
         # arrange
@@ -97,7 +95,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "R")
+        assert topology.devices[0].type_letter == "R"
 
     def test_device_name_normalised_to_uppercase(self):
         # arrange
@@ -105,7 +103,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].name, "R1")
+        assert topology.devices[0].name == "R1"
 
     def test_node_names_normalised_to_uppercase(self):
         # arrange
@@ -113,8 +111,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertIn("NET1", topology.nodes)
-        self.assertIn("GND", topology.nodes)
+        assert "NET1" in topology.nodes
+        assert "GND" in topology.nodes
 
     def test_directive_keywords_case_insensitive(self):
         # arrange — lowercase .global and .end
@@ -122,7 +120,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertIn("VDD", topology.global_nodes)
+        assert "VDD" in topology.global_nodes
 
     def test_resistor_type_letter(self):
         # arrange
@@ -130,7 +128,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "R")
+        assert topology.devices[0].type_letter == "R"
 
     def test_resistor_nodes(self):
         # arrange
@@ -138,7 +136,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].nodes, ["NET1", "NET2"])
+        assert topology.devices[0].nodes == ["NET1", "NET2"]
 
     def test_resistor_ground_node_zero(self):
         # arrange — ground is always named '0'
@@ -146,8 +144,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].nodes, ["VCC", "0"])
-        self.assertIn("0", topology.nodes)
+        assert topology.devices[0].nodes == ["VCC", "0"]
+        assert "0" in topology.nodes
 
     def test_capacitor_nodes(self):
         # arrange
@@ -155,8 +153,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "C")
-        self.assertEqual(topology.devices[0].nodes, ["VCC", "GND"])
+        assert topology.devices[0].type_letter == "C"
+        assert topology.devices[0].nodes == ["VCC", "GND"]
 
     def test_inductor_nodes(self):
         # arrange
@@ -164,8 +162,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "L")
-        self.assertEqual(topology.devices[0].nodes, ["IN", "OUT"])
+        assert topology.devices[0].type_letter == "L"
+        assert topology.devices[0].nodes == ["IN", "OUT"]
 
     def test_diode_nodes(self):
         # arrange
@@ -173,8 +171,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "D")
-        self.assertEqual(topology.devices[0].nodes, ["ANODE", "CATHODE"])
+        assert topology.devices[0].type_letter == "D"
+        assert topology.devices[0].nodes == ["ANODE", "CATHODE"]
 
     def test_bjt_nodes(self):
         # arrange
@@ -182,8 +180,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "Q")
-        self.assertEqual(topology.devices[0].nodes, ["COLL", "BASE", "EMIT"])
+        assert topology.devices[0].type_letter == "Q"
+        assert topology.devices[0].nodes == ["COLL", "BASE", "EMIT"]
 
     def test_mosfet_nodes(self):
         # arrange
@@ -191,8 +189,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "M")
-        self.assertEqual(topology.devices[0].nodes, ["DRAIN", "GATE", "SOURCE", "BULK"])
+        assert topology.devices[0].type_letter == "M"
+        assert topology.devices[0].nodes == ["DRAIN", "GATE", "SOURCE", "BULK"]
 
     def test_voltage_source_nodes(self):
         # arrange
@@ -200,8 +198,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "V")
-        self.assertEqual(topology.devices[0].nodes, ["VCC", "GND"])
+        assert topology.devices[0].type_letter == "V"
+        assert topology.devices[0].nodes == ["VCC", "GND"]
 
     def test_current_source_nodes(self):
         # arrange
@@ -209,8 +207,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "I")
-        self.assertEqual(topology.devices[0].nodes, ["NET1", "NET2"])
+        assert topology.devices[0].type_letter == "I"
+        assert topology.devices[0].nodes == ["NET1", "NET2"]
 
     def test_vcvs_nodes(self):
         # arrange — E device: + - +ctrl -ctrl
@@ -218,8 +216,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "E")
-        self.assertEqual(topology.devices[0].nodes, ["VOUT", "GND", "VIN", "GND"])
+        assert topology.devices[0].type_letter == "E"
+        assert topology.devices[0].nodes == ["VOUT", "GND", "VIN", "GND"]
 
     def test_cccs_nodes(self):
         # arrange — F device: + - (controlling source name follows, not a node)
@@ -227,8 +225,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "F")
-        self.assertEqual(topology.devices[0].nodes, ["NET1", "NET2"])
+        assert topology.devices[0].type_letter == "F"
+        assert topology.devices[0].nodes == ["NET1", "NET2"]
 
     def test_vccs_nodes(self):
         # arrange — G device: + - +ctrl -ctrl
@@ -236,8 +234,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "G")
-        self.assertEqual(topology.devices[0].nodes, ["IOUT", "GND", "VIN", "GND"])
+        assert topology.devices[0].type_letter == "G"
+        assert topology.devices[0].nodes == ["IOUT", "GND", "VIN", "GND"]
 
     def test_ccvs_nodes(self):
         # arrange — H device: + - (controlling source name follows, not a node)
@@ -245,8 +243,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "H")
-        self.assertEqual(topology.devices[0].nodes, ["VOUT", "GND"])
+        assert topology.devices[0].type_letter == "H"
+        assert topology.devices[0].nodes == ["VOUT", "GND"]
 
     def test_nonlinear_dependent_source_nodes(self):
         # arrange — B device: + -
@@ -254,8 +252,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "B")
-        self.assertEqual(topology.devices[0].nodes, ["VOUT", "GND"])
+        assert topology.devices[0].type_letter == "B"
+        assert topology.devices[0].nodes == ["VOUT", "GND"]
 
     def test_subcircuit_instance_nodes(self):
         # arrange
@@ -263,8 +261,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "X")
-        self.assertEqual(topology.devices[0].nodes, ["IN", "OUT", "VCC", "GND"])
+        assert topology.devices[0].type_letter == "X"
+        assert topology.devices[0].nodes == ["IN", "OUT", "VCC", "GND"]
 
     def test_subcircuit_instance_with_params_keyword(self):
         # arrange — PARAMS: keyword separates node list from plugin.parameter assignments
@@ -272,7 +270,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].nodes, ["IN", "OUT", "VCC", "GND"])
+        assert topology.devices[0].nodes == ["IN", "OUT", "VCC", "GND"]
 
     def test_subcircuit_instance_single_port(self):
         # arrange — only one token before subckt name means zero nodes
@@ -280,7 +278,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].nodes, [])
+        assert topology.devices[0].nodes == []
 
     def test_mutual_inductor_has_no_nodes(self):
         # arrange
@@ -288,8 +286,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "K")
-        self.assertEqual(topology.devices[0].nodes, [])
+        assert topology.devices[0].type_letter == "K"
+        assert topology.devices[0].nodes == []
 
     def test_jfet_nodes(self):
         # arrange
@@ -297,8 +295,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "J")
-        self.assertEqual(topology.devices[0].nodes, ["DRAIN", "GATE", "SOURCE"])
+        assert topology.devices[0].type_letter == "J"
+        assert topology.devices[0].nodes == ["DRAIN", "GATE", "SOURCE"]
 
     def test_mesfet_nodes(self):
         # arrange
@@ -306,8 +304,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "Z")
-        self.assertEqual(topology.devices[0].nodes, ["DRAIN", "GATE", "SOURCE"])
+        assert topology.devices[0].type_letter == "Z"
+        assert topology.devices[0].nodes == ["DRAIN", "GATE", "SOURCE"]
 
     def test_ideal_transmission_line_nodes(self):
         # arrange — T device: A+ A- B+ B-
@@ -315,8 +313,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "T")
-        self.assertEqual(topology.devices[0].nodes, ["A_P", "A_N", "B_P", "B_N"])
+        assert topology.devices[0].type_letter == "T"
+        assert topology.devices[0].nodes == ["A_P", "A_N", "B_P", "B_N"]
 
     def test_lossy_transmission_line_nodes(self):
         # arrange — O device: A+ A- B+ B-
@@ -324,8 +322,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "O")
-        self.assertEqual(topology.devices[0].nodes, ["A_P", "A_N", "B_P", "B_N"])
+        assert topology.devices[0].type_letter == "O"
+        assert topology.devices[0].nodes == ["A_P", "A_N", "B_P", "B_N"]
 
     def test_voltage_controlled_switch_nodes(self):
         # arrange — S device: +switch -switch +ctrl -ctrl
@@ -333,8 +331,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "S")
-        self.assertEqual(topology.devices[0].nodes, ["SW_P", "SW_N", "CTRL_P", "CTRL_N"])
+        assert topology.devices[0].type_letter == "S"
+        assert topology.devices[0].nodes == ["SW_P", "SW_N", "CTRL_P", "CTRL_N"]
 
     def test_current_controlled_switch_nodes(self):
         # arrange — W device: +switch -switch (controlling source name follows)
@@ -342,8 +340,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "W")
-        self.assertEqual(topology.devices[0].nodes, ["SW_P", "SW_N"])
+        assert topology.devices[0].type_letter == "W"
+        assert topology.devices[0].nodes == ["SW_P", "SW_N"]
 
     def test_port_device_nodes(self):
         # arrange — P device: + -
@@ -351,8 +349,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "P")
-        self.assertEqual(topology.devices[0].nodes, ["RF_P", "GND"])
+        assert topology.devices[0].type_letter == "P"
+        assert topology.devices[0].nodes == ["RF_P", "GND"]
 
     def test_ylin_device_nodes(self):
         # arrange — YLIN: + -
@@ -360,8 +358,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "YLIN")
-        self.assertEqual(topology.devices[0].nodes, ["NET1", "NET2"])
+        assert topology.devices[0].type_letter == "YLIN"
+        assert topology.devices[0].nodes == ["NET1", "NET2"]
 
     def test_ymemristor_device_nodes(self):
         # arrange — YMEMRISTOR: + -
@@ -369,8 +367,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "YMEMRISTOR")
-        self.assertEqual(topology.devices[0].nodes, ["NET1", "NET2"])
+        assert topology.devices[0].type_letter == "YMEMRISTOR"
+        assert topology.devices[0].nodes == ["NET1", "NET2"]
 
     def test_yacc_device_nodes(self):
         # arrange — YACC: acceleration velocity displacement
@@ -378,8 +376,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "YACC")
-        self.assertEqual(topology.devices[0].nodes, ["ACC", "VEL", "DISP"])
+        assert topology.devices[0].type_letter == "YACC"
+        assert topology.devices[0].nodes == ["ACC", "VEL", "DISP"]
 
     def test_ypde_device_recognised(self):
         # arrange — YPDE: variable node count; recognised type, zero nodes extracted
@@ -387,7 +385,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.devices[0].type_letter, "YPDE")
+        assert topology.devices[0].type_letter == "YPDE"
 
     def test_global_nodes_from_directive(self):
         # arrange
@@ -395,8 +393,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertIn("VDD", topology.global_nodes)
-        self.assertIn("VSS", topology.global_nodes)
+        assert "VDD" in topology.global_nodes
+        assert "VSS" in topology.global_nodes
 
     def test_global_node_dollar_g_prefix_top_level(self):
         # arrange — $G-prefixed node referenced in a top-level device
@@ -404,7 +402,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertIn("$G_VDD", topology.global_nodes)
+        assert "$G_VDD" in topology.global_nodes
 
     def test_global_node_dollar_g_prefix_inside_subcircuit(self):
         # arrange — $G-prefixed node referenced inside a .SUBCKT block
@@ -412,7 +410,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertIn("$G_VDD", topology.global_nodes)
+        assert "$G_VDD" in topology.global_nodes
 
     def test_global_directive_and_dollar_g_coexist(self):
         # arrange — both sources of global nodes present in the same netlist
@@ -420,8 +418,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertIn("VDD", topology.global_nodes)
-        self.assertIn("$G_REF", topology.global_nodes)
+        assert "VDD" in topology.global_nodes
+        assert "$G_REF" in topology.global_nodes
 
     def test_subcircuit_definition_recorded(self):
         # arrange
@@ -429,7 +427,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertIn("OPAMP", topology.subcircuit_definitions)
+        assert "OPAMP" in topology.subcircuit_definitions
 
     def test_subcircuit_definition_ports(self):
         # arrange
@@ -438,7 +436,7 @@ class TestNetlistParser(TestCase):
         topology = parse_netlist(netlist)
         # assert
         subckt = topology.subcircuit_definitions["OPAMP"]
-        self.assertEqual(subckt.ports, ["IN", "OUT", "VCC", "GND"])
+        assert subckt.ports == ["IN", "OUT", "VCC", "GND"]
 
     def test_subcircuit_definition_with_params_keyword(self):
         # arrange — PARAMS: keyword terminates the port list
@@ -447,7 +445,7 @@ class TestNetlistParser(TestCase):
         topology = parse_netlist(netlist)
         # assert
         subckt = topology.subcircuit_definitions["MYBLOCK"]
-        self.assertEqual(subckt.ports, ["IN", "OUT"])
+        assert subckt.ports == ["IN", "OUT"]
 
     def test_subcircuit_devices_separate_from_top_level(self):
         # arrange — R1 inside subcircuit must not appear in top-level device list
@@ -456,8 +454,8 @@ class TestNetlistParser(TestCase):
         topology = parse_netlist(netlist)
         # assert
         top_names = [d.name for d in topology.devices]
-        self.assertNotIn("R1", top_names)
-        self.assertIn("R2", top_names)
+        assert "R1" not in top_names
+        assert "R2" in top_names
 
     def test_subcircuit_internal_devices_stored_in_definition(self):
         # arrange
@@ -466,8 +464,8 @@ class TestNetlistParser(TestCase):
         topology = parse_netlist(netlist)
         # assert
         subckt = topology.subcircuit_definitions["MYBLOCK"]
-        self.assertEqual(len(subckt.devices), 1)
-        self.assertEqual(subckt.devices[0].name, "C1")
+        assert len(subckt.devices) == 1
+        assert subckt.devices[0].name == "C1"
 
     def test_subcircuit_nodes_not_in_top_level_nodes(self):
         # arrange — INTERNAL_NODE must not appear in top-level nodes set
@@ -475,7 +473,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertNotIn("INTERNAL_NODE", topology.nodes)
+        assert "INTERNAL_NODE" not in topology.nodes
 
     def test_nodes_set_contains_all_unique_top_level_nodes(self):
         # arrange
@@ -483,7 +481,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.nodes, {"A", "B", "C"})
+        assert topology.nodes == {"A", "B", "C"}
 
     def test_duplicate_node_names_stored_only_once(self):
         # arrange — VCC and GND both appear in two devices
@@ -491,7 +489,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert — set deduplication keeps exactly two unique node names
-        self.assertEqual(len(topology.nodes), 2)
+        assert len(topology.nodes) == 2
 
     def test_nodes_set_excludes_k_device_references(self):
         # arrange
@@ -499,8 +497,8 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert — K device tokens reference inductor names, not circuit nodes
-        self.assertNotIn("L1", topology.nodes)
-        self.assertNotIn("L2", topology.nodes)
+        assert "L1" not in topology.nodes
+        assert "L2" not in topology.nodes
 
     def test_complete_kicad_netlist(self):
         # arrange — representative circuit with multiple device types
@@ -519,14 +517,14 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(topology.title, "* KiCad Schematic Netlist Version 4")
+        assert topology.title == "* KiCad Schematic Netlist Version 4"
         # 8 devices: R1, C1, L1, D1, Q1, M1, V1, X1
-        self.assertEqual(len(topology.devices), 8)
-        self.assertIn("NET1", topology.nodes)
-        self.assertIn("GND", topology.nodes)
-        self.assertIn("VCC", topology.nodes)
-        self.assertIn("VCC", topology.global_nodes)
-        self.assertIn("GND", topology.global_nodes)
+        assert len(topology.devices) == 8
+        assert "NET1" in topology.nodes
+        assert "GND" in topology.nodes
+        assert "VCC" in topology.nodes
+        assert "VCC" in topology.global_nodes
+        assert "GND" in topology.global_nodes
 
     def test_multiple_device_names_collected(self):
         # arrange
@@ -535,9 +533,9 @@ class TestNetlistParser(TestCase):
         topology = parse_netlist(netlist)
         # assert
         names = [d.name for d in topology.devices]
-        self.assertIn("R1", names)
-        self.assertIn("R2", names)
-        self.assertIn("R3", names)
+        assert "R1" in names
+        assert "R2" in names
+        assert "R3" in names
 
     def test_return_type_is_netlist_topology(self):
         # arrange
@@ -545,7 +543,7 @@ class TestNetlistParser(TestCase):
         # act
         result = parse_netlist(netlist)
         # assert
-        self.assertIsInstance(result, NetlistTopology)
+        assert isinstance(result, NetlistTopology)
 
     def test_device_is_dataclass_instance(self):
         # arrange
@@ -553,7 +551,7 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertIsInstance(topology.devices[0], Device)
+        assert isinstance(topology.devices[0], Device)
 
     def test_directive_extraction(self):
         # arrange
@@ -561,11 +559,11 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertIn(".OP", topology.directives)
-        self.assertIn(".PRINT DC V(1)", topology.directives)
-        self.assertIn(".SAVE TYPE=IC", topology.directives)
-        self.assertIn(".NODESET V(2)=5", topology.directives)
-        self.assertEqual(len(topology.directives), 4)
+        assert ".OP" in topology.directives
+        assert ".PRINT DC V(1)" in topology.directives
+        assert ".SAVE TYPE=IC" in topology.directives
+        assert ".NODESET V(2)=5" in topology.directives
+        assert len(topology.directives) == 4
 
     def test_directive_extraction_ignores_non_simulation_directives(self):
         # arrange
@@ -573,4 +571,4 @@ class TestNetlistParser(TestCase):
         # act
         topology = parse_netlist(netlist)
         # assert
-        self.assertEqual(len(topology.directives), 0)
+        assert len(topology.directives) == 0

@@ -1,5 +1,4 @@
 import sys
-from unittest import TestCase
 
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
@@ -9,40 +8,40 @@ from kicad_icons import KiCadIcon, get_kicad_icon, load_kicad_icons
 _app = QApplication.instance() or QApplication(sys.argv)
 
 
-class TestKiCadIconEnum(TestCase):
+class TestKiCadIconEnum:
 
     def test_all_enum_members_have_unique_values(self):
         # arrange
         values = [icon.value for icon in KiCadIcon]
         # assert
-        self.assertEqual(len(values), len(set(values)))
+        assert len(values) == len(set(values))
 
     def test_file_save_member_exists(self):
         # assert
-        self.assertIn(KiCadIcon.FILE_SAVE, KiCadIcon)
+        assert KiCadIcon.FILE_SAVE in KiCadIcon
 
     def test_file_open_member_exists(self):
         # assert
-        self.assertIn(KiCadIcon.FILE_OPEN, KiCadIcon)
+        assert KiCadIcon.FILE_OPEN in KiCadIcon
 
     def test_sim_run_member_exists(self):
         # assert
-        self.assertIn(KiCadIcon.SIM_RUN, KiCadIcon)
+        assert KiCadIcon.SIM_RUN in KiCadIcon
 
     def test_cancel_member_exists(self):
         # assert
-        self.assertIn(KiCadIcon.CANCEL, KiCadIcon)
+        assert KiCadIcon.CANCEL in KiCadIcon
 
     def test_preference_member_exists(self):
         # assert
-        self.assertIn(KiCadIcon.PREFERENCE, KiCadIcon)
+        assert KiCadIcon.PREFERENCE in KiCadIcon
 
     def test_nine_icons_total(self):
         # assert
-        self.assertEqual(len(list(KiCadIcon)), 10)
+        assert len(list(KiCadIcon)) == 10
 
 
-class TestLoadKiCadIcons(TestCase):
+class TestLoadKiCadIcons:
 
     def test_load_kicad_icons_completes_without_error(self):
         # act / assert — no exception raised
@@ -56,7 +55,7 @@ class TestLoadKiCadIcons(TestCase):
         # assert — no exception, no duplicate load
 
 
-class TestGetKiCadIcon(TestCase):
+class TestGetKiCadIcon:
 
     def test_returns_light_icon_by_default(self):
         # arrange
@@ -64,7 +63,7 @@ class TestGetKiCadIcon(TestCase):
         # act
         icon = get_kicad_icon(KiCadIcon.FILE_SAVE)
         # assert — returns a QIcon (may be null if file missing, but type is correct)
-        self.assertIsInstance(icon, QIcon)
+        assert isinstance(icon, QIcon)
 
     def test_returns_dark_icon_when_requested(self):
         # arrange
@@ -72,7 +71,7 @@ class TestGetKiCadIcon(TestCase):
         # act
         icon = get_kicad_icon(KiCadIcon.FILE_SAVE, dark=True)
         # assert
-        self.assertIsInstance(icon, QIcon)
+        assert isinstance(icon, QIcon)
 
     def test_returns_light_icon_when_dark_false(self):
         # arrange
@@ -80,7 +79,7 @@ class TestGetKiCadIcon(TestCase):
         # act
         icon = get_kicad_icon(KiCadIcon.SIM_RUN, dark=False)
         # assert
-        self.assertIsInstance(icon, QIcon)
+        assert isinstance(icon, QIcon)
 
     def test_all_light_icons_can_be_retrieved(self):
         # arrange
@@ -88,7 +87,7 @@ class TestGetKiCadIcon(TestCase):
         # assert — no KeyError raised for any enum member
         for icon_key in KiCadIcon:
             icon = get_kicad_icon(icon_key, dark=False)
-            self.assertIsInstance(icon, QIcon)
+            assert isinstance(icon, QIcon)
 
     def test_all_dark_icons_can_be_retrieved(self):
         # arrange
@@ -96,4 +95,4 @@ class TestGetKiCadIcon(TestCase):
         # assert — no KeyError raised for any enum member
         for icon_key in KiCadIcon:
             icon = get_kicad_icon(icon_key, dark=True)
-            self.assertIsInstance(icon, QIcon)
+            assert isinstance(icon, QIcon)

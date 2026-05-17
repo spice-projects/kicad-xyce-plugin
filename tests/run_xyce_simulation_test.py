@@ -2,12 +2,7 @@ import os
 import sys
 import tempfile
 
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
-# run_xyce_simulation.py uses bare intra-package imports; expose the plugin dir
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "plugin"))
-
-from unittest import TestCase
+import pytest
 from unittest.mock import MagicMock
 
 from PySide6.QtCore import QProcess
@@ -24,27 +19,27 @@ def _make_valid_config() -> PluginConfig:
     return PluginConfig(xyce_executable_path="/bin/sh")
 
 
-class TestRunXyceSimulationValidation(TestCase):
+class TestRunXyceSimulationValidation:
 
     def test_raises_value_error_when_executable_invalid(self):
         # arrange — config with invalid (non-existent) executable path
         config = PluginConfig(xyce_executable_path="/nonexistent/xyce")
         # act / assert
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             run_xyce_simulation(config, "* Netlist\n.END")
 
     def test_raises_value_error_when_netlist_is_empty(self):
         # arrange — valid config but empty netlist
         config = _make_valid_config()
         # act / assert
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             run_xyce_simulation(config, "   ")
 
     def test_raises_value_error_when_netlist_is_whitespace_only(self):
         # arrange
         config = _make_valid_config()
         # act / assert
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             run_xyce_simulation(config, "\n\t  \n")
 
     def test_returns_runner_instance_when_inputs_are_valid(self):
@@ -53,7 +48,7 @@ class TestRunXyceSimulationValidation(TestCase):
         # act — process will start /bin/sh, which exits immediately
         runner = run_xyce_simulation(config, "* Netlist\n.END")
         # assert
-        self.assertIsInstance(runner, XyceSimulationRunner)
+        assert isinstance(runner, XyceSimulationRunner)
         # cleanup — cancel process to avoid leaving it running
         runner.cancel()
 
@@ -63,7 +58,7 @@ class TestRunXyceSimulationValidation(TestCase):
         # act
         runner = run_xyce_simulation(config, "* Test netlist\n.END")
         # assert — a temp file was created and path is non-empty
-        self.assertTrue(runner.netlist_file_path)
+        assert runner.netlist_file_path
         runner.cancel()
 
     def test_runner_has_output_file_path(self):
@@ -72,11 +67,11 @@ class TestRunXyceSimulationValidation(TestCase):
         # act
         runner = run_xyce_simulation(config, "* Test netlist\n.END")
         # assert
-        self.assertTrue(runner.output_file_path)
+        assert runner.output_file_path
         runner.cancel()
 
 
-class TestXyceSimulationRunnerEmitBufferedLines(TestCase):
+class TestXyceSimulationRunnerEmitBufferedLines:
 
     def test_emits_single_complete_line(self):
         # arrange
@@ -87,7 +82,7 @@ class TestXyceSimulationRunnerEmitBufferedLines(TestCase):
         remaining = runner._emit_buffered_lines(buffer, signal_mock, False)
         # assert
         signal_mock.emit.assert_called_once_with("hello world")
-        self.assertEqual(remaining, "")
+        assert remaining == ""
 
     def test_emits_multiple_complete_lines(self):
         # arrange
@@ -97,8 +92,8 @@ class TestXyceSimulationRunnerEmitBufferedLines(TestCase):
         # act
         remaining = runner._emit_buffered_lines(buffer, signal_mock, False)
         # assert
-        self.assertEqual(signal_mock.emit.call_count, 3)
-        self.assertEqual(remaining, "")
+        assert signal_mock.emit.call_count == 3
+        assert remaining == ""
 
     def test_retains_partial_line_without_flush(self):
         # arrange — no trailing newline
@@ -109,7 +104,7 @@ class TestXyceSimulationRunnerEmitBufferedLines(TestCase):
         remaining = runner._emit_buffered_lines(buffer, signal_mock, False)
         # assert
         signal_mock.emit.assert_not_called()
-        self.assertEqual(remaining, "partial line")
+        assert remaining == "partial line"
 
     def test_flushes_partial_line_when_flush_partial_true(self):
         # arrange
@@ -120,7 +115,7 @@ class TestXyceSimulationRunnerEmitBufferedLines(TestCase):
         remaining = runner._emit_buffered_lines(buffer, signal_mock, True)
         # assert
         signal_mock.emit.assert_called_once_with("final partial")
-        self.assertEqual(remaining, "")
+        assert remaining == ""
 
     def test_strips_carriage_return_from_crlf_lines(self):
         # arrange — Windows-style CRLF line endings
@@ -151,7 +146,7 @@ class TestXyceSimulationRunnerEmitBufferedLines(TestCase):
         remaining = runner._emit_buffered_lines(buffer, signal_mock, False)
         # assert
         signal_mock.emit.assert_not_called()
-        self.assertEqual(remaining, "")
+        assert remaining == ""
 
     def test_empty_buffer_with_flush_emits_nothing(self):
         # arrange
@@ -162,7 +157,7 @@ class TestXyceSimulationRunnerEmitBufferedLines(TestCase):
         remaining = runner._emit_buffered_lines(buffer, signal_mock, True)
         # assert
         signal_mock.emit.assert_not_called()
-        self.assertEqual(remaining, "")
+        assert remaining == ""
 
     def test_partial_line_followed_by_more_data(self):
         # arrange — simulate two chunks arriving sequentially
@@ -173,25 +168,25 @@ class TestXyceSimulationRunnerEmitBufferedLines(TestCase):
         remaining = runner._emit_buffered_lines(buffer, signal_mock, False)
         # assert
         signal_mock.emit.assert_called_once_with("first line")
-        self.assertEqual(remaining, "secon")
+        assert remaining == "secon"
 
 
-class TestXyceSimulationRunnerConstruction(TestCase):
+class TestXyceSimulationRunnerConstruction:
 
     def test_netlist_file_path_property(self):
         # arrange / act
         runner = XyceSimulationRunner("/bin/sh", "/tmp/my.cir", "/tmp/my.raw")
         # assert
-        self.assertEqual(runner.netlist_file_path, "/tmp/my.cir")
+        assert runner.netlist_file_path == "/tmp/my.cir"
 
     def test_output_file_path_property(self):
         # arrange / act
         runner = XyceSimulationRunner("/bin/sh", "/tmp/my.cir", "/tmp/my.raw")
         # assert
-        self.assertEqual(runner.output_file_path, "/tmp/my.raw")
+        assert runner.output_file_path == "/tmp/my.raw"
 
 
-class TestXyceSimulationRunnerCancel(TestCase):
+class TestXyceSimulationRunnerCancel:
 
     def test_cancel_when_not_running_is_no_op(self):
         # arrange
@@ -207,40 +202,40 @@ class TestXyceSimulationRunnerCancel(TestCase):
         # act
         runner.cancel()
         # assert
-        self.assertTrue(runner._was_canceled)
+        assert runner._was_canceled
         runner._process.terminate.assert_called_once()
 
 
-class TestXyceSimulationRunnerSignals(TestCase):
+class TestXyceSimulationRunnerSignals:
 
     def test_has_started_signal(self):
         # arrange / act
         runner = XyceSimulationRunner("/bin/sh", "/tmp/test.cir", "/tmp/test.raw")
         # assert — signal attribute exists
-        self.assertTrue(hasattr(runner, "started"))
+        assert hasattr(runner, "started")
 
     def test_has_finished_signal(self):
         # assert
         runner = XyceSimulationRunner("/bin/sh", "/tmp/test.cir", "/tmp/test.raw")
-        self.assertTrue(hasattr(runner, "finished"))
+        assert hasattr(runner, "finished")
 
     def test_has_stdout_received_signal(self):
         # assert
         runner = XyceSimulationRunner("/bin/sh", "/tmp/test.cir", "/tmp/test.raw")
-        self.assertTrue(hasattr(runner, "stdout_received"))
+        assert hasattr(runner, "stdout_received")
 
     def test_has_stderr_received_signal(self):
         # assert
         runner = XyceSimulationRunner("/bin/sh", "/tmp/test.cir", "/tmp/test.raw")
-        self.assertTrue(hasattr(runner, "stderr_received"))
+        assert hasattr(runner, "stderr_received")
 
     def test_has_process_error_signal(self):
         # assert
         runner = XyceSimulationRunner("/bin/sh", "/tmp/test.cir", "/tmp/test.raw")
-        self.assertTrue(hasattr(runner, "process_error"))
+        assert hasattr(runner, "process_error")
 
 
-class TestXyceSimulationRunnerFinalize(TestCase):
+class TestXyceSimulationRunnerFinalize:
 
     def test_finalize_emits_finished_signal(self):
         # arrange
@@ -250,8 +245,8 @@ class TestXyceSimulationRunnerFinalize(TestCase):
         # act
         runner._finalize(0, QProcess.ExitStatus.NormalExit)
         # assert
-        self.assertEqual(len(finished_args), 4)
-        self.assertEqual(finished_args[0], 0)
+        assert len(finished_args) == 4
+        assert finished_args[0] == 0
 
     def test_finalize_is_idempotent(self):
         # arrange
@@ -262,7 +257,7 @@ class TestXyceSimulationRunnerFinalize(TestCase):
         runner._finalize(0, QProcess.ExitStatus.NormalExit)
         runner._finalize(1, QProcess.ExitStatus.NormalExit)
         # assert — finished was emitted exactly once so list has exactly 4 items
-        self.assertEqual(len(finished_args), 4)
+        assert len(finished_args) == 4
 
     def test_finalize_includes_cancellation_state(self):
         # arrange
@@ -273,7 +268,7 @@ class TestXyceSimulationRunnerFinalize(TestCase):
         # act
         runner._finalize(0, QProcess.ExitStatus.NormalExit)
         # assert — third element is was_canceled flag
-        self.assertTrue(finished_args[2])
+        assert finished_args[2]
 
     def test_finalize_includes_output_file_path(self):
         # arrange
@@ -283,10 +278,10 @@ class TestXyceSimulationRunnerFinalize(TestCase):
         # act
         runner._finalize(0, QProcess.ExitStatus.NormalExit)
         # assert — fourth element is output file path
-        self.assertEqual(finished_args[3], "/tmp/test.raw")
+        assert finished_args[3] == "/tmp/test.raw"
 
 
-class TestXyceSimulationRunnerOnStarted(TestCase):
+class TestXyceSimulationRunnerOnStarted:
 
     def test_on_started_emits_started_signal(self):
         # arrange
@@ -296,11 +291,11 @@ class TestXyceSimulationRunnerOnStarted(TestCase):
         # act
         runner._on_started()
         # assert
-        self.assertEqual(started_args[0], "/tmp/start.cir")
-        self.assertEqual(started_args[1], "/tmp/start.raw")
+        assert started_args[0] == "/tmp/start.cir"
+        assert started_args[1] == "/tmp/start.raw"
 
 
-class TestXyceSimulationRunnerOnErrorOccurred(TestCase):
+class TestXyceSimulationRunnerOnErrorOccurred:
 
     def test_on_error_occurred_emits_process_error_signal(self):
         # arrange
@@ -312,7 +307,7 @@ class TestXyceSimulationRunnerOnErrorOccurred(TestCase):
         # act
         runner._on_error_occurred(QProcess.ProcessError.FailedToStart)
         # assert
-        self.assertEqual(error_signals[1], "Failed to start")
+        assert error_signals[1] == "Failed to start"
 
     def test_on_error_occurred_failed_to_start_triggers_finalize(self):
         # arrange
@@ -324,10 +319,10 @@ class TestXyceSimulationRunnerOnErrorOccurred(TestCase):
         # act
         runner._on_error_occurred(QProcess.ProcessError.FailedToStart)
         # assert — finalize was triggered
-        self.assertTrue(runner._finished_emitted)
+        assert runner._finished_emitted
 
 
-class TestXyceSimulationRunnerKillIfStillRunning(TestCase):
+class TestXyceSimulationRunnerKillIfStillRunning:
 
     def test_no_op_when_process_not_running(self):
         # arrange
@@ -350,7 +345,7 @@ class TestXyceSimulationRunnerKillIfStillRunning(TestCase):
         runner._process.kill.assert_called_once()
 
 
-class TestXyceSimulationRunnerReadyRead(TestCase):
+class TestXyceSimulationRunnerReadyRead:
 
     def test_on_ready_read_standard_output_emits_lines(self):
         # arrange
@@ -362,7 +357,7 @@ class TestXyceSimulationRunnerReadyRead(TestCase):
         # act
         runner._on_ready_read_standard_output()
         # assert
-        self.assertEqual(received, ["stdout line"])
+        assert received == ["stdout line"]
 
     def test_on_ready_read_standard_error_emits_lines(self):
         # arrange
@@ -374,10 +369,10 @@ class TestXyceSimulationRunnerReadyRead(TestCase):
         # act
         runner._on_ready_read_standard_error()
         # assert
-        self.assertEqual(received, ["stderr line"])
+        assert received == ["stderr line"]
 
 
-class TestXyceSimulationRunnerOnFinished(TestCase):
+class TestXyceSimulationRunnerOnFinished:
 
     def test_on_finished_triggers_finalize(self):
         # arrange
@@ -385,10 +380,10 @@ class TestXyceSimulationRunnerOnFinished(TestCase):
         # act
         runner._on_finished(0, QProcess.ExitStatus.NormalExit)
         # assert
-        self.assertTrue(runner._finished_emitted)
+        assert runner._finished_emitted
 
 
-class TestXyceSimulationRunnerCleanupNetlistFile(TestCase):
+class TestXyceSimulationRunnerCleanupNetlistFile:
 
     def test_no_op_when_netlist_path_is_empty(self):
         # arrange
@@ -404,4 +399,4 @@ class TestXyceSimulationRunnerCleanupNetlistFile(TestCase):
         # act
         runner._cleanup_netlist_file()
         # assert
-        self.assertFalse(os.path.exists(tmp_path))
+        assert not os.path.exists(tmp_path)

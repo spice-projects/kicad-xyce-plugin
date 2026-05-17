@@ -1,5 +1,3 @@
-from unittest import TestCase
-
 from simulation_dialog import _parse_list_values, DCSimulationParameters
 
 
@@ -23,7 +21,7 @@ def _data(data_table_name="resistorValues") -> DCSimulationParameters:
     return DCSimulationParameters("DATA", "", "", "", "", "", tuple(), data_table_name, "", "", "", "", "")
 
 
-class TestDCSimulationParametersLin(TestCase):
+class TestDCSimulationParametersLin:
 
     def test_lin_basic_directive(self):
         # arrange
@@ -31,7 +29,7 @@ class TestDCSimulationParametersLin(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC VIN -10 15 1")
+        assert directive == ".DC VIN -10 15 1"
 
     def test_lin_fractional_step(self):
         # arrange
@@ -39,7 +37,7 @@ class TestDCSimulationParametersLin(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC R1 0 3.5 0.05")
+        assert directive == ".DC R1 0 3.5 0.05"
 
     def test_lin_negative_step_allowed(self):
         # arrange — descending sweep; step is negative (warn but do not block)
@@ -47,7 +45,7 @@ class TestDCSimulationParametersLin(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC VIN 5 0 -0.1")
+        assert directive == ".DC VIN 5 0 -0.1"
 
     def test_lin_with_secondary_sweep(self):
         # arrange
@@ -55,7 +53,7 @@ class TestDCSimulationParametersLin(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC R1 0 3.5 0.05 C1 0 3.5 0.5")
+        assert directive == ".DC R1 0 3.5 0.05 C1 0 3.5 0.5"
 
     def test_lin_no_secondary_when_variable_empty(self):
         # arrange — secondary_variable is empty so no secondary tokens emitted
@@ -63,11 +61,11 @@ class TestDCSimulationParametersLin(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert — no secondary tokens present
-        self.assertNotIn("  ", directive)
-        self.assertEqual(directive, ".DC VIN 0 5 0.1")
+        assert "  " not in directive
+        assert directive == ".DC VIN 0 5 0.1"
 
 
-class TestDCSimulationParametersDec(TestCase):
+class TestDCSimulationParametersDec:
 
     def test_dec_basic_directive(self):
         # arrange
@@ -75,7 +73,7 @@ class TestDCSimulationParametersDec(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC DEC VIN 1 100 2")
+        assert directive == ".DC DEC VIN 1 100 2"
 
     def test_dec_with_secondary_sweep(self):
         # arrange
@@ -83,7 +81,7 @@ class TestDCSimulationParametersDec(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC DEC VIN 1 100 2 R1 1 10 3")
+        assert directive == ".DC DEC VIN 1 100 2 R1 1 10 3"
 
     def test_dec_no_secondary_when_variable_empty(self):
         # arrange
@@ -91,10 +89,10 @@ class TestDCSimulationParametersDec(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert — mode keyword present, no secondary tokens
-        self.assertEqual(directive, ".DC DEC VIN 1 100 5")
+        assert directive == ".DC DEC VIN 1 100 5"
 
 
-class TestDCSimulationParametersOct(TestCase):
+class TestDCSimulationParametersOct:
 
     def test_oct_basic_directive(self):
         # arrange
@@ -102,7 +100,7 @@ class TestDCSimulationParametersOct(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC OCT VIN 0.125 64 2")
+        assert directive == ".DC OCT VIN 0.125 64 2"
 
     def test_oct_with_secondary_sweep(self):
         # arrange
@@ -110,7 +108,7 @@ class TestDCSimulationParametersOct(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC OCT VIN 0.125 64 2 R1 1 10 4")
+        assert directive == ".DC OCT VIN 0.125 64 2 R1 1 10 4"
 
     def test_oct_no_secondary_when_variable_empty(self):
         # arrange
@@ -118,10 +116,10 @@ class TestDCSimulationParametersOct(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC OCT VIN 0.125 64 2")
+        assert directive == ".DC OCT VIN 0.125 64 2"
 
 
-class TestDCSimulationParametersList(TestCase):
+class TestDCSimulationParametersList:
 
     def test_list_single_value(self):
         # arrange
@@ -129,7 +127,7 @@ class TestDCSimulationParametersList(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC TEMP LIST 27")
+        assert directive == ".DC TEMP LIST 27"
 
     def test_list_multiple_values(self):
         # arrange
@@ -137,7 +135,7 @@ class TestDCSimulationParametersList(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC TEMP LIST 10 15 18 27 33")
+        assert directive == ".DC TEMP LIST 10 15 18 27 33"
 
     def test_list_variable_name_used(self):
         # arrange
@@ -145,10 +143,10 @@ class TestDCSimulationParametersList(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC VCC LIST 3.3 5.0")
+        assert directive == ".DC VCC LIST 3.3 5.0"
 
 
-class TestDCSimulationParametersData(TestCase):
+class TestDCSimulationParametersData:
 
     def test_data_directive(self):
         # arrange
@@ -156,7 +154,7 @@ class TestDCSimulationParametersData(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC DATA=resistorValues")
+        assert directive == ".DC DATA=resistorValues"
 
     def test_data_table_name_used_verbatim(self):
         # arrange
@@ -164,49 +162,49 @@ class TestDCSimulationParametersData(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC DATA=myCustomTable")
+        assert directive == ".DC DATA=myCustomTable"
 
 
-class TestParseListValues(TestCase):
+class TestParseListValues:
 
     def test_empty_string_returns_empty_tuple(self):
         # arrange / act
         result = _parse_list_values("")
         # assert
-        self.assertEqual(result, tuple())
+        assert result == tuple()
 
     def test_single_value(self):
         # arrange / act
         result = _parse_list_values("27")
         # assert
-        self.assertEqual(result, ("27",))
+        assert result == ("27",)
 
     def test_space_separated_values(self):
         # arrange / act
         result = _parse_list_values("10 15 27 33")
         # assert
-        self.assertEqual(result, ("10", "15", "27", "33"))
+        assert result == ("10", "15", "27", "33")
 
     def test_comma_separated_values(self):
         # arrange / act
         result = _parse_list_values("10,15,27,33")
         # assert
-        self.assertEqual(result, ("10", "15", "27", "33"))
+        assert result == ("10", "15", "27", "33")
 
     def test_mixed_separator_values(self):
         # arrange / act
         result = _parse_list_values("10, 15 27,33")
         # assert
-        self.assertEqual(result, ("10", "15", "27", "33"))
+        assert result == ("10", "15", "27", "33")
 
     def test_leading_and_trailing_whitespace_ignored(self):
         # arrange / act
         result = _parse_list_values("  10 20  ")
         # assert
-        self.assertEqual(result, ("10", "20"))
+        assert result == ("10", "20")
 
     def test_result_is_tuple(self):
         # arrange / act
         result = _parse_list_values("1 2 3")
         # assert — immutable sequence required by frozen dataclass
-        self.assertIsInstance(result, tuple)
+        assert isinstance(result, tuple)

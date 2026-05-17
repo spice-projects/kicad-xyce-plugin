@@ -1,5 +1,3 @@
-from unittest import TestCase
-
 from simulation_dialog import TransientSchedulePoint, TransientSimulationParameters
 
 
@@ -7,7 +5,7 @@ def _tran(initial_step="1u", final_time="1m", start_time="", step_ceiling="", op
     return TransientSimulationParameters(initial_step, final_time, start_time, step_ceiling, op_keyword, schedule_points)
 
 
-class TestTransientSimulationParametersBasic(TestCase):
+class TestTransientSimulationParametersBasic:
 
     def test_minimal_directive(self):
         # arrange
@@ -15,7 +13,7 @@ class TestTransientSimulationParametersBasic(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".TRAN 1u 1m")
+        assert directive == ".TRAN 1u 1m"
 
     def test_start_time_is_included_when_provided(self):
         # arrange
@@ -23,7 +21,7 @@ class TestTransientSimulationParametersBasic(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".TRAN 1n 10u 100n")
+        assert directive == ".TRAN 1n 10u 100n"
 
     def test_start_time_defaults_to_zero_when_only_step_ceiling_given(self):
         # arrange — step ceiling provided but start time omitted
@@ -31,7 +29,7 @@ class TestTransientSimulationParametersBasic(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".TRAN 1u 1m 0 5u")
+        assert directive == ".TRAN 1u 1m 0 5u"
 
     def test_step_ceiling_is_included_when_provided(self):
         # arrange
@@ -39,7 +37,7 @@ class TestTransientSimulationParametersBasic(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".TRAN 1u 1m 0 10u")
+        assert directive == ".TRAN 1u 1m 0 10u"
 
     def test_start_time_without_step_ceiling_does_not_append_blank(self):
         # arrange — only start time given, no step ceiling
@@ -47,7 +45,7 @@ class TestTransientSimulationParametersBasic(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".TRAN 1u 1m 500n")
+        assert directive == ".TRAN 1u 1m 500n"
 
     def test_op_keyword_noop_is_appended(self):
         # arrange
@@ -55,7 +53,7 @@ class TestTransientSimulationParametersBasic(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".TRAN 1u 1m NOOP")
+        assert directive == ".TRAN 1u 1m NOOP"
 
     def test_op_keyword_uic_is_appended(self):
         # arrange
@@ -63,7 +61,7 @@ class TestTransientSimulationParametersBasic(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".TRAN 1u 1m UIC")
+        assert directive == ".TRAN 1u 1m UIC"
 
     def test_empty_op_keyword_is_not_appended(self):
         # arrange
@@ -71,8 +69,8 @@ class TestTransientSimulationParametersBasic(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertNotIn("NOOP", directive)
-        self.assertNotIn("UIC", directive)
+        assert "NOOP" not in directive
+        assert "UIC" not in directive
 
     def test_start_time_step_ceiling_and_op_keyword_combined(self):
         # arrange
@@ -80,10 +78,10 @@ class TestTransientSimulationParametersBasic(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".TRAN 1u 1m 0 5u UIC")
+        assert directive == ".TRAN 1u 1m 0 5u UIC"
 
 
-class TestTransientSimulationParametersSchedule(TestCase):
+class TestTransientSimulationParametersSchedule:
 
     def test_single_schedule_point_produces_schedule_clause(self):
         # arrange
@@ -92,7 +90,7 @@ class TestTransientSimulationParametersSchedule(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".TRAN 1n 5u {schedule(1u, 10n)}")
+        assert directive == ".TRAN 1n 5u {schedule(1u, 10n)}"
 
     def test_multiple_schedule_points_are_flattened(self):
         # arrange
@@ -104,7 +102,7 @@ class TestTransientSimulationParametersSchedule(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".TRAN 1n 20u {schedule(1u, 10n, 10u, 100n)}")
+        assert directive == ".TRAN 1n 20u {schedule(1u, 10n, 10u, 100n)}"
 
     def test_schedule_combined_with_start_and_step_ceiling(self):
         # arrange
@@ -113,7 +111,7 @@ class TestTransientSimulationParametersSchedule(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".TRAN 1n 10u 0 200n {schedule(5u, 50n)}")
+        assert directive == ".TRAN 1n 10u 0 200n {schedule(5u, 50n)}"
 
     def test_empty_schedule_points_produces_no_schedule_clause(self):
         # arrange
@@ -121,10 +119,10 @@ class TestTransientSimulationParametersSchedule(TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertNotIn("schedule", directive)
+        assert "schedule" not in directive
 
 
-class TestTransientSimulationParametersJson(TestCase):
+class TestTransientSimulationParametersJson:
 
     def test_to_json_round_trips(self):
         # arrange
@@ -133,7 +131,7 @@ class TestTransientSimulationParametersJson(TestCase):
         json_str = params.to_json()
         result = TransientSimulationParameters.from_json(json_str)
         # assert
-        self.assertEqual(result, params)
+        assert result == params
 
     def test_from_json_restores_schedule_points(self):
         # arrange
@@ -143,16 +141,16 @@ class TestTransientSimulationParametersJson(TestCase):
         # act
         result = TransientSimulationParameters.from_json(json_str)
         # assert
-        self.assertEqual(len(result.schedule_points), 1)
-        self.assertEqual(result.schedule_points[0].time_value, "1u")
-        self.assertEqual(result.schedule_points[0].max_time_step_value, "10n")
+        assert len(result.schedule_points) == 1
+        assert result.schedule_points[0].time_value == "1u"
+        assert result.schedule_points[0].max_time_step_value == "10n"
 
 
-class TestTransientSchedulePoint(TestCase):
+class TestTransientSchedulePoint:
 
     def test_schedule_point_stores_time_and_step(self):
         # arrange / act
         point = TransientSchedulePoint(time_value="1u", max_time_step_value="10n")
         # assert
-        self.assertEqual(point.time_value, "1u")
-        self.assertEqual(point.max_time_step_value, "10n")
+        assert point.time_value == "1u"
+        assert point.max_time_step_value == "10n"

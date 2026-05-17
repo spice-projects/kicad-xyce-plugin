@@ -1,7 +1,6 @@
 import os
 from unittest.mock import patch
 from unittest.mock import MagicMock
-from unittest import TestCase
 
 from PySide6.QtWidgets import QDialog
 from PySide6.QtQuick import QQuickView
@@ -12,7 +11,6 @@ from simulation_dialog import SimulationDialog
 from simulation_dialog import OpSimulationParameters
 from simulation_dialog import DCSimulationParameters
 
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
 def _make_dialog(initial_parameters=None) -> SimulationDialog:
@@ -32,19 +30,19 @@ def _make_dialog_with_accept(initial_parameters=None) -> SimulationDialog:
     return dialog
 
 
-class TestSimulationDialogConstruction(TestCase):
+class TestSimulationDialogConstruction:
 
     def test_dialog_can_be_instantiated(self):
         # act
         dialog = SimulationDialog(None)
         # assert
-        self.assertIsInstance(dialog, SimulationDialog)
+        assert isinstance(dialog, SimulationDialog)
 
     def test_dialog_result_is_none_initially(self):
         # act
         dialog = SimulationDialog(None)
         # assert
-        self.assertIsNone(dialog._result)
+        assert dialog._result is None
 
     def test_on_qml_ready_skips_when_not_ready(self):
         # arrange
@@ -53,7 +51,7 @@ class TestSimulationDialogConstruction(TestCase):
         # act — non-Ready status should be a no-op
         dialog._on_qml_ready(QQuickView.Status.Loading)
         # assert — _root was not re-assigned by this call (mock stays)
-        self.assertIsInstance(dialog._root, MagicMock)
+        assert isinstance(dialog._root, MagicMock)
 
     def test_apply_initial_parameters_with_none(self):
         # arrange
@@ -90,10 +88,10 @@ class TestSimulationDialogConstruction(TestCase):
         # assert — Transient tab is index 1 (QML order: 0=OP, 1=Transient, 2=DC)
         # Note: test case override logic for TransientSimulationParameters
         # relies on specific behavior.
-        self.assertTrue(dialog._root.setProperty.called)
+        assert dialog._root.setProperty.called
 
 
-class TestSimulationDialogApplyTransientParameters(TestCase):
+class TestSimulationDialogApplyTransientParameters:
 
     def test_apply_transient_defaults_when_no_params(self):
         # arrange
@@ -154,7 +152,7 @@ class TestSimulationDialogApplyTransientParameters(TestCase):
         dialog._root.setProperty.assert_any_call("scheduleEnabled", True)
 
 
-class TestSimulationDialogApplyDCParameters(TestCase):
+class TestSimulationDialogApplyDCParameters:
 
     def test_apply_dc_defaults_when_no_params(self):
         # arrange
@@ -202,7 +200,7 @@ class TestSimulationDialogApplyDCParameters(TestCase):
         dialog._root.setProperty.assert_any_call("secondaryEnabled", False)
 
 
-class TestSimulationDialogOnSubmitOP(TestCase):
+class TestSimulationDialogOnSubmitOP:
 
     def test_on_submit_op_sets_result_and_accepts(self):
         # arrange
@@ -213,11 +211,11 @@ class TestSimulationDialogOnSubmitOP(TestCase):
         # act
         dialog._on_submit_op(False, False, False, "", False, "NODESET", "")
         # assert
-        self.assertIsInstance(dialog._result, OpSimulationParameters)
-        self.assertEqual(len(accepted), 1)
+        assert isinstance(dialog._result, OpSimulationParameters)
+        assert len(accepted) == 1
 
 
-class TestSimulationDialogOnSubmitTransient(TestCase):
+class TestSimulationDialogOnSubmitTransient:
 
     def test_accepts_valid_transient_params(self):
         # arrange
@@ -226,7 +224,7 @@ class TestSimulationDialogOnSubmitTransient(TestCase):
         dialog._on_submit_transient("1u", "1m", "", "", "", False, "")
         # assert
         dialog.accept.assert_called_once()
-        self.assertIsInstance(dialog._result, TransientSimulationParameters)
+        assert isinstance(dialog._result, TransientSimulationParameters)
 
     def test_result_has_correct_values(self):
         # arrange
@@ -235,11 +233,11 @@ class TestSimulationDialogOnSubmitTransient(TestCase):
         dialog._on_submit_transient("2u", "2m", "100n", "10u", "NOOP", False, "")
         # assert
         result = dialog._result
-        self.assertEqual(result.initial_step_value, "2u")
-        self.assertEqual(result.final_time_value, "2m")
-        self.assertEqual(result.start_time_value, "100n")
-        self.assertEqual(result.step_ceiling_value, "10u")
-        self.assertEqual(result.op_keyword, "NOOP")
+        assert result.initial_step_value == "2u"
+        assert result.final_time_value == "2m"
+        assert result.start_time_value == "100n"
+        assert result.step_ceiling_value == "10u"
+        assert result.op_keyword == "NOOP"
 
     def test_rejects_when_initial_step_empty(self):
         # arrange
@@ -284,7 +282,7 @@ class TestSimulationDialogOnSubmitTransient(TestCase):
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        self.assertEqual(len(result.schedule_points), 2)
+        assert len(result.schedule_points) == 2
 
     def test_rejects_odd_number_of_schedule_tokens(self):
         # arrange
@@ -309,11 +307,11 @@ class TestSimulationDialogOnSubmitTransient(TestCase):
         dialog._on_submit_transient("  1u  ", "  1m  ", "", "", "", False, "")
         # assert
         result = dialog._result
-        self.assertEqual(result.initial_step_value, "1u")
-        self.assertEqual(result.final_time_value, "1m")
+        assert result.initial_step_value == "1u"
+        assert result.final_time_value == "1m"
 
 
-class TestSimulationDialogOnSubmitDC(TestCase):
+class TestSimulationDialogOnSubmitDC:
 
     def test_accepts_valid_lin_params(self):
         # arrange
@@ -322,7 +320,7 @@ class TestSimulationDialogOnSubmitDC(TestCase):
         dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", False, "", "", "", "", "")
         # assert
         dialog.accept.assert_called_once()
-        self.assertIsInstance(dialog._result, DCSimulationParameters)
+        assert isinstance(dialog._result, DCSimulationParameters)
 
     def test_rejects_invalid_sweep_mode(self):
         # arrange
@@ -495,7 +493,7 @@ class TestSimulationDialogOnSubmitDC(TestCase):
         dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", True, "VCC", "3", "5", "0.5", "")
         # assert
         dialog.accept.assert_called_once()
-        self.assertEqual(dialog._result.secondary_variable, "VCC")
+        assert dialog._result.secondary_variable == "VCC"
 
     def test_data_mode_ignores_secondary_sweep(self):
         # arrange — DATA mode does not support secondary
@@ -514,7 +512,7 @@ class TestSimulationDialogOnSubmitDC(TestCase):
         dialog._root.setProperty.assert_any_call("dcErrorText", "")
 
 
-class TestSimulationDialogParseSchedulePoints(TestCase):
+class TestSimulationDialogParseSchedulePoints:
 
     def test_empty_text_returns_empty_tuple(self):
         # arrange
@@ -522,7 +520,7 @@ class TestSimulationDialogParseSchedulePoints(TestCase):
         # act
         result = dialog._parse_schedule_points("")
         # assert
-        self.assertEqual(result, tuple())
+        assert result == tuple()
 
     def test_parses_single_pair(self):
         # arrange
@@ -530,9 +528,9 @@ class TestSimulationDialogParseSchedulePoints(TestCase):
         # act
         result = dialog._parse_schedule_points("1u,10n")
         # assert
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0].time_value, "1u")
-        self.assertEqual(result[0].max_time_step_value, "10n")
+        assert len(result) == 1
+        assert result[0].time_value == "1u"
+        assert result[0].max_time_step_value == "10n"
 
     def test_parses_multiple_pairs_space_separated(self):
         # arrange
@@ -540,7 +538,7 @@ class TestSimulationDialogParseSchedulePoints(TestCase):
         # act
         result = dialog._parse_schedule_points("1u 10n 5u 50n")
         # assert
-        self.assertEqual(len(result), 2)
+        assert len(result) == 2
 
     def test_parses_mixed_comma_space_separators(self):
         # arrange
@@ -548,17 +546,17 @@ class TestSimulationDialogParseSchedulePoints(TestCase):
         # act
         result = dialog._parse_schedule_points("1u, 10n, 5u, 50n")
         # assert
-        self.assertEqual(len(result), 2)
+        assert len(result) == 2
 
     def test_raises_value_error_for_odd_number_of_tokens(self):
         # arrange
         dialog = _make_dialog()
         # act / assert
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             dialog._parse_schedule_points("1u 10n 5u")
 
 
-class TestSimulationDialogOnSubmitDCListParseError(TestCase):
+class TestSimulationDialogOnSubmitDCListParseError:
 
     def test_shows_error_when_list_parse_raises_value_error(self):
         # arrange
@@ -571,7 +569,7 @@ class TestSimulationDialogOnSubmitDCListParseError(TestCase):
         dialog._root.setProperty.assert_any_call("dcErrorText", "bad values")
 
 
-class TestSimulationDialogGetParameters(TestCase):
+class TestSimulationDialogGetParameters:
 
     def test_returns_none_when_dialog_rejected(self):
         # arrange
@@ -580,7 +578,7 @@ class TestSimulationDialogGetParameters(TestCase):
             # act
             result = dialog.get_parameters()
         # assert
-        self.assertIsNone(result)
+        assert result is None
 
     def test_returns_result_when_dialog_accepted(self):
         # arrange
@@ -590,4 +588,4 @@ class TestSimulationDialogGetParameters(TestCase):
             # act
             result = dialog.get_parameters()
         # assert
-        self.assertIsInstance(result, OpSimulationParameters)
+        assert isinstance(result, OpSimulationParameters)

@@ -1,9 +1,7 @@
-import unittest
-
 from simulation_dialog import DCSimulationParameters, NodesetEntry, OpSimulationParameters, TransientSchedulePoint, TransientSimulationParameters
 
 
-class TestSimulationParameters(unittest.TestCase):
+class TestSimulationParameters:
 
     def test_op_parameters_serialization(self):
         # arrange
@@ -11,28 +9,28 @@ class TestSimulationParameters(unittest.TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertIn(".OP", directive)
+        assert ".OP" in directive
         # arrange
         params = OpSimulationParameters(print_dc_enabled=True, print_dc_specific_variables=("V(2)", "I(R1)"))
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertIn(".PRINT DC", directive)
-        self.assertIn("V(2)", directive)
-        self.assertIn("I(R1)", directive)
-        self.assertIn(".OP", directive)
+        assert ".PRINT DC" in directive
+        assert "V(2)" in directive
+        assert "I(R1)" in directive
+        assert ".OP" in directive
         # arrange
         params = OpSimulationParameters(save_enabled=True, save_type="NODESET", save_file="save.out")
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertIn(".SAVE TYPE=NODESET FILE=save.out", directive)
+        assert ".SAVE TYPE=NODESET FILE=save.out" in directive
         # arrange
         params = OpSimulationParameters(nodeset_entries=(NodesetEntry(node="2", voltage="5V"),))
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertIn(".NODESET V(2)=5V", directive)
+        assert ".NODESET V(2)=5V" in directive
 
     def test_op_parameters_deserialization(self):
         # arrange
@@ -44,15 +42,15 @@ class TestSimulationParameters(unittest.TestCase):
         # act
         params = OpSimulationParameters.from_directives(directives)
         # assert
-        self.assertTrue(params.print_dc_enabled)
-        self.assertIn("V(2)", params.print_dc_specific_variables)
-        self.assertIn("I(R1)", params.print_dc_specific_variables)
-        self.assertTrue(params.save_enabled)
-        self.assertEqual(len(params.nodeset_entries), 2)
-        self.assertEqual(params.nodeset_entries[0].node, "2")
-        self.assertEqual(params.nodeset_entries[0].voltage, "5V")
-        self.assertEqual(params.nodeset_entries[1].node, "3")
-        self.assertEqual(params.nodeset_entries[1].voltage, "2.5V")
+        assert params.print_dc_enabled
+        assert "V(2)" in params.print_dc_specific_variables
+        assert "I(R1)" in params.print_dc_specific_variables
+        assert params.save_enabled
+        assert len(params.nodeset_entries) == 2
+        assert params.nodeset_entries[0].node == "2"
+        assert params.nodeset_entries[0].voltage == "5V"
+        assert params.nodeset_entries[1].node == "3"
+        assert params.nodeset_entries[1].voltage == "2.5V"
 
     def test_transient_parameters_serialization(self):
         # arrange
@@ -67,8 +65,8 @@ class TestSimulationParameters(unittest.TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertTrue(directive.startswith(".TRAN 1u 1m 0 10u UIC"))
-        self.assertIn("{schedule(0.5m, 1u)}", directive)
+        assert directive.startswith(".TRAN 1u 1m 0 10u UIC")
+        assert "{schedule(0.5m, 1u)}" in directive
 
     def test_dc_parameters_serialization(self):
         # arrange
@@ -90,7 +88,7 @@ class TestSimulationParameters(unittest.TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC VIN 0 5 0.1 I1 0 1 0.2")
+        assert directive == ".DC VIN 0 5 0.1 I1 0 1 0.2"
         # arrange
         params = DCSimulationParameters(
             sweep_mode="LIST",
@@ -110,4 +108,4 @@ class TestSimulationParameters(unittest.TestCase):
         # act
         directive = params.to_xyce_directive()
         # assert
-        self.assertEqual(directive, ".DC V1 LIST 1 2 3")
+        assert directive == ".DC V1 LIST 1 2 3"

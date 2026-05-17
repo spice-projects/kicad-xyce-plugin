@@ -60,8 +60,7 @@ This document defines the code style preferences for this project.
 ## Testing
 
 ### Framework
-- Use the standard library `unittest` module (`unittest.TestCase`)
-- No third-party test runners or assertion libraries (no pytest, no assertpy, etc.)
+- Use the library `pytest`
 
 ### File & Class Naming
 - Test files live under the `tests/` directory and are named `<module>_test.py`
