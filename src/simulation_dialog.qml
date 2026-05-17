@@ -182,27 +182,27 @@ Item {
                         // --- Print DC ---
                         CheckBox {
                             text: "Enable .PRINT DC output"
-                            checked: printDcEnabled
-                            onCheckedChanged: printDcEnabled = checked
+                            checked: root.printDcEnabled
+                            onCheckedChanged: root.printDcEnabled = checked
                         }
                         GridLayout {
-                            visible: printDcEnabled
+                            visible: root.printDcEnabled
                             columns: 2
                             Layout.fillWidth: true
                             CheckBox {
                                 text: "All node voltages"
-                                checked: printDcAllNodes
-                                onCheckedChanged: printDcAllNodes = checked
+                                checked: root.printDcAllNodes
+                                onCheckedChanged: root.printDcAllNodes = checked
                             }
                             CheckBox {
                                 text: "All device currents"
-                                checked: printDcAllCurrents
-                                onCheckedChanged: printDcAllCurrents = checked
+                                checked: root.printDcAllCurrents
+                                onCheckedChanged: root.printDcAllCurrents = checked
                             }
                             TextField {
                                 placeholderText: "Specific Variables (V(1), I(Vsource))"
-                                text: printDcVariables
-                                onTextChanged: printDcVariables = text
+                                text: root.printDcVariables
+                                onTextChanged: root.printDcVariables = text
                                 Layout.columnSpan: 2
                                 Layout.fillWidth: true
                             }
@@ -211,22 +211,22 @@ Item {
                         // --- Save ---
                         CheckBox {
                             text: "Enable .SAVE operating point"
-                            checked: saveEnabled
-                            onCheckedChanged: saveEnabled = checked
+                            checked: root.saveEnabled
+                            onCheckedChanged: root.saveEnabled = checked
                         }
                         GridLayout {
-                            visible: saveEnabled
+                            visible: root.saveEnabled
                             columns: 2
                             Layout.fillWidth: true
                             RadioButton {
                                 text: "Save as .IC"
-                                checked: saveType === "IC"
-                                onClicked: saveType = "IC"
+                                checked: root.saveType === "IC"
+                                onClicked: root.saveType = "IC"
                             }
                             RadioButton {
                                 text: "Save as .NODESET"
-                                checked: saveType === "NODESET"
-                                onClicked: saveType = "NODESET"
+                                checked: root.saveType === "NODESET"
+                                onClicked: root.saveType = "NODESET"
                             }
                         }
 
@@ -237,8 +237,8 @@ Item {
                         }
                         TextField {
                             placeholderText: "Nodeset (e.g. V(1)=5.0)"
-                            text: nodesetEntries
-                            onTextChanged: nodesetEntries = text
+                            text: root.nodesetEntries
+                            onTextChanged: root.nodesetEntries = text
                             Layout.fillWidth: true
                         }
                     }
