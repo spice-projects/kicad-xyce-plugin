@@ -529,7 +529,7 @@ class XyceRawFile:
             # build step slices tuple for @N selector support in expressions
             step_slices: tuple[slice, ...] | None = tuple(step_information.abscissa_indices) if step_information.length > 1 else None
             # create expression manager with all parsed variables
-            expression_manager = ExpressionManager(variables, None, step_slices)
+            expression_manager = ExpressionManager(variables, step_slices)
             # command comes from the Command: header; fall back to the Version: line if present (Xyce optionally writes a Version: line)
             command = header.get("Command", header.get("Version", ""))
             # create XyceRawFile instance with parsed header, variables, and data; pass the mmap so it stays alive for the lifetime of the XyceRawFile — Variable arrays are views into it

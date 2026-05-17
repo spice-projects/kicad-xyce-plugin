@@ -4,7 +4,7 @@ import numpy as np
 
 from expression import Expression
 from xyce_language.evaluator import XyceEvaluator
-from xyce_language.nodes import BinaryOperationNode, BinaryOperator, ExpressionNode, FunctionCallNode, FunctionDefinitionNode, IdentifierNode, NumberNode, StepSelectorNode, TernaryOperationNode, UnaryOperationNode
+from xyce_language.nodes import BinaryOperationNode, BinaryOperator, ExpressionNode, FunctionCallNode, IdentifierNode, NumberNode, StepSelectorNode, TernaryOperationNode, UnaryOperationNode
 from xyce_language.parser import XyceParser
 from xyce_language.probe_names import is_network_parameter_probe_name
 
@@ -31,7 +31,7 @@ class ExpressionManager:
         "u": "",
     }
 
-    def __init__(self, expressions: list[Expression], function_definitions: list[str] | None = None, step_slices: tuple[slice, ...] | None = None):
+    def __init__(self, expressions: list[Expression], step_slices: tuple[slice, ...] | None = None):
         # create expression context; keys are lowercased so that evaluate() lookups always match
         self._context: dict[str, Expression] = {expression.name.lower(): expression for expression in expressions}
         # initialize the qspice language parser and evaluator for expression data
@@ -39,29 +39,11 @@ class ExpressionManager:
         self._evaluator = XyceEvaluator()
         # store optional step slice metadata for @N selector evaluation
         self._step_slices = step_slices
-        # store function definitions
-        self._function_definitions = function_definitions
-        # parse user-defined .func definitions; keys are lowercased for case-insensitive lookup
-        self._functions: dict[str, FunctionDefinitionNode] = {}
-        # loop definitions
-        for func_text in (function_definitions or []):
-            try:
-                # parse the .func definition and store it in the function context
-                definition = self._parser.parse_function_definition(func_text)
-                # store the function definition using a lowercased key for case-insensitive lookup
-                self._functions[definition.name.casefold()] = definition
-            except ValueError as e:
-                # log information
-                logger.warning("Failed to parse .func definition %r: %s", func_text, e)
 
     @property
     def expressions(self) -> list[Expression]:
         # do not show calculated expressions in the list of expressions
         return list(self._context.values())
-
-    @property
-    def function_definitions(self) -> list[str] | None:
-        return self._function_definitions
 
     @property
     def step_slices(self) -> tuple[slice, ...] | None:
@@ -79,7 +61,7 @@ class ExpressionManager:
                 # build qspice variable context from cached expressions
                 data_context = {context_key: context_expression.data for context_key, context_expression in self._context.items()}
                 # evaluate qspice AST to get computed numeric data; pass step slice metadata for @N support
-                evaluated_data = self._evaluator.evaluate(ast, data_context, self._functions, step_slices=self._step_slices)
+                evaluated_data = self._evaluator.evaluate(ast, data_context, step_slices=self._step_slices)
                 # re-materialize step-selector results to full stepped layout when necessary
                 evaluated_data = self._rematerialize(evaluated_data, ast)
                 # build unit lookup context from cached expressions
@@ -115,7 +97,7 @@ class ExpressionManager:
         if len(data) == total_points:
             return data
         # check whether the expression tree contains any step selector nodes (including inside function bodies)
-        if not self._has_step_selector(ast, self._functions):
+        if not self._has_step_selector(ast):
             return data
         # determine the step length from the first slice
         step_length = self._step_slices[0].stop - self._step_slices[0].start
@@ -126,31 +108,23 @@ class ExpressionManager:
         return np.tile(data, len(self._step_slices))
 
     @staticmethod
-    def _has_step_selector(node: ExpressionNode, functions: dict[str, FunctionDefinitionNode] | None = None, _visited: frozenset[str] | None = None) -> bool:
-        """Return True when the AST contains at least one StepSelectorNode (including inside called function bodies)."""
-        # track visited functions to avoid infinite recursion
-        visited: frozenset[str] = _visited if _visited is not None else frozenset()
+    def _has_step_selector(node: ExpressionNode) -> bool:
+        """Return True when the AST contains at least one StepSelectorNode."""
         # direct match
         if isinstance(node, StepSelectorNode):
             return True
         # recurse into unary operands
         if isinstance(node, UnaryOperationNode):
-            return ExpressionManager._has_step_selector(node.operand, functions, visited)
+            return ExpressionManager._has_step_selector(node.operand)
         # recurse into binary operands
         if isinstance(node, BinaryOperationNode):
-            return (ExpressionManager._has_step_selector(node.left, functions, visited) or ExpressionManager._has_step_selector(node.right, functions, visited))
+            return ExpressionManager._has_step_selector(node.left) or ExpressionManager._has_step_selector(node.right)
         # recurse into ternary branches
         if isinstance(node, TernaryOperationNode):
-            return (ExpressionManager._has_step_selector(node.condition, functions, visited) or ExpressionManager._has_step_selector(node.if_true, functions, visited) or ExpressionManager._has_step_selector(node.if_false, functions, visited))
-        # recurse into function call arguments and also into the body of known user functions
+            return (ExpressionManager._has_step_selector(node.condition) or ExpressionManager._has_step_selector(node.if_true) or ExpressionManager._has_step_selector(node.if_false))
+        # recurse into function call arguments
         if isinstance(node, FunctionCallNode):
-            if any(ExpressionManager._has_step_selector(arg, functions, visited) for arg in node.args):
-                return True
-            if functions is not None:
-                func_key = node.name.casefold()
-                definition = functions.get(func_key)
-                if definition is not None and func_key not in visited:
-                    return ExpressionManager._has_step_selector(definition.body, functions, visited | {func_key})
+            return any(ExpressionManager._has_step_selector(arg) for arg in node.args)
         # base cases: literals and identifiers have no selectors
         return False
 
@@ -177,10 +151,6 @@ class ExpressionManager:
                 return self._unit_for_probe(node, unit_context)
             if is_network_parameter_probe_name(function_name) and self._probe_key(node).casefold() in unit_context:
                 return self._unit_for_probe(node, unit_context)
-            # delegate unit inference to user-defined function body
-            definition = self._functions.get(function_name)
-            if definition is not None:
-                return self._infer_user_function_unit(definition, node, unit_context)
             # dimensionless fallback for nullary calls
             if len(node.args) == 0:
                 return ""
@@ -226,14 +196,6 @@ class ExpressionManager:
             return self._format_expression(node.base) + "@" + str(node.step_index)
         # fallback for unknown nodes
         return ""
-
-    def _infer_user_function_unit(self, definition: FunctionDefinitionNode, call: FunctionCallNode, unit_context: dict[str, str]) -> str:
-        # build a unit context that maps each parameter name to the unit of the corresponding argument
-        local_unit_context = dict(unit_context)
-        for param, arg in zip(definition.params, call.args):
-            local_unit_context[param.casefold()] = self._infer_unit(arg, unit_context)
-        # infer unit by walking the function body with the local context
-        return self._infer_unit(definition.body, local_unit_context)
 
     def _unit_for_identifier(self, name: str, unit_context: dict[str, str]) -> str:
         # normalize the identifier lookup key
