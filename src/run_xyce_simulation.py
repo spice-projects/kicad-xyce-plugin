@@ -174,7 +174,7 @@ class XyceSimulationRunner(QObject):
         os.unlink(self._netlist_file_path)
 
 
-def run_xyce_simulation(plugin_config: PluginConfig, working_directory: Path, netlist: str) -> XyceSimulationRunner:
+def run_xyce_simulation(plugin_config: PluginConfig, netlist_file_path: Path, netlist: str) -> XyceSimulationRunner:
     # fail fast when executable path is missing or not runnable
     if not plugin_config.is_xyce_executable_valid():
         raise ValueError("Configured Xyce executable path is invalid")
@@ -186,10 +186,18 @@ def run_xyce_simulation(plugin_config: PluginConfig, working_directory: Path, ne
         # write netlist text exactly as provided by the caller
         netlist_file.write(netlist)
         # capture path for process invocation and later cleanup
-        netlist_file_path = netlist_file.name
-    # allocate a deterministic temporary output path for Xyce raw data
-    output_fd, output_file_path = tempfile.mkstemp(prefix="xyce_", suffix=".raw")
-    # close the file descriptor because Xyce will write this path itself
-    os.close(output_fd)
-    # create the asynchronous runner that owns process and stream wiring
-    return XyceSimulationRunner(plugin_config.xyce_executable_path, working_directory, netlist_file_path, output_file_path)
+        netlist_temp_file_path = netlist_file.name
+    # working directory, same as netlist file
+    working_directory = netlist_file_path.parent
+    # check we can write to the working directory
+    if not os.access(working_directory, os.W_OK):
+        # allocate a deterministic temporary output path for Xyce raw data
+        output_fd, output_file_path = tempfile.mkstemp(prefix="xyce_", suffix=".raw")
+        # close the file descriptor because Xyce will write this path itself
+        os.close(output_fd)
+        # create the asynchronous runner
+        return XyceSimulationRunner(plugin_config.xyce_executable_path, working_directory, netlist_temp_file_path, output_file_path)
+    # create raw file in the same netlist directory
+    output_file_path = str(netlist_file_path.with_suffix(".raw"))
+    # create the asynchronous runner
+    return XyceSimulationRunner(plugin_config.xyce_executable_path, working_directory, netlist_temp_file_path, output_file_path)

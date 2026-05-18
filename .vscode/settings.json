@@ -21,6 +21,11 @@
     "/^source \\.venv/bin/activate && python -m pytest tests/ --tb=no -q 2>&1 \\| tail -30$/": {
       "approve": true,
       "matchCommandLine": true
+    },
+    "pytest": true,
+    "/^source \\.venv/bin/activate && pytest --collect-only -q tests/window_test\\.py && pytest --collect-only tests --rootdir=\\.$/": {
+      "approve": true,
+      "matchCommandLine": true
     }
   }
 }

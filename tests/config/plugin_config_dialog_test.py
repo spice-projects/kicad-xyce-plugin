@@ -1,15 +1,21 @@
 import os
 import sys
 import tempfile
-
 from unittest.mock import MagicMock, patch
+
+import pytest
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QApplication, QDialog
 
 from config import PluginConfig, PluginConfigDialog
 
-_app = QApplication.instance() or QApplication(sys.argv)
+
+@pytest.fixture(scope="session", autouse=True)
+def _qt_app():
+    return QApplication.instance() or QApplication(sys.argv)
 
 
 def _make_dialog(initial_config: PluginConfig | None = None) -> PluginConfigDialog:

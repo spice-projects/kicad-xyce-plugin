@@ -1,5 +1,5 @@
 import sys
-from unittest import MagicMock
+from unittest.mock import MagicMock
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon

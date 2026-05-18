@@ -6,14 +6,22 @@ import numpy as np
 import pytest
 
 # mock PySide6 submodules before importing chart, which requires Qt at import time
-sys.modules.setdefault("PySide6", MagicMock())
-sys.modules.setdefault("PySide6.QtCore", MagicMock())
-sys.modules.setdefault("PySide6.QtGraphs", MagicMock())
-sys.modules.setdefault("PySide6.QtQuick", MagicMock())
+_PYSIDE_MODULE_NAMES = ["PySide6", "PySide6.QtCore", "PySide6.QtGraphs", "PySide6.QtQuick"]
+_ORIGINAL_PYSIDE_MODULES = {name: sys.modules.get(name) for name in _PYSIDE_MODULE_NAMES}
+sys.modules["PySide6"] = MagicMock()
+sys.modules["PySide6.QtCore"] = MagicMock()
+sys.modules["PySide6.QtGraphs"] = MagicMock()
+sys.modules["PySide6.QtQuick"] = MagicMock()
 
 from chart import Chart, _binary_search, _find_abscissa_index_for_value  # noqa: E402
 from expression import Expression  # noqa: E402
 from xyce_raw_file import StepInformation  # noqa: E402
+
+for _name, _module in _ORIGINAL_PYSIDE_MODULES.items():
+    if _module is None:
+        del sys.modules[_name]
+    else:
+        sys.modules[_name] = _module
 
 
 def _make_step_information(num_steps: int, abscissa_length: int, ascending: bool = True) -> StepInformation:

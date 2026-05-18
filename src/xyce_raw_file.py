@@ -346,6 +346,17 @@ def _parse_ascii_variables(data: mmap.mmap, offset: int, variable_definitions: l
     return variables
 
 
+def _detect_encoding(data: bytes) -> tuple[str, bytes]:
+    # utf-16-le
+    if data[1:2] == b'\x00' or data[0:2] == b'\xff\xfe':
+        return "utf-16-le", b'\n\x00'
+    # utf-16
+    if data[0:2] == b'\xfe\xff':
+        return "utf-16-be", b'\x00\n'
+    # utf-8
+    return "utf-8", b'\n'
+
+
 class XyceRawFile:
 
     def __init__(self, filename: Path, title: str, date: str, plotname: str, complex: bool, step_information: StepInformation, abscissa: Expression, abscissa_scale: AbscissaScale, command: str, expression_manager: ExpressionManager, _mmap: mmap.mmap | None = None):
@@ -444,18 +455,20 @@ class XyceRawFile:
             is_ascii = False
             in_variables = False
             pos = 0
+            # detect encoding from the first few bytes of the file
+            encoding, delimeter = _detect_encoding(data[:4])
             # process file bytes
             while pos < len(data):
                 # find newline
-                newline = data.find(b"\n", pos)
+                newline = data.find(delimeter, pos)
                 if newline == -1:
                     break
-                # line: decode header text as utf-8; replace unrecognised bytes rather than raising
-                line = data[pos:newline].decode("utf-8", errors="replace").strip()
+                # line: decode header text using detected encoding; replace unrecognised bytes rather than raising
+                line = data[pos:newline].decode(encoding, errors="replace").strip()
                 # log information
                 logger.debug(">> %s", line)
                 # advance position to next line
-                pos = newline + 1
+                pos = newline + len(delimeter)
                 # state machine to parse header and variables until the data section is reached
                 if in_variables:
                     # check for end of variables section — either binary or ascii data marker

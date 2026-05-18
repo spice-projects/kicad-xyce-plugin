@@ -19,7 +19,7 @@ from smith_chart_window import SmithChartWindow
 from simulation_parameters import DCSimulationParameters, from_xyce_directives, OpSimulationParameters, SimulationParametersDialog, TransientSimulationParameters
 from step_tool_dialog import StepToolDialog
 from window import load_app_icon, log_screen_info, register_child_window
-from xyce_raw_file import StepInformation, XyceRawFile
+from xyce_raw_file import AbscissaScale, StepInformation, XyceRawFile
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +72,12 @@ class MainWindow(QMainWindow):
         self._raw_file: XyceRawFile | None = raw_file
         self._expression_manager: ExpressionManager | None = raw_file.expression_manager if raw_file else None
         self._abscissa: Expression | None = raw_file.abscissa if raw_file else None
+        self._abscissa_scale: AbscissaScale | None = raw_file.abscissa_scale if raw_file else None
         self._step_information: StepInformation | None = raw_file.step_information if raw_file else None
         # store the simulation file path for use by the Jupyter integration
         self._raw_file_path = raw_file_path if raw_file_path is not None else raw_file.filename if raw_file else None
+        # optional initial step selection applied when charts are first created (used by FFT windows to pre-focus on the same steps the user was viewing in the source chart)
+        self._initial_selected_steps: set[int] | None = None
         # set title
         self.setWindowTitle(f"Xyce Simulation - {self._raw_file_path.name if self._raw_file_path else 'KiCad Schematic' if self._kicad_client is not None else '<No netlist loaded>'}")
         # apply style
@@ -375,28 +378,52 @@ class MainWindow(QMainWindow):
         netlist_filter = "Netlist Files (*.cir *.sp *.spi *.net *.spice *.ckt)"
         raw_filter = "Raw Files (*.raw)"
         all_filter = "All Files (*)"
-        # get file
-        res = QFileDialog.getOpenFileName(self, "Open File", "", f"{netlist_filter};;{raw_filter};;{all_filter}")
-        # path
-        input_path_str = res[0]
-        # check
-        if not input_path_str:
+        # open existing file
+        selected_file, _ = QFileDialog.getOpenFileName(self, "Open File", "", f"{netlist_filter};;{raw_filter};;{all_filter}")
+        if not selected_file:
             return
         # path object
-        input_path = Path(input_path_str)
-        # update title
-        self.setWindowTitle(f"Xyce Simulation - {input_path.name}")
-        # raw files are displayed only — simulation requires a netlist
-        if input_path.suffix.lower() == ".raw":
+        selected_file_path = Path(selected_file)
+        # check extension
+        if selected_file_path.suffix.lower() == ".raw":
+            # load raw file
+            return self._load_raw_file(selected_file_path)
+        # load netlist file
+        return self._load_netlist_file(selected_file_path)
+
+    def _load_raw_file(self, raw_file_path: Path) -> None:
+        # load and parse raw file
+        raw_file = XyceRawFile.load(raw_file_path)
+        if raw_file is None:
+            # update statusbar
+            self._show_status(f"Failed to load raw file [{raw_file_path.name}]", 5000)
+            # exit
             return
+        # update state
+        self._raw_file = raw_file
+        self._expression_manager = raw_file.expression_manager
+        self._abscissa = raw_file.abscissa
+        self._abscissa_scale = raw_file.abscissa_scale
+        self._step_information = raw_file.step_information
+        self._raw_file_path = raw_file_path
+        # disable simulation actions
+        self._simulation_config_action.setEnabled(False)
+        self._simulation_run_action.setEnabled(False)
+        self._show_netlist_action.setEnabled(False)
+        # check we need to create a new chart
+        if not self._charts:
+            self._add_chart([])
+        
+
+    def _load_netlist_file(self, netlist_file_path: Path) -> None:
         try:
             # load and parse netlist
-            content = input_path.read_text()
+            content = netlist_file_path.read_text()
             # parse netlist file
             netlist, topology = parse_netlist(content)
             # new netlist and topology
             self._netlist = netlist
-            self._netlist_file_path = input_path
+            self._netlist_file_path = netlist_file_path
             self._topology = topology
             # reset simulation parameters
             self._simulation_parameters = None
@@ -404,9 +431,11 @@ class MainWindow(QMainWindow):
             self._simulation_config_action.setEnabled(True)
             self._simulation_run_action.setEnabled(True)
             self._show_netlist_action.setEnabled(True)
+            # update title
+            self.setWindowTitle(f"Xyce Simulation - {netlist_file_path.name}")
         except Exception as e:
             # error
-            self._show_status(f"Failed to load netlist: {e}", 5000)
+            self._show_status(f"Failed to load netlist file [{netlist_file_path.name}]: {e}", 5000)
 
     @Slot(int)
     def _on_menu_step_tool(self, chart_index: int):
@@ -447,10 +476,6 @@ class MainWindow(QMainWindow):
         register_child_window(smith_window)
         # show the Smith chart window
         smith_window.show()
-
-    def _populate_charts(self):
-        # charts
-        self._add_chart([])
 
     def _add_chart(self, expressions: list[Expression]):
         # chart index
@@ -571,7 +596,7 @@ class MainWindow(QMainWindow):
         # try
         try:
             # runner
-            self._runner = run_xyce_simulation(self._plugin_config, netlist_file_path.parent, netlist)
+            self._runner = run_xyce_simulation(self._plugin_config, netlist_file_path, netlist)
             # signals
             self._runner.started.connect(self._on_simulation_started)
             self._runner.stdout_received.connect(self._on_stdout_received)

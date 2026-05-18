@@ -27,27 +27,27 @@ class TestRunXyceSimulationValidation:
         config = PluginConfig(xyce_executable_path="/nonexistent/xyce")
         # act / assert
         with pytest.raises(ValueError):
-            run_xyce_simulation(config, Path("/tmp"), "* Netlist\n.END")
+            run_xyce_simulation(config, Path("/tmp/test.cir"), "* Netlist\n.END")
 
     def test_raises_value_error_when_netlist_is_empty(self):
         # arrange — valid config but empty netlist
         config = _make_valid_config()
         # act / assert
         with pytest.raises(ValueError):
-            run_xyce_simulation(config, Path("/tmp"), "   ")
+            run_xyce_simulation(config, Path("/tmp/test.cir"), "   ")
 
     def test_raises_value_error_when_netlist_is_whitespace_only(self):
         # arrange
         config = _make_valid_config()
         # act / assert
         with pytest.raises(ValueError):
-            run_xyce_simulation(config, Path("/tmp"), "\n\t  \n")
+            run_xyce_simulation(config, Path("/tmp/test.cir"), "\n\t  \n")
 
     def test_returns_runner_instance_when_inputs_are_valid(self):
         # arrange
         config = _make_valid_config()
         # act — process will start /bin/sh, which exits immediately
-        runner = run_xyce_simulation(config, Path("/tmp"), "* Netlist\n.END")
+        runner = run_xyce_simulation(config, Path("/tmp/test.cir"), "* Netlist\n.END")
         # assert
         assert isinstance(runner, XyceSimulationRunner)
         # cleanup — cancel process to avoid leaving it running
@@ -57,7 +57,7 @@ class TestRunXyceSimulationValidation:
         # arrange
         config = _make_valid_config()
         # act
-        runner = run_xyce_simulation(config, Path("/tmp"), "* Test netlist\n.END")
+        runner = run_xyce_simulation(config, Path("/tmp/test.cir"), "* Test netlist\n.END")
         # assert — a temp file was created and path is non-empty
         assert runner.netlist_file_path
         runner.cancel()
@@ -66,7 +66,7 @@ class TestRunXyceSimulationValidation:
         # arrange
         config = _make_valid_config()
         # act
-        runner = run_xyce_simulation(config, Path("/tmp"), "* Test netlist\n.END")
+        runner = run_xyce_simulation(config, Path("/tmp/test.cir"), "* Test netlist\n.END")
         # assert
         assert runner.output_file_path
         runner.cancel()

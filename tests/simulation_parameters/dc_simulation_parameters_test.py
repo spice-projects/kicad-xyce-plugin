@@ -7,37 +7,37 @@ class TestToXyceDirectivesLin:
         # arrange
         params = DCSimulationParameters("LIN", "VIN", "-10", "15", "1")
         # act / assert
-        assert params.to_xyce_directives() == [".DC VIN -10 15 1"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC VIN -10 15 1"]
 
     def test_lin_fractional_step(self):
         # arrange
         params = DCSimulationParameters("LIN", "R1", "0", "3.5", "0.05")
         # act / assert
-        assert params.to_xyce_directives() == [".DC R1 0 3.5 0.05"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC R1 0 3.5 0.05"]
 
     def test_lin_negative_step(self):
         # arrange
         params = DCSimulationParameters("LIN", "VIN", "5", "0", "-0.1")
         # act / assert
-        assert params.to_xyce_directives() == [".DC VIN 5 0 -0.1"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC VIN 5 0 -0.1"]
 
     def test_lin_with_secondary_sweep(self):
         # arrange
         params = DCSimulationParameters("LIN", "R1", "0", "3.5", "0.05", secondary_variable="C1", secondary_start="0", secondary_stop="3.5", secondary_step="0.5")
         # act / assert
-        assert params.to_xyce_directives() == [".DC R1 0 3.5 0.05 C1 0 3.5 0.5"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC R1 0 3.5 0.05 C1 0 3.5 0.5"]
 
     def test_lin_no_secondary_when_variable_empty(self):
         # arrange
         params = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1")
         # act / assert
-        assert params.to_xyce_directives() == [".DC VIN 0 5 0.1"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC VIN 0 5 0.1"]
 
     def test_lin_with_replace_ground(self):
         # arrange
-        params = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", replace_ground=True)
+        params = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", replace_ground=False)
         # act / assert
-        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC VIN 0 5 0.1"]
+        assert params.to_xyce_directives() == [".DC VIN 0 5 0.1"]
 
 
 class TestToXyceDirectivesDec:
@@ -46,19 +46,19 @@ class TestToXyceDirectivesDec:
         # arrange
         params = DCSimulationParameters("DEC", "VIN", "1", "100", points="2")
         # act / assert
-        assert params.to_xyce_directives() == [".DC DEC VIN 1 100 2"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC DEC VIN 1 100 2"]
 
     def test_dec_with_secondary_sweep(self):
         # arrange
         params = DCSimulationParameters("DEC", "VIN", "1", "100", points="2", secondary_variable="R1", secondary_start="1", secondary_stop="10", secondary_points="3")
         # act / assert
-        assert params.to_xyce_directives() == [".DC DEC VIN 1 100 2 R1 1 10 3"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC DEC VIN 1 100 2 R1 1 10 3"]
 
     def test_dec_no_secondary_when_variable_empty(self):
         # arrange
         params = DCSimulationParameters("DEC", "VIN", "1", "100", points="5")
         # act / assert
-        assert params.to_xyce_directives() == [".DC DEC VIN 1 100 5"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC DEC VIN 1 100 5"]
 
 
 class TestToXyceDirectivesOct:
@@ -67,25 +67,25 @@ class TestToXyceDirectivesOct:
         # arrange
         params = DCSimulationParameters("OCT", "VIN", "0.125", "64", points="2")
         # act / assert
-        assert params.to_xyce_directives() == [".DC OCT VIN 0.125 64 2"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC OCT VIN 0.125 64 2"]
 
     def test_oct_with_secondary_sweep(self):
         # arrange
         params = DCSimulationParameters("OCT", "VIN", "0.125", "64", points="2", secondary_variable="R1", secondary_start="1", secondary_stop="10", secondary_points="4")
         # act / assert
-        assert params.to_xyce_directives() == [".DC OCT VIN 0.125 64 2 R1 1 10 4"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC OCT VIN 0.125 64 2 R1 1 10 4"]
 
     def test_oct_no_secondary_when_variable_empty(self):
         # arrange
         params = DCSimulationParameters("OCT", "VIN", "0.125", "64", points="2")
         # act / assert
-        assert params.to_xyce_directives() == [".DC OCT VIN 0.125 64 2"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC OCT VIN 0.125 64 2"]
 
     def test_oct_with_replace_ground(self):
         # arrange
-        params = DCSimulationParameters("OCT", "VIN", "0.125", "64", points="2", replace_ground=True)
+        params = DCSimulationParameters("OCT", "VIN", "0.125", "64", points="2", replace_ground=False)
         # act / assert
-        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC OCT VIN 0.125 64 2"]
+        assert params.to_xyce_directives() == [".DC OCT VIN 0.125 64 2"]
 
 
 class TestToXyceDirectivesList:
@@ -94,19 +94,19 @@ class TestToXyceDirectivesList:
         # arrange
         params = DCSimulationParameters("LIST", "TEMP", list_values=("27",))
         # act / assert
-        assert params.to_xyce_directives() == [".DC TEMP LIST 27"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC TEMP LIST 27"]
 
     def test_list_multiple_values(self):
         # arrange
         params = DCSimulationParameters("LIST", "TEMP", list_values=("10", "15", "18", "27", "33"))
         # act / assert
-        assert params.to_xyce_directives() == [".DC TEMP LIST 10 15 18 27 33"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC TEMP LIST 10 15 18 27 33"]
 
     def test_list_with_replace_ground(self):
         # arrange
-        params = DCSimulationParameters("LIST", "VCC", list_values=("3.3", "5.0"), replace_ground=True)
+        params = DCSimulationParameters("LIST", "VCC", list_values=("3.3", "5.0"), replace_ground=False)
         # act / assert
-        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC VCC LIST 3.3 5.0"]
+        assert params.to_xyce_directives() == [".DC VCC LIST 3.3 5.0"]
 
 
 class TestToXyceDirectivesData:
@@ -115,19 +115,19 @@ class TestToXyceDirectivesData:
         # arrange
         params = DCSimulationParameters("DATA", data_table_name="resistorValues")
         # act / assert
-        assert params.to_xyce_directives() == [".DC DATA=resistorValues"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC DATA=resistorValues"]
 
     def test_data_table_name_used_verbatim(self):
         # arrange
         params = DCSimulationParameters("DATA", data_table_name="myCustomTable")
         # act / assert
-        assert params.to_xyce_directives() == [".DC DATA=myCustomTable"]
+        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC DATA=myCustomTable"]
 
     def test_data_with_replace_ground(self):
         # arrange
-        params = DCSimulationParameters("DATA", data_table_name="myTable", replace_ground=True)
+        params = DCSimulationParameters("DATA", data_table_name="myTable", replace_ground=False)
         # act / assert
-        assert params.to_xyce_directives() == [".PREPROCESS REPLACEGROUND TRUE", ".DC DATA=myTable"]
+        assert params.to_xyce_directives() == [".DC DATA=myTable"]
 
 
 class TestFromXyceDirectives:
