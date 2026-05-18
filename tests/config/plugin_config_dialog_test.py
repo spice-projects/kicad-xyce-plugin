@@ -32,14 +32,14 @@ class TestPluginConfigDialogConstruction:
 
     def test_dialog_can_be_instantiated(self):
         # act — full construction path
-        dialog = PluginConfigDialog(None)
+        dialog = PluginConfigDialog(None, MagicMock())
         # assert
         assert isinstance(dialog, PluginConfigDialog)
         dialog.reject()
 
     def test_dialog_result_is_none_initially(self):
         # act
-        dialog = PluginConfigDialog(None)
+        dialog = PluginConfigDialog(None, MagicMock())
         # assert
         assert dialog._result is None
         dialog.reject()

@@ -1,6 +1,7 @@
 import sys
+from unittest import MagicMock
 
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon
 
 from window import load_app_icon, register_child_window, unregister_child_window
@@ -12,7 +13,7 @@ class TestRegisterUnregisterChildWindow:
 
     def test_register_adds_window_to_registry(self):
         # arrange
-        window = QMainWindow()
+        window = MagicMock()
         # act
         register_child_window(window)
         # assert — re-registering does not raise and window is in set
@@ -20,7 +21,7 @@ class TestRegisterUnregisterChildWindow:
 
     def test_unregister_removes_window_from_registry(self):
         # arrange
-        window = QMainWindow()
+        window = MagicMock()
         register_child_window(window)
         # act
         unregister_child_window(window)
@@ -29,7 +30,7 @@ class TestRegisterUnregisterChildWindow:
 
     def test_unregister_window_not_registered_is_no_op(self):
         # arrange — window that was never registered
-        window = QMainWindow()
+        window = MagicMock()
         # act / assert — no exception raised
         unregister_child_window(window)
 
