@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 from kicad_icons import load_kicad_icons
 from main_window import MainWindow
 from netlist_parser import NetlistTopology
-from plugin_config import PluginConfig
+from config.plugin_config import PluginConfig
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -292,7 +292,7 @@ class TestMainWindowOnMenuConfigureSimulation:
         # arrange
         window = _make_window()
         with patch.object(window, "_extract_schematic_netlist", return_value=("", MagicMock(directives=[]))):
-            with patch("main_window.SimulationDialog") as mock_dialog_cls:
+            with patch("main_window.SimulationParametersDialog") as mock_dialog_cls:
                 mock_dialog_cls.return_value.get_parameters.return_value = None
                 # act
                 window._on_menu_configure_simulation()
@@ -305,7 +305,7 @@ class TestMainWindowOnMenuConfigureSimulation:
         mock_params = MagicMock()
         mock_params.to_xyce_directive.return_value = ".TRAN 1u 1m"
         with patch.object(window, "_extract_schematic_netlist", return_value=("", MagicMock(directives=[]))):
-            with patch("main_window.SimulationDialog") as mock_dialog_cls:
+            with patch("main_window.SimulationParametersDialog") as mock_dialog_cls:
                 mock_dialog_cls.Accepted = 1
                 mock_dialog_cls.return_value.exec.return_value = 1
                 mock_dialog_cls.return_value.get_parameters.return_value = mock_params
@@ -320,7 +320,7 @@ class TestMainWindowOnMenuConfigureSimulation:
         window._kicad_client = None
         window._topology = MagicMock(directives=[])
         mock_params = MagicMock()
-        with patch("main_window.SimulationDialog") as mock_dialog_cls:
+        with patch("main_window.SimulationParametersDialog") as mock_dialog_cls:
             mock_dialog_cls.return_value.get_parameters.return_value = mock_params
             # act
             window._on_menu_configure_simulation()

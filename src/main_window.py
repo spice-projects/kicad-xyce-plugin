@@ -3,19 +3,23 @@ from pathlib import Path
 
 from kipy import KiCad
 from PySide6.QtCore import QSize, QTimer, QUrl, Signal, Slot
-from PySide6.QtGui import QAction, QColor, QKeySequence
+from PySide6.QtGui import QAction, QColor, QGuiApplication, QKeySequence, QScreen
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QVBoxLayout, QWidget
 
-from config_dialog import ConfigDialog
-from expression import Expression
+from add_plot_dialog import AddPlotDialog
+from chart import Chart
+from config import PluginConfig, PluginConfigDialog
+from expression import Expression, ExpressionManager
 from kicad_icons import KiCadIcon, get_kicad_icon, load_kicad_icons
 from netlist_parser import NetlistTopology, parse_netlist
 from netlist_viewer_dialog import NetlistViewerDialog
-from plugin_config import PluginConfig
 from run_xyce_simulation import run_xyce_simulation, XyceSimulationRunner
-from simulation_dialog import OpSimulationParameters, SimulationDialog
-from window import load_app_icon, log_screen_info
+from smith_chart_window import SmithChartWindow
+from simulation_parameters import DCSimulationParameters, from_xyce_directives, OpSimulationParameters, SimulationParametersDialog, TransientSimulationParameters
+from step_tool_dialog import StepToolDialog
+from window import load_app_icon, log_screen_info, register_child_window
+from xyce_raw_file import StepInformation, XyceRawFile
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +28,23 @@ _QML_FILE = Path(__file__).parent / "main_window.qml"
 _BG = "#efefe8"
 
 
+_FALLBACK_DECIMATE_TARGET = 9600
+
+
+def _compute_decimate_target(screen: QScreen) -> int:
+    # return conservative fallback when no screen is available (headless / early startup)
+    if screen is None:
+        return _FALLBACK_DECIMATE_TARGET
+    # physical pixels: width × clamped device-pixel ratio
+    return screen.size().width() * max(5, int(screen.devicePixelRatio()))
+
+
 class MainWindow(QMainWindow):
 
     logAppendRequested = Signal(str)
     logClearRequested = Signal()
 
-    def __init__(self, kicad_client: KiCad | None, plugin_config: PluginConfig):
+    def __init__(self, kicad_client: KiCad | None, plugin_config: PluginConfig, raw_file: XyceRawFile | None = None, raw_file_path: Path | None = None):
         super().__init__()
         # load icons
         load_kicad_icons()
@@ -41,19 +56,27 @@ class MainWindow(QMainWindow):
         self._kicad_client = kicad_client
         self._plugin_config = plugin_config
         # initialize state
-        self._charts: list = []
+        self._charts: list[Chart] = []
         self._runner: XyceSimulationRunner | None = None
-        self._simulation_parameters: OpSimulationParameters | None = None
+        self._simulation_parameters: TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters | None = None
         self._simulation_performed: bool = False
         self._simulation_output_action: QAction | None = None
-        self._simulation_cmd_action: QAction | None = None
+        self._simulation_config_action: QAction | None = None
         self._simulation_run_action: QAction | None = None
         self._show_netlist_action: QAction | None = None
         # netlist file opened from the filesystem in standalone mode
         self._netlist: str | None = None
+        self._netlist_file_path: Path | None = None
         self._topology: NetlistTopology | None = None
+        # simulation result state
+        self._raw_file: XyceRawFile | None = raw_file
+        self._expression_manager: ExpressionManager | None = raw_file.expression_manager if raw_file else None
+        self._abscissa: Expression | None = raw_file.abscissa if raw_file else None
+        self._step_information: StepInformation | None = raw_file.step_information if raw_file else None
+        # store the simulation file path for use by the Jupyter integration
+        self._raw_file_path = raw_file_path if raw_file_path is not None else raw_file.filename if raw_file else None
         # set title
-        self.setWindowTitle("Xyce Simulation - No file loaded")
+        self.setWindowTitle(f"Xyce Simulation - {self._raw_file_path.name if self._raw_file_path else 'KiCad Schematic' if self._kicad_client is not None else '<No netlist loaded>'}")
         # apply style
         self.setStyleSheet(f"QMainWindow {{ background: {_BG}; }}")
         # qml view
@@ -81,14 +104,14 @@ class MainWindow(QMainWindow):
         self._create_main_menu()
         # toolbar
         self._create_toolbar()
-        # apply startup mode restrictions
-        self._apply_startup_mode()
         # timer
         self._status_timer = QTimer(self)
         # set single shot
         self._status_timer.setSingleShot(True)
         # connect
         self._status_timer.timeout.connect(lambda: self._show_status(""))
+        # decimation target — physical pixels of the primary screen width
+        self._decimate_target = _compute_decimate_target(QGuiApplication.primaryScreen())
 
     def _show_status(self, message: str, timeout_ms: int = 0) -> None:
         # stop timer
@@ -103,33 +126,6 @@ class MainWindow(QMainWindow):
     def sizeHint(self):
         # return size
         return QSize(1200, 800)
-
-    @Slot(QQuickView.Status)
-    def _on_qml_ready(self, status: QQuickView.Status):
-        # check ready
-        if status != QQuickView.Status.Ready:
-            # return
-            return
-        # root object
-        self._root = self._qml_view.rootObject()
-        # set property
-        self._root.setProperty("fftVisible", False)
-        # set property
-        self._root.setProperty("stepToolVisible", False)
-        # set property
-        self._root.setProperty("smithChartVisible", False)
-        # connect signal
-        self.logAppendRequested.connect(self._root.logAppendRequested)
-        # connect signal
-        self.logClearRequested.connect(self._root.logClearRequested)
-        # single shot
-        QTimer.singleShot(0, self._populate_charts)
-        # check log level
-        is_debug = logger.isEnabledFor(logging.DEBUG)
-        # check debug
-        if is_debug:
-            # single shot
-            QTimer.singleShot(0, lambda: log_screen_info(self.screen()))
 
     def _create_main_menu(self):
         # menu bar
@@ -171,13 +167,13 @@ class MainWindow(QMainWindow):
         window_menu = menu_bar.addMenu("&Window")
 
         # add chart action
-        icon_add = get_kicad_icon(KiCadIcon.ADD_CHART, dark=False)
-        add_chart_action = QAction(icon_add, "Add Chart", self)
+        add_chart_action = QAction(get_kicad_icon(KiCadIcon.ADD_CHART, dark=False), "Add Chart", self)
+        add_chart_action.triggered.connect(lambda: self._on_menu_add_chart(len(self._charts) - 1))
         window_menu.addAction(add_chart_action)
 
         # new window action
-        icon_new = get_kicad_icon(KiCadIcon.NEW_WINDOW, dark=False)
-        new_window_action = QAction(icon_new, "New Window", self)
+        new_window_action = QAction(get_kicad_icon(KiCadIcon.NEW_WINDOW, dark=False), "New Window", self)
+        new_window_action.triggered.connect(self._on_menu_new_window)
         window_menu.addAction(new_window_action)
 
         # help menu
@@ -211,13 +207,15 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
 
         # simulation settings
-        self._simulation_cmd_action = QAction(get_kicad_icon(KiCadIcon.SIM_COMMAND, dark=False), "Configure Simulation", self)
-        self._simulation_cmd_action.setToolTip("Configure simulation parameters")
-        self._simulation_cmd_action.triggered.connect(self._on_menu_configure_simulation)
-        toolbar.addAction(self._simulation_cmd_action)
+        self._simulation_config_action = QAction(get_kicad_icon(KiCadIcon.SIM_CONFIG, dark=False), "Configure Simulation", self)
+        self._simulation_config_action.setEnabled(self._kicad_client is not None)
+        self._simulation_config_action.setToolTip("Configure simulation parameters")
+        self._simulation_config_action.triggered.connect(self._on_menu_configure_simulation)
+        toolbar.addAction(self._simulation_config_action)
 
         # simulation run
         self._simulation_run_action = QAction(get_kicad_icon(KiCadIcon.SIM_RUN, dark=False), "Run Simulation", self)
+        self._simulation_run_action.setEnabled(self._kicad_client is not None)
         self._simulation_run_action.setToolTip("Run the simulation")
         self._simulation_run_action.triggered.connect(self._on_menu_run_simulation)
         toolbar.addAction(self._simulation_run_action)
@@ -227,6 +225,7 @@ class MainWindow(QMainWindow):
 
         # show netlist
         self._show_netlist_action = QAction(get_kicad_icon(KiCadIcon.SHOW_NETLIST, dark=False), "Show Netlist", self)
+        self._show_netlist_action.setEnabled(self._kicad_client is not None)
         self._show_netlist_action.setToolTip("Show processed netlist")
         self._show_netlist_action.triggered.connect(self._on_menu_show_netlist)
         toolbar.addAction(self._show_netlist_action)
@@ -240,18 +239,135 @@ class MainWindow(QMainWindow):
         config_action.triggered.connect(self._on_menu_configuration)        # add
         toolbar.addAction(config_action)
 
-    def _apply_startup_mode(self) -> None:
-        # in standalone mode, simulation actions are disabled until a netlist is loaded
-        if self._kicad_client is None:
-            # disable configure simulation
-            if self._simulation_cmd_action:
-                self._simulation_cmd_action.setEnabled(False)
-            # disable run simulation
-            if self._simulation_run_action:
-                self._simulation_run_action.setEnabled(False)
-            # disable show netlist
-            if self._show_netlist_action:
-                self._show_netlist_action.setEnabled(False)
+    @Slot(QQuickView.Status)
+    def _on_qml_ready(self, status: QQuickView.Status):
+        # check ready
+        if status != QQuickView.Status.Ready:
+            # return
+            return
+        # root object
+        self._root = self._qml_view.rootObject()
+        # set window-level menu capability flags using built-in bool to avoid passing numpy.bool into QML properties
+        self._root.setProperty("fftVisible", bool(self._abscissa and self._abscissa.unit == "s"))
+        self._root.setProperty("stepToolVisible", bool(self._step_information and self._step_information.length > 1))
+        self._root.setProperty("smithChartVisible", False)
+        # connect signals from QML to Python handlers
+        self._root.zoomRegionSelected.connect(self._on_zoom_region_selected)
+        self._root.menuZoomToFit.connect(self._on_menu_zoom_to_fit)
+        self._root.menuAutorange.connect(self._on_menu_autorange)
+        self._root.menuZoomAbscissaExtent.connect(self._on_menu_zoom_abscissa_extent)
+        self._root.menuAddRemovePlots.connect(self._on_menu_add_remove_plots)
+        self._root.menuDeleteAllPlots.connect(self._on_menu_delete_all_plots)
+        self._root.menuAddChart.connect(self._on_menu_add_chart)
+        self._root.menuDeleteChart.connect(self._on_menu_delete_chart)
+        self._root.menuNewWindow.connect(self._on_menu_new_window)
+        # self._root.menuFft.connect(self._on_menu_fft)
+        self._root.menuStepTool.connect(self._on_menu_step_tool)
+        # self._root.menuSmithChart.connect(self._on_menu_smith_chart)
+        self.logAppendRequested.connect(self._root.logAppendRequested)
+        self.logClearRequested.connect(self._root.logClearRequested)
+        # log screen information for debugging purposes
+        if logger.isEnabledFor(logging.DEBUG):
+            QTimer.singleShot(0, lambda: log_screen_info(self.screen()))
+
+    @Slot(int, float, float, float, float)
+    def _on_zoom_region_selected(self, chart_index: int, x_left_ratio: float, y_top_ratio: float, x_right_ratio: float, y_bottom_ratio: float):
+        # log information
+        logger.debug("User requested zoom region on chart at index: %d, rectangle: (%.3f, %.3f) to (%.3f, %.3f)", chart_index, x_left_ratio, y_top_ratio, x_right_ratio, y_bottom_ratio)
+        # update charts
+        for index, chart in enumerate(self._charts):
+            # check if this is the chart that triggered the zoom to fit action
+            if index == chart_index:
+                # reset zoom window
+                chart.update_zoom_window(min(x_left_ratio, x_right_ratio), max(x_left_ratio, x_right_ratio), min(y_top_ratio, y_bottom_ratio), max(y_top_ratio, y_bottom_ratio))
+                # next
+                continue
+            # update horizontal zoom window only, keep vertical zoom as is
+            chart.update_zoom_window(min(x_left_ratio, x_right_ratio), max(x_left_ratio, x_right_ratio), None, None)
+
+    @Slot(int)
+    def _on_menu_zoom_to_fit(self, chart_index: int):
+        # log information
+        logger.debug("User requested zoom to fit on chart at index: %d", chart_index)
+        # update charts
+        for index, chart in enumerate(self._charts):
+            # check if this is the chart that triggered the zoom to fit action
+            if index == chart_index:
+                # reset zoom window
+                chart.reset_zoom_window(True, True)
+                # next
+                continue
+            # update horizontal zoom window only, keep vertical zoom as is
+            chart.reset_zoom_window(True, False)
+
+    @Slot(int)
+    def _on_menu_autorange(self, chart_index: int):
+        # log information
+        logger.debug("User requested autorange on chart at index: %d", chart_index)
+        # find chart at index
+        chart = self._charts[chart_index]
+        # reset zoom window
+        chart.reset_zoom_window(False, True)
+
+    @Slot(int)
+    def _on_menu_zoom_abscissa_extent(self, chart_index: int):
+        # log information
+        logger.debug("User requested zoom abscissa extent on chart at index: %d", chart_index)
+        # update charts
+        for chart in self._charts:
+            # update zoom window
+            chart.reset_zoom_window(True, False)
+
+    @Slot(int)
+    def _on_menu_add_remove_plots(self, chart_index: int):
+        # log information
+        logger.debug("User requested adding/removing plots on chart at index: %d", chart_index)
+        # find chart at index
+        chart = self._charts[chart_index]
+        # open the add plot dialog
+        dialog = AddPlotDialog(self, self._expression_manager, chart.expressions)
+        # exit if the user cancelled
+        if dialog.exec() != AddPlotDialog.DialogCode.Accepted:
+            return
+        # plot selected expressions on the chart
+        chart.plot_series(dialog.selected_expressions)
+        # auto range axes to include the newly added series (wait for QT event loop)
+        QTimer.singleShot(250, lambda: (chart.auto_range()))
+
+    @Slot(int)
+    def _on_menu_delete_all_plots(self, chart_index: int):
+        # log information
+        logger.debug("User requested deleting all plots on chart at index: %d", chart_index)
+        # find chart
+        chart = self._charts[chart_index]
+        # clear chart
+        chart.clear()
+
+    @Slot(int)
+    def _on_menu_add_chart(self, chart_index: int):
+        # log information
+        logger.debug("User requested adding a new chart at index: %d", chart_index)
+        # add a new chart with no pre-populated expressions
+        self._add_chart([])
+
+    @Slot(int)
+    def _on_menu_delete_chart(self, chart_index: int):
+        # log information
+        logger.debug("User requested deleting chart at index: %d", chart_index)
+        # delete chart at index (do ot swap these two statements, C++ objects get deleted immediately when their Python reference is deleted, so we need to remove the chart from the UI before deleting the Python object)
+        self._root.removeChart(chart_index)
+        del self._charts[chart_index]
+
+    @Slot()
+    def _on_menu_new_window(self):
+        # log information
+        logger.debug("User requested opening a new window")
+        # create a new independent main window sharing the same source data and path
+        new_window = MainWindow(self._kicad_client, self._plugin_config, self._raw_file, self._raw_file_path)
+        # keep reference alive independently of the source main window
+        register_child_window(new_window)
+        # show the new window
+        new_window.show()
 
     @Slot()
     def _on_menu_open_file(self) -> None:
@@ -259,15 +375,12 @@ class MainWindow(QMainWindow):
         netlist_filter = "Netlist Files (*.cir *.sp *.spi *.net *.spice *.ckt)"
         raw_filter = "Raw Files (*.raw)"
         all_filter = "All Files (*)"
-        # combined filter
-        filter = f"{netlist_filter};;{raw_filter};;{all_filter}"
         # get file
-        res = QFileDialog.getOpenFileName(self, "Open File", "", filter)
+        res = QFileDialog.getOpenFileName(self, "Open File", "", f"{netlist_filter};;{raw_filter};;{all_filter}")
         # path
         input_path_str = res[0]
         # check
         if not input_path_str:
-            # return
             return
         # path object
         input_path = Path(input_path_str)
@@ -275,47 +388,88 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"Xyce Simulation - {input_path.name}")
         # raw files are displayed only — simulation requires a netlist
         if input_path.suffix.lower() == ".raw":
-            # return
             return
         try:
             # load and parse netlist
             content = input_path.read_text()
             # parse netlist file
-            topology = parse_netlist(content)
+            netlist, topology = parse_netlist(content)
+            # new netlist and topology
+            self._netlist = netlist
+            self._netlist_file_path = input_path
+            self._topology = topology
+            # reset simulation parameters
+            self._simulation_parameters = None
+            # enable simulation actions now that a netlist is loaded
+            self._simulation_config_action.setEnabled(True)
+            self._simulation_run_action.setEnabled(True)
+            self._show_netlist_action.setEnabled(True)
         except Exception as e:
             # error
             self._show_status(f"Failed to load netlist: {e}", 5000)
-            # return
+
+    @Slot(int)
+    def _on_menu_step_tool(self, chart_index: int):
+        # log information
+        logger.debug("User requested step tool on chart at index: %d", chart_index)
+        # check the chart index is valid
+        if chart_index < 0 or chart_index >= len(self._charts):
             return
-        # store
-        self._netlist = content
-        self._topology = topology
-        # feedback
-        device_count = len(topology.devices)
-        node_count = len(topology.nodes)
-        if device_count == 0:
-            # warn
-            self._show_status("No components found in netlist", 5000)
-        else:
-            # status
-            self._show_status(f"Loaded: {device_count} devices, {node_count} nodes")
-        # enable simulation actions now that a netlist is loaded
-        if self._simulation_cmd_action:
-            self._simulation_cmd_action.setEnabled(True)
-        if self._simulation_run_action:
-            self._simulation_run_action.setEnabled(True)
-        if self._show_netlist_action:
-            self._show_netlist_action.setEnabled(True)
+        # current chart
+        chart = self._charts[chart_index]
+        # get selected steps for this chart, make a copy
+        selected_steps = set(chart.selected_steps)
+        # open step tool dialog
+        dialog = StepToolDialog(self, self._step_information, selected_steps)
+        # exit if the user canceled
+        if dialog.exec() != StepToolDialog.DialogCode.Accepted:
+            return
+        # store chart-local selected steps for later filtering phase
+        chart.selected_steps = dialog.selected_steps
+        # auto range axes
+        chart.auto_range()
+
+    @Slot(int)
+    def _on_menu_smith_chart(self, chart_index: int):
+        # log information
+        logger.debug("User requested Smith chart on chart at index: %d", chart_index)
+        # filter expressions to those suitable for Smith charting (network parameters with complex data)
+        expressions = [expression for expression in self._expression_manager.expressions if expression.name.startswith(("S11", "S22")) and expression.variable_type == "parameter"]
+        # visualize the first expression
+        plot_suggestion = f"\xab{expressions[0].name}\xbb" if expressions else ""
+        # create expression manager
+        expression_manager = ExpressionManager([self._raw_file.abscissa] + expressions, self._expression_manager.function_definitions, self._expression_manager.step_slices)
+        # create raw file
+        qraw_file = XyceRawFile(filename=self._qraw_path, title=self._raw_file.title, date=self._raw_file.date, plotname=self._raw_file.plotname, complex=self._raw_file.complex, step_information=self._raw_file.step_information, abscissa=self._raw_file.abscissa, abscissa_scale=self._raw_file.abscissa_scale, command=self._raw_file.command, expression_manager=expression_manager, chart_type=self._raw_file.chart_type)
+        # create a new SmithChart Window
+        smith_window = SmithChartWindow(qraw_file)
+        # keep reference alive independently of the source main window
+        register_child_window(smith_window)
+        # show the Smith chart window
+        smith_window.show()
 
     def _populate_charts(self):
         # charts
-        self._add_chart("", [])
+        self._add_chart([])
 
-    def _add_chart(self, chart_type: str, expressions: list[Expression]):
-        # add
+    def _add_chart(self, expressions: list[Expression]):
+        # chart index
+        chart_index = len(self._charts)
+        # create chart ui component in QML
         self._root.addChart()
+        # get a reference to the chart's QML object so we can manipulate it
+        chart_root = self._root.getChart(chart_index)
+        # create chart instance
+        chart = Chart(chart_root, self._expression_manager, self._abscissa, self._step_information, self._decimate_target)
+        # apply initial step selection when provided (e.g. FFT window inheriting source chart visibility)
+        if self._initial_selected_steps is not None:
+            chart.selected_steps = self._initial_selected_steps
+        # add it to the list of charts so we can keep track of it
+        self._charts.append(chart)
+        # render chart
+        chart.render("", self._abscissa_scale.value, set(expressions))
 
-    def _extract_schematic_netlist(self) -> tuple[str, NetlistTopology]:
+    def _extract_schematic_netlist(self) -> tuple[str, Path, NetlistTopology]:
         # plugin mode: extract from KiCad schematic (placeholder for future implementation)
         # line1
         l1 = "* Xyce Complex Test Circuit\n"
@@ -338,9 +492,9 @@ class MainWindow(QMainWindow):
         # netlist
         netlist = l1 + l2 + l3 + l4 + l5 + l6 + l7 + l8 + l9
         # parse
-        topology = parse_netlist(netlist)
+        netlist, topology = parse_netlist(netlist)
         # exit
-        return netlist, topology
+        return netlist, Path("/test.cir"), topology
 
     def _on_menu_view_simulation_output(self) -> None:
         # check root
@@ -400,51 +554,33 @@ class MainWindow(QMainWindow):
 
     def _on_menu_run_simulation(self):
         # netlist and topology to use
-        netlist, topology = self._extract_schematic_netlist() if self._kicad_client is not None else (self._netlist, self._topology)
-        # check
+        netlist, netlist_file_path, topology = (self._netlist, self._netlist_file_path, self._topology) if self._topology else self._extract_schematic_netlist()
+        # initialize simulation parameters from netlist directives
         if self._simulation_parameters is None:
-            # params
-            params = OpSimulationParameters.from_directives(topology.directives)
-            # check
-            if params.print_dc_enabled or params.save_enabled or params.nodeset_entries:
-                # set
-                self._simulation_parameters = params
-        # check
+            self._simulation_parameters = from_xyce_directives(topology.directives)
+        # initialize simulation parameters from dialog
         if self._simulation_parameters is None:
-            # config
             self._on_menu_configure_simulation()
-        # check
+        # check simulation parameters
         if self._simulation_parameters is None:
-            # return
             return
-        # directives
-        for directive in topology.directives:
-            # replace
-            netlist = netlist.replace(directive, "")
-        # generate
-        directive = self._simulation_parameters.to_xyce_directive(topology=topology)
-        # insert
-        netlist = netlist.replace(".END", f"{directive.strip()}\n.END")
-        # log
+        # generate simulation directives
+        netlist = netlist.replace(".END", f"\n{'\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))}\n\n.END")
+        # log information
         logger.info("Running simulation with netlist:\n%s", netlist)
         # try
         try:
             # runner
-            self._runner = run_xyce_simulation(self._plugin_config, netlist)
-            # signal
+            self._runner = run_xyce_simulation(self._plugin_config, netlist_file_path.parent, netlist)
+            # signals
             self._runner.started.connect(self._on_simulation_started)
-            # signal
             self._runner.stdout_received.connect(self._on_stdout_received)
-            # signal
             self._runner.stderr_received.connect(self._on_stderr_received)
-            # signal
             self._runner.finished.connect(self._on_simulation_finished)
-            # start
+            # start simulation
             self._runner.start()
         # except
         except ValueError as e:
-            # log
-            logger.error("Simulation failed to start: %s", e)
             # status
             self._show_status(f"Simulation failed: {e}", 5000)
             self._show_status(str(e), 5000)
@@ -453,54 +589,46 @@ class MainWindow(QMainWindow):
 
     def _on_menu_show_netlist(self):
         # netlist and topology to use
-        netlist, topology = self._extract_schematic_netlist() if self._kicad_client is not None else (self._netlist, self._topology)
-        # check
+        netlist, _, topology = (self._netlist, None, self._topology) if self._topology else self._extract_schematic_netlist()
+        # initialize simulation parameters from netlist directives
         if self._simulation_parameters is None:
-            # params
-            self._simulation_parameters = OpSimulationParameters.from_directives(topology.directives)
-        # directives
-        for directive in topology.directives:
-            # replace
-            netlist = netlist.replace(directive, "")
-        # generate
-        directive = self._simulation_parameters.to_xyce_directive(topology=topology)
-        # insert
-        netlist = netlist.replace(".END", f"{directive.strip()}\n.END")
+            self._simulation_parameters = from_xyce_directives(topology.directives)
+        # apply simulation parameters if present
+        if self._simulation_parameters is not None:
+            netlist = netlist.replace(".END", f"\n{'\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))}\n\n.END")
         # dialog
         dialog = NetlistViewerDialog(parent=self, netlist=netlist)
         # exec
         dialog.exec()
 
-    def _on_menu_configure_simulation(self):
+    def _on_menu_configure_simulation(self) -> None:
+        # simulation parameters
+        initial_parameters = self._simulation_parameters
         # extract topology to pre-populate parameters from schematic directives
-        if self._simulation_parameters is None:
+        if initial_parameters is None:
             # topology to use
-            _, topology = self._extract_schematic_netlist() if self._kicad_client is not None else (None, self._topology)
+            _, _, topology = (None, None, self._topology) if self._topology else self._extract_schematic_netlist()
             # load from directives if available
-            params = OpSimulationParameters.from_directives(topology.directives)
-            # process simulation parameters
-            if params.print_dc_enabled or params.save_enabled or params.nodeset_entries:
-                self._simulation_parameters = params
+            initial_parameters = from_xyce_directives(topology.directives)
+            # provide a default if no directives are available in the netlist
+            if initial_parameters is None:
+                initial_parameters = OpSimulationParameters()
         # dialog
-        dialog = SimulationDialog(self, initial_parameters=self._simulation_parameters)
-        # result
-        params = dialog.get_parameters()
-        # check
-        if params is not None:
-            # params
-            self._simulation_parameters = params
+        dialog = SimulationParametersDialog(self, initial_parameters=initial_parameters)
+        # execute modal dialog and wait for user action
+        if dialog.exec() != SimulationParametersDialog.DialogCode.Accepted:
+            return None
+        # update simulation parameters from dialog result
+        self._simulation_parameters = dialog.get_parameters()
 
-    def _on_menu_configuration(self):
+    def _on_menu_configuration(self) -> None:
         # dialog
-        dialog = ConfigDialog(self, self._plugin_config)
-        # result
-        config = dialog.get_config()
-        # check
-        if config is None:
-            # return
-            return
+        dialog = PluginConfigDialog(self, self._plugin_config)
+        # execute modal dialog and wait for user action
+        if dialog.exec() != PluginConfigDialog.DialogCode.Accepted:
+            return None
         # store
-        self._plugin_config = config
+        self._plugin_config = dialog.get_config()
         # log
         logger.info("Configured Xyce executable path: %s", self._plugin_config.xyce_executable_path)
         # status

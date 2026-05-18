@@ -1,16 +1,19 @@
+import sys
 from unittest.mock import patch, MagicMock
 
 import pytest
-from PySide6.QtWidgets import QDialog
+from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtQuick import QQuickView
 
-from simulation_dialog import TransientSchedulePoint, TransientSimulationParameters, SimulationDialog, OpSimulationParameters, DCSimulationParameters
+from simulation_parameters import DCSimulationParameters, OpSimulationParameters, SimulationParametersDialog, TransientSchedulePoint, TransientSimulationParameters
+
+_app = QApplication.instance() or QApplication(sys.argv)
 
 
-def _make_dialog(initial_parameters=None) -> SimulationDialog:
-    """Create a SimulationDialog with a mock QML root so tests can call slots directly."""
-    dialog = SimulationDialog.__new__(SimulationDialog)
-    # call QDialog.__init__ without triggering the full SimulationDialog.__init__
+def _make_dialog(initial_parameters=None) -> SimulationParametersDialog:
+    """Create a SimulationParametersDialog with a mock QML root so tests can call slots directly."""
+    dialog = SimulationParametersDialog.__new__(SimulationParametersDialog)
+    # call QDialog.__init__ without triggering the full SimulationParametersDialog.__init__
     QDialog.__init__(dialog)
     dialog._initial_parameters = initial_parameters
     dialog._result = None
@@ -18,23 +21,23 @@ def _make_dialog(initial_parameters=None) -> SimulationDialog:
     return dialog
 
 
-def _make_dialog_with_accept(initial_parameters=None) -> SimulationDialog:
+def _make_dialog_with_accept(initial_parameters=None) -> SimulationParametersDialog:
     dialog = _make_dialog(initial_parameters)
     dialog.accept = MagicMock()
     return dialog
 
 
-class TestSimulationDialogConstruction:
+class TestSimulationParametersDialogConstruction:
 
     def test_dialog_can_be_instantiated(self):
         # act
-        dialog = SimulationDialog(None)
+        dialog = SimulationParametersDialog(None, OpSimulationParameters())
         # assert
-        assert isinstance(dialog, SimulationDialog)
+        assert isinstance(dialog, SimulationParametersDialog)
 
     def test_dialog_result_is_none_initially(self):
         # act
-        dialog = SimulationDialog(None)
+        dialog = SimulationParametersDialog(None, OpSimulationParameters())
         # assert
         assert dialog._result is None
 
@@ -85,7 +88,7 @@ class TestSimulationDialogConstruction:
         assert dialog._root.setProperty.called
 
 
-class TestSimulationDialogApplyTransientParameters:
+class TestSimulationParametersDialogApplyTransientParameters:
 
     def test_apply_transient_defaults_when_no_params(self):
         # arrange
@@ -146,7 +149,7 @@ class TestSimulationDialogApplyTransientParameters:
         dialog._root.setProperty.assert_any_call("scheduleEnabled", True)
 
 
-class TestSimulationDialogApplyDCParameters:
+class TestSimulationParametersDialogApplyDCParameters:
 
     def test_apply_dc_defaults_when_no_params(self):
         # arrange
@@ -194,7 +197,7 @@ class TestSimulationDialogApplyDCParameters:
         dialog._root.setProperty.assert_any_call("secondaryEnabled", False)
 
 
-class TestSimulationDialogOnSubmitOP:
+class TestSimulationParametersDialogOnSubmitOP:
 
     def test_on_submit_op_sets_result_and_accepts(self):
         # arrange
@@ -203,19 +206,19 @@ class TestSimulationDialogOnSubmitOP:
         accepted = []
         dialog.accept = lambda: accepted.append(True)
         # act
-        dialog._on_submit_op(False, False, False, "", False, "NODESET", "")
+        dialog._on_submit_op(False, False, False, "", False, "NODESET", "", "", "", "", False)
         # assert
         assert isinstance(dialog._result, OpSimulationParameters)
         assert len(accepted) == 1
 
 
-class TestSimulationDialogOnSubmitTransient:
+class TestSimulationParametersDialogOnSubmitTransient:
 
     def test_accepts_valid_transient_params(self):
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1u", "1m", "", "", "", False, "")
+        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", False)
         # assert
         dialog.accept.assert_called_once()
         assert isinstance(dialog._result, TransientSimulationParameters)
@@ -224,7 +227,7 @@ class TestSimulationDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("2u", "2m", "100n", "10u", "NOOP", False, "")
+        dialog._on_submit_transient("2u", "2m", "100n", "10u", "NOOP", False, "", False)
         # assert
         result = dialog._result
         assert result.initial_step_value == "2u"
@@ -237,7 +240,7 @@ class TestSimulationDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("", "1m", "", "", "", False, "")
+        dialog._on_submit_transient("", "1m", "", "", "", False, "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("transientErrorText", "Initial step and final time are required")
@@ -246,7 +249,7 @@ class TestSimulationDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1u", "", "", "", "", False, "")
+        dialog._on_submit_transient("1u", "", "", "", "", False, "", False)
         # assert
         dialog.accept.assert_not_called()
 
@@ -254,7 +257,7 @@ class TestSimulationDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1u", "1m", "", "", "INVALID", False, "")
+        dialog._on_submit_transient("1u", "1m", "", "", "INVALID", False, "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("transientErrorText", "Operating-point mode must be Default, NOOP, or UIC")
@@ -263,7 +266,7 @@ class TestSimulationDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1u", "1m", "", "", "", True, "")
+        dialog._on_submit_transient("1u", "1m", "", "", "", True, "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("transientErrorText", "Schedule is enabled but no time,max-step pairs were provided")
@@ -272,7 +275,7 @@ class TestSimulationDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1n", "10u", "", "", "", True, "1u,10n 5u,50n")
+        dialog._on_submit_transient("1n", "10u", "", "", "", True, "1u,10n 5u,50n", False)
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
@@ -282,7 +285,7 @@ class TestSimulationDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1n", "10u", "", "", "", True, "1u 10n 5u")
+        dialog._on_submit_transient("1n", "10u", "", "", "", True, "1u 10n 5u", False)
         # assert — odd tokens is invalid format
         dialog.accept.assert_not_called()
 
@@ -290,7 +293,7 @@ class TestSimulationDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1u", "1m", "", "", "", False, "")
+        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", False)
         # assert
         dialog._root.setProperty.assert_any_call("transientErrorText", "")
 
@@ -298,20 +301,20 @@ class TestSimulationDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("  1u  ", "  1m  ", "", "", "", False, "")
+        dialog._on_submit_transient("  1u  ", "  1m  ", "", "", "", False, "", False)
         # assert
         result = dialog._result
         assert result.initial_step_value == "1u"
         assert result.final_time_value == "1m"
 
 
-class TestSimulationDialogOnSubmitDC:
+class TestSimulationParametersDialogOnSubmitDC:
 
     def test_accepts_valid_lin_params(self):
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
         assert isinstance(dialog._result, DCSimulationParameters)
@@ -320,7 +323,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("INVALID", "VIN", "0", "5", "0.1", "", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("INVALID", "VIN", "0", "5", "0.1", "", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "Sweep mode must be one of LIN, DEC, OCT, LIST, or DATA")
@@ -329,7 +332,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("LIN", "", "0", "5", "0.1", "", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("LIN", "", "0", "5", "0.1", "", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "Primary sweep variable is required")
@@ -338,7 +341,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("LIN", "VIN", "", "5", "0.1", "", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("LIN", "VIN", "", "5", "0.1", "", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
 
@@ -346,7 +349,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("LIN", "VIN", "0", "", "0.1", "", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("LIN", "VIN", "0", "", "0.1", "", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
 
@@ -354,7 +357,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("LIN", "VIN", "0", "5", "", "", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("LIN", "VIN", "0", "5", "", "", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "Start, stop, and step values are required for LIN sweep")
@@ -363,7 +366,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("DEC", "VIN", "1", "100", "", "10", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("DEC", "VIN", "1", "100", "", "10", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
 
@@ -371,7 +374,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("DEC", "VIN", "1", "100", "", "0", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("DEC", "VIN", "1", "100", "", "0", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "Points must be an integer \u2265 1")
@@ -380,7 +383,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("DEC", "VIN", "1", "100", "", "abc", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("DEC", "VIN", "1", "100", "", "abc", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
 
@@ -388,7 +391,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("DEC", "VIN", "", "", "", "10", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("DEC", "VIN", "", "", "", "10", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "Start, stop, and points are required for DEC/OCT sweep")
@@ -397,7 +400,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("OCT", "VIN", "0.125", "64", "", "2", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("OCT", "VIN", "0.125", "64", "", "2", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
 
@@ -405,7 +408,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("LIST", "TEMP", "", "", "", "", "10 20 30", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("LIST", "TEMP", "", "", "", "", "10 20 30", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
 
@@ -413,7 +416,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("LIST", "TEMP", "", "", "", "", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("LIST", "TEMP", "", "", "", "", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "At least one list value is required for LIST sweep")
@@ -422,7 +425,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("DATA", "", "", "", "", "", "", "resistorValues", False, "", "", "", "", "")
+        dialog._on_submit_dc("DATA", "", "", "", "", "", "", "resistorValues", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
 
@@ -430,7 +433,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("DATA", "", "", "", "", "", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("DATA", "", "", "", "", "", "", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "Data table name is required for DATA sweep")
@@ -439,7 +442,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act — secondary enabled but variable empty
-        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", True, "", "0", "3", "0.5", "")
+        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", True, "", "0", "3", "0.5", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "Secondary sweep variable is required when secondary sweep is enabled")
@@ -448,7 +451,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", True, "VCC", "3", "5", "", "")
+        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", True, "VCC", "3", "5", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "Secondary sweep step is required for LIN mode")
@@ -457,7 +460,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("DEC", "VIN", "1", "100", "", "10", "", "", True, "VCC", "1", "10", "", "")
+        dialog._on_submit_dc("DEC", "VIN", "1", "100", "", "10", "", "", True, "VCC", "1", "10", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "Secondary sweep points are required for DEC/OCT mode")
@@ -466,7 +469,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("DEC", "VIN", "1", "100", "", "10", "", "", True, "VCC", "1", "10", "", "0")
+        dialog._on_submit_dc("DEC", "VIN", "1", "100", "", "10", "", "", True, "VCC", "1", "10", "", "0", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "Secondary points must be an integer \u2265 1")
@@ -475,7 +478,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", True, "VCC", "", "", "0.5", "")
+        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", True, "VCC", "", "", "0.5", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "Secondary sweep start and stop are required")
@@ -484,7 +487,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", True, "VCC", "3", "5", "0.5", "")
+        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", True, "VCC", "3", "5", "0.5", "", False)
         # assert
         dialog.accept.assert_called_once()
         assert dialog._result.secondary_variable == "VCC"
@@ -493,7 +496,7 @@ class TestSimulationDialogOnSubmitDC:
         # arrange — DATA mode does not support secondary
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("DATA", "", "", "", "", "", "", "myTable", True, "VCC", "0", "5", "1", "")
+        dialog._on_submit_dc("DATA", "", "", "", "", "", "", "myTable", True, "VCC", "0", "5", "1", "", False)
         # assert — DATA is not in _DC_SECONDARY_MODES so secondary is ignored
         dialog.accept.assert_called_once()
 
@@ -501,12 +504,12 @@ class TestSimulationDialogOnSubmitDC:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", False, "", "", "", "", "")
+        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", False, "", "", "", "", "", False)
         # assert
         dialog._root.setProperty.assert_any_call("dcErrorText", "")
 
 
-class TestSimulationDialogParseSchedulePoints:
+class TestSimulationParametersDialogParseSchedulePoints:
 
     def test_empty_text_returns_empty_tuple(self):
         # arrange
@@ -550,20 +553,20 @@ class TestSimulationDialogParseSchedulePoints:
             dialog._parse_schedule_points("1u 10n 5u")
 
 
-class TestSimulationDialogOnSubmitDCListParseError:
+class TestSimulationParametersDialogOnSubmitDCListParseError:
 
     def test_shows_error_when_list_parse_raises_value_error(self):
         # arrange
         dialog = _make_dialog_with_accept()
-        with patch("simulation_dialog._parse_list_values", side_effect=ValueError("bad values")):
+        with patch("simulation_parameters.simulation_parameters_dialog._parse_list_values", side_effect=ValueError("bad values")):
             # act
-            dialog._on_submit_dc("LIST", "TEMP", "", "", "", "", "bad input", "", False, "", "", "", "", "")
+            dialog._on_submit_dc("LIST", "TEMP", "", "", "", "", "bad input", "", False, "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("dcErrorText", "bad values")
 
 
-class TestSimulationDialogGetParameters:
+class TestSimulationParametersDialogGetParameters:
 
     def test_returns_none_when_dialog_rejected(self):
         # arrange

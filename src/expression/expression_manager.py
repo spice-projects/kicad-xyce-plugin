@@ -2,11 +2,11 @@ import logging
 
 import numpy as np
 
-from expression import Expression
-from xyce_language.evaluator import XyceEvaluator
-from xyce_language.nodes import BinaryOperationNode, BinaryOperator, ExpressionNode, FunctionCallNode, IdentifierNode, NumberNode, StepSelectorNode, TernaryOperationNode, UnaryOperationNode
-from xyce_language.parser import XyceParser
-from xyce_language.probe_names import is_network_parameter_probe_name
+from .expression import Expression
+from .evaluator import XyceEvaluator
+from .nodes import BinaryOperationNode, BinaryOperator, ExpressionNode, FunctionCallNode, IdentifierNode, NumberNode, StepSelectorNode, TernaryOperationNode, UnaryOperationNode
+from .parser import XyceParser
+from .probe_names import is_network_parameter_probe_name
 
 logger = logging.getLogger(__name__)
 

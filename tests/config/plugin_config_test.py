@@ -3,7 +3,7 @@ import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
-from plugin_config import PluginConfig, discover_xyce_executable
+from config.plugin_config import PluginConfig, discover_xyce_executable
 
 
 class TestPluginConfigDefault:
@@ -16,7 +16,7 @@ class TestPluginConfigDefault:
 
     def test_default_xyce_executable_path_is_empty_when_discovery_fails(self):
         # arrange
-        with patch("plugin_config.discover_xyce_executable", return_value=""):
+        with patch("config.plugin_config.discover_xyce_executable", return_value=""):
             # act
             config = PluginConfig.default()
         # assert
@@ -24,7 +24,7 @@ class TestPluginConfigDefault:
 
     def test_default_xyce_executable_path_uses_discovered_path(self):
         # arrange
-        with patch("plugin_config.discover_xyce_executable", return_value="/usr/local/XyceNF_7.6/bin/Xyce"):
+        with patch("config.plugin_config.discover_xyce_executable", return_value="/usr/local/XyceNF_7.6/bin/Xyce"):
             # act
             config = PluginConfig.default()
         # assert
@@ -34,40 +34,10 @@ class TestPluginConfigDefault:
 class TestPluginConfigLoad:
 
     def test_load_returns_default_when_file_missing(self):
-        # arrange
-        missing_path = "/nonexistent/path/config.json"
         # act
-        config = PluginConfig.load(missing_path)
+        config = PluginConfig.load()
         # assert
         assert config == PluginConfig.default()
-
-    def test_load_parses_json_file(self):
-        # arrange
-        data = {"xyceExecutablePath": "/usr/local/bin/xyce"}
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump(data, f)
-            settings_path = f.name
-        try:
-            # act
-            config = PluginConfig.load(settings_path)
-            # assert
-            assert config.xyce_executable_path == "/usr/local/bin/xyce"
-        finally:
-            os.unlink(settings_path)
-
-    def test_load_returns_plugin_config_instance(self):
-        # arrange
-        data = {"xyceExecutablePath": "/opt/xyce/bin/Xyce"}
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump(data, f)
-            settings_path = f.name
-        try:
-            # act
-            config = PluginConfig.load(settings_path)
-            # assert
-            assert isinstance(config, PluginConfig)
-        finally:
-            os.unlink(settings_path)
 
 
 class TestPluginConfigIsXyceExecutableValid:
@@ -125,7 +95,7 @@ class TestPluginConfigSave:
         # arrange
         config = PluginConfig(xyce_executable_path="/usr/bin/Xyce")
         mock_settings = MagicMock()
-        with patch("plugin_config.QSettings", return_value=mock_settings):
+        with patch("config.plugin_config.QSettings", return_value=mock_settings):
             # act
             config.save()
         # assert
@@ -135,7 +105,7 @@ class TestPluginConfigSave:
         # arrange
         config = PluginConfig(xyce_executable_path="/some/path")
         mock_settings = MagicMock()
-        with patch("plugin_config.QSettings", return_value=mock_settings) as mock_qsettings_class:
+        with patch("config.plugin_config.QSettings", return_value=mock_settings) as mock_qsettings_class:
             # act
             config.save()
         # assert
@@ -146,7 +116,7 @@ class TestDiscoverXyceExecutable:
 
     def test_returns_path_when_found_on_path(self):
         # arrange
-        with patch("plugin_config.shutil.which", return_value="/usr/bin/Xyce"):
+        with patch("config.plugin_config.shutil.which", return_value="/usr/bin/Xyce"):
             # act
             result = discover_xyce_executable()
         # assert
@@ -154,9 +124,9 @@ class TestDiscoverXyceExecutable:
 
     def test_returns_empty_string_when_nothing_found_on_linux(self):
         # arrange
-        with patch("plugin_config.shutil.which", return_value=None):
-            with patch("plugin_config.platform.system", return_value="Linux"):
-                with patch("plugin_config.glob.glob", return_value=[]):
+        with patch("config.plugin_config.shutil.which", return_value=None):
+            with patch("config.plugin_config.platform.system", return_value="Linux"):
+                with patch("config.plugin_config.glob.glob", return_value=[]):
                     # act
                     result = discover_xyce_executable()
         # assert
@@ -164,9 +134,9 @@ class TestDiscoverXyceExecutable:
 
     def test_returns_empty_string_when_nothing_found_on_windows(self):
         # arrange
-        with patch("plugin_config.shutil.which", return_value=None):
-            with patch("plugin_config.platform.system", return_value="Windows"):
-                with patch("plugin_config.glob.glob", return_value=[]):
+        with patch("config.plugin_config.shutil.which", return_value=None):
+            with patch("config.plugin_config.platform.system", return_value="Windows"):
+                with patch("config.plugin_config.glob.glob", return_value=[]):
                     # act
                     result = discover_xyce_executable()
         # assert
@@ -174,9 +144,9 @@ class TestDiscoverXyceExecutable:
 
     def test_returns_glob_match_on_linux(self):
         # arrange
-        with patch("plugin_config.shutil.which", return_value=None):
-            with patch("plugin_config.platform.system", return_value="Linux"):
-                with patch("plugin_config.glob.glob", return_value=["/usr/local/XyceNF_7.6/bin/Xyce"]):
+        with patch("config.plugin_config.shutil.which", return_value=None):
+            with patch("config.plugin_config.platform.system", return_value="Linux"):
+                with patch("config.plugin_config.glob.glob", return_value=["/usr/local/XyceNF_7.6/bin/Xyce"]):
                     # act
                     result = discover_xyce_executable()
         # assert
@@ -184,9 +154,9 @@ class TestDiscoverXyceExecutable:
 
     def test_returns_glob_match_on_macos(self):
         # arrange
-        with patch("plugin_config.shutil.which", return_value=None):
-            with patch("plugin_config.platform.system", return_value="Darwin"):
-                with patch("plugin_config.glob.glob", return_value=["/usr/local/XyceNF_7.6/bin/Xyce"]):
+        with patch("config.plugin_config.shutil.which", return_value=None):
+            with patch("config.plugin_config.platform.system", return_value="Darwin"):
+                with patch("config.plugin_config.glob.glob", return_value=["/usr/local/XyceNF_7.6/bin/Xyce"]):
                     # act
                     result = discover_xyce_executable()
         # assert
@@ -194,9 +164,9 @@ class TestDiscoverXyceExecutable:
 
     def test_returns_glob_match_on_windows(self):
         # arrange
-        with patch("plugin_config.shutil.which", return_value=None):
-            with patch("plugin_config.platform.system", return_value="Windows"):
-                with patch("plugin_config.glob.glob", return_value=[r"C:\Program Files\XyceNF_7.6\bin\Xyce.exe"]):
+        with patch("config.plugin_config.shutil.which", return_value=None):
+            with patch("config.plugin_config.platform.system", return_value="Windows"):
+                with patch("config.plugin_config.glob.glob", return_value=[r"C:\Program Files\XyceNF_7.6\bin\Xyce.exe"]):
                     # act
                     result = discover_xyce_executable()
         # assert
@@ -209,9 +179,9 @@ class TestDiscoverXyceExecutable:
             "/usr/local/XyceNF_7.4/bin/Xyce",
             "/usr/local/XyceNF_7.6/bin/Xyce",
         ]
-        with patch("plugin_config.shutil.which", return_value=None):
-            with patch("plugin_config.platform.system", return_value="Linux"):
-                with patch("plugin_config.glob.glob", return_value=candidates):
+        with patch("config.plugin_config.shutil.which", return_value=None):
+            with patch("config.plugin_config.platform.system", return_value="Linux"):
+                with patch("config.plugin_config.glob.glob", return_value=candidates):
                     # act
                     result = discover_xyce_executable()
         # assert

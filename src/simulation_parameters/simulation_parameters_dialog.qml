@@ -45,13 +45,19 @@ Item {
     property bool printDcAllNodes: false
     property bool printDcAllCurrents: false
     property string printDcVariables: ""
+    property string printDcFormat: ""
+    property string printDcFile: ""
     property bool saveEnabled: false
     property string saveType: "NODESET"
+    property string saveFile: ""
     property string nodesetEntries: ""
 
-    signal submitTransient(string initialStep, string finalTime, string startTime, string stepCeiling, string opKeyword, bool scheduleEnabled, string schedulePairsText)
-    signal submitDC(string sweepMode, string primaryVariable, string startValue, string stopValue, string stepValue, string pointsValue, string listValuesText, string dataTableName, bool secondaryEnabled, string secondaryVariable, string secondaryStart, string secondaryStop, string secondaryStep, string secondaryPoints)
-    signal submitOP(bool printDcEnabled, bool printDcAllNodes, bool printDcAllCurrents, string printDcVariables, bool saveEnabled, string saveType, string nodesetEntries)
+    // --- Shared properties ---
+    property bool replaceGround: false
+
+    signal submitTransient(string initialStep, string finalTime, string startTime, string stepCeiling, string opKeyword, bool scheduleEnabled, string schedulePairsText, bool replaceGround)
+    signal submitDC(string sweepMode, string primaryVariable, string startValue, string stopValue, string stepValue, string pointsValue, string listValuesText, string dataTableName, bool secondaryEnabled, string secondaryVariable, string secondaryStart, string secondaryStop, string secondaryStep, string secondaryPoints, bool replaceGround)
+    signal submitOP(bool printDcEnabled, bool printDcAllNodes, bool printDcAllCurrents, string printDcVariables, bool saveEnabled, string saveType, string nodesetEntries, string printDcFormat, string printDcFile, string saveFile, bool replaceGround)
     signal cancelRequested()
 
     function opKeywordValue() {
@@ -206,6 +212,30 @@ Item {
                                 Layout.columnSpan: 2
                                 Layout.fillWidth: true
                             }
+                            Label {
+                                text: "Format"
+                                color: "#24292f"
+                            }
+                            TextField {
+                                id: printDcFormatField
+                                placeholderText: "e.g. NOINDEX"
+                                selectByMouse: true
+                                text: root.printDcFormat
+                                onTextChanged: root.printDcFormat = text
+                                Layout.fillWidth: true
+                            }
+                            Label {
+                                text: "Output File"
+                                color: "#24292f"
+                            }
+                            TextField {
+                                id: printDcFileField
+                                placeholderText: "e.g. output.txt"
+                                selectByMouse: true
+                                text: root.printDcFile
+                                onTextChanged: root.printDcFile = text
+                                Layout.fillWidth: true
+                            }
                         }
 
                         // --- Save ---
@@ -227,6 +257,18 @@ Item {
                                 text: "Save as .NODESET"
                                 checked: root.saveType === "NODESET"
                                 onClicked: root.saveType = "NODESET"
+                            }
+                            Label {
+                                text: "Save File"
+                                color: "#24292f"
+                            }
+                            TextField {
+                                id: saveFileField
+                                placeholderText: "optional output file path"
+                                selectByMouse: true
+                                text: root.saveFile
+                                onTextChanged: root.saveFile = text
+                                Layout.fillWidth: true
                             }
                         }
 
@@ -580,6 +622,14 @@ Item {
             }
         }
 
+        CheckBox {
+            id: replaceGroundCheckBox
+            text: "Replace ground node (.PREPROCESS REPLACEGROUND TRUE)"
+            checked: root.replaceGround
+            onCheckedChanged: root.replaceGround = checked
+            Layout.fillWidth: true
+        }
+
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
@@ -590,27 +640,19 @@ Item {
 
             Button {
                 text: "Cancel"
-                icon.source: "kicad-icons/cancel_24.png"
-                icon.color: "transparent"
-                icon.width: 24
-                icon.height: 24
                 onClicked: root.cancelRequested()
             }
 
             Button {
                 text: "Apply"
                 highlighted: true
-                icon.source: "kicad-icons/checked_ok_24.png"
-                icon.color: "transparent"
-                icon.width: 24
-                icon.height: 24
                 onClicked: {
                     if (simTabBar.currentIndex === 0) {
-                        root.submitOP(root.printDcEnabled, root.printDcAllNodes, root.printDcAllCurrents, root.printDcVariables, root.saveEnabled, root.saveType, root.nodesetEntries)
+                        root.submitOP(root.printDcEnabled, root.printDcAllNodes, root.printDcAllCurrents, root.printDcVariables, root.saveEnabled, root.saveType, root.nodesetEntries, root.printDcFormat, root.printDcFile, root.saveFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 1) {
-                        root.submitTransient(root.initialStep, root.finalTime, root.startTime, root.stepCeiling, root.opKeywordValue(), root.scheduleEnabled, root.schedulePairsText)
+                        root.submitTransient(root.initialStep, root.finalTime, root.startTime, root.stepCeiling, root.opKeywordValue(), root.scheduleEnabled, root.schedulePairsText, root.replaceGround)
                     } else {
-                        root.submitDC(root.sweepModeValue(), root.primaryVariable, root.startValue, root.stopValue, root.stepValue, root.pointsValue, root.listValuesText, root.dataTableName, root.secondaryEnabled, root.secondaryVariable, root.secondaryStart, root.secondaryStop, root.secondaryStep, root.secondaryPoints)
+                        root.submitDC(root.sweepModeValue(), root.primaryVariable, root.startValue, root.stopValue, root.stepValue, root.pointsValue, root.listValuesText, root.dataTableName, root.secondaryEnabled, root.secondaryVariable, root.secondaryStart, root.secondaryStop, root.secondaryStep, root.secondaryPoints, root.replaceGround)
                     }
                 }
             }

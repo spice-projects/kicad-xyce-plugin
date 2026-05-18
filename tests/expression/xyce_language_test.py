@@ -5,10 +5,12 @@ import math
 import numpy as np
 import pytest
 
-from xyce_language import parse_expression, parse_function_definition, tokenize, TokenKind, XyceEvaluator, XyceLexer
-from xyce_language.builtins import BUILTIN_CONSTANTS, BUILTIN_FUNCTIONS
-from xyce_language.evaluator import EvaluationContext, _NUMBER_SUFFIXES
-from xyce_language.nodes import BinaryOperationNode, BinaryOperator, FunctionCallNode, FunctionDefinitionNode, IdentifierNode, NumberNode, StepSelectorNode, TernaryOperationNode, UnaryOperationNode, UnaryOperator
+from expression.builtins import BUILTIN_CONSTANTS, BUILTIN_FUNCTIONS
+from expression.evaluator import EvaluationContext, _NUMBER_SUFFIXES, XyceEvaluator
+from expression.lexer import tokenize, XyceLexer
+from expression.nodes import BinaryOperationNode, BinaryOperator, FunctionCallNode, FunctionDefinitionNode, IdentifierNode, NumberNode, StepSelectorNode, TernaryOperationNode, UnaryOperationNode, UnaryOperator
+from expression.parser import parse_function_definition, parse_expression
+from expression.tokens import TokenKind
 
 
 def _evaluate(text, variables=None, functions=None, constants=None, step_slices=None):

@@ -5,20 +5,20 @@ from PySide6.QtGui import QColor
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QDialog, QFileDialog, QVBoxLayout, QWidget
 
-from plugin_config import PluginConfig
+from .plugin_config import PluginConfig
 
-_QML_FILE = Path(__file__).parent / "config_dialog.qml"
+_QML_FILE = Path(__file__).parent / "plugin_config_dialog.qml"
 _BG = "#efefe8"
 
 
-class ConfigDialog(QDialog):
+class PluginConfigDialog(QDialog):
 
-    def __init__(self, parent: QWidget | None = None, initial_config: PluginConfig | None = None):
+    def __init__(self, parent: QWidget | None, initial_config: PluginConfig):
         super().__init__(parent)
         # set modal
         self.setWindowModality(Qt.ApplicationModal)
         # capture initial config for form defaults
-        self._initial_config = initial_config if initial_config is not None else PluginConfig.default()
+        self._initial_config = initial_config
         # keep accepted result available to caller
         self._result: PluginConfig | None = None
         # set the native frame title
@@ -99,11 +99,5 @@ class ConfigDialog(QDialog):
         # close dialog with accepted status
         self.accept()
 
-    def get_config(self) -> PluginConfig | None:
-        # execute modal dialog and wait for user action
-        dialog_code = self.exec()
-        # return no result when dialog is canceled
-        if dialog_code != QDialog.DialogCode.Accepted:
-            return None
-        # return saved configuration when accepted
+    def get_config(self) -> PluginConfig:
         return self._result

@@ -7,7 +7,7 @@ class TestNetlistParser:
         # arrange
         netlist = "My Circuit Title\nR1 NET1 NET2 1k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.title == "My Circuit Title"
 
@@ -15,7 +15,7 @@ class TestNetlistParser:
         # arrange
         netlist = "* KiCad schematic\nR1 A B 1k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert — title captured even when it starts with *; R1 is the only device
         assert topology.title == "* KiCad schematic"
         assert len(topology.devices) == 1
@@ -24,7 +24,7 @@ class TestNetlistParser:
         # arrange — R2 appears after .END and must be ignored
         netlist = "Title\nR1 A B 1k\n.END\nR2 C D 2k\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert len(topology.devices) == 1
         assert topology.devices[0].name == "R1"
@@ -33,7 +33,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.title == "Title"
         assert topology.devices == []
@@ -43,7 +43,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\n* this is a comment\nR1 A B 1k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert len(topology.devices) == 1
 
@@ -51,7 +51,7 @@ class TestNetlistParser:
         # arrange — inline comment must not affect node extraction
         netlist = "Title\nR1 NET1 NET2 1k ; bypass resistor\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].nodes == ["NET1", "NET2"]
 
@@ -59,7 +59,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\n.GLOBAL VDD ; power rail\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert "VDD" in topology.global_nodes
 
@@ -67,7 +67,7 @@ class TestNetlistParser:
         # arrange — device line is split across two physical lines with '+'
         netlist = "Title\nR1 NET1\n+ NET2 1k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert len(topology.devices) == 1
         assert topology.devices[0].nodes == ["NET1", "NET2"]
@@ -76,7 +76,7 @@ class TestNetlistParser:
         # arrange — the '+' can be preceded by whitespace per SPICE spec
         netlist = "Title\nR1 NET1\n   + NET2 1k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].nodes == ["NET1", "NET2"]
 
@@ -84,7 +84,7 @@ class TestNetlistParser:
         # arrange — three continuation lines for a single X device
         netlist = "Title\nX1 IN\n+ OUT\n+ VCC GND\n+ opamp\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert len(topology.devices) == 1
         assert topology.devices[0].nodes == ["IN", "OUT", "VCC", "GND"]
@@ -93,7 +93,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nr1 net1 net2 1k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "R"
 
@@ -101,7 +101,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nr1 a b 1k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].name == "R1"
 
@@ -109,7 +109,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nR1 net1 gnd 1k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert "NET1" in topology.nodes
         assert "GND" in topology.nodes
@@ -118,7 +118,7 @@ class TestNetlistParser:
         # arrange — lowercase .global and .end
         netlist = "Title\n.global VDD\n.end\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert "VDD" in topology.global_nodes
 
@@ -126,7 +126,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nR1 NET1 NET2 10k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "R"
 
@@ -134,7 +134,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nR1 NET1 NET2 10k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].nodes == ["NET1", "NET2"]
 
@@ -142,7 +142,7 @@ class TestNetlistParser:
         # arrange — ground is always named '0'
         netlist = "Title\nR1 VCC 0 1k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].nodes == ["VCC", "0"]
         assert "0" in topology.nodes
@@ -151,7 +151,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nC1 VCC GND 100n\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "C"
         assert topology.devices[0].nodes == ["VCC", "GND"]
@@ -160,7 +160,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nL1 IN OUT 10u\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "L"
         assert topology.devices[0].nodes == ["IN", "OUT"]
@@ -169,7 +169,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nD1 ANODE CATHODE 1N4148\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "D"
         assert topology.devices[0].nodes == ["ANODE", "CATHODE"]
@@ -178,7 +178,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nQ1 COLL BASE EMIT NPN\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "Q"
         assert topology.devices[0].nodes == ["COLL", "BASE", "EMIT"]
@@ -187,7 +187,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nM1 DRAIN GATE SOURCE BULK NMOS\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "M"
         assert topology.devices[0].nodes == ["DRAIN", "GATE", "SOURCE", "BULK"]
@@ -196,7 +196,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nV1 VCC GND DC 5\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "V"
         assert topology.devices[0].nodes == ["VCC", "GND"]
@@ -205,7 +205,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nI1 NET1 NET2 DC 1m\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "I"
         assert topology.devices[0].nodes == ["NET1", "NET2"]
@@ -214,7 +214,7 @@ class TestNetlistParser:
         # arrange — E device: + - +ctrl -ctrl
         netlist = "Title\nE1 VOUT GND VIN GND 10\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "E"
         assert topology.devices[0].nodes == ["VOUT", "GND", "VIN", "GND"]
@@ -223,7 +223,7 @@ class TestNetlistParser:
         # arrange — F device: + - (controlling source name follows, not a node)
         netlist = "Title\nF1 NET1 NET2 VSENSE 5\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "F"
         assert topology.devices[0].nodes == ["NET1", "NET2"]
@@ -232,7 +232,7 @@ class TestNetlistParser:
         # arrange — G device: + - +ctrl -ctrl
         netlist = "Title\nG1 IOUT GND VIN GND 0.01\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "G"
         assert topology.devices[0].nodes == ["IOUT", "GND", "VIN", "GND"]
@@ -241,7 +241,7 @@ class TestNetlistParser:
         # arrange — H device: + - (controlling source name follows, not a node)
         netlist = "Title\nH1 VOUT GND ISENSE 100\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "H"
         assert topology.devices[0].nodes == ["VOUT", "GND"]
@@ -250,7 +250,7 @@ class TestNetlistParser:
         # arrange — B device: + -
         netlist = "Title\nB1 VOUT GND V={V(IN)*2}\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "B"
         assert topology.devices[0].nodes == ["VOUT", "GND"]
@@ -259,7 +259,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nX1 IN OUT VCC GND opamp\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "X"
         assert topology.devices[0].nodes == ["IN", "OUT", "VCC", "GND"]
@@ -268,7 +268,7 @@ class TestNetlistParser:
         # arrange — PARAMS: keyword separates node list from plugin.parameter assignments
         netlist = "Title\nX1 IN OUT VCC GND opamp PARAMS: gain=100\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].nodes == ["IN", "OUT", "VCC", "GND"]
 
@@ -276,7 +276,7 @@ class TestNetlistParser:
         # arrange — only one token before subckt name means zero nodes
         netlist = "Title\nX1 myblock\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].nodes == []
 
@@ -284,7 +284,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nK1 L1 L2 0.99\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "K"
         assert topology.devices[0].nodes == []
@@ -293,7 +293,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nJ1 DRAIN GATE SOURCE NJF\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "J"
         assert topology.devices[0].nodes == ["DRAIN", "GATE", "SOURCE"]
@@ -302,7 +302,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nZ1 DRAIN GATE SOURCE GAASFET\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "Z"
         assert topology.devices[0].nodes == ["DRAIN", "GATE", "SOURCE"]
@@ -311,7 +311,7 @@ class TestNetlistParser:
         # arrange — T device: A+ A- B+ B-
         netlist = "Title\nT1 A_P A_N B_P B_N Z0=50 TD=1n\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "T"
         assert topology.devices[0].nodes == ["A_P", "A_N", "B_P", "B_N"]
@@ -320,7 +320,7 @@ class TestNetlistParser:
         # arrange — O device: A+ A- B+ B-
         netlist = "Title\nO1 A_P A_N B_P B_N LTRA\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "O"
         assert topology.devices[0].nodes == ["A_P", "A_N", "B_P", "B_N"]
@@ -329,7 +329,7 @@ class TestNetlistParser:
         # arrange — S device: +switch -switch +ctrl -ctrl
         netlist = "Title\nS1 SW_P SW_N CTRL_P CTRL_N SMOD\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "S"
         assert topology.devices[0].nodes == ["SW_P", "SW_N", "CTRL_P", "CTRL_N"]
@@ -338,7 +338,7 @@ class TestNetlistParser:
         # arrange — W device: +switch -switch (controlling source name follows)
         netlist = "Title\nW1 SW_P SW_N VSENSE WMOD\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "W"
         assert topology.devices[0].nodes == ["SW_P", "SW_N"]
@@ -347,7 +347,7 @@ class TestNetlistParser:
         # arrange — P device: + -
         netlist = "Title\nP1 RF_P GND 1\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "P"
         assert topology.devices[0].nodes == ["RF_P", "GND"]
@@ -356,7 +356,7 @@ class TestNetlistParser:
         # arrange — YLIN: + -
         netlist = "Title\nYLIN1 NET1 NET2 lin_model\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "YLIN"
         assert topology.devices[0].nodes == ["NET1", "NET2"]
@@ -365,7 +365,7 @@ class TestNetlistParser:
         # arrange — YMEMRISTOR: + -
         netlist = "Title\nYMEMRISTOR1 NET1 NET2 memr_model\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "YMEMRISTOR"
         assert topology.devices[0].nodes == ["NET1", "NET2"]
@@ -374,7 +374,7 @@ class TestNetlistParser:
         # arrange — YACC: acceleration velocity displacement
         netlist = "Title\nYACC1 ACC VEL DISP yacc_model\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "YACC"
         assert topology.devices[0].nodes == ["ACC", "VEL", "DISP"]
@@ -383,7 +383,7 @@ class TestNetlistParser:
         # arrange — YPDE: variable node count; recognised type, zero nodes extracted
         netlist = "Title\nYPDE1 NET1 NET2 pde_model\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.devices[0].type_letter == "YPDE"
 
@@ -391,7 +391,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\n.GLOBAL VDD VSS\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert "VDD" in topology.global_nodes
         assert "VSS" in topology.global_nodes
@@ -400,7 +400,7 @@ class TestNetlistParser:
         # arrange — $G-prefixed node referenced in a top-level device
         netlist = "Title\nR1 $G_VDD GND 1k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert "$G_VDD" in topology.global_nodes
 
@@ -408,7 +408,7 @@ class TestNetlistParser:
         # arrange — $G-prefixed node referenced inside a .SUBCKT block
         netlist = "Title\n.SUBCKT myblock IN OUT\nR1 IN $G_VDD 1k\n.ENDS\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert "$G_VDD" in topology.global_nodes
 
@@ -416,7 +416,7 @@ class TestNetlistParser:
         # arrange — both sources of global nodes present in the same netlist
         netlist = "Title\n.GLOBAL VDD\nR1 $G_REF GND 1k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert "VDD" in topology.global_nodes
         assert "$G_REF" in topology.global_nodes
@@ -425,7 +425,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\n.SUBCKT opamp IN OUT VCC GND\nR1 IN OUT 1k\n.ENDS\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert "OPAMP" in topology.subcircuit_definitions
 
@@ -433,7 +433,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\n.SUBCKT opamp IN OUT VCC GND\n.ENDS\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         subckt = topology.subcircuit_definitions["OPAMP"]
         assert subckt.ports == ["IN", "OUT", "VCC", "GND"]
@@ -442,7 +442,7 @@ class TestNetlistParser:
         # arrange — PARAMS: keyword terminates the port list
         netlist = "Title\n.SUBCKT myblock IN OUT PARAMS: gain=1\n.ENDS\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         subckt = topology.subcircuit_definitions["MYBLOCK"]
         assert subckt.ports == ["IN", "OUT"]
@@ -451,7 +451,7 @@ class TestNetlistParser:
         # arrange — R1 inside subcircuit must not appear in top-level device list
         netlist = "Title\n.SUBCKT myblock IN OUT\nR1 IN OUT 1k\n.ENDS\nR2 A B 2k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         top_names = [d.name for d in topology.devices]
         assert "R1" not in top_names
@@ -461,7 +461,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\n.SUBCKT myblock IN OUT\nC1 IN OUT 10p\n.ENDS\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         subckt = topology.subcircuit_definitions["MYBLOCK"]
         assert len(subckt.devices) == 1
@@ -471,7 +471,7 @@ class TestNetlistParser:
         # arrange — INTERNAL_NODE must not appear in top-level nodes set
         netlist = "Title\n.SUBCKT myblock IN OUT\nR1 IN INTERNAL_NODE 1k\nR2 INTERNAL_NODE OUT 1k\n.ENDS\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert "INTERNAL_NODE" not in topology.nodes
 
@@ -479,7 +479,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nR1 A B 1k\nR2 B C 2k\nR3 C A 3k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.nodes == {"A", "B", "C"}
 
@@ -487,7 +487,7 @@ class TestNetlistParser:
         # arrange — VCC and GND both appear in two devices
         netlist = "Title\nR1 VCC GND 1k\nC1 VCC GND 100n\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert — set deduplication keeps exactly two unique node names
         assert len(topology.nodes) == 2
 
@@ -495,7 +495,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nL1 A B 1u\nL2 C D 1u\nK1 L1 L2 0.5\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert — K device tokens reference inductor names, not circuit nodes
         assert "L1" not in topology.nodes
         assert "L2" not in topology.nodes
@@ -515,7 +515,7 @@ class TestNetlistParser:
                    ".GLOBAL VCC GND\n"
                    ".END\n")
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert topology.title == "* KiCad Schematic Netlist Version 4"
         # 8 devices: R1, C1, L1, D1, Q1, M1, V1, X1
@@ -530,26 +530,27 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\nR1 A B 1k\nR2 B C 2k\nR3 C D 3k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         names = [d.name for d in topology.devices]
         assert "R1" in names
         assert "R2" in names
         assert "R3" in names
 
-    def test_return_type_is_netlist_topology(self):
+    def test_return_type_is_tuple_of_str_and_netlist_topology(self):
         # arrange
         netlist = "Title\n.END\n"
         # act
-        result = parse_netlist(netlist)
+        sanitized, topology = parse_netlist(netlist)
         # assert
-        assert isinstance(result, NetlistTopology)
+        assert isinstance(sanitized, str)
+        assert isinstance(topology, NetlistTopology)
 
     def test_device_is_dataclass_instance(self):
         # arrange
         netlist = "Title\nR1 A B 1k\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert isinstance(topology.devices[0], Device)
 
@@ -557,7 +558,7 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\n.OP\n.PRINT DC V(1)\n.SAVE TYPE=IC\n.NODESET V(2)=5\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert ".OP" in topology.directives
         assert ".PRINT DC V(1)" in topology.directives
@@ -569,6 +570,6 @@ class TestNetlistParser:
         # arrange
         netlist = "Title\n.MODEL M1 NMOS\n.SUBCKT S1 A B\n.ENDS\n.END\n"
         # act
-        topology = parse_netlist(netlist)
+        _, topology = parse_netlist(netlist)
         # assert
         assert len(topology.directives) == 0

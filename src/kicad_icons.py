@@ -15,8 +15,8 @@ class KiCadIcon(Enum):
     FILE_SAVE = 0x00
     # open file icon
     FILE_OPEN = 0x01
-    # simulation command icon
-    SIM_COMMAND = 0x02
+    # simulation config icon
+    SIM_CONFIG = 0x02
     # run simulation icon
     SIM_RUN = 0x03
     # preference icon
@@ -53,10 +53,10 @@ def load_kicad_icons() -> None:
     _LIGHT_ICONS[KiCadIcon.FILE_OPEN] = QIcon(str(_RESOURCE_DIR / "directory_open_24.png"))
     # load open dark icons
     _DARK_ICONS[KiCadIcon.FILE_OPEN] = QIcon(str(_RESOURCE_DIR / "directory_open_dark_24.png"))
-    # load command icons
-    _LIGHT_ICONS[KiCadIcon.SIM_COMMAND] = QIcon(str(_RESOURCE_DIR / "sim_command_24.png"))
-    # load command dark icons
-    _DARK_ICONS[KiCadIcon.SIM_COMMAND] = QIcon(str(_RESOURCE_DIR / "sim_command_dark_24.png"))
+    # load config icons
+    _LIGHT_ICONS[KiCadIcon.SIM_CONFIG] = QIcon(str(_RESOURCE_DIR / "sim_command_24.png"))
+    # load config dark icons
+    _DARK_ICONS[KiCadIcon.SIM_CONFIG] = QIcon(str(_RESOURCE_DIR / "sim_command_dark_24.png"))
     # load run icons
     _LIGHT_ICONS[KiCadIcon.SIM_RUN] = QIcon(str(_RESOURCE_DIR / "sim_run_24.png"))
     # load run dark icons

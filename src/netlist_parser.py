@@ -2,11 +2,9 @@ from dataclasses import dataclass
 from dataclasses import field
 
 
-# multi-character y-device type prefixes
 _Y_PREFIXES = ("YMEMRISTOR", "YPDE", "YACC", "YLIN")
 
 
-# fixed node counts for single-letter device types
 _NODE_COUNTS: dict[str, int] = {
     "B": 2,
     "C": 2,
@@ -33,7 +31,6 @@ _NODE_COUNTS: dict[str, int] = {
 }
 
 
-# fixed node counts for multi-character y-type device prefixes
 _Y_NODE_COUNTS: dict[str, int] = {
     "YMEMRISTOR": 2,
     "YLIN": 2,
@@ -42,7 +39,6 @@ _Y_NODE_COUNTS: dict[str, int] = {
 }
 
 
-# device class
 @dataclass
 class Device:
     # device name
@@ -53,7 +49,6 @@ class Device:
     nodes: list[str]
 
 
-# subcircuit definition class
 @dataclass
 class SubcircuitDefinition:
     # subcircuit name
@@ -64,7 +59,6 @@ class SubcircuitDefinition:
     devices: list[Device] = field(default_factory=list)
 
 
-# netlist topology class
 @dataclass
 class NetlistTopology:
     # netlist title
@@ -81,7 +75,6 @@ class NetlistTopology:
     directives: list[str] = field(default_factory=list)
 
 
-# joins continuation lines
 def _join_continuation_lines(raw_lines: list[str]) -> list[str]:
     # build the result list of joined logical lines
     joined: list[str] = []
@@ -101,7 +94,6 @@ def _join_continuation_lines(raw_lines: list[str]) -> list[str]:
     return joined
 
 
-# strips inline comments
 def _strip_inline_comment(line: str) -> str:
     # find comment position
     idx = line.find(";")
@@ -113,7 +105,6 @@ def _strip_inline_comment(line: str) -> str:
     return line
 
 
-# gets type letter from name
 def _get_type_letter(upper_name: str) -> str:
     # iterate prefixes
     for prefix in _Y_PREFIXES:
@@ -125,7 +116,6 @@ def _get_type_letter(upper_name: str) -> str:
     return upper_name[0]
 
 
-# extracts x-device nodes
 def _extract_x_nodes(fields: list[str]) -> list[str]:
     # parameter index
     params_idx: int | None = None
@@ -149,7 +139,6 @@ def _extract_x_nodes(fields: list[str]) -> list[str]:
     return relevant[:-1]
 
 
-# extracts nodes from tokens
 def _extract_nodes(type_letter: str, tokens: list[str]) -> list[str]:
     # get fields
     fields = tokens[1:]
@@ -173,14 +162,13 @@ def _extract_nodes(type_letter: str, tokens: list[str]) -> list[str]:
     return []
 
 
-# parses netlist
-def parse_netlist(text: str) -> NetlistTopology:
+def parse_netlist(text: str) -> tuple[str, NetlistTopology]:
     # get logical lines
     logical_lines = _join_continuation_lines(text.splitlines())
     # strip inline comments
     logical_lines = [_strip_inline_comment(line) for line in logical_lines]
-    # set title
-    title = logical_lines[0].strip() if logical_lines else ""
+    # title
+    title: str | None = None
     # initialize lists
     top_level_devices: list[Device] = []
     # initialize node set
@@ -193,12 +181,40 @@ def parse_netlist(text: str) -> NetlistTopology:
     directives: list[str] = []
     # initialize subcircuit
     current_subckt: SubcircuitDefinition | None = None
+    # sanitized netlist
+    netlist: list[str] = []
+    # flag for the first non-blank line — in SPICE the first line is always the title
+    first_line = True
     # iterate logical lines
-    for line in logical_lines[1:]:
+    for line in logical_lines:
         # strip line
         stripped = line.strip()
-        # skip empty or comments
-        if not stripped or stripped.startswith("*"):
+        # skip blank lines (permitted before and after the title)
+        if not stripped:
+            # append line as is
+            netlist.append(stripped)
+            # continue loop
+            continue
+        # first non-blank line is always the title in SPICE format
+        if first_line:
+            # mark title consumed
+            first_line = False
+            # handle explicit .TITLE directive on the title line
+            toks = stripped.split()
+            if toks[0].upper() == ".TITLE":
+                # extract title text after the keyword
+                title = " ".join(toks[1:]) if len(toks) >= 2 else ""
+                netlist.append(f".TITLE {title}" if title else ".TITLE")
+            else:
+                # entire first line is the title
+                title = stripped
+                netlist.append(stripped)
+            # continue to next line
+            continue
+        # skip comment lines
+        if stripped.startswith("*"):
+            # append line as is
+            netlist.append(stripped)
             # continue loop
             continue
         # split into tokens
@@ -207,16 +223,55 @@ def parse_netlist(text: str) -> NetlistTopology:
         first_upper = tokens[0].upper()
         # check for end
         if first_upper == ".END":
+            # append line as is
+            netlist.append(".END")
             # stop parsing
             break
         # check for directives
         if stripped.startswith("."):
-            # check directive types
-            if first_upper in (".OP", ".PRINT", ".SAVE", ".NODESET"):
+            # title
+            if first_upper == ".TITLE":
+                # check for title
+                if len(tokens) >= 2:
+                    # set title
+                    title = " ".join(tokens[1:])
+                # append line as is
+                netlist.append(f"{first_upper} {' '.join(tokens[1:])}")
+                # continue loop
+                continue
+            # simulation type and output directives — stripped from sanitized netlist
+            if first_upper in (
+                # bias point analysis and its output/setup companions
+                ".OP", ".PRINT", ".SAVE", ".NODESET",
+                # DC sweep analysis
+                ".DC",
+                # transient analysis and its post-processing companions
+                ".TRAN", ".FFT", ".FOUR",
+                # AC frequency-domain analysis and its S/Y/Z-parameter output spec
+                ".AC", ".LIN",
+                # harmonic balance analysis
+                ".HB",
+                # noise analysis
+                ".NOISE",
+                # measure output and sensitivity output
+                ".MEASURE", ".MEAS", ".SENS",
+                # initial condition / bias point setup
+                ".IC", ".DCVOLT",
+            ):
                 # add to directives
                 directives.append(stripped)
+                # continue loop
+                continue
+            # .PREPROCESS REPLACEGROUND
+            if first_upper == ".PREPROCESS" and len(tokens) > 2 and tokens[1].upper() == "REPLACEGROUND":
+                # add to directives
+                directives.append(stripped)
+                # continue loop
+                continue
             # check subcircuit
             if first_upper == ".SUBCKT":
+                # append line as is
+                netlist.append(f"{first_upper} {' '.join(tokens[1:])}")
                 # check length
                 if len(tokens) >= 2:
                     # get subcircuit name
@@ -235,18 +290,32 @@ def parse_netlist(text: str) -> NetlistTopology:
                     current_subckt = SubcircuitDefinition(name=subckt_name, ports=ports)
                     # add to dict
                     subcircuit_definitions[subckt_name] = current_subckt
+                # continue loop
+                continue
             # check ends
-            elif first_upper == ".ENDS":
+            if first_upper == ".ENDS":
+                # end current subcircuit
+                netlist.append(".ENDS")
                 # reset subcircuit
                 current_subckt = None
+                # continue loop
+                continue
             # check global
-            elif first_upper == ".GLOBAL":
+            if first_upper == ".GLOBAL":
+                # append line as is
+                netlist.append(f"{first_upper} {' '.join(tokens[1:])}")
                 # iterate tokens
                 for t in tokens[1:]:
                     # add to globals
                     global_nodes.add(t.upper())
+                # continue loop
+                continue
+            # other directives
+            netlist.append(f"{first_upper} {' '.join(tokens[1:])}")
             # continue loop
             continue
+        # append line
+        netlist.append(stripped)
         # get upper name
         upper_name = tokens[0].upper()
         # get type letter
@@ -261,7 +330,6 @@ def parse_netlist(text: str) -> NetlistTopology:
         if current_subckt is not None:
             # append to subcircuit
             current_subckt.devices.append(device)
-        # else case
         else:
             # append to top level
             top_level_devices.append(device)
@@ -276,11 +344,4 @@ def parse_netlist(text: str) -> NetlistTopology:
                 # add to globals
                 global_nodes.add(node)
     # return result
-    return NetlistTopology(
-        title=title,
-        devices=top_level_devices,
-        nodes=top_level_nodes,
-        subcircuit_definitions=subcircuit_definitions,
-        global_nodes=global_nodes,
-        directives=directives,
-    )
+    return "\n".join(netlist), NetlistTopology(title=title, devices=top_level_devices, nodes=top_level_nodes, subcircuit_definitions=subcircuit_definitions, global_nodes=global_nodes, directives=directives)

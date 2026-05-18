@@ -7,7 +7,7 @@ from kipy import KiCad
 from PySide6.QtWidgets import QApplication
 
 from main_window import MainWindow
-from plugin_config import PluginConfig
+from config.plugin_config import PluginConfig
 from window import load_app_icon
 
 PLUGIN_ID = "com.github.spice-projects.kicad-xyce-plugin"
@@ -67,7 +67,7 @@ def main():
     if not app_icon.isNull():
         app.setWindowIcon(app_icon)
     # create application main window
-    window = MainWindow(kicad_client, PluginConfig.default())
+    window = MainWindow(kicad_client, PluginConfig.load())
     # show and focus the main window
     window.show()
     # enter the Qt application main loop only if we created a new application

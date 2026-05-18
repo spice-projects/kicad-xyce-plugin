@@ -7,17 +7,14 @@ from unittest.mock import MagicMock, patch
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QApplication, QDialog
 
-from config_dialog import ConfigDialog
-from plugin_config import PluginConfig
-
+from config import PluginConfig, PluginConfigDialog
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
 
-def _make_dialog(initial_config: PluginConfig | None = None) -> ConfigDialog:
-
-    """Create a ConfigDialog bypassing QML setup, with a mock QML root."""
-    dialog = ConfigDialog.__new__(ConfigDialog)
+def _make_dialog(initial_config: PluginConfig | None = None) -> PluginConfigDialog:
+    """Create a PluginConfigDialog bypassing QML setup, with a mock QML root."""
+    dialog = PluginConfigDialog.__new__(PluginConfigDialog)
     QDialog.__init__(dialog)
     dialog._initial_config = initial_config if initial_config is not None else PluginConfig.default()
     dialog._result = None
@@ -25,24 +22,24 @@ def _make_dialog(initial_config: PluginConfig | None = None) -> ConfigDialog:
     return dialog
 
 
-def _make_dialog_with_accept(initial_config: PluginConfig | None = None) -> ConfigDialog:
+def _make_dialog_with_accept(initial_config: PluginConfig | None = None) -> PluginConfigDialog:
     dialog = _make_dialog(initial_config)
     dialog.accept = MagicMock()
     return dialog
 
 
-class TestConfigDialogConstruction:
+class TestPluginConfigDialogConstruction:
 
     def test_dialog_can_be_instantiated(self):
         # act — full construction path
-        dialog = ConfigDialog(None)
+        dialog = PluginConfigDialog(None)
         # assert
-        assert isinstance(dialog, ConfigDialog)
+        assert isinstance(dialog, PluginConfigDialog)
         dialog.reject()
 
     def test_dialog_result_is_none_initially(self):
         # act
-        dialog = ConfigDialog(None)
+        dialog = PluginConfigDialog(None)
         # assert
         assert dialog._result is None
         dialog.reject()
@@ -57,7 +54,7 @@ class TestConfigDialogConstruction:
         dialog._root.setProperty.assert_not_called()
 
 
-class TestConfigDialogOnQmlReady:
+class TestPluginConfigDialogOnQmlReady:
 
     def test_on_qml_ready_populates_path_field(self):
         # arrange
@@ -94,12 +91,12 @@ class TestConfigDialogOnQmlReady:
         mock_root.cancelRequested.connect.assert_called_once()
 
 
-class TestConfigDialogOnBrowseRequested:
+class TestPluginConfigDialogOnBrowseRequested:
 
     def test_on_browse_updates_path_field(self):
         # arrange
         dialog = _make_dialog()
-        with patch("config_dialog.QFileDialog.getOpenFileName", return_value=("/usr/bin/Xyce", "")):
+        with patch("config.plugin_config_dialog.QFileDialog.getOpenFileName", return_value=("/usr/bin/Xyce", "")):
             # act
             dialog._on_browse_requested()
         # assert
@@ -108,7 +105,7 @@ class TestConfigDialogOnBrowseRequested:
     def test_on_browse_clears_error_text_after_selection(self):
         # arrange
         dialog = _make_dialog()
-        with patch("config_dialog.QFileDialog.getOpenFileName", return_value=("/usr/bin/Xyce", "")):
+        with patch("config.plugin_config_dialog.QFileDialog.getOpenFileName", return_value=("/usr/bin/Xyce", "")):
             # act
             dialog._on_browse_requested()
         # assert
@@ -117,14 +114,14 @@ class TestConfigDialogOnBrowseRequested:
     def test_on_browse_no_op_when_user_cancels(self):
         # arrange
         dialog = _make_dialog()
-        with patch("config_dialog.QFileDialog.getOpenFileName", return_value=("", "")):
+        with patch("config.plugin_config_dialog.QFileDialog.getOpenFileName", return_value=("", "")):
             # act
             dialog._on_browse_requested()
         # assert — no setProperty calls (user canceled)
         dialog._root.setProperty.assert_not_called()
 
 
-class TestConfigDialogOnSubmit:
+class TestPluginConfigDialogOnSubmit:
 
     def test_on_submit_rejects_empty_path(self):
         # arrange
@@ -165,7 +162,7 @@ class TestConfigDialogOnSubmit:
             exec_path = f.name
         os.chmod(exec_path, 0o755)
         try:
-            with patch("config_dialog.PluginConfig.save"):
+            with patch("config.plugin_config.PluginConfig.save"):
                 # act
                 dialog._on_submit(exec_path)
             # assert
@@ -182,7 +179,7 @@ class TestConfigDialogOnSubmit:
             exec_path = f.name
         os.chmod(exec_path, 0o755)
         try:
-            with patch("config_dialog.PluginConfig.save"):
+            with patch("config.plugin_config.PluginConfig.save"):
                 # act
                 dialog._on_submit(f"  {exec_path}  ")
             # assert — whitespace stripped
@@ -197,7 +194,7 @@ class TestConfigDialogOnSubmit:
             exec_path = f.name
         os.chmod(exec_path, 0o755)
         try:
-            with patch("config_dialog.PluginConfig.save") as mock_save:
+            with patch("config.plugin_config.PluginConfig.save") as mock_save:
                 # act
                 dialog._on_submit(exec_path)
             # assert
@@ -206,7 +203,7 @@ class TestConfigDialogOnSubmit:
             os.unlink(exec_path)
 
 
-class TestConfigDialogGetConfig:
+class TestPluginConfigDialogGetConfig:
 
     def test_get_config_returns_none_when_rejected(self):
         # arrange

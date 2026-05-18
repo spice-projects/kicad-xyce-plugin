@@ -9,8 +9,8 @@ from pathlib import Path
 from dataclasses_json import LetterCase, dataclass_json
 from PySide6.QtCore import QSettings
 
-_SETTINGS_ORGANIZATION = "KiCad"
-_SETTINGS_APPLICATION = "XyceSimulatorPlugin"
+_SETTINGS_ORGANIZATION = "GitHub Spice Projects"
+_SETTINGS_APPLICATION = "kicad-xyce-plugin"
 _XYCE_EXECUTABLE_PATH_KEY = "xyceExecutablePath"
 
 
@@ -49,17 +49,13 @@ class PluginConfig:
     xyce_executable_path: str
 
     @classmethod
-    def load(cls, settings_path: str) -> "PluginConfig":
-        # load configuration from the specified JSON file if it exists
-        if os.path.isfile(settings_path):
-            # open file for reading
-            with open(settings_path, "r") as f:
-                # parse JSON data
-                data = json.load(f)
-                # load configuration from the parsed data and return it
-                return cls.from_dict(data)
-        # create default instance
-        return cls.default()
+    def load(cls) -> "PluginConfig":
+        # settings for this application
+        settings = QSettings(_SETTINGS_ORGANIZATION, _SETTINGS_APPLICATION)
+        # read from settings
+        xyce_executable_path = settings.value(_XYCE_EXECUTABLE_PATH_KEY, type=str) or discover_xyce_executable()
+        # create instance
+        return cls(xyce_executable_path=xyce_executable_path)
 
     @classmethod
     def default(cls) -> "PluginConfig":

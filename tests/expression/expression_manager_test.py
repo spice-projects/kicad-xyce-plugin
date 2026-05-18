@@ -4,9 +4,8 @@ import logging
 
 import numpy as np
 
-from expression import Expression
-from expression_manager import ExpressionManager
-from xyce_language.nodes import BinaryOperationNode, BinaryOperator, FunctionCallNode, IdentifierNode, NumberNode, StepSelectorNode, TernaryOperationNode, UnaryOperationNode, UnaryOperator
+from expression import Expression, ExpressionManager
+from expression.nodes import BinaryOperationNode, BinaryOperator, FunctionCallNode, IdentifierNode, NumberNode, StepSelectorNode, TernaryOperationNode, UnaryOperationNode, UnaryOperator
 
 
 # ---------------------------------------------------------------------------

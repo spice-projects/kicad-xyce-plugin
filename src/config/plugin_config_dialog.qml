@@ -75,10 +75,6 @@ Item {
 
 					Button {
 						text: "Browse"
-						icon.source: "kicad-icons/directory_open_24.png"
-						icon.color: "transparent"
-						icon.width: 24
-						icon.height: 24
 						onClicked: root.browseRequested()
 					}
 				}
@@ -110,20 +106,12 @@ Item {
 
 			Button {
 				text: "Cancel"
-				icon.source: "kicad-icons/cancel_24.png"
-				icon.color: "transparent"
-				icon.width: 24
-				icon.height: 24
 				onClicked: root.cancelRequested()
 			}
 
 			Button {
 				text: "Save"
 				highlighted: true
-				icon.source: "kicad-icons/checked_ok_24.png"
-				icon.color: "transparent"
-				icon.width: 24
-				icon.height: 24
 				onClicked: root.submit(root.xyceExecutablePath)
 			}
 		}

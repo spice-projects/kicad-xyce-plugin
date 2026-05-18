@@ -2,7 +2,7 @@ import numpy as np
 
 
 class Expression:
-    # expression class
+
     def __init__(self, name: str, data: np.ndarray, unit: str, source: str | None = None, variable_type: str | None = None):
         # name field
         self._name = name
