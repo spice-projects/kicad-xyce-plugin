@@ -19,7 +19,7 @@ class IcEntry:
 
 @dataclass(frozen=True)
 class OpSimulationParameters:
-    
+
     print_dc_enabled: bool = False
     print_dc_all_nodes: bool = False
     print_dc_all_currents: bool = False
@@ -60,7 +60,7 @@ class OpSimulationParameters:
                 # set flag
                 found = True
                 # next
-                continue            
+                continue
             # handle print dc
             if cmd == ".PRINT" and len(tokens) > 1 and tokens[1].upper() == "DC":
                 # set enabled

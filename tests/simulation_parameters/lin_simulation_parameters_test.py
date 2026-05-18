@@ -1,11 +1,11 @@
-from simulation_parameters import LinSimulationParameters
+from simulation_parameters import LinSimulationParameters, PrintParameters
 
 
 class TestLinSimulationParameters:
 
     def test_minimal_default_directives(self):
         # arrange
-        params = LinSimulationParameters(sweep_mode="LIN", points="100", start="1", end="1MEG")
+        params = LinSimulationParameters(sweep_mode="LIN", points="100", start="1", end="1MEG", replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -13,7 +13,7 @@ class TestLinSimulationParameters:
 
     def test_dec_sweep_directives(self):
         # arrange
-        params = LinSimulationParameters(sweep_mode="DEC", points="10", start="1k", end="10MEG")
+        params = LinSimulationParameters(sweep_mode="DEC", points="10", start="1k", end="10MEG", replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -21,7 +21,7 @@ class TestLinSimulationParameters:
 
     def test_data_sweep_directives(self):
         # arrange
-        params = LinSimulationParameters(sweep_mode="DATA", data_table_name="myTable")
+        params = LinSimulationParameters(sweep_mode="DATA", data_table_name="myTable", replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -117,3 +117,21 @@ class TestLinFromXyceDirectives:
         params = LinSimulationParameters.from_xyce_directives([".TRAN 1ns 1ms"])
         # assert
         assert params is None
+
+    def test_serializes_print_ac_directive(self):
+        # arrange
+        print_params = PrintParameters(print_type="AC", output_variables=("V(OUT)",))
+        params = LinSimulationParameters(sweep_mode="LIN", points="10", start="1", end="1MEG", replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert ".PRINT AC V(OUT)" in directives
+
+    def test_parses_print_ac_directive(self):
+        # arrange / act
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 10 1 1MEG", ".LIN", ".PRINT AC V(OUT) I(V1)"])
+        # assert
+        assert params is not None
+        assert params.print_parameters is not None
+        assert params.print_parameters.print_type == "AC"
+        assert params.print_parameters.output_variables == ("V(OUT)", "I(V1)")

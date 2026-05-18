@@ -109,7 +109,7 @@ class TestPluginConfigSave:
             # act
             config.save()
         # assert
-        mock_qsettings_class.assert_called_once_with("KiCad", "XyceSimulatorPlugin")
+        mock_qsettings_class.assert_called_once_with("GitHub Spice Projects", "kicad-xyce-plugin")
 
 
 class TestDiscoverXyceExecutable:

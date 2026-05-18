@@ -1,4 +1,4 @@
-from simulation_parameters import DCSimulationParameters
+from simulation_parameters import DCSimulationParameters, PrintParameters
 
 
 class TestToXyceDirectivesLin:
@@ -287,3 +287,28 @@ class TestFromXyceDirectives:
         assert params.replace_ground is True
         assert params.sweep_mode == "LIN"
         assert params.primary_variable == "VIN"
+
+    def test_serializes_print_dc_directive(self):
+        # arrange
+        print_params = PrintParameters(print_type="DC", output_variables=("V(OUT)",))
+        params = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert directives == [".DC VIN 0 5 0.1", ".PRINT DC V(OUT)"]
+
+    def test_parses_print_dc_directive(self):
+        # arrange / act
+        params = DCSimulationParameters.from_xyce_directives([".DC VIN 0 5 0.1", ".PRINT DC V(OUT) I(V1)"])
+        # assert
+        assert params is not None
+        assert params.print_parameters is not None
+        assert params.print_parameters.print_type == "DC"
+        assert params.print_parameters.output_variables == ("V(OUT)", "I(V1)")
+
+    def test_ignores_non_dc_print_directive(self):
+        # arrange / act
+        params = DCSimulationParameters.from_xyce_directives([".DC VIN 0 5 0.1", ".PRINT TRAN V(OUT)"])
+        # assert
+        assert params is not None
+        assert params.print_parameters is None

@@ -7,7 +7,7 @@ class TestOpSimulationParameters:
 
     def test_op_directive_default(self):
         # arrange
-        params = OpSimulationParameters()
+        params = OpSimulationParameters(replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -15,7 +15,7 @@ class TestOpSimulationParameters:
 
     def test_print_dc_directive(self):
         # arrange
-        params = OpSimulationParameters(print_dc_enabled=True, print_dc_specific_variables=("V(1)", "I(V1)"))
+        params = OpSimulationParameters(print_dc_enabled=True, print_dc_specific_variables=("V(1)", "I(V1)"), replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -23,7 +23,7 @@ class TestOpSimulationParameters:
 
     def test_save_directive(self):
         # arrange
-        params = OpSimulationParameters(save_enabled=True, save_type="IC", save_file="test.ic")
+        params = OpSimulationParameters(save_enabled=True, save_type="IC", save_file="test.ic", replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -32,7 +32,7 @@ class TestOpSimulationParameters:
     def test_nodeset_directive(self):
         # arrange
         entries = (NodesetEntry(node="out", voltage="1.2"),)
-        params = OpSimulationParameters(nodeset_entries=entries)
+        params = OpSimulationParameters(nodeset_entries=entries, replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -61,7 +61,7 @@ class TestOpSimulationParameters:
 
     def test_print_dc_with_format(self):
         # arrange
-        params = OpSimulationParameters(print_dc_enabled=True, print_dc_format="CSV")
+        params = OpSimulationParameters(print_dc_enabled=True, print_dc_format="CSV", replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -69,7 +69,7 @@ class TestOpSimulationParameters:
 
     def test_print_dc_with_file(self):
         # arrange
-        params = OpSimulationParameters(print_dc_enabled=True, print_dc_file="output.csv")
+        params = OpSimulationParameters(print_dc_enabled=True, print_dc_file="output.csv", replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -77,7 +77,7 @@ class TestOpSimulationParameters:
 
     def test_print_dc_deduplicates_variables(self):
         # arrange
-        params = OpSimulationParameters(print_dc_enabled=True, print_dc_specific_variables=("V(1)", "V(1)", "I(R1)"))
+        params = OpSimulationParameters(print_dc_enabled=True, print_dc_specific_variables=("V(1)", "V(1)", "I(R1)"), replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -85,7 +85,7 @@ class TestOpSimulationParameters:
 
     def test_save_without_file(self):
         # arrange
-        params = OpSimulationParameters(save_enabled=True)
+        params = OpSimulationParameters(save_enabled=True, replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -93,7 +93,7 @@ class TestOpSimulationParameters:
 
     def test_topology_without_all_nodes_or_currents(self):
         # arrange
-        params = OpSimulationParameters(print_dc_enabled=True, print_dc_specific_variables=("V(1)",))
+        params = OpSimulationParameters(print_dc_enabled=True, print_dc_specific_variables=("V(1)",), replace_ground=False)
         topology = MagicMock()
         # act
         directives = params.to_xyce_directives(topology=topology)
@@ -103,7 +103,7 @@ class TestOpSimulationParameters:
     def test_ic_directive(self):
         # arrange
         entries = (IcEntry(node="out", voltage="1.0"), IcEntry(node="in", voltage="0"))
-        params = OpSimulationParameters(ic_entries=entries)
+        params = OpSimulationParameters(ic_entries=entries, replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert

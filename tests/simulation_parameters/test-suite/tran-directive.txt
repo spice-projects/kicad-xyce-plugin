@@ -1,0 +1,1949 @@
+.TRAN 5US 1MS 0 5US
+.tran 0 2.0e-2 
+.tran 0.0 0.2
+.tran 0 1.0   
+.tran 0 2.0e-2 
+.tran 0.0 0.2
+.tran 0 0.25
+.tran 0 2.0e-2 noop
+.tran 0 2.0e-2
+.tran 0 0.25  
+.tran 0 8.4
+.tran 0 2.0e-2
+.tran 0 2.0e-2
+.tran 0 1
+.tran 0 0.25  
+.tran 0 0.001
+.tran 0 0.25  
+.tran 0 0.1
+.tran 0 0.25  
+.tran 0 0.25
+.tran 0 0.1
+.tran 0 1
+.tran 0 0.25  
+.tran 0 2.0e-2 
+.tran 0 0.25
+.tran 0 0.1
+.TRAN 0.1MS 20MS
+.TRAN 0.1MS 20MS 
+.tran 1ns 30ns
+.TRAN 0.5U 100ms
+.TRAN 0 1ms
+.TRAN 0 1.0
+.TRAN 0 1.0
+.TRAN 0.5U 400ms
+.TRAN 0 50ms
+.TRAN 0 1ms
+.tran 1ns 30ns
+.TRAN 0 1.0
+.TRAN 0 1.0
+.TRAN 0.5U 400ms
+.tran 1ns 10us 
+.tran 1ns 50us
+.tran 1ns 20us
+.tran 1ns 30ns
+.TRAN 0.5U 400ms
+.TRAN 0 1ms
+.TRAN 0.5U 400ms
+.TRAN 0 1000ns
+.tran 1ns 30ns
+.tran 1ns 50us
+.tran 1ns 20us
+.tran 1ns 10us 
+.TRAN 0.5U 400ms
+.TRAN 0.5U 400ms
+.TRAN 0 1.0
+.tran 0 1e-3
+.TRAN 0.02U 4U
+.TRAN 0.5U 400ms
+.tran 1ns 20us
+.TRAN 0.5n 1u 0u 2n
+.tran 1ns 10us
+.tran 0 1e-3
+.TRAN 0 1.0
+.tran 1ns 10us
+.tran 0 1e-3
+.tran 0 1e-3
+.TRAN 0.02U 4U
+.TRAN 0.5n 1u 0u 2n
+.tran 1ns 20us
+.TRAN 0.5U 400ms
+.TRAN 0.5U 100ms
+.tran 1e-9 1e-7
+.TRAN 0 1.0
+.tran 1ns 15us
+.TRAN 0.5U 400ms
+.TRAN 0 1 0 100m
+.TRAN 0.5U 100ms
+.TRAN 0 1.0
+.TRAN 0.5U 400ms
+.TRAN 0.25N 50N
+.TRAN 0.5U 400ms
+.tran 1ns 22us
+.TRAN 0 1 0 100m
+.tran 1ns 15us
+.TRAN 0 1.0
+.tran 1e-9 1e-7
+.TRAN 0.5U 400ms
+.TRAN 0.25N 50N
+.TRAN 0.5U 400ms
+.tran 1ns 22us
+.TRAN 0 1.0
+.TRAN 0.5U 400ms
+.tran 100us 300ms 
+.TRAN 5U 7M
+.TRAN 0 1
+.tran 0 20e-4
+.TRAN 0 1
+.tran 0 40e-4
+.tran 0 1e-5
+.tran 0 1
+.tran 10us 1.0
+.TRAN 1u 1m 0 1u
+.tran  0.1 1.0
+.tran 0 1e-5
+.tran 10us 0.25
+.tran 0 1e-5
+.tran  0.1 2.0
+.tran 10n 5u
+.TRAN 0 5ms
+.tran 20ns 30us
+.tran 10n 2u
+.tran 1ps 4ns
+.tran 20ns 6us
+.TRAN 1U 5M
+.tran 1ns 60ns
+.TRAN .1S 7S
+.tran 20ns 6us
+.TRAN 1NS 100NS
+.TRAN 1NS 100NS
+.TRAN 1u 1.0e-3
+.tran 1us 1ms 0 1ns
+.TRAN 0.25N 50N
+.tran 1us 1ms 0 1ns
+.TRAN 0.25N 50N
+.TRAN 1u 1.0e-3
+.tran 10us 0.25
+.tran .05U 500U NOOP
+.tran 1u .8
+.tran 0 5ms
+.tran 0 2.0e-4
+.tran 1e-5 5ms 
+.tran 0 5ms
+.tran 1ns 1us  UIC
+.tran 1ns 1us  NOOP
+.tran 1ns 1us  UIC
+.tran 1ns 1us  UIC
+.tran 1ns 1us  UIC
+.tran 0 5ms 
+.tran 20ns 6us
+.tran 50us 15ms
+.tran 50us 15ms
+.TRAN 5e-10 1.6e-07
+.TRAN 1e-09 1e-06
+.TRAN 1e-09 5e-07
+.TRAN 1e-08 1e-06
+.TRAN 1e-09 6e-07
+.TRAN 1e-10 9e-07
+.TRAN 2e-09 2e-07
+.TRAN 1e-09 2e-07
+.TRAN 1e-09 4e-07
+.TRAN 1e-09 6.5e-06
+.TRAN 1e-09 1e-07
+.TRAN 1e-08 5e-06
+.TRAN 1e-09 1e-07
+.TRAN 1e-07 2.4e-05
+.tran .1ns 100ns
+.tran 1N 100N 
+.tran .5ns 100ns
+.tran 2ns 200ns
+.tran 100u 400000u 
+.TRAN 10NS 2000NS
+.tran 1n 1000n
+.tran 0.1ns 50ns
+.TRAN 1e-07 3e-05
+.tran .1n 100n
+.tran .2ns 100ns
+.tran 100n 200000n 
+.TRAN 1e-09 8e-07
+.tran  2ns 200ns 1ns
+.tran 1n 120n
+.tran .25n 16n 
+.tran 1ns 200ns
+.tran .5ns 50ns
+.tran 1.00000000000000e-09 5.30000000000000e-07   
+.tran 1.00000000000000e-09 5.30000000000000e-07
+.tran .05n 20n
+.tran 2ns 600ns
+.TRAN 1e-09 2e-07
+.tran 0.25ns 20ns
+.TRAN .1S 7S
+.TRAN 0 0.5ms
+.tran 0 1e-3
+.TRAN 100US 25MS
+.TRAN 0 1ms 
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 0 1ms 
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 0 1ms 
+.TRAN 0 1ms 
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS 
+.TRAN 100US 25MS
+.TRAN 0 1ms 
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 0 1ms 
+.TRAN 0 1ms 
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 1e-9 1e-6 
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 0.1MS 50MS UIC
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 0 1ms 
+.TRAN 100US 25MS
+.TRAN 0 1ms 
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 2ns 2ms
+.tran 0 5ms
+.tran 0 5ms
+.tran 0 5ms
+.TRAN 0.25ms 0.25ms
+.tran 0 5ms
+.tran 0 5ms
+.tran 0 5ms
+.TRAN 0.25ms 0.25ms
+.tran 10p 2e-5
+.TRAN 0.5n 1.07u 1u .1n
+.tran 0 0.05
+.tran 1ns 1ms
+.TRAN 1US 10US
+.tran 1ns 1ms
+.TRAN 0.5U 400ms
+.TRAN 0.1MS 20MS 
+.TRAN 0.5U 400ms
+.TRAN 0.5U 400ms
+.TRAN 0 0.005
+.TRAN 0.5U 400ms
+.tran 0 5.0e-4  0.0 5.0e-7
+.TRAN 1e-10 0.5e-2
+.TRAN 1e-10 0.5e-2
+.TRAN 1e-10 0.5e-2
+.TRAN 1e-10 0.5e-2
+.TRAN 1e-10 0.5e-2
+.TRAN 1e-10 0.5e-2
+.tran 0 1.0e-2
+.tran 0 1.0e-2
+.tran 1ms 12.6s
+.tran 1ns 10ns
+.tran 1n 5m
+.tran 20ns 2us
+.TRAN 0.02 0.8
+.TRAN 0.02 0.8
+.tran 1m 1
+.tran 1m 1
+.tran 1ns 10us
+.TRAN 0 8u 0 0.08u
+.TRAN 0.02u 4u
+.tran 10us 10ms 0 10us
+.tran 20ns 3us
+.TRAN 0.5n 1.2u 1u .1n
+.TRAN 0 1ms
+.tran 1ns 50us
+.TRAN 0 1ms
+.TRAN 0 1ms
+.TRAN 0.5n 1.2u 1u .1n
+.tran 20ns 3us
+.tran 1ns 50us
+.tran 1ns 50us
+.tran 0 1e-3
+.TRAN 0.5U 400ms
+.tran 1ns 10us
+.TRAN 0 1000ns
+.TRAN 0.5U 400ms
+.TRAN 0.1MS 20MS
+.TRAN 0.5n 1u 0u 2n
+.TRAN 0.5U 400ms
+.tran 0 1e-3
+.TRAN 0.1MS 20MS
+.TRAN 0.5U 400ms
+.TRAN 0.5n 1u 0u 2n
+.tran 1ns 10us
+.tran 1ns 30ns
+.tran 1ns 50us
+.TRAN 0.5U 400ms
+.tran 20ns 3us
+.tran 1ns 10us
+.tran 0 1e-3
+.TRAN 0.02U 4U
+.TRAN 0.5U 400ms
+.tran 1ns 50us
+.tran 1ns 30ns
+.tran 0 1e-3
+.tran 1ns 10us
+.tran 20ns 3us
+.TRAN 0.02U 4U
+.tran 1ns 20us
+.tran 1ns 30ns
+.TRAN 1S 12S
+.TRAN 0.25N 50N
+.tran 1ns 20us
+.TRAN 1S 12S
+.tran 1ns 30ns
+.TRAN 0.25N 50N
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1e-4 0 1e-7
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.tran 0 20e-4
+.TRAN 0 1e-4 0 1e-7
+.TRAN 0 1e-4 0 1e-7
+.TRAN 0 1
+.TRAN 0 1e-4 0 1e-7
+.TRAN 0 1e-4 0 1e-7
+.TRAN 0 1e-4 
+.tran 1e-6 4e-3
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1e-3
+.TRAN 0  1.0e-4
+.TRAN 0 1e-4 0 1e-7
+.TRAN 0 1e-4 0 1e-7
+.TRAN 0 1e-4 0 1e-7
+.tran 0 20e-4
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1e-4 0 1e-7
+.tran 0 1ms 
+.TRAN 0.5NS 125NS
+.tran .05U 500U NOOP
+.TRAN 5U 7M
+.tran 1ns 50us
+.tran 1n 5u
+.tran 1n 5u
+.tran 1n 20u 
+.tran 1ns 50us
+.tran 1ns 20us
+.TRAN 0.5U 400ms
+.tran 1ns 20us
+.tran 50ns .5ms 
+.TRAN 0.1MS 2MS
+.tran 20ns 6us
+.TRAN 0.02MS 2MS
+.tran 0 2.0e-3  {schedule( 0.5e-3, 0, 1.0e-3, 1.0e-6, 1.5e-3, 1.0e-4, 2.0e-3, 0 )}
+.TRAN 1S 6S
+.TRAN 1S 6S
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 1us
+.tran 0 5ms
+.tran 0 5ms
+.tran 0 5ms
+.TRAN 10ms 1 
+.TRAN 1N 100N
+.TRAN 1N 100N
+.TRAN 1N 100N
+.TRAN 1N 100N
+.TRAN 1N 100N
+.TRAN 1N 100N
+.TRAN 10ms 1 
+.TRAN 1N 100N
+.TRAN 1e-8 1e-6 
+.TRAN 1ns 1us 
+.TRAN 0 1ms
+.TRAN 1N 100N
+.TRAN 1N 100N
+.TRAN 1N 100N
+.tran 1ns 60ns
+.TRAN 1S 12S
+.tran  0 2.0e-3 0 1e-7 
+.tran 1u 2m 
+.tran 20ns 6us
+.tran 0 1.0e-2
+.tran 10us 10ms
+.tran 20ns 30us
+.TRAN .2U 3M 0.50M
+.TRAN 0.5N 200N
+.tran 0 2 1m
+.tran 0 2 1m
+.TRAN 1U 1.5M 5U NOOP
+.tran 1u 1s
+.tran 0 5ms
+.tran 0 5ms
+.tran 0 5ms
+.tran 1ns 1.5e-6
+.tran 1ns 7.5e-7
+.tran 0 1e-2
+.tran 0 1e-2
+.tran .05U 500U NOOP
+.tran .05U 500U NOOP
+.tran 0.1u 1.0u 
+.tran .05U 500U NOOP
+.tran .05U 500U NOOP
+.tran .05U 500U NOOP
+.tran .05U 500U NOOP
+.TRAN 0 4ms 0 
+.tran 10ns 250ns
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 1
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 10ms
+.tran 1ns 60ns
+.tran 20ns 10us
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 1ps 4ns
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 10us 10ms
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.TRAN 0 50n
+.TRAN 0 50n
+.tran 20ns 30us
+.tran 1ns 75ns
+.TRAN 1US 20.1US
+.tran 10n 5u
+.tran 1u .8
+.tran 1u .1
+.TRAN 0.25N 50N
+.TRAN 0.25N 60N
+.TRAN 0.25N 50N
+.TRAN 0.25N 50N
+.TRAN 0.25N 50N
+.tran 0 11ms
+.tran 10n 5u
+.tran 1.0e-3 2.0e-2
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.tran 1.0e-8
+.tran 1.0e-8
+.tran 1.0e-8
+.tran 1.0e-8
+.TRAN 10n 20n
+.tran 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.tran 1e-7   10e-5
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 0 5ms
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 1ns 10ns
+.TRAN 0 1
+.TRAN 0 1
+.tran 1ns 10ns
+.TRAN 0 1
+.tran 1ns 10ns
+.TRAN 0 1
+.TRAN 0  2ms
+.tran 0s 1s
+.tran 1ns 10ns
+.TRAN 0 1
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.TRAN 0 1
+.tran 1ns 10ns
+.TRAN 0 1
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 0 1
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 0 5ms
+.TRAN 0.25ms 0.25ms
+.tran 0 5ms
+.tran 0 5ms
+.TRAN 0.25ms 0.25ms
+.tran 0 5ms
+.TRAN 0 1ms 
+.tran 10p 2e-5
+.TRAN 0  10ms
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 10ns 6us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 10ns 6us
+.tran 10ns 6us
+.tran 10ns 6us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 10ns 6us
+.TRAN 0 20m
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 0.5n 1u 0u 2n
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 1ps 4ns
+.tran 1ns 60ns
+.tran 0.5n 1u 0u 2n
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 1ns 60ns
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 1ps 4ns
+.tran 1ns 60ns
+.tran 20ns 6us
+.tran 0.5n 1u 0u 2n
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 1ps 4ns
+.tran 20ns 6us
+.tran 1ns 60ns
+.tran 1ps 4ns
+.tran 1ps 4ns
+.tran 1ps 4ns
+.tran 20ns 6us
+.tran 0.5n 1u 0u 2n
+.tran 20ns 6us
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 20ns 6us
+.tran 0.5n 1u 0u 2n
+.tran 0.5n 1u 0u 2n
+.tran 1ns 60ns
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 1ns 60ns
+.tran 20ns 6us
+.tran 20ns 30us
+.tran 0 1e-5
+.tran 0 1e-5
+.tran 0 1e-5
+.tran 0 1e-5
+.tran 2ns 0.8ms 
+.tran 2ns 0.8ms 
+.TRAN 0 1
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1ms
+.TRAN 0 1
+.TRAN 0 50ms
+.tran 1ns 20us
+.tran 1ns 20us
+.tran 1ns 20us
+.tran 1ns 20us
+.tran 1ns 20us
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ms .1s
+.TRAN 20ns 30us 0 5ns
+.tran 10ns 6us
+.tran 10ns 6us
+.tran 1ns 60ns
+.tran 1ns 1us
+.tran 1ns 1us
+.tran 1ns 1us
+.tran 1ns 1us
+.tran 1ns 1us
+.tran 1ns 1us
+.tran 0 16.4
+.tran 0 80us 
+.tran 0 80us 
+.tran 0 80us 
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 10ns 6us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 10ns 6us
+.tran 10ns 6us
+.tran 10ns 6us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 10ns 6us
+.tran 20us 0.5s
+.tran 20us 0.5s
+.tran 20us 2.52s
+.tran 20us 2.52s
+.tran 0 0.20	; duration of sim
+.tran 0 0.4e-3
+.tran 0 2.0e-2 noop
+.tran 1ms .1s
+.TRAN 0 1ms
+.TRAN 2ns 2ms
+.tran 0 0.20	; duration of sim
+.TRAN 0.5U 2ms
+.tran  0.01 10 0
+.TRAN 0 1u 0 1ns
+.tran 1ns 1us
+.TRAN 0 10us
+.TRAN 0.1U 10us
+.TRAN 0.1U 10us
+.TRAN  10ns 200ns
+.tran 0 5ms
+.tran 0 5ms
+.tran 0 5ms
+.tran 20ns 10us
+.tran 0 5ms
+.tran 20ns 10us
+.tran 20ns 10us
+.tran 0.1u 1
+.tran 0.5s 60s
+.tran 0.01 1 
+.tran 0 1
+.tran 0.00001 7 uic
+.tran 40p 20n 0 10p 
+.tran 40p 20n 0 10p 
+.tran 0 1 0 100m
+.tran 0 1
+.tran 0.1s 60s
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1ns 10ns
+.tran 1.0e-3 2.0e-2
+.tran 0.1u .001
+.tran 0.1u .001
+.tran 0 5ms
+.tran 1ns 1us
+.tran 0.5s 60s
+.tran 100us 300ms 
+.tran 100us 300ms 
+.TRAN  0 10ms
+.TRAN  0 10ms
+.TRAN  0 10ms
+.TRAN  0 10ms
+.TRAN  0 10ms
+.tran 1us 1s
+.tran .0001 .03
+.tran .0001 .03
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.tran 0 1
+.tran 0 1
+.tran 1n 10n
+.tran 1n 10n
+.tran 1n 10n
+.tran 1ns 60ns
+.tran 0.1n 1n
+.tran 0.1n 1n
+.tran 0.1n 1n
+.TRAN 0 50ms
+.tran 1us 1s
+.tran 1us 1s
+.tran 0 4
+.tran 0 4
+.tran 0 4
+.tran 0 4
+.tran 0 0.17
+.tran 1u 1s
+.tran 1ns 4ms
+.TRAN 0.5N 200N
+.TRAN 0.5N 200N
+.TRAN 0.5N 200N
+.TRAN 0.5N 200N
+.TRAN 0.5N 200N
+.TRAN 0.5N 200N
+.tran 0 4 
+.tran 0 1.2ns
+.TRAN 1us 1s 0.999s
+.tran 0 5ms
+.tran 0 5ms
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 0 0.4
+.tran 1ns 4ms
+.TRAN 0.25N 50N
+.tran 0 5ms
+.TRAN 0.25N 50N
+.tran 50ns 1ms 
+.TRAN 1ms 5ms
+.TRAN 1ms 5ms
+.TRAN 0 0.5ms
+.tran 1n 1 
+.tran 0.5s 60s
+.tran 0.1 5
+.tran 1u 10ms
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.tran 0 20e-4
+.tran 1ns 10us
+.tran 20ns 3us
+.tran 20ns 6us
+.tran 1ns 10us
+.tran 20ns 3us
+.tran 0.1ns 120ns 0 0.15ns
+.TRAN 0.25N 50N
+.TRAN 0  10ms
+.tran 0 4 0 .01
+.tran 0 4 
+.tran  0.01 10 0  
+.tran  0.01 10 0  noop
+.TRAN 1ms 5ms
+.TRAN 1ms 5ms
+.tran 20ns 30us
+.TRAN 0 1e-4 0 1e-7
+.tran 1u 10m
+.tran 20ns 10us
+.tran 1ns 1us
+.TRAN  100n 500ms 0 
+.TRAN  100n 500ms 0 
+.TRAN 0 1 
+.TRAN 1e-10 1.0us
+.TRAN 0 1 
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.TRAN 0 1 
+.TRAN 0 1 
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.TRAN 0 1 
+.TRAN 0 1 
+.TRAN 0 1 
+.TRAN 0 1 
+.TRAN 1US 20.1US
+.tran 0 1e-06
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 10ns 6us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 10ns 6us
+.tran 10ns 6us
+.tran 10ns 6us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 10ns 6us
+.tran 10p 1e-5
+.tran 10p 1e-5
+.TRAN 0  1.0e-4
+.TRAN 0  1.0e-4
+.TRAN 0.1MS 2MS
+.tran 0 1
+.TRAN 1u 1.0e-3
+.tran 0 5e-5
+.tran 0 4.0e-4
+.tran 0 5e-5
+.tran 0 4.0e-4
+.TRAN 1u 1.0e-3
+.tran 0 4.0e-4
+.tran 0 4.0e-4
+.tran 0 4e-4
+.tran 0 1e-5
+.tran 0 5e-5
+.TRAN 1u 1.0e-3
+.TRAN 1u 1.0e-3
+.tran 0 5e-5
+.tran 0 1e-5
+.tran 0 4.0e-4
+.tran 20ns 30us
+.tran 0 5ms
+.tran 1ns 50us
+.tran 10n 20u
+.tran .01n 8n 0 .0001n
+.tran 1ns 1us
+.tran 1ns 1us
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.tran 0.5s 60s
+.TRAN 0 1
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.TRAN 100US 25MS
+.tran 1N 100N 
+.tran 1u 
+.tran 20ns 3us
+.TRAN 1US 20.1US
+.TRAN 0.5U 100U
+.tran 20ns 30us
+.tran 1ns 60ns
+.tran 20ns 6us
+.tran 1ps 4ns
+.tran 1ps 4ns
+.tran 20ns 6us
+.tran 1ns 60ns
+.tran 20ns 6us
+.tran 1ns 60ns
+.tran 1ps 4ns
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 20ns 30us
+.TRAN 0.5n 1u 0u 2n
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 20ns 6us
+.tran 20ns 6us
+.TRAN 0.5n 1u 0u 2n
+.TRAN 0.5n 1u 0u 2n
+.tran 1ps 4ns
+.tran 1ns 60ns
+.tran 1ps 4ns
+.tran 20ns 6us
+.TRAN 0.5n 1u 0u 2n
+.tran 20ns 6us
+.tran 20ns 30us
+.tran 20ns 6us
+.tran 1ps 4ns
+.tran 20ns 30us
+.tran 1ps 4ns
+.tran 20ns 6us
+.tran 20ns 30us
+.tran 20ns 6us
+.tran 20ns 30us
+.tran 20ns 6us
+.tran 1ps 4ns
+.tran 20ns 30us
+.tran 20ns 30us
+.TRAN 3.0E-8 1.0e+2  
+.TRAN 3.0E-8 1.0e+2  
+.TRAN 3.0E-8 1.0e+2  
+.TRAN 3.0E-8 1.0e+2  
+.TRAN 3.0E-8 1.0e+2  
+.TRAN 3.0E-8 1.0e+2  
+.tran 1ns 1us
+.TRAN 0 100ns 0
+.TRAN 0 100ns 0
+.TRAN 0 1us
+.TRAN 0 1us
+.tran  0.01 10 0
+.TRAN .2U 3M 0.50M
+.TRAN .2U 3M 0.50M
+.tran 0 5ms uic
+.TRAN 1e-10 1.0us
+.TRAN 1E-9 150E-6 0 
+.tran 1n 500n
+.TRAN 100US 25MS
+.tran 10ns 1.2us
+.TRAN 1U 1000U 0 5U
+.TRAN 0.5N 200N
+.TRAN 0.5N 200N
+.TRAN 0.25N 50N
+.TRAN 0.25N 20N
+.TRAN 0.25N 50N
+.tran 0 1.0e-6
+.TRAN 0.5U 100ms
+.TRAN 0 1.0
+.TRAN 0 2ms
+.tran 1ns 10us
+.TRAN 0 1.0
+.TRAN 0 1.0
+.tran 20ns 3us
+.tran 1ns 10us
+.TRAN 100US 25MS
+.tran 1ns 20us
+.tran 0 1
+.tran 1u 5m
+.tran 1u 5m
+.TRAN 0 1S
+.TRAN 0 1S
+.TRAN 0 1S
+.TRAN 0 1S
+.TRAN 0 1S
+.tran 0 1e-3
+.TRAN 0 1S
+.tran 0 1e-3
+.TRAN 0 1S
+.TRAN 0 1S
+.TRAN 0 1S
+.tran 0 1e-3
+.TRAN 0 1S
+.tran 0 1e-3
+.TRAN 0 1S
+.TRAN 0 1S
+.TRAN 0 1S
+.TRAN 0 1S
+.TRAN 1ms 2ms 0ms 1ms
+.TRAN 5U 7M
+.TRAN 5U 7M
+.tran 0 5ms
+.tran 0 5ms
+.tran 0 5ms
+.TRAN 0 0.5ms
+.tran 0 5ms
+.tran 0 1
+.tran 0 10ms
+.tran 20ns 30us
+.tran 20ns 6us
+.TRAN 0 1ms
+.TRAN 0.5U 100U
+.tran 0 .1m
+.tran 0 .1m
+.tran 0 10m
+.tran 0 10m
+.tran 0 10m
+.tran 0 .1m
+.tran 0 .1m
+.tran 0 10m 
+.tran 0 .1m
+.tran 0 .1m
+.tran 0 .1m
+.tran 1ns 1ns
+.tran 1ns 1ns
+.tran 1ns 1ns
+.tran 1ns 1ns
+.tran 1ns 1ns
+.tran 1ns 1ns
+.tran 1ns 1ns
+.tran 1ns 1ns
+.tran 1ns 1ns
+.tran 1ns 1ns
+.tran 1ns 1ns
+.tran 1ns 1ns
+.TRAN 0 1
+.TRAN 0 3
+.tran 1us 10us
+.tran 1u 1s
+.TRAN 0.02MS 2MS
+.TRAN 0.02MS 2MS
+.tran 20ns 30us 
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us 
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us 
+.tran 20ns 30us 
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us 
+.tran 20ns 30us
+.tran 20ns 30us 
+.tran 20ns 30us
+.tran 0 1
+.tran 0 1
+.tran 0 1
+.tran 1u 5m
+.tran 1u 5m
+.tran 1us 2
+.tran 1ns 10us
+.tran 0 2 
+.tran 12000.100000ns 1550611.300000ns noop
+.tran 120.100000ns 4563.800000ns noop
+.TRAN 0 1
+.TRAN 0 2e-07
+.tran 20ns 2e-6
+.TRAN 1U 5M
+.TRAN 1U 5M
+.TRAN 1U 5M
+.TRAN .1ns 4us 0s .1ns
+.TRAN .1ns 4us 0s .1ns
+.tran 50ns 10us 
+.TRAN 0.5u 150ms
+.TRAN 1U 20M 10M 
+.TRAN .2U 3M 0.50M
+.TRAN .2U 3M 0.50M
+.tran 0 1
+.tran 1ns 50us
+.TRAN 1US 10US
+.TRAN 1S 12S
+.TRAN 1e-13 50ns
+.TRAN 1e-13 50ns
+.TRAN 1e-13 50ns
+.TRAN 1e-13 50ns
+.TRAN 0 1
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 10us 10ms 0 10us
+.TRAN 0  5ms 0 1.0e-5
+.TRAN 2ns  10ms 2ms 2.0e-5
+.tran {initial_step_value} {final_time_value} {start_time_value} {step_ceiling_value}
+.tran {2*initial_step_value} {2*final_time_value} {2*start_time_value} {2*step_ceiling_value}
+.tran {initial_step_value} {final_time_value}
+.tran 0 5ms
+.tran 1ns 1us
+.tran 0 5ms
+.tran 0 5ms
+.tran 0 5ms
+.tran 0 5ms
+.tran 1ns 30ns
+.tran 20ns 30us
+.TRAN 0.5U 100U
+.TRAN 0 1
+.tran  0.01 10 0
+.Tran 1 5
+.tran 1us 10us
+.tran 1us 10us
+.TRAN 0 1S
+.tran 1ns 1us
+.TRAN 0 1
+.tran 1ns 1ns
+.tran 1ns 1ns
+.tran 1ns 1ns
+.TRAN 0.01S 11S
+.Tran 1 5
+.TRAN 0 0.5ms
+.tran 0.01n 600ps
+.tran 0.01n 600ps
+.TRAN 1US 20.1US
+.tran 0 10m 
+.tran 0 .1m
+.tran 0 10m 
+.TRAN 0 0.5ms
+.TRAN 0 0.5ms
+.tran 0 .1m
+.tran 0.2n 1n
+.tran 1.0e-3 2.0e-2
+.tran 0.0 100.0 UIC
+.tran 0 5ms
+.tran 20ns 1us
+.tran 20ns 1us
+.TRAN 0.25N 50N
+.TRAN 0.25N 50N
+.TRAN 0.25N 50N
+.TRAN 0.25N 50N
+.tran 1m 1
+.tran 0 1
+.tran 0 1
+.tran 1u .8
+.tran 0 8.4
+.tran 1u .8
+.tran 0 1
+.TRAN 1N 20U
+.TRAN 1N 20U
+.TRAN 0.1MS 20MS
+.tran 0 1.0e-3
+.tran 0 2.0e-2
+.tran 0 1.0e-3
+.TRAN 0.1MS 20MS
+.tran 0 2.0e-2 
+.tran 0 8.4
+.tran 0 2.0e-2
+.tran 0 2.0e-2 noop
+.tran 0 2.0e-2 noop
+.tran 0 1
+.tran 0 2.0e-2 
+.TRAN 0 1.2s
+.tran 0 1e-5
+.TRAN 0 1
+.TRAN 0 1S
+.TRAN 0  1.0e-5
+.TRAN .1s 20s 
+.TRAN 1N 20U 
+.TRAN 0.1MS 20MS
+.tran 0 20e-3
+.tran 0 5ms
+.tran 0 2.0e-4
+.tran 0 5ms 
+.tran 0 5ms
+.TRAN 1S 5S
+.TRAN 0.01S 30S
+.TRAN 0.01S 30S
+.TRAN 0.01S 30S
+.tran 10n 5u
+.tran 1n 10u
+.tran 0 1
+.tran 0 1
+.tran 0 1
+.tran 0 1
+.TRAN 0.5N 200N
+.tran 1n 1u 0 1n
+.tran 20ns 30us
+.tran 0 1
+.tran 0 1
+.TRAN 0 1
+.tran 0 5ms
+.tran 0 5ms
+.tran 0 5ms
+.tran 0 5ms
+.TRAN 0 1ms
+.TRAN 0 1ms
+.TRAN 0 1ms
+.TRAN 0 1ms
+.TRAN 0.5U 400ms
+.TRAN 0 1ms
+.TRAN 0 1
+.TRAN 0 1ms
+.tran 1ps 1ns
+.TRAN 0 0 1
+.tran 0 5ms
+.tran 20ns 30us
+.tran 20ns 30us
+.TRAN 0 1ms
+.TRAN 0 1ms
+.TRAN 0 1ms
+.TRAN 0 1
+.tran 1ns 10ns
+.TRAN 0.25N 50N 
+.TRAN 0 1
+.tran 20us 0.5s
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 10ns 45ms 
+.tran 0 1e-3
+.TRAN 0.25N 50N
+.tran 0.1n 1n
+.tran 0 1e-3
+.TRAN 0 1
+.TRAN 0.02U 4U
+.tran 10ns 2us
+.TRAN 0 0.5ms
+.TRAN 0 2e-5
+.tran 2ns 1us
+.tran .5m 25m 
+.TRAN 0 2e-5
+.tran 2ns 1us
+.TRAN 0 0.3ms 
+.tran 2ns 0.5us
+.TRAN 0 0.3ms 
+.TRAN 0 2e-5
+.TRAN 0 0.3ms 
+.tran 2ns 1us
+.TRAN 0 2e-5
+.tran 2ps 1ns
+.tran 0 5ms uic
+.tran 2ns 1us
+.tran 0 5ms uic
+.tran 0 5ms uic
+.tran 0 5ms 0.002 uic
+.tran 1.0e-6 0.5e-2
+.tran 2ns 1us
+.TRAN 0 2e-5
+.TRAN 0 1
+.tran .5m 25m 
+.tran 2ns 1us
+.tran .5m 25m 
+.TRAN 0 2e-5
+.tran 2ns 1us
+.tran .5m 25m 
+.tran 0 5ms 0.002 uic
+.tran 5.0000ps 100.0000ps
+.tran 0 5ms 0.002 uic
+.tran 1.0e-6 0.5e-2
+.tran 2ps 1ns
+.tran 0 5ms uic
+.tran 2ns 1us
+.tran 2ns 1us
+.TRAN 0 1
+.tran 0 5ms uic
+.tran 1.0e-6 0.5e-2
+.tran 1.0e-6 0.5e-2
+.TRAN 0 2e-5
+.tran 0 5ms uic
+.tran 2ns 1us
+.tran 2ns 1us
+.TRAN 0 1
+.TRAN 0 2e-5
+.TRAN 0 2e-5
+.TRAN 0 0.3ms 
+.tran 20ns 1.5042e-6 1.504e-6
+.tran 2ps 1ns
+.tran 0 5ms 0.002 uic
+.tran 20ns 1.5042e-6 1.504e-6
+.tran 1.0e-6 0.5e-2
+.tran 1.0e-6 0.5e-2
+.tran 10p 2e-5
+.tran 2ns 1us
+.tran .5m 25m 
+.tran 0 5ms uic
+.tran 0 5ms uic
+.tran .5m 25m 
+.tran 20ns 1.5042e-6 1.504e-6
+.TRAN 0 2e-5
+.TRAN 0 2e-5
+.tran 1.0e-6 0.5e-2
+.tran 1.0e-6 0.5e-2
+.tran 0 5ms uic
+.TRAN 0 2e-5
+.tran 2ns 1us
+.tran .5m 25m 
+.tran 1ns 1
+.tran 0.1ns 100ps
+.tran 0.1ps 1ps
+.TRAN 0 100ns 0
+.TRAN  0 10ms
+.TRAN  0 10ms
+.TRAN 0 5ms
+.TRAN  0 1ms
+.TRAN 10u 10ms 0 UIC
+.TRAN 10u 10ms 0 UIC
+.TRAN 1us 500us
+.TRAN  0 1us
+.TRAN  0 400ms
+.TRAN  0 200ms
+.TRAN  0.1ms 1ms
+.TRAN  0.1ms 10ms
+.TRAN 0.1ms 2ms
+.TRAN  0 1ms
+.TRAN  0 1s 0
+.TRAN  0 0.5ms 0
+.TRAN  0 1ms 0
+.TRAN  0 0.5ms 0
+.TRAN  0 0.5ms 0
+.TRAN 0 .5ms 0
+.TRAN  0 1ms 0
+.TRAN  0 1ms 0
+.TRAN 0 .5ms 0
+.TRAN  0 1ms 0
+.TRAN  0 1s 0
+.TRAN  0 0.5ms 0
+.TRAN 0 1000ns
+.TRAN 0 1000ns
+.TRAN 0 100ns 0
+.TRAN 0 100ns 0
+.TRAN 0 5ms
+.TRAN  0 1ms
+.TRAN 0 2ms
+.TRAN  0 1ms
+.TRAN  0 1ms
+.TRAN  0 1ms
+.TRAN  0 1ms
+.TRAN  0 1ms
+.TRAN  0 1ms 0
+.TRAN  0 1ms 0
+.TRAN  0 1ms
+.TRAN  0 1ms
+.TRAN  0 1ms
+.TRAN 0 500us
+.TRAN  0 1us 
+.TRAN  0 400ms 
+.TRAN 0.02U 4U
+.TRAN 0.02U 4U
+.TRAN  0 200ms
+.TRAN  0 1ms 0
+.TRAN 0 2ms
+.TRAN  0 1ms 0
+.TRAN  0 1ms 0
+.TRAN 0 1000ns
+.TRAN 0 1U
+.TRAN 0 1000ns
+.TRAN 0 1000ns
+.TRAN 0 1000ns
+.TRAN 0 1us 0
+.TRAN  0 1ms
+.TRAN 0 1ms
+.TRAN  0 10ms
+.TRAN  0 10ms  
+.TRAN  0 10ms  
+.TRAN  10us 1ms
+.TRAN 0 2ms
+.tran 10u 2ms
+.tran 10u 2ms
+.tran 10u 2ms
+.tran 10u 2ms
+.tran 10u 1ms
+.tran 10u 1ms
+.tran 10u 1ms
+.TRAN 10us 1ms
+.TRAN 0 100ms
+.TRAN  0 1ms 0
+.TRAN 0 1ms
+.TRAN  0 1ms 0
+.TRAN  0 1ms 0
+.TRAN  0 1ms 0
+.TRAN 0 2ms
+.TRAN 0 2ms
+.TRAN 0 3ms
+.TRAN  0 1ms 0
+.TRAN  0 1ms 0
+.TRAN  0 10ms 0
+.TRAN  0 1ms 0
+.TRAN 2ns 2ms
+.tran 1ns 20us
+.tran 0 1e-3
+.tran 0 5ms
+.TRAN 0 1e-6
+.tran 0.1ns 100ps
+.tran 0.1ns 100ps
+.tran 0.1ns 100ps
+.TRAN 1U 3u
+.TRAN 0 0.5ms
+.tran 1ns 1ms
+.tran 1ps 1ns
+.tran 1ps 1ns
+.tran 1ns 1ms
+.TRAN 1U 1M
+.TRAN 1U 16M 6M 
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1ms 1
+.tran 1ms 1
+.tran 1ms 1
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1us 10us
+.tran 1ms 1
+.tran 1us 10us
+.tran 1us 10us
+.tran 1ns 1.5e-6
+.tran 1ns 40ns
+.tran 1ns 1.5e-6
+.TRAN 0 1ms 
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 1ns 40ns
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 1ns 40ns
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.tran 10p 2e-5
+.tran 1ns 1.5e-6
+.tran 1ns 1.5e-6
+.TRAN 0 0.5ms
+.TRAN 0 0.5ms
+.tran 1n 4u
+.TRAN 0 0.5ms
+.TRAN 0 0.5ms
+.tran 1n 4u
+.tran 1n 4u
+.TRAN 0 0.5ms
+.TRAN 0 0.5ms
+.TRAN 0 0.5ms
+.tran 1n .2u
+.tran 1n .2u
+.tran 1n 4u
+.tran 1n 4u
+.TRAN 1u 1m 0 1u
+.TRAN 0.1MS 2MS 0MS
+.tran 0.1ns 0.4us
+.tran 10p 5e-7
+.tran 10p 1.2us
+.tran 10p 1.2us
+.tran 10p 5e-7
+.tran 0.1ns 0.4us
+.tran 10p 500e-9
+.tran 10p 5e-7
+.tran 10p 1.2us
+.tran 10p 1.2us
+.tran 10p 5e-7
+.tran 10p 500e-9
+.tran 0.1u 2e-3 
+.tran 0.1u 2e-3 
+.tran 10p 1.2us
+.tran 10p 1.2us
+.tran 10p 500e-9
+.tran 10p 5e-7
+.tran 10p 5u
+.tran 10p 5u
+.TRAN 1U 20M 10M 
+.TRAN 0.02MS 2.5MS
+.TRAN 1U 3M 1M
+.TRAN 0.1S 5S
+.TRAN 0.1US 5US
+.tran  0.01 10 0
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 0 1 0 100m
+.TRAN 0 0.5ms
+.tran 20ns 30us
+.TRAN 0 1
+.tran 1n 5m
+.tran 1m 10s
+.tran 1ns 1ns
+.tran 0 5ms
+.tran 0 1 0 100m
+.tran 0 5ms
+.tran 1ns 1ns
+.tran 0 1 0 100m
+.tran 0.1ns 70ns 0 0.15ns
+.tran 0.1ns 120ns 0 0.15ns noop
+.tran 0.1ns 70ns 0 0.15ns
+.tran 0.001ns 10ns 0 0.1ns
+.tran 0.1ns 60ns 0 0.1ns
+.tran 0.1ns 120ns 0 0.15ns
+.tran 0.1ns 60ns 0 0.15ns
+.TRAN 1e-13 40ns
+.tran 0.1ns 120ns 0 0.15ns
+.TRAN 1e-13 40ns
+.tran 0.1ns 70ns 0 0.15ns
+.tran 0.2n 10n
+.tran 20ns 30us
+.tran 0.01n 600ps
+.TRAN 1N 20U 
+.TRAN 1N 20U 
+.TRAN 0 1
+.TRAN 0 50n
+.TRAN 0 50n
+.TRAN 0 50n
+.tran 1m 9.25s
+.tran 1u 10s
+.tran 1u 10s
+.tran 0.1u 1
+.TRAN 1S 5S 
+.tran 10n 5u
+.TRAN 0.0 1.0
+.TRAN 0.0 1.0
+.TRAN 0.0 1.0
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 1n 1 
+.tran 0 1
+.tran 1ns 1ms
+.tran 1n 0.1u 0 
+.TRAN 2ns 2ms
+.TRAN 100US 100MS
+.tran 1ps 1ns
+.TRAN 0 1
+.TRAN 0 1ms
+.TRAN 0 1
+.TRAN 1e-8 1e-6
+.TRAN 0 1
+.TRAN 0 0.05
+.TRAN 0  1ms
+.TRAN 0 1
+.TRAN 0  10ms
+.TRAN 0 3ms 0 0.01ms
+.TRAN 0  1ms
+.TRAN 0  1ms
+.TRAN 0 1
+.TRAN 0  3ms
+.TRAN 0 0.6ms
+.TRAN 0 1
+.TRAN 0 1ms 0 0.01ms
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1ms
+.TRAN 0 1
+.TRAN 0  3ms
+.TRAN 0 1ms
+.TRAN 0  2ms
+.TRAN 0  1ms
+.TRAN 0 1
+.TRAN 0  30ms
+.TRAN 0  10ms
+.TRAN 0  10ms
+.TRAN 0 1ms
+.TRAN 0 1ms
+.TRAN 0  1
+.TRAN 0 1
+.tran 0 1 
+.TRAN 0 1
+.TRAN 1e-8 1e-6 
+.TRAN 0 2ms 
+.TRAN 0  1
+.TRAN 0  0.1
+.TRAN 0 1ms
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0  10ms
+.TRAN 0  1ms
+.TRAN 0 1
+.TRAN 0  100ms
+.TRAN 0  1ms
+.TRAN 0 1
+.TRAN 0 1ms 0 0.01ms
+.TRAN 0  0.1
+.TRAN 0  10ms 0 1.0e-5
+.TRAN 0 1
+.TRAN 0 0.05
+.TRAN 0 1
+.TRAN 0  5ms 0 1.0e-5
+.TRAN 1e-8 1e-6
+.TRAN 0 1
+.tran 0 250ms 
+.TRAN 0 10ms
+.TRAN 0  1ms
+.TRAN 0  1ms
+.TRAN 0  10ms
+.TRAN 0  10ms
+.TRAN 0  3ms
+.TRAN 0  1 
+.TRAN 0 4 
+.TRAN 0  1ms
+.tran 0 1 
+.TRAN 0  1ms
+.TRAN 1e-8 1e-6 
+.TRAN 0 1
+.TRAN 0  1ms
+.TRAN 0 1
+.TRAN 0  10ms
+.TRAN 0  1
+.TRAN 0 0.1
+.TRAN 0 1
+.TRAN 0  1
+.TRAN 0 1
+.TRAN 0  1
+.TRAN 0  1
+.TRAN 1e-8 1e-6 
+.TRAN 0  3ms
+.TRAN 0 1
+.TRAN 0  1
+.TRAN 0 1ms
+.TRAN 0  1ms
+.TRAN 0  1
+.TRAN 0 1
+.TRAN 0  1ms
+.TRAN 0  1ms
+.TRAN 0  3ms
+.TRAN 0 1
+.TRAN 0  3ms
+.TRAN 0 1
+.TRAN 0  1ms
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0  10ms
+.TRAN 0 3ms 0 0.01ms
+.TRAN 0  3ms
+.TRAN 0  1
+.TRAN 0 1
+.TRAN 0  3ms
+.TRAN 0 0.6ms
+.TRAN 0 0.6ms
+.TRAN 0 0.6ms
+.TRAN 0  1
+.TRAN 0  3ms
+.TRAN 0  3ms
+.TRAN 0  1
+.TRAN 0  1
+.TRAN 0 1ms 0 0.01ms
+.TRAN 0  3ms
+.TRAN 0 1
+.TRAN 0  30ms
+.TRAN 0  30ms
+.TRAN 0  3ms
+.TRAN 0  30ms
+.TRAN 0  30ms
+.TRAN 0  250ms
+.TRAN 0  250ms
+.TRAN 0  250ms
+.TRAN 0  30ms
+.TRAN 0 2ms 0 0.01ms
+.TRAN 0  1
+.TRAN 0  5ms 0 1.0e-5
+.TRAN 0  5ms 0 1.0e-5
+.TRAN 0 1
+.tran 0 1
+.TRAN 0 2ms 0 0.01ms
+.TRAN 0  5ms 0 1.0e-5
+.TRAN 0 10ms
+.TRAN 0 10ms
+.TRAN 0  5ms 0 1.0e-5
+.TRAN 0 0.5
+.TRAN 0 1ms 0 0.01ms
+.TRAN 1e-8 1e-6 
+.TRAN 0  100ms
+.TRAN 1e-8 1e-6 
+.TRAN 0 1ms 0 0.01ms
+.TRAN 0  1ms
+.TRAN 0 1ms 0 0.01ms
+.TRAN 0  0.5
+.TRAN 0  10ms
+.TRAN 0  10ms
+.TRAN 0  0.5
+.TRAN 0 2ms 0 0.01ms
+.TRAN 0  5ms 0 1.0e-5
+.TRAN 0  3ms
+.TRAN 0  3ms
+.TRAN 0  0.5
+.TRAN 0  10ms
+.TRAN 0  10ms
+.TRAN 0  10ms
+.TRAN 0  0.5
+.TRAN 0  250ms
+.TRAN 0  3ms
+.TRAN 0 3ms 0 0.01ms
+.TRAN 0 3ms 0 0.01ms
+.TRAN 0  3ms
+.TRAN 0  250ms
+.TRAN 0  0.5
+.TRAN 0  10ms
+.TRAN 0 10ms
+.TRAN 0  10ms
+.TRAN 0  3ms
+.TRAN 0  250ms
+.TRAN 0  10ms
+.TRAN 0  3ms
+.TRAN 0  3ms
+.TRAN 0  3ms
+.TRAN 0 1
+.TRAN 0  10ms
+.TRAN 0  10ms
+.TRAN 0 1
+.TRAN 0  3ms
+.TRAN 0  10ms
+.TRAN 0  100ms
+.TRAN 1e-8 1e-6 
+.TRAN 0  100ms
+.TRAN 0  10ms
+.TRAN 0 0.5
+.TRAN 0  10ms
+.TRAN 0 1
+.TRAN 0  10ms
+.TRAN 0 0.5
+.TRAN 0  10ms
+.tran 0 1
+.tran 0.1ns 100ns
+.tran 0 1
+.TRAN 3.0E-8 30.0
+.TRAN 3.0E-8 5.0e+3  
+.TRAN 3.0E-8 1.0e+2  
+.TRAN 3.0E-8 30.0
+.TRAN 3.0E-8 1.0e+2  
+.TRAN 1.0E-8 2e5
+.TRAN 3.0E-8 30.0
+.TRAN 1N 20U 
+.TRAN 1N 20U 
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.tran 10n 5u
+.tran 1u 2m 
+.tran 1u 2m 
+.tran 100ns 100ms
+.tran 20ns 12us
+.tran 20ns 12us
+.tran 1ns     1000us NOOP
+.tran 1ns 100us  NOOP
+.TRAN 1e-8 3e-4
+.tran 0.1us 500us 0 0.01us
+.tran 0 1
+.tran 0 1
+.TRAN .2U 2.9M .4M
+.tran 0 1.0e-6
+.tran 0 1.0e-6
+.tran 0 1ms
+.tran 20ns 10us
+.tran 20ns 10us
+.tran 0 1ms
+.tran 20ns 10us
+.tran 1m 1
+.tran 1m 1
+.TRAN 0.5N 200N
+.TRAN 0.5N 200N
+.tran 20ns 30us
+.TRAN 0.5N 200N
+.TRAN 0 10
+.TRAN 0 10
+.tran 20ns 30us
+.tran 1us 5ms
+.tran 20ns 30us
+.tran 1us 5ms
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.TRAN 0.5N 200N
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 10ns 6us
+.tran 20ns 30us
+.tran 10ns 6us
+.tran 10ns 6us
+.tran 10ns 6us
+.TRAN 0.01US 10US 
+.tran 0 1.3
+.tran 1e-9 1e-7
+.tran 1e-9 1e-7
+.tran 1e-9 1e-7
+.tran 10ns 2.5us
+.tran 10ns 1.2us
+.tran 10ns 1.5us
+.tran 10ns 2us
+.tran 10ns 1us
+.tran 10ns 2us
+.tran 10ns 3.5us
+.tran 10ns 2us
+.tran 10ns 4us
+.tran 10ns 1us
+.tran 10ns 2us
+.tran 10ns 2us
+.tran 10ns 2us
+.tran 10ns 1us
+.tran 10ns 2us
+.tran 10ns 2us
+.tran 10ns 2us
+.tran 10ns 1us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.tran 20ns 30us
+.TRAN 0.1MS 20MS
+.TRAN 0.1MS 20MS
+.TRAN 0.1MS 20MS
+.tran 1us 2
+.TRAN 0.5U 400ms
+.tran 1ns 20us
+.tran 1ns 20us
+.tran 1ns 30ns
+.tran 1ns 20us
+.TRAN 1ns 1us 
+.tran 1u .8
+.tran 0 3.0e-8 
+.tran 20ns 30us
+.tran 0 3.0e-8 
+.tran .1ns 2ns
+.TRAN 0.25N 50N
+.TRAN 0.25N 50N
+.TRAN 0.25N 50N
+.TRAN 0.25N 50N
+.TRAN 0.25N 50N
+.TRAN 0.25N 50N
+.TRAN 0.25N 50N
+.TRAN 1us 5us
+.TRAN 2ns 2ms
+.tran 0.2n 10n
+.tran 20ns 30us
+.tran 0.01n 600ps
+.TRAN 0.06ms 6ms
+.tran 20ns 6us
+.tran 1N 100N 
+.tran 0 5ms
+.tran 1N 100N 
+.tran 0 5ms
+.tran 1N 100N 
+.tran 0 5ms
+.tran .1ns 2ns
+.tran 1ns 1us  UIC
+.tran 20ns 1us
+.tran 20ns 1us
+.tran   0    50e-5
+.tran   0    50e-5
+.tran 0 5ms
+.tran 0 3.0e-8 
+.tran 20ns 1us
+.tran 1ns 1us  NOOP
+.tran 0 5ms
+.tran 0 3.0e-8 
+.tran 0 5ms
+.tran 0 5ms
+.tran 20ns 1us
+.tran 20ns 1us
+.tran 20ns 1us
+.tran 0 5ms
+.tran 20ns 1us
+.tran 20ns 1us
+.tran 20ns 1us
+.tran .1ns 8ns
+.tran 20ns 1us
+.tran .1ns 2ns
+.tran .1ns 8ns
+.tran 1ns 1us  UIC
+.TRAN 2ns 2ms
+.tran 0 5m
+.tran 1n 4u
+.TRAN 2ns 2ms
+.TRAN 2ns 2ms
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.tran 20ns 1us
+.TRAN 1e-10 1.0us
+.TRAN 1e-10 1.0us
+.tran   0    50e-5
+.tran 0 5ms
+.TRAN 0.25ms 0.25ms
+.tran 0 5ms
+.tran 0 5ms
+.TRAN 0.25ms 0.25ms
+.tran 0 5ms
+.tran 1ns 1.5e-6
+.TRAN 0 1ms 
+.tran 10p 2e-5
+.tran 1ns 7.5e-7
+.tran 10ns 35us 
+.TRAN 0.1US 100US
+.TRAN 0.1US 100US
+.tran 20ns 1us
+.tran 20ns 1us
+.tran 20ns 1us
+.tran 20ns 1us
+.tran 20ns 1us
+.tran 20ns 1us
+.TRAN 0.5n 1u 0u 2n
+.tran 0.01 1
+.tran 0 5ms 0.002 uic
+.tran 0 5ms 0.002 uic
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1us
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.tran 1ns 1us
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.TRAN 0 1
+.tran 1ms 1
+.tran 0 1.3
+.TRAN 0.02U 4U
+.TRAN 0.0 1.0
+.tran 0.001 1
+.tran 0.001 1
+.tran 0 60e-4
+.tran 0 20e-4
+.tran 0 10e-3
+.tran 0 10e-3
+.tran 0 20e-4
+.tran 0 20e-4
+.TRAN 0.1MS 2MS
+.tran 10n 5u
+.tran 10n 5u
+.TRAN 10U 1M
+.TRAN 0.5U 400ms
+.tran 1n 2u
+.tran 1n 2u
+.tran 1n 2u
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 0 5ms
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 1ns 60ns
+.tran 1ns 60ns

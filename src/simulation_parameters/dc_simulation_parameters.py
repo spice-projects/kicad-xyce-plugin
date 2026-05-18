@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from netlist_parser import NetlistTopology
+from .print_parameters import PrintParameters
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,7 @@ class DCSimulationParameters:
     secondary_step: str = ""
     secondary_points: str = ""
     replace_ground: bool = True
+    print_parameters: PrintParameters | None = None
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "DCSimulationParameters" | None:
@@ -40,6 +42,7 @@ class DCSimulationParameters:
         secondary_step = ""
         secondary_points = ""
         replace_ground = True
+        print_parameters = None
         # flag indicating whether a valid directive was found
         found = False
         # parse directives
@@ -50,6 +53,16 @@ class DCSimulationParameters:
             if not tokens:
                 continue
             cmd = tokens[0].upper()
+            # parse print directives and retain dc-specific output config
+            if cmd == ".PRINT":
+                # parse the print statement from the directive
+                print_statement = PrintParameters.from_xyce_statement(directive)
+                # retain dc print parameters when found
+                if print_statement and print_statement.print_type == "DC":
+                    # store the parsed print parameters
+                    print_parameters = print_statement
+                    # next
+                    continue
             # handle preprocess replaceground
             if cmd == ".PREPROCESS" and len(tokens) > 2 and tokens[1].upper() == "REPLACEGROUND":
                 # set replace_ground based on the third token (e.g., "TRUE" or "FALSE")
@@ -125,21 +138,26 @@ class DCSimulationParameters:
                     secondary_stop = tokens[7]
                     secondary_step = tokens[8]
         # return instance
-        return cls(sweep_mode=sweep_mode, primary_variable=primary_variable, start=start, stop=stop, step=step, points=points, list_values=list_values, data_table_name=data_table_name, secondary_variable=secondary_variable, secondary_start=secondary_start, secondary_stop=secondary_stop, secondary_step=secondary_step, secondary_points=secondary_points, replace_ground=replace_ground) if found else None
+        return cls(sweep_mode=sweep_mode, primary_variable=primary_variable, start=start, stop=stop, step=step, points=points, list_values=list_values, data_table_name=data_table_name, secondary_variable=secondary_variable, secondary_start=secondary_start, secondary_stop=secondary_stop, secondary_step=secondary_step, secondary_points=secondary_points, replace_ground=replace_ground, print_parameters=print_parameters) if found else None
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
-        # build the single DC directive based on the selected sweep mode
-        if self.sweep_mode == "DATA":
-            # prepend replaceground preprocessing when enabled
-            return ([".PREPROCESS REPLACEGROUND TRUE"] if self.replace_ground else []) + [self._build_data_directive()]
-        if self.sweep_mode == "LIST":
-            # prepend replaceground preprocessing when enabled
-            return ([".PREPROCESS REPLACEGROUND TRUE"] if self.replace_ground else []) + [self._build_list_directive()]
-        if self.sweep_mode == "LIN":
-            # prepend replaceground preprocessing when enabled
-            return ([".PREPROCESS REPLACEGROUND TRUE"] if self.replace_ground else []) + [self._build_lin_directive()]
         # prepend replaceground preprocessing when enabled
-        return ([".PREPROCESS REPLACEGROUND TRUE"] if self.replace_ground else []) + [self._build_log_directive()]
+        preprocess = [".PREPROCESS REPLACEGROUND TRUE"] if self.replace_ground else []
+        # build the core dc directive based on the selected sweep mode
+        if self.sweep_mode == "DATA":
+            lines = [self._build_data_directive()]
+        elif self.sweep_mode == "LIST":
+            lines = [self._build_list_directive()]
+        elif self.sweep_mode == "LIN":
+            lines = [self._build_lin_directive()]
+        else:
+            lines = [self._build_log_directive()]
+        # append dc print directive when configured
+        if self.print_parameters and self.print_parameters.print_type == "DC":
+            # append the print statement
+            lines.append(self.print_parameters.to_xyce_statement())
+        # return the full directive list
+        return preprocess + lines
 
     def _build_data_directive(self) -> str:
         # data-driven sweep references an existing .DATA table by name

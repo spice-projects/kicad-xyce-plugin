@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 
 from netlist_parser import NetlistTopology
+from .print_parameters import PrintParameters
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,7 @@ class TransientSimulationParameters:
     op_keyword: str = ""
     schedule_points: tuple[TransientSchedulePoint, ...] = ()
     replace_ground: bool = True
+    print_parameters: PrintParameters | None = None
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "TransientSimulationParameters" | None:
@@ -33,6 +35,7 @@ class TransientSimulationParameters:
         op_keyword = ""
         schedule_points: list[TransientSchedulePoint] = []
         replace_ground = True
+        print_parameters = None
         # flag indicating whether a valid directive was found
         found = False
         # parse directives
@@ -44,6 +47,16 @@ class TransientSimulationParameters:
                 continue
             # get command
             cmd = tokens[0].upper()
+            # parse print directives and retain transient-specific output config
+            if cmd == ".PRINT":
+                # parse the print statement from the directive
+                print_statement = PrintParameters.from_xyce_statement(directive)
+                # retain transient print parameters when found
+                if print_statement and print_statement.print_type == "TRAN":
+                    # store the parsed print parameters
+                    print_parameters = print_statement
+                    # next
+                    continue
             # handle preprocess replaceground
             if cmd == ".PREPROCESS" and len(tokens) > 2 and tokens[1].upper() == "REPLACEGROUND":
                 # set flag based on value
@@ -91,13 +104,18 @@ class TransientSimulationParameters:
             if len(positional) >= 2:
                 step_ceiling_value = positional[1]
         # return instance if a valid directive was found
-        return cls(initial_step_value=initial_step_value, final_time_value=final_time_value, start_time_value=start_time_value, step_ceiling_value=step_ceiling_value, op_keyword=op_keyword, schedule_points=tuple(schedule_points), replace_ground=replace_ground,) if found else None
+        return cls(initial_step_value=initial_step_value, final_time_value=final_time_value, start_time_value=start_time_value, step_ceiling_value=step_ceiling_value, op_keyword=op_keyword, schedule_points=tuple(schedule_points), replace_ground=replace_ground, print_parameters=print_parameters,) if found else None
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # prepend replaceground preprocessor directive when enabled
         preprocess = [".PREPROCESS REPLACEGROUND TRUE"] if self.replace_ground else []
+        # start with the transient analysis directive
+        lines = [self._to_xyce_directive()]
+        # append transient print directive when configured
+        if self.print_parameters and self.print_parameters.print_type == "TRAN":
+            lines.append(self.print_parameters.to_xyce_statement())
         # return the full directive list
-        return preprocess + [self._to_xyce_directive()]
+        return preprocess + lines
 
     def _to_xyce_directive(self) -> str:
         # build the required transient directive fields first

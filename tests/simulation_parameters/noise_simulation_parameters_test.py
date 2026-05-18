@@ -1,11 +1,11 @@
-from simulation_parameters import NoiseSimulationParameters
+from simulation_parameters import NoiseSimulationParameters, PrintParameters
 
 
 class TestNoiseSimulationParameters:
 
     def test_lin_directive(self):
         # arrange
-        params = NoiseSimulationParameters(output_node="5", source_name="V1", sweep_mode="LIN", points="100", start="1", end="1MEG")
+        params = NoiseSimulationParameters(output_node="5", source_name="V1", sweep_mode="LIN", points="100", start="1", end="1MEG", replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -13,7 +13,7 @@ class TestNoiseSimulationParameters:
 
     def test_with_ref_node(self):
         # arrange
-        params = NoiseSimulationParameters(output_node="5", ref_node="3", source_name="V1", sweep_mode="LIN", points="100", start="1", end="1MEG")
+        params = NoiseSimulationParameters(output_node="5", ref_node="3", source_name="V1", sweep_mode="LIN", points="100", start="1", end="1MEG", replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -21,7 +21,7 @@ class TestNoiseSimulationParameters:
 
     def test_dec_directive(self):
         # arrange
-        params = NoiseSimulationParameters(output_node="out", source_name="Vin", sweep_mode="DEC", points="10", start="1k", end="100MEG")
+        params = NoiseSimulationParameters(output_node="out", source_name="Vin", sweep_mode="DEC", points="10", start="1k", end="100MEG", replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -29,7 +29,7 @@ class TestNoiseSimulationParameters:
 
     def test_data_directive(self):
         # arrange
-        params = NoiseSimulationParameters(output_node="out", source_name="Vin", sweep_mode="DATA", data_table_name="myTable")
+        params = NoiseSimulationParameters(output_node="out", source_name="Vin", sweep_mode="DATA", data_table_name="myTable", replace_ground=False)
         # act
         directives = params.to_xyce_directives()
         # assert
@@ -103,3 +103,28 @@ class TestNoiseFromXyceDirectives:
         params = NoiseSimulationParameters.from_xyce_directives([".TRAN 1ns 1ms"])
         # assert
         assert params is None
+
+    def test_serializes_print_noise_directive(self):
+        # arrange
+        print_params = PrintParameters(print_type="NOISE", output_variables=("V(OUT)",))
+        params = NoiseSimulationParameters(output_node="OUT", source_name="V1", sweep_mode="LIN", points="10", start="1", end="1MEG", replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert directives == [".NOISE V(OUT) V1 LIN 10 1 1MEG", ".PRINT NOISE V(OUT)"]
+
+    def test_parses_print_noise_directive(self):
+        # arrange / act
+        params = NoiseSimulationParameters.from_xyce_directives([".NOISE V(5) V1 LIN 10 1 1MEG", ".PRINT NOISE V(OUT)"])
+        # assert
+        assert params is not None
+        assert params.print_parameters is not None
+        assert params.print_parameters.print_type == "NOISE"
+        assert params.print_parameters.output_variables == ("V(OUT)",)
+
+    def test_ignores_non_noise_print_directive(self):
+        # arrange / act
+        params = NoiseSimulationParameters.from_xyce_directives([".NOISE V(5) V1 LIN 10 1 1MEG", ".PRINT TRAN V(OUT)"])
+        # assert
+        assert params is not None
+        assert params.print_parameters is None

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from netlist_parser import NetlistTopology
+from .print_parameters import PrintParameters
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,7 @@ class LinSimulationParameters:
     end: str = ""
     data_table_name: str = ""
     replace_ground: bool = True
+    print_parameters: PrintParameters | None = None
 
     # --- helpers ---
 
@@ -107,6 +109,7 @@ class LinSimulationParameters:
             "end": "",
             "data_table_name": "",
             "replace_ground": False,
+            "print_parameters": None,
         }
         found = False
         for directive in directives:
@@ -114,6 +117,16 @@ class LinSimulationParameters:
             if not tokens:
                 continue
             cmd = tokens[0].upper()
+            # parse print directives and retain ac-specific output config
+            if cmd == ".PRINT":
+                # parse the print statement from the directive
+                print_statement = PrintParameters.from_xyce_statement(directive)
+                # retain ac print parameters when found
+                if print_statement and print_statement.print_type == "AC":
+                    # store the parsed print parameters
+                    current["print_parameters"] = print_statement
+                    # next
+                    continue
             if cmd == ".PREPROCESS" and len(tokens) > 2 and tokens[1].upper() == "REPLACEGROUND":
                 current["replace_ground"] = tokens[2].upper() == "TRUE"
                 continue
@@ -155,4 +168,8 @@ class LinSimulationParameters:
         if self.precision:
             lin_parts.append(f"PRECISION={self.precision}")
         directives.append(" ".join(lin_parts))
+        # append ac print directive when configured
+        if self.print_parameters and self.print_parameters.print_type == "AC":
+            # append the print statement
+            directives.append(self.print_parameters.to_xyce_statement())
         return directives

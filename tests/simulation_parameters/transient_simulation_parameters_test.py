@@ -1,4 +1,59 @@
-from simulation_parameters import TransientSchedulePoint, TransientSimulationParameters
+from pathlib import Path
+
+from simulation_parameters import PrintParameters, TransientSchedulePoint, TransientSimulationParameters
+
+
+FIXTURES_DIR = Path(__file__).parent / "test-suite"
+
+
+class TestFromXyceDirectivesTestSuite:
+
+    def test_parses_all_directives_from_test_suite(self):
+        # arrange
+        test_suite_path = FIXTURES_DIR / "tran-directive.txt"
+        # read raw lines from the test suite file
+        lines = test_suite_path.read_text().splitlines()
+        # build directive list by joining continuation lines
+        directives = []
+        # init current directive buffer
+        current = None
+        for line in lines:
+            # strip surrounding whitespace
+            stripped = line.strip()
+            # skip empty lines and flush any buffered directive
+            if not stripped:
+                # flush current directive when present
+                if current is not None:
+                    # append buffered directive
+                    directives.append(current)
+                    # reset buffer
+                    current = None
+                # next
+                continue
+            # join continuation line to current directive
+            if stripped.startswith("+"):
+                # append continuation content to current directive
+                if current is not None:
+                    # merge continuation
+                    current = current + " " + stripped[1:].strip()
+                # next
+                continue
+            # flush current directive when present
+            if current is not None:
+                # append buffered directive
+                directives.append(current)
+            # start new directive
+            current = stripped
+        # flush trailing directive
+        if current is not None:
+            # append final directive
+            directives.append(current)
+        # act and assert
+        for directive in directives:
+            # parse the directive
+            result = TransientSimulationParameters.from_xyce_directives([directive])
+            # assert result is not none
+            assert result is not None
 
 
 class TestToXyceDirectivesBasic:
@@ -9,7 +64,7 @@ class TestToXyceDirectivesBasic:
         # act
         directives = params.to_xyce_directives()
         # assert
-        assert directives == [".TRAN 1u 1m"]
+        assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".TRAN 1u 1m"]
 
     def test_start_time_is_included_when_provided(self):
         # arrange
@@ -17,7 +72,7 @@ class TestToXyceDirectivesBasic:
         # act
         directives = params.to_xyce_directives()
         # assert
-        assert directives == [".TRAN 1n 10u 100n"]
+        assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".TRAN 1n 10u 100n"]
 
     def test_start_time_defaults_to_zero_when_only_step_ceiling_given(self):
         # arrange
@@ -25,7 +80,7 @@ class TestToXyceDirectivesBasic:
         # act
         directives = params.to_xyce_directives()
         # assert
-        assert directives == [".TRAN 1u 1m 0 5u"]
+        assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".TRAN 1u 1m 0 5u"]
 
     def test_step_ceiling_is_included_when_provided(self):
         # arrange
@@ -33,7 +88,7 @@ class TestToXyceDirectivesBasic:
         # act
         directives = params.to_xyce_directives()
         # assert
-        assert directives == [".TRAN 1u 1m 0 10u"]
+        assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".TRAN 1u 1m 0 10u"]
 
     def test_start_time_without_step_ceiling_does_not_append_blank(self):
         # arrange
@@ -41,7 +96,7 @@ class TestToXyceDirectivesBasic:
         # act
         directives = params.to_xyce_directives()
         # assert
-        assert directives == [".TRAN 1u 1m 500n"]
+        assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".TRAN 1u 1m 500n"]
 
     def test_op_keyword_noop_is_appended(self):
         # arrange
@@ -49,7 +104,7 @@ class TestToXyceDirectivesBasic:
         # act
         directives = params.to_xyce_directives()
         # assert
-        assert directives == [".TRAN 1u 1m NOOP"]
+        assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".TRAN 1u 1m NOOP"]
 
     def test_op_keyword_uic_is_appended(self):
         # arrange
@@ -57,7 +112,7 @@ class TestToXyceDirectivesBasic:
         # act
         directives = params.to_xyce_directives()
         # assert
-        assert directives == [".TRAN 1u 1m UIC"]
+        assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".TRAN 1u 1m UIC"]
 
     def test_empty_op_keyword_is_not_appended(self):
         # arrange
@@ -74,7 +129,16 @@ class TestToXyceDirectivesBasic:
         # act
         directives = params.to_xyce_directives()
         # assert
-        assert directives == [".TRAN 1u 1m 0 5u UIC"]
+        assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".TRAN 1u 1m 0 5u UIC"]
+
+    def test_print_parameters_is_appended_when_configured(self):
+        # arrange
+        print_parameters = PrintParameters(print_type="TRAN", print_format="RAW", print_file="out.raw", output_variables=("V(OUT)", "I(V1)"))
+        params = TransientSimulationParameters("1u", "1m", print_parameters=print_parameters)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".TRAN 1u 1m", ".PRINT TRAN FORMAT=RAW FILE=out.raw V(OUT) I(V1)"]
 
 
 class TestToXyceDirectivesSchedule:
@@ -85,7 +149,7 @@ class TestToXyceDirectivesSchedule:
         # act
         directives = params.to_xyce_directives()
         # assert
-        assert directives == [".TRAN 1n 5u {schedule(1u, 10n)}"]
+        assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".TRAN 1n 5u {schedule(1u, 10n)}"]
 
     def test_multiple_schedule_points_are_flattened(self):
         # arrange
@@ -93,7 +157,7 @@ class TestToXyceDirectivesSchedule:
         # act
         directives = params.to_xyce_directives()
         # assert
-        assert directives == [".TRAN 1n 20u {schedule(1u, 10n, 10u, 100n)}"]
+        assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".TRAN 1n 20u {schedule(1u, 10n, 10u, 100n)}"]
 
     def test_schedule_combined_with_start_and_step_ceiling(self):
         # arrange
@@ -101,7 +165,7 @@ class TestToXyceDirectivesSchedule:
         # act
         directives = params.to_xyce_directives()
         # assert
-        assert directives == [".TRAN 1n 10u 0 200n {schedule(5u, 50n)}"]
+        assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".TRAN 1n 10u 0 200n {schedule(5u, 50n)}"]
 
     def test_empty_schedule_points_produces_no_schedule_clause(self):
         # arrange
@@ -228,6 +292,29 @@ class TestFromXyceDirectivesBasic:
         # assert
         assert params.op_keyword == "UIC"
 
+    def test_parses_print_tran_directive(self):
+        # arrange / act
+        params = TransientSimulationParameters.from_xyce_directives([".TRAN 1u 1m", ".PRINT TRAN FORMAT=RAW FILE=tran.raw V(OUT) I(V1)"])
+        # assert
+        assert params.print_parameters is not None
+        assert params.print_parameters.print_type == "TRAN"
+        assert params.print_parameters.print_format == "RAW"
+        assert params.print_parameters.print_file == "tran.raw"
+        assert params.print_parameters.output_variables == ("V(OUT)", "I(V1)")
+
+    def test_ignores_non_transient_print_directive(self):
+        # arrange / act
+        params = TransientSimulationParameters.from_xyce_directives([".TRAN 1u 1m", ".PRINT DC V(OUT)"])
+        # assert
+        assert params.print_parameters is None
+
+    def test_parses_print_tran_expression_with_spaces(self):
+        # arrange / act
+        params = TransientSimulationParameters.from_xyce_directives([".TRAN 1u 1m", ".PRINT TRAN FORMAT=RAW V(OUT) {V(OUT) * I(V1)}"])
+        # assert
+        assert params.print_parameters is not None
+        assert params.print_parameters.output_variables == ("V(OUT)", "{V(OUT) * I(V1)}")
+
 
 class TestFromXyceDirectivesSchedule:
 
@@ -304,7 +391,7 @@ class TestFromXyceDirectivesReplaceGround:
         # arrange / act
         params = TransientSimulationParameters.from_xyce_directives([".TRAN 1u 1m"])
         # assert
-        assert params.replace_ground is False
+        assert params.replace_ground is True
 
 
 class TestFromXyceDirectivesRoundTrip:
@@ -332,6 +419,19 @@ class TestFromXyceDirectivesRoundTrip:
         assert parsed.replace_ground is True
         assert len(parsed.schedule_points) == 1
         assert parsed.schedule_points[0] == TransientSchedulePoint("500u", "1u")
+
+    def test_round_trip_with_print_parameters(self):
+        # arrange
+        print_parameters = PrintParameters(print_type="TRAN", print_format="RAW", print_file="waves.raw", output_variables=("V(OUT)", "ID(M1)", "{V(OUT)*I(V1)}"))
+        original = TransientSimulationParameters("1u", "1m", print_parameters=print_parameters)
+        # act
+        parsed = TransientSimulationParameters.from_xyce_directives(original.to_xyce_directives())
+        # assert
+        assert parsed.print_parameters is not None
+        assert parsed.print_parameters.print_type == "TRAN"
+        assert parsed.print_parameters.print_format == "RAW"
+        assert parsed.print_parameters.print_file == "waves.raw"
+        assert parsed.print_parameters.output_variables == ("V(OUT)", "ID(M1)", "{V(OUT)*I(V1)}")
 
 
 class TestTransientSchedulePoint:

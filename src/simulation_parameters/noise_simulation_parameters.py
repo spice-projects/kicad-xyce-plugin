@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 
 from netlist_parser import NetlistTopology
+from .print_parameters import PrintParameters
 
 
 def _parse_output_node(token: str) -> tuple[str, str]:
@@ -28,6 +29,7 @@ class NoiseSimulationParameters:
     end: str = ""
     data_table_name: str = ""
     replace_ground: bool = True
+    print_parameters: PrintParameters | None = None
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "NoiseSimulationParameters" | None:
@@ -41,6 +43,7 @@ class NoiseSimulationParameters:
         end = ""
         data_table_name = ""
         replace_ground = True
+        print_parameters = None
         # flag indicating whether a valid directive was found
         found = False
         # parse directives
@@ -51,6 +54,16 @@ class NoiseSimulationParameters:
             if not tokens:
                 continue
             cmd = tokens[0].upper()
+            # parse print directives and retain noise-specific output config
+            if cmd == ".PRINT":
+                # parse the print statement from the directive
+                print_statement = PrintParameters.from_xyce_statement(directive)
+                # retain noise print parameters when found
+                if print_statement and print_statement.print_type == "NOISE":
+                    # store the parsed print parameters
+                    print_parameters = print_statement
+                    # next
+                    continue
             # handle preprocess replaceground
             if cmd == ".PREPROCESS" and len(tokens) > 2 and tokens[1].upper() == "REPLACEGROUND":
                 # set replace_ground based on the third token
@@ -74,7 +87,7 @@ class NoiseSimulationParameters:
             # handle DATA sweep: .NOISE V(...) SRC DATA=<tablename>
             if sweep_token.startswith("DATA="):
                 sweep_mode = "DATA"
-                data_table_name = sweep_token.split("=", 1)[1]
+                data_table_name = tokens[3].split("=", 1)[1]
                 continue
             # detect log sweep type
             if sweep_token in ("DEC", "OCT"):
@@ -98,12 +111,12 @@ class NoiseSimulationParameters:
                     start = tokens[4]
                     end = tokens[5]
         # return instance if a valid directive was found
-        return cls(output_node=output_node, ref_node=ref_node, source_name=source_name, sweep_mode=sweep_mode, points=points, start=start, end=end, data_table_name=data_table_name, replace_ground=replace_ground) if found else None
+        return cls(output_node=output_node, ref_node=ref_node, source_name=source_name, sweep_mode=sweep_mode, points=points, start=start, end=end, data_table_name=data_table_name, replace_ground=replace_ground, print_parameters=print_parameters) if found else None
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # prepend replaceground preprocessing when enabled
         preprocess = [".PREPROCESS REPLACEGROUND TRUE"] if self.replace_ground else []
-        # build the V(out[,ref]) token
+        # build the v(out[,ref]) token
         if self.ref_node:
             out_token = f"V({self.output_node},{self.ref_node})"
         else:
@@ -115,4 +128,11 @@ class NoiseSimulationParameters:
             sweep = f"{self.sweep_mode} {self.points} {self.start} {self.end}"
         else:
             sweep = f"LIN {self.points} {self.start} {self.end}"
-        return preprocess + [f".NOISE {out_token} {self.source_name} {sweep}"]
+        # build the noise directive line
+        lines = [f".NOISE {out_token} {self.source_name} {sweep}"]
+        # append noise print directive when configured
+        if self.print_parameters and self.print_parameters.print_type == "NOISE":
+            # append the print statement
+            lines.append(self.print_parameters.to_xyce_statement())
+        # return the full directive list
+        return preprocess + lines

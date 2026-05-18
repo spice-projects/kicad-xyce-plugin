@@ -566,6 +566,16 @@ class TestNetlistParser:
         assert ".NODESET V(2)=5" in topology.directives
         assert len(topology.directives) == 4
 
+    def test_directive_extraction_includes_print_tran_with_expression(self):
+        # arrange
+        netlist = "Title\n.TRAN 1u 1m\n.PRINT TRAN FORMAT=RAW V(OUT) {V(OUT) * I(V1)}\n.END\n"
+        # act
+        _, topology = parse_netlist(netlist)
+        # assert
+        assert ".TRAN 1u 1m" in topology.directives
+        assert ".PRINT TRAN FORMAT=RAW V(OUT) {V(OUT) * I(V1)}" in topology.directives
+        assert len(topology.directives) == 2
+
     def test_directive_extraction_ignores_non_simulation_directives(self):
         # arrange
         netlist = "Title\n.MODEL M1 NMOS\n.SUBCKT S1 A B\n.ENDS\n.END\n"

@@ -4,6 +4,7 @@ from .hb_simulation_parameters import HbSimulationParameters
 from .lin_simulation_parameters import LinSimulationParameters
 from .noise_simulation_parameters import NoiseSimulationParameters
 from .op_simulation_parameters import IcEntry, NodesetEntry, OpSimulationParameters
+from .print_parameters import PrintParameters
 from .simulation_parameters_dialog import SimulationParametersDialog
 from .simulation_parameters import from_xyce_directives
 from .transient_simulation_parameters import TransientSchedulePoint, TransientSimulationParameters
@@ -15,6 +16,7 @@ __all__ = [
     "IcEntry", "LinSimulationParameters",
     "NoiseSimulationParameters",
     "NodesetEntry", "OpSimulationParameters",
+    "PrintParameters",
     "SimulationParametersDialog",
     "from_xyce_directives",
     "TransientSchedulePoint", "TransientSimulationParameters",

@@ -413,7 +413,6 @@ class MainWindow(QMainWindow):
         # check we need to create a new chart
         if not self._charts:
             self._add_chart([])
-        
 
     def _load_netlist_file(self, netlist_file_path: Path) -> None:
         try:
@@ -464,8 +463,6 @@ class MainWindow(QMainWindow):
         logger.debug("User requested Smith chart on chart at index: %d", chart_index)
         # filter expressions to those suitable for Smith charting (network parameters with complex data)
         expressions = [expression for expression in self._expression_manager.expressions if expression.name.startswith(("S11", "S22")) and expression.variable_type == "parameter"]
-        # visualize the first expression
-        plot_suggestion = f"\xab{expressions[0].name}\xbb" if expressions else ""
         # create expression manager
         expression_manager = ExpressionManager([self._raw_file.abscissa] + expressions, self._expression_manager.function_definitions, self._expression_manager.step_slices)
         # create raw file
