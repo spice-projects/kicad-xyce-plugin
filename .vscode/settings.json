@@ -26,6 +26,14 @@
     "/^source \\.venv/bin/activate && pytest --collect-only -q tests/window_test\\.py && pytest --collect-only tests --rootdir=\\.$/": {
       "approve": true,
       "matchCommandLine": true
+    },
+    "/^source \\.venv/bin/activate && pytest tests/simulation_parameters/ -q -x 2>&1 \\| tail -30$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^source \\.venv/bin/activate && pytest tests/simulation_parameters/ -q -x 2>&1 \\| tail -40$/": {
+      "approve": true,
+      "matchCommandLine": true
     }
   }
 }

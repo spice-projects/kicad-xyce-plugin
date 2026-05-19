@@ -545,6 +545,7 @@ class TestNetlistParser:
         # assert
         assert isinstance(sanitized, str)
         assert isinstance(topology, NetlistTopology)
+        assert sanitized.endswith("\n")
 
     def test_device_is_dataclass_instance(self):
         # arrange

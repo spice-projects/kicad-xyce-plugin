@@ -128,3 +128,45 @@ class TestNoiseFromXyceDirectives:
         # assert
         assert params is not None
         assert params.print_parameters is None
+
+    def test_ignores_empty_directive(self):
+        # arrange / act — an empty string in the list should be silently skipped
+        params = NoiseSimulationParameters.from_xyce_directives(["", ".NOISE V(5) V1 LIN 10 1 1MEG"])
+        # assert
+        assert params is not None
+        assert params.output_node == "5"
+
+    def test_parses_bare_output_node(self):
+        # arrange / act — output token not wrapped in V(), triggers the fallback path
+        params = NoiseSimulationParameters.from_xyce_directives([".NOISE 5 V1 LIN 10 1 1MEG"])
+        # assert
+        assert params is not None
+        assert params.output_node == "5"
+        assert params.ref_node == ""
+
+    def test_parses_noise_directive_alone(self):
+        # arrange / act — .NOISE with no output node or source should still set found
+        params = NoiseSimulationParameters.from_xyce_directives([".NOISE"])
+        # assert
+        assert params is not None
+        assert params.output_node == ""
+
+    def test_parses_noise_without_sweep_type(self):
+        # arrange / act — .NOISE with output and source but no sweep parameters
+        params = NoiseSimulationParameters.from_xyce_directives([".NOISE V(5) V1"])
+        # assert
+        assert params is not None
+        assert params.output_node == "5"
+        assert params.source_name == "V1"
+        assert params.sweep_mode == "LIN"
+
+    def test_parses_implicit_lin_sweep(self):
+        # arrange / act (no LIN keyword in .NOISE)
+        params = NoiseSimulationParameters.from_xyce_directives([".NOISE V(5) V1 100 1 1MEG"])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "LIN"
+        assert params.points == "100"
+        assert params.start == "1"
+        assert params.end == "1MEG"
+

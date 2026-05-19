@@ -146,7 +146,7 @@ class TestMainWindowOnSimulationStarted:
         # arrange
         window = _make_window()
         # act
-        window._on_simulation_started("/tmp/test.cir", "/tmp/test.raw")
+        window._on_simulation_started("/tmp/test.cir")
         # assert
         window._root.setProperty.assert_any_call("logVisible", True)
 
@@ -183,7 +183,7 @@ class TestMainWindowOnSimulationFinished:
         # arrange
         window = _make_window()
         # act
-        window._on_simulation_finished(0, 0, True, "/tmp/out.raw")
+        window._on_simulation_finished(0, 0, True)
         # assert
         window._root.setProperty.assert_any_call("statusText", "Simulation canceled")
         assert window._runner is None
@@ -192,7 +192,7 @@ class TestMainWindowOnSimulationFinished:
         # arrange
         window = _make_window()
         # act
-        window._on_simulation_finished(0, 0, False, "/tmp/out.raw")
+        window._on_simulation_finished(0, 0, False)
         # assert
         window._root.setProperty.assert_any_call("statusText", "Simulation finished successfully")
         assert window._runner is None
@@ -201,7 +201,7 @@ class TestMainWindowOnSimulationFinished:
         # arrange
         window = _make_window()
         # act
-        window._on_simulation_finished(1, 0, False, "/tmp/out.raw")
+        window._on_simulation_finished(1, 0, False)
         # assert
         window._root.setProperty.assert_any_call("statusText", "Simulation failed (exit code: 1)")
         assert window._runner is None
@@ -386,11 +386,11 @@ class TestMainWindowOnMenuOpenFile:
         # arrange
         window = _make_window()
         with patch("main_window.QFileDialog.getOpenFileName", return_value=("/tmp/test.cir", "")):
-            with patch("main_window.Path.read_text", return_value="* test\n.END"):
+            with patch("main_window.Path.read_text", return_value="* test\n.END\n"):
                 # act
                 window._on_menu_open_file()
         # assert
-        assert window._netlist == "* test\n.END"
+        assert window._netlist == "* test\n.END\n"
 
     def test_does_not_store_netlist_for_raw_file(self):
         # arrange
@@ -452,7 +452,7 @@ class TestMainWindowViewSimulationOutput:
         window = _make_window()
         window._simulation_output_action = MagicMock()
         # act
-        window._on_simulation_started("/tmp/test.cir", "/tmp/test.raw")
+        window._on_simulation_started("/tmp/test.cir")
         # assert
         assert window._simulation_performed is True
         window._simulation_output_action.setEnabled.assert_called_with(True)

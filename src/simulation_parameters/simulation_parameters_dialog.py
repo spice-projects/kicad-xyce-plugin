@@ -7,7 +7,11 @@ from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
 
 from netlist_parser import NetlistTopology
+from .ac_simulation_parameters import AcSimulationParameters
 from .dc_simulation_parameters import DCSimulationParameters
+from .hb_simulation_parameters import HbSimulationParameters
+from .lin_simulation_parameters import LinSimulationParameters
+from .noise_simulation_parameters import NoiseSimulationParameters
 from .op_simulation_parameters import OpSimulationParameters, NodesetEntry
 from .print_parameters import PrintParameters
 from .transient_simulation_parameters import TransientSchedulePoint, TransientSimulationParameters
@@ -17,6 +21,10 @@ _BG = "#efefe8"
 
 _DC_SWEEP_MODES = {"LIN", "DEC", "OCT", "LIST", "DATA"}
 _DC_SECONDARY_MODES = {"LIN", "DEC", "OCT"}
+# valid sweep modes for the ac directive
+_AC_SWEEP_MODES = {"LIN", "DEC", "OCT", "DATA"}
+# supported hb print output types
+_HB_PRINT_TYPES = ("HB", "HB_FD", "HB_TD")
 
 # print format values matching the combo model order (index 0 is the empty/default value)
 _PRINT_FORMATS = ["", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"]
@@ -43,7 +51,7 @@ def _parse_list_values(list_values_text: str) -> tuple[str, ...]:
 
 class SimulationParametersDialog(QDialog):
 
-    def __init__(self, parent: QWidget | None, initial_parameters: TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters, topology: NetlistTopology | None = None):
+    def __init__(self, parent: QWidget | None, initial_parameters: AcSimulationParameters | HbSimulationParameters | LinSimulationParameters | NoiseSimulationParameters | TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters, topology: NetlistTopology | None = None):
         super().__init__(parent)
         # set modal
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
@@ -52,7 +60,7 @@ class SimulationParametersDialog(QDialog):
         # store topology for deriving variable candidates for the print sections
         self._topology = topology
         # keep the result empty until the user confirms valid values
-        self._result: TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters | None = None
+        self._result: AcSimulationParameters | HbSimulationParameters | LinSimulationParameters | NoiseSimulationParameters | TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters | None = None
         # run ui setup logic
         self._setup_ui()
 
@@ -95,6 +103,10 @@ class SimulationParametersDialog(QDialog):
         self._root.submitTransient.connect(self._on_submit_transient)
         self._root.submitDC.connect(self._on_submit_dc)
         self._root.submitOP.connect(self._on_submit_op)
+        self._root.submitAC.connect(self._on_submit_ac)
+        self._root.submitNoise.connect(self._on_submit_noise)
+        self._root.submitHB.connect(self._on_submit_hb)
+        self._root.submitLIN.connect(self._on_submit_lin)
         # connect qml cancel signal to close without a result
         self._root.cancelRequested.connect(self.reject)
 
@@ -119,6 +131,10 @@ class SimulationParametersDialog(QDialog):
         self._apply_transient_parameters(self._initial_parameters if isinstance(self._initial_parameters, TransientSimulationParameters) else None)
         self._apply_dc_parameters(self._initial_parameters if isinstance(self._initial_parameters, DCSimulationParameters) else None)
         self._apply_op_parameters(self._initial_parameters if isinstance(self._initial_parameters, OpSimulationParameters) else None)
+        self._apply_ac_parameters(self._initial_parameters if isinstance(self._initial_parameters, AcSimulationParameters) else None)
+        self._apply_hb_parameters(self._initial_parameters if isinstance(self._initial_parameters, HbSimulationParameters) else None)
+        self._apply_lin_parameters(self._initial_parameters if isinstance(self._initial_parameters, LinSimulationParameters) else None)
+        self._apply_noise_parameters(self._initial_parameters if isinstance(self._initial_parameters, NoiseSimulationParameters) else None)
         # initialize the shared replace ground checkbox
         self._root.setProperty("replaceGround", self._initial_parameters.replace_ground if self._initial_parameters else False)
         # select the appropriate tab based on the parameter type
@@ -126,6 +142,14 @@ class SimulationParametersDialog(QDialog):
             self._root.setProperty("initialTabIndex", 1)
         elif isinstance(self._initial_parameters, DCSimulationParameters):
             self._root.setProperty("initialTabIndex", 2)
+        elif isinstance(self._initial_parameters, AcSimulationParameters):
+            self._root.setProperty("initialTabIndex", 3)
+        elif isinstance(self._initial_parameters, NoiseSimulationParameters):
+            self._root.setProperty("initialTabIndex", 4)
+        elif isinstance(self._initial_parameters, HbSimulationParameters):
+            self._root.setProperty("initialTabIndex", 5)
+        elif isinstance(self._initial_parameters, LinSimulationParameters):
+            self._root.setProperty("initialTabIndex", 6)
         else:
             self._root.setProperty("initialTabIndex", 0)
 
@@ -278,6 +302,348 @@ class SimulationParametersDialog(QDialog):
             self._root.setProperty("dcPrintFile", pp.print_file)
             self._root.setProperty("dcPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
         self._root.setProperty("dcErrorText", "")
+
+    def _apply_ac_parameters(self, p: AcSimulationParameters | None) -> None:
+        # sweep mode index mapping (ac supports LIN, DEC, OCT, DATA — no LIST)
+        modes = ["LIN", "DEC", "OCT", "DATA"]
+        mode_index = modes.index(p.sweep_mode) if p and p.sweep_mode in modes else 0
+        self._root.setProperty("acSweepModeIndex", mode_index)
+        self._root.setProperty("acPoints", p.points if p else "100")
+        self._root.setProperty("acStart", p.start if p else "1")
+        self._root.setProperty("acEnd", p.end if p else "1MEG")
+        self._root.setProperty("acDataTableName", p.data_table_name if p else "")
+        self._root.setProperty("acErrorText", "")
+        # extract print parameters for pre-population
+        pp = p.print_parameters if p else None
+        # default to enabled with V(*) and I(*) and RAW format when no saved print parameters exist
+        if pp is None:
+            self._root.setProperty("acPrintEnabled", True)
+            self._root.setProperty("acPrintAllNodes", True)
+            self._root.setProperty("acPrintAllCurrents", True)
+            self._root.setProperty("acPrintFormatIndex", _PRINT_FORMATS.index("RAW"))
+            self._root.setProperty("acPrintFile", "")
+            self._root.setProperty("acPrintSpecificVars", "")
+        else:
+            # restore enabled state from saved parameters
+            self._root.setProperty("acPrintEnabled", True)
+            # index saved output variables for quick wildcard lookup
+            selected = set(pp.output_variables)
+            # check wildcard shortcuts based on saved output variables
+            self._root.setProperty("acPrintAllNodes", "V(*)" in selected)
+            self._root.setProperty("acPrintAllCurrents", "I(*)" in selected)
+            # map format string to combo index (index 0 is the default/empty value)
+            fmt_str = pp.print_format.upper() if pp.print_format else ""
+            self._root.setProperty("acPrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
+            # restore saved output file path
+            self._root.setProperty("acPrintFile", pp.print_file)
+            # specific vars: only saved non-wildcard vars (no automatic topology pre-fill)
+            self._root.setProperty("acPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
+
+    def _apply_noise_parameters(self, p: NoiseSimulationParameters | None) -> None:
+        # populate required noise analysis fields
+        self._root.setProperty("noiseOutputNode", p.output_node if p else "")
+        self._root.setProperty("noiseRefNode", p.ref_node if p else "")
+        self._root.setProperty("noiseSourceName", p.source_name if p else "")
+        # sweep mode index mapping (noise supports LIN, DEC, OCT, DATA — no LIST)
+        modes = ["LIN", "DEC", "OCT", "DATA"]
+        mode_index = modes.index(p.sweep_mode) if p and p.sweep_mode in modes else 0
+        self._root.setProperty("noiseSweepModeIndex", mode_index)
+        self._root.setProperty("noisePoints", p.points if p else "100")
+        self._root.setProperty("noiseStart", p.start if p else "1")
+        self._root.setProperty("noiseEnd", p.end if p else "1MEG")
+        self._root.setProperty("noiseDataTableName", p.data_table_name if p else "")
+        self._root.setProperty("noiseErrorText", "")
+        # extract print parameters for pre-population
+        pp = p.print_parameters if p else None
+        # default to enabled with V(*) and I(*) and RAW format when no saved print parameters exist
+        if pp is None:
+            self._root.setProperty("noisePrintEnabled", True)
+            self._root.setProperty("noisePrintAllNodes", True)
+            self._root.setProperty("noisePrintAllCurrents", True)
+            self._root.setProperty("noisePrintInoise", True)
+            self._root.setProperty("noisePrintOnoise", True)
+            self._root.setProperty("noisePrintFormatIndex", _PRINT_FORMATS.index("RAW"))
+            self._root.setProperty("noisePrintFile", "")
+            self._root.setProperty("noisePrintSpecificVars", "")
+        else:
+            # restore enabled state from saved parameters
+            self._root.setProperty("noisePrintEnabled", True)
+            # index saved output variables for quick wildcard lookup
+            selected = set(pp.output_variables)
+            # check wildcard shortcuts based on saved output variables
+            self._root.setProperty("noisePrintAllNodes", "V(*)" in selected)
+            self._root.setProperty("noisePrintAllCurrents", "I(*)" in selected)
+            # restore noise-specific named output variable checkboxes
+            self._root.setProperty("noisePrintInoise", "INOISE" in selected)
+            self._root.setProperty("noisePrintOnoise", "ONOISE" in selected)
+            # map format string to combo index (index 0 is the default/empty value)
+            fmt_str = pp.print_format.upper() if pp.print_format else ""
+            self._root.setProperty("noisePrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
+            # restore saved output file path
+            self._root.setProperty("noisePrintFile", pp.print_file)
+            # specific vars: exclude wildcards and known named vars from the free-form field
+            _NOISE_NAMED = {"INOISE", "ONOISE"}
+            self._root.setProperty("noisePrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS and v not in _NOISE_NAMED))
+
+    def _apply_hb_parameters(self, p: HbSimulationParameters | None) -> None:
+        # populate the hb frequency list field
+        self._root.setProperty("hbFrequenciesText", " ".join(p.frequencies) if p else "1MEG")
+        self._root.setProperty("hbErrorText", "")
+        # extract print parameters for pre-population
+        pp = p.print_parameters if p else None
+        # default to enabled with V(*) and I(*) and raw output when no saved print parameters exist
+        if pp is None:
+            self._root.setProperty("hbPrintEnabled", True)
+            self._root.setProperty("hbPrintAllNodes", True)
+            self._root.setProperty("hbPrintAllCurrents", True)
+            self._root.setProperty("hbPrintTypeIndex", _HB_PRINT_TYPES.index("HB"))
+            self._root.setProperty("hbPrintFormatIndex", _PRINT_FORMATS.index("RAW"))
+            self._root.setProperty("hbPrintFile", "")
+            self._root.setProperty("hbPrintSpecificVars", "")
+        else:
+            # restore enabled state from saved parameters
+            self._root.setProperty("hbPrintEnabled", True)
+            # index saved output variables for quick wildcard lookup
+            selected = set(pp.output_variables)
+            # check wildcard shortcuts based on saved output variables
+            self._root.setProperty("hbPrintAllNodes", "V(*)" in selected)
+            self._root.setProperty("hbPrintAllCurrents", "I(*)" in selected)
+            # map print type to combo index
+            self._root.setProperty("hbPrintTypeIndex", _HB_PRINT_TYPES.index(pp.print_type) if pp.print_type in _HB_PRINT_TYPES else 0)
+            # map format string to combo index (index 0 is the default/empty value)
+            fmt_str = pp.print_format.upper() if pp.print_format else ""
+            self._root.setProperty("hbPrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
+            # restore saved output file path
+            self._root.setProperty("hbPrintFile", pp.print_file)
+            # specific vars: only saved non-wildcard vars (no automatic topology pre-fill)
+            self._root.setProperty("hbPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
+
+    def _apply_lin_parameters(self, p: LinSimulationParameters | None) -> None:
+        # populate lin keyword options and embedded ac fields
+        self._root.setProperty("linSparcalc", p.sparcalc if p else True)
+        self._root.setProperty("linFormat", p.format if p else "TOUCHSTONE2")
+        self._root.setProperty("linType", p.lintype if p else "S")
+        self._root.setProperty("linDataFormat", p.dataformat if p else "RI")
+        self._root.setProperty("linFile", p.file if p else "")
+        self._root.setProperty("linWidth", p.width if p else "")
+        self._root.setProperty("linPrecision", p.precision if p else "")
+        self._root.setProperty("linSweepModeIndex", ["LIN", "DEC", "OCT", "DATA"].index(p.sweep_mode) if p and p.sweep_mode in ("LIN", "DEC", "OCT", "DATA") else 0)
+        self._root.setProperty("linPoints", p.points if p else "100")
+        self._root.setProperty("linStart", p.start if p else "1")
+        self._root.setProperty("linEnd", p.end if p else "1MEG")
+        self._root.setProperty("linDataTableName", p.data_table_name if p else "")
+        self._root.setProperty("linErrorText", "")
+        # extract print parameters for pre-population
+        pp = p.print_parameters if p else None
+        if pp is None:
+            self._root.setProperty("linPrintEnabled", True)
+            self._root.setProperty("linPrintAllNodes", True)
+            self._root.setProperty("linPrintAllCurrents", True)
+            self._root.setProperty("linPrintFormatIndex", _PRINT_FORMATS.index("RAW"))
+            self._root.setProperty("linPrintFile", "")
+            self._root.setProperty("linPrintSpecificVars", "")
+        else:
+            self._root.setProperty("linPrintEnabled", True)
+            selected = set(pp.output_variables)
+            self._root.setProperty("linPrintAllNodes", "V(*)" in selected)
+            self._root.setProperty("linPrintAllCurrents", "I(*)" in selected)
+            fmt_str = pp.print_format.upper() if pp.print_format else ""
+            self._root.setProperty("linPrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
+            self._root.setProperty("linPrintFile", pp.print_file)
+            self._root.setProperty("linPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
+
+    @Slot(str, str, str, str, str, str, str, str, bool, bool, bool, bool, bool, str, str, str, bool)
+    def _on_submit_noise(self, output_node: str, ref_node: str, source_name: str, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_inoise: bool, print_onoise: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+        # normalize required noise analysis fields
+        normalized_output_node = output_node.strip()
+        normalized_ref_node = ref_node.strip()
+        normalized_source_name = source_name.strip()
+        # normalize the sweep mode to uppercase for comparison
+        normalized_mode = sweep_mode.strip().upper()
+        # normalize numeric sweep fields
+        normalized_points = points.strip()
+        normalized_start = start.strip()
+        normalized_end = end.strip()
+        # normalize data table name
+        normalized_data_table = data_table_name.strip()
+        # require output node before any sweep validation
+        if not normalized_output_node:
+            self._root.setProperty("noiseErrorText", "Output node is required")
+            # keep dialog open for correction
+            return
+        # require source name before any sweep validation
+        if not normalized_source_name:
+            self._root.setProperty("noiseErrorText", "Input noise source name is required")
+            # keep dialog open for correction
+            return
+        # reject unrecognized sweep modes before any further validation
+        if normalized_mode not in _AC_SWEEP_MODES:
+            self._root.setProperty("noiseErrorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
+            # keep dialog open for correction
+            return
+        # validate required fields for non-DATA sweep modes
+        if normalized_mode != "DATA" and (not normalized_points or not normalized_start or not normalized_end):
+            self._root.setProperty("noiseErrorText", "Points, start frequency, and end frequency are required")
+            # keep dialog open for correction
+            return
+        # validate DATA-specific required fields
+        if normalized_mode == "DATA" and not normalized_data_table:
+            self._root.setProperty("noiseErrorText", "Data table name is required for DATA sweep")
+            # keep dialog open for correction
+            return
+        # clear any stale validation message now that inputs are valid
+        self._root.setProperty("noiseErrorText", "")
+        # build print parameters when the print section is enabled
+        print_parameters = None
+        if print_enabled:
+            # collect wildcard tokens for each enabled shortcut
+            output_vars: list[str] = []
+            if print_all_nodes:
+                output_vars.append("V(*)")
+            if print_all_currents:
+                output_vars.append("I(*)")
+            # append noise-specific named output variables when their checkboxes are checked
+            if print_inoise:
+                output_vars.append("INOISE")
+            if print_onoise:
+                output_vars.append("ONOISE")
+            # append any explicitly listed specific variables (e.g. DNI(), DNO() expressions)
+            output_vars.extend(v for v in print_specific_vars.split() if v)
+            # construct print parameters for the noise analysis type
+            print_parameters = PrintParameters(print_type="NOISE", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
+        # capture the validated dialog output for the caller
+        self._result = NoiseSimulationParameters(normalized_output_node, normalized_ref_node, normalized_source_name, normalized_mode, normalized_points, normalized_start, normalized_end, normalized_data_table, replace_ground, print_parameters)
+        # close the dialog and return acceptance to the caller
+        self.accept()
+
+    @Slot(bool, str, str, str, str, str, str, str, str, str, str, str, bool, bool, bool, str, str, str, bool)
+    def _on_submit_lin(self, sparcalc: bool, fmt: str, lintype: str, dataformat: str, file: str, width: str, precision: str, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+        # normalize all keyword values and free-form text fields
+        normalized_format = fmt.strip().upper()
+        normalized_lintype = lintype.strip().upper()
+        normalized_dataformat = dataformat.strip().upper()
+        normalized_file = file.strip()
+        normalized_width = width.strip()
+        normalized_precision = precision.strip()
+        # normalize the sweep mode to uppercase for comparison
+        normalized_mode = sweep_mode.strip().upper()
+        normalized_points = points.strip()
+        normalized_start = start.strip()
+        normalized_end = end.strip()
+        normalized_data_table_name = data_table_name.strip()
+        # reject unrecognized sweep modes before any further validation
+        if normalized_mode not in _AC_SWEEP_MODES:
+            self._root.setProperty("linErrorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
+            # keep dialog open for correction
+            return
+        # validate required fields for non-DATA sweep modes
+        if normalized_mode != "DATA" and (not normalized_points or not normalized_start or not normalized_end):
+            self._root.setProperty("linErrorText", "Points, start frequency, and end frequency are required")
+            # keep dialog open for correction
+            return
+        # validate DATA-specific required fields
+        if normalized_mode == "DATA" and not normalized_data_table_name:
+            self._root.setProperty("linErrorText", "Data table name is required for DATA sweep")
+            # keep dialog open for correction
+            return
+        # clear any stale validation message now that inputs are valid
+        self._root.setProperty("linErrorText", "")
+        # build print parameters when the print section is enabled
+        print_parameters = None
+        if print_enabled:
+            output_vars: list[str] = []
+            if print_all_nodes:
+                output_vars.append("V(*)")
+            if print_all_currents:
+                output_vars.append("I(*)")
+            output_vars.extend(v for v in print_specific_vars.split() if v)
+            print_parameters = PrintParameters(print_type="AC", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
+        self._result = LinSimulationParameters(sparcalc=sparcalc, format=normalized_format if normalized_format else "TOUCHSTONE2", lintype=normalized_lintype if normalized_lintype else "S", dataformat=normalized_dataformat if normalized_dataformat else "RI", file=normalized_file, width=normalized_width, precision=normalized_precision, sweep_mode=normalized_mode, points=normalized_points, start=normalized_start, end=normalized_end, data_table_name=normalized_data_table_name, replace_ground=replace_ground, print_parameters=print_parameters)
+        self.accept()
+
+    @Slot(str, bool, bool, bool, str, str, str, bool)
+    def _on_submit_hb(self, frequencies_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_type: str, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+        # normalize the frequency list text
+        normalized_frequencies_text = frequencies_text.strip()
+        # require at least one frequency for hb analysis
+        if not normalized_frequencies_text:
+            self._root.setProperty("hbErrorText", "At least one fundamental frequency is required")
+            # keep dialog open for correction
+            return
+        # split the frequency field on spaces and commas
+        frequencies = _parse_list_values(normalized_frequencies_text)
+        # reject empty token lists after parsing
+        if not frequencies:
+            self._root.setProperty("hbErrorText", "At least one fundamental frequency is required")
+            # keep dialog open for correction
+            return
+        # clear any stale validation message now that inputs are valid
+        self._root.setProperty("hbErrorText", "")
+        # build print parameters when the print section is enabled
+        print_parameters = None
+        if print_enabled:
+            # collect wildcard tokens for each enabled shortcut
+            output_vars: list[str] = []
+            if print_all_nodes:
+                output_vars.append("V(*)")
+            if print_all_currents:
+                output_vars.append("I(*)")
+            # append any explicitly listed specific variables
+            output_vars.extend(v for v in print_specific_vars.split() if v)
+            # construct print parameters for the hb analysis type
+            normalized_print_type = print_type.strip().upper()
+            if normalized_print_type not in _HB_PRINT_TYPES:
+                normalized_print_type = "HB"
+            print_parameters = PrintParameters(print_type=normalized_print_type, print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
+        # capture the validated dialog output for the caller
+        self._result = HbSimulationParameters(frequencies=tuple(frequencies), replace_ground=replace_ground, print_parameters=print_parameters)
+        # close the dialog and return acceptance to the caller
+        self.accept()
+
+    @Slot(str, str, str, str, str, bool, bool, bool, str, str, str, bool)
+    def _on_submit_ac(self, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+        # normalize the sweep mode to uppercase for comparison
+        normalized_mode = sweep_mode.strip().upper()
+        # normalize numeric sweep fields
+        normalized_points = points.strip()
+        normalized_start = start.strip()
+        normalized_end = end.strip()
+        # normalize data table name
+        normalized_data_table = data_table_name.strip()
+        # reject unrecognized sweep modes before any further validation
+        if normalized_mode not in _AC_SWEEP_MODES:
+            self._root.setProperty("acErrorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
+            # keep dialog open for correction
+            return
+        # validate required fields for non-DATA sweep modes
+        if normalized_mode != "DATA" and (not normalized_points or not normalized_start or not normalized_end):
+            self._root.setProperty("acErrorText", "Points, start frequency, and end frequency are required")
+            # keep dialog open for correction
+            return
+        # validate DATA-specific required fields
+        if normalized_mode == "DATA" and not normalized_data_table:
+            self._root.setProperty("acErrorText", "Data table name is required for DATA sweep")
+            # keep dialog open for correction
+            return
+        # clear any stale validation message now that inputs are valid
+        self._root.setProperty("acErrorText", "")
+        # build print parameters when the print section is enabled
+        print_parameters = None
+        if print_enabled:
+            # collect wildcard tokens for each enabled shortcut
+            output_vars: list[str] = []
+            if print_all_nodes:
+                output_vars.append("V(*)")
+            if print_all_currents:
+                output_vars.append("I(*)")
+            # append any explicitly listed specific variables (complex-domain vars like VR(), VM(), etc.)
+            output_vars.extend(v for v in print_specific_vars.split() if v)
+            # construct print parameters for the ac analysis type
+            print_parameters = PrintParameters(print_type="AC", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
+        # capture the validated dialog output for the caller
+        self._result = AcSimulationParameters(normalized_mode, normalized_points, normalized_start, normalized_end, normalized_data_table, replace_ground, print_parameters)
+        # close the dialog and return acceptance to the caller
+        self.accept()
 
     @Slot(str, str, str, str, str, bool, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
     def _on_submit_transient(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
@@ -529,5 +895,5 @@ class SimulationParametersDialog(QDialog):
         # freeze the schedule points so dialog result stays immutable
         return tuple(schedule_points)
 
-    def get_parameters(self) -> TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters | None:
+    def get_parameters(self) -> AcSimulationParameters | HbSimulationParameters | LinSimulationParameters | NoiseSimulationParameters | TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters | None:
         return self._result

@@ -59,6 +59,16 @@ class TestLinSimulationParameters:
         assert ".AC LIN 10 1 1MEG" in directives
         assert any(d.startswith(".LIN") for d in directives)
 
+    def test_width_and_precision_directives(self):
+        # arrange
+        params = LinSimulationParameters(sweep_mode="LIN", points="10", start="1", end="1MEG", replace_ground=False, width="80", precision="6")
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        lin_line = next(d for d in directives if d.startswith(".LIN"))
+        assert "WIDTH=80" in lin_line
+        assert "PRECISION=6" in lin_line
+
 
 class TestLinFromXyceDirectives:
 
@@ -135,3 +145,68 @@ class TestLinFromXyceDirectives:
         assert params.print_parameters is not None
         assert params.print_parameters.print_type == "AC"
         assert params.print_parameters.output_variables == ("V(OUT)", "I(V1)")
+
+    def test_ignores_empty_directive(self):
+        # arrange / act — an empty string in the list should be silently skipped
+        params = LinSimulationParameters.from_xyce_directives(["", ".AC LIN 10 1 1MEG", ".LIN"])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "LIN"
+
+    def test_ac_alone_does_not_crash(self):
+        # arrange / act — .AC with no extra tokens should be skipped without error
+        params = LinSimulationParameters.from_xyce_directives([".AC", ".LIN"])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "LIN"
+
+    def test_parses_ac_data_sweep(self):
+        # arrange / act
+        params = LinSimulationParameters.from_xyce_directives([".AC DATA=myTable", ".LIN"])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "DATA"
+        assert params.data_table_name == "myTable"
+
+    def test_parses_ac_dec_sweep(self):
+        # arrange / act
+        params = LinSimulationParameters.from_xyce_directives([".AC DEC 10 1k 10MEG", ".LIN"])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "DEC"
+        assert params.points == "10"
+        assert params.start == "1k"
+        assert params.end == "10MEG"
+
+    def test_parses_ac_implicit_lin(self):
+        # arrange / act (no LIN keyword in .AC)
+        params = LinSimulationParameters.from_xyce_directives([".AC 100 1 1MEG", ".LIN"])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "LIN"
+        assert params.points == "100"
+        assert params.start == "1"
+        assert params.end == "1MEG"
+
+    def test_parses_lin_token_without_equals(self):
+        # arrange / act — token with no '=' in .LIN should be silently skipped
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 10 1 1MEG", ".LIN NOEQUALS FORMAT=TS"])
+        # assert
+        assert params is not None
+        assert params.format == "TS"
+
+    def test_parses_lin_width_and_precision(self):
+        # arrange / act
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 10 1 1MEG", ".LIN WIDTH=80 PRECISION=6"])
+        # assert
+        assert params is not None
+        assert params.width == "80"
+        assert params.precision == "6"
+
+    def test_ignores_non_ac_print_directive(self):
+        # arrange / act
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 10 1 1MEG", ".LIN", ".PRINT TRAN V(OUT)"])
+        # assert
+        assert params is not None
+        assert params.print_parameters is None
+

@@ -65,7 +65,7 @@ class DCSimulationParameters:
                     continue
             # handle preprocess replaceground
             if cmd == ".PREPROCESS" and len(tokens) > 2 and tokens[1].upper() == "REPLACEGROUND":
-                # set replace_ground based on the third token (e.g., "TRUE" or "FALSE")
+                # set replace_ground based on the third token
                 replace_ground = tokens[2].upper() == "TRUE"
                 # next
                 continue
@@ -112,7 +112,7 @@ class DCSimulationParameters:
             # linear sweep: .DC [LIN] var start stop step [var2 start2 stop2 step2]
             sweep_mode = "LIN"
             if second == "LIN":
-                # explicit LIN keyword: .DC LIN var start stop step
+                # explicit LIN keyword
                 if len(tokens) >= 6:
                     primary_variable = tokens[2]
                     start = tokens[3]
@@ -125,7 +125,7 @@ class DCSimulationParameters:
                     secondary_stop = tokens[8]
                     secondary_step = tokens[9]
             else:
-                # implicit LIN: .DC var start stop step
+                # implicit LIN
                 if len(tokens) >= 5:
                     primary_variable = tokens[1]
                     start = tokens[2]
@@ -137,7 +137,7 @@ class DCSimulationParameters:
                     secondary_start = tokens[6]
                     secondary_stop = tokens[7]
                     secondary_step = tokens[8]
-        # return instance
+        # return instance if a valid directive was found
         return cls(sweep_mode=sweep_mode, primary_variable=primary_variable, start=start, stop=stop, step=step, points=points, list_values=list_values, data_table_name=data_table_name, secondary_variable=secondary_variable, secondary_start=secondary_start, secondary_stop=secondary_stop, secondary_step=secondary_step, secondary_points=secondary_points, replace_ground=replace_ground, print_parameters=print_parameters) if found else None
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
@@ -174,6 +174,7 @@ class DCSimulationParameters:
         tokens = [".DC", self.primary_variable, self.start, self.stop, self.step]
         # append secondary sweep tokens when a secondary variable is configured
         if self.secondary_variable:
+            # extend with the secondary sweep parameters
             tokens.extend([self.secondary_variable, self.secondary_start, self.secondary_stop, self.secondary_step])
         # combine all tokens into a single directive string
         return " ".join(tokens)
@@ -183,6 +184,7 @@ class DCSimulationParameters:
         tokens = [".DC", self.sweep_mode, self.primary_variable, self.start, self.stop, self.points]
         # append secondary sweep tokens when a secondary variable is configured
         if self.secondary_variable:
+            # extend with the secondary sweep parameters
             tokens.extend([self.secondary_variable, self.secondary_start, self.secondary_stop, self.secondary_points])
         # combine all tokens into a single directive string
         return " ".join(tokens)

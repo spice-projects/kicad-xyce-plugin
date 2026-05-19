@@ -83,12 +83,89 @@ Item {
     property alias dcPrintFormatIndex: dcPrintFormatCombo.currentIndex
     property string dcPrintFile: ""
 
+    // --- AC sweep tab properties ---
+    property alias acSweepModeIndex: acSweepModeComboBox.currentIndex
+    property alias acPoints: acPointsField.text
+    property alias acStart: acStartField.text
+    property alias acEnd: acEndField.text
+    property alias acDataTableName: acDataTableNameField.text
+    property string acErrorText: ""
+
+    // --- AC print properties ---
+    property bool acPrintEnabled: false
+    property bool acPrintAllNodes: false
+    property bool acPrintAllCurrents: false
+    property string acPrintSpecificVars: ""
+    property alias acPrintFormatIndex: acPrintFormatCombo.currentIndex
+    property string acPrintFile: ""
+
+    // --- NOISE sweep tab properties ---
+    property alias noiseOutputNode: noiseOutputNodeField.text
+    property alias noiseRefNode: noiseRefNodeField.text
+    property alias noiseSourceName: noiseSourceNameField.text
+    property alias noiseSweepModeIndex: noiseSweepModeComboBox.currentIndex
+    property alias noisePoints: noisePointsField.text
+    property alias noiseStart: noiseStartField.text
+    property alias noiseEnd: noiseEndField.text
+    property alias noiseDataTableName: noiseDataTableNameField.text
+    property string noiseErrorText: ""
+
+    // --- NOISE print properties ---
+    property bool noisePrintEnabled: false
+    property bool noisePrintAllNodes: false
+    property bool noisePrintAllCurrents: false
+    property bool noisePrintInoise: false
+    property bool noisePrintOnoise: false
+    property string noisePrintSpecificVars: ""
+    property alias noisePrintFormatIndex: noisePrintFormatCombo.currentIndex
+    property string noisePrintFile: ""
+
+    // --- HB tab properties ---
+    property alias hbFrequenciesText: hbFrequenciesField.text
+    property string hbErrorText: ""
+
+    // --- HB print properties ---
+    property bool hbPrintEnabled: false
+    property bool hbPrintAllNodes: false
+    property bool hbPrintAllCurrents: false
+    property alias hbPrintTypeIndex: hbPrintTypeComboBox.currentIndex
+    property string hbPrintSpecificVars: ""
+    property alias hbPrintFormatIndex: hbPrintFormatCombo.currentIndex
+    property string hbPrintFile: ""
+
+    // --- LIN tab properties ---
+    property bool linSparcalc: true
+    property string linFormat: "TOUCHSTONE2"
+    property string linType: "S"
+    property string linDataFormat: "RI"
+    property string linFile: ""
+    property string linWidth: ""
+    property string linPrecision: ""
+    property alias linSweepModeIndex: linSweepModeComboBox.currentIndex
+    property alias linPoints: linPointsField.text
+    property alias linStart: linStartField.text
+    property alias linEnd: linEndField.text
+    property alias linDataTableName: linDataTableNameField.text
+    property string linErrorText: ""
+
+    // --- LIN print properties ---
+    property bool linPrintEnabled: false
+    property bool linPrintAllNodes: false
+    property bool linPrintAllCurrents: false
+    property string linPrintSpecificVars: ""
+    property alias linPrintFormatIndex: linPrintFormatCombo.currentIndex
+    property string linPrintFile: ""
+
     // --- Shared properties ---
     property bool replaceGround: false
 
     signal submitTransient(string initialStep, string finalTime, string startTime, string stepCeiling, string opKeyword, bool scheduleEnabled, string schedulePairsText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitDC(string sweepMode, string primaryVariable, string startValue, string stopValue, string stepValue, string pointsValue, string listValuesText, string dataTableName, bool secondaryEnabled, string secondaryVariable, string secondaryStart, string secondaryStop, string secondaryStep, string secondaryPoints, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitOP(bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool saveEnabled, string saveType, string nodesetEntries, string saveFile, bool replaceGround)
+    signal submitAC(string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
+    signal submitNoise(string outputNode, string refNode, string sourceName, string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printInoise, bool printOnoise, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
+    signal submitHB(string frequenciesText, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printType, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
+    signal submitLIN(bool sparcalc, string format, string lintype, string dataformat, string file, string width, string precision, string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal cancelRequested()
 
     function opKeywordValue() {
@@ -133,6 +210,45 @@ Item {
         return sweepModeComboBox.currentIndex === 4
     }
 
+    function acSweepModeValue() {
+        // map ac combo box index to the sweep mode keyword emitted in the netlist
+        var modes = ["LIN", "DEC", "OCT", "DATA"]
+        return modes[acSweepModeComboBox.currentIndex] || "LIN"
+    }
+
+    function acIsDataMode() {
+        // true when the selected ac sweep mode is DATA
+        return acSweepModeComboBox.currentIndex === 3
+    }
+
+    function noiseSweepModeValue() {
+        // map noise combo box index to the sweep mode keyword emitted in the netlist
+        var modes = ["LIN", "DEC", "OCT", "DATA"]
+        return modes[noiseSweepModeComboBox.currentIndex] || "LIN"
+    }
+
+    function noiseIsDataMode() {
+        // true when the selected noise sweep mode is DATA
+        return noiseSweepModeComboBox.currentIndex === 3
+    }
+
+    function hbPrintTypeValue() {
+        // map hb combo box index to the print subtype emitted in the netlist
+        var types = ["HB", "HB_FD", "HB_TD"]
+        return types[hbPrintTypeComboBox.currentIndex] || "HB"
+    }
+
+    function linSweepModeValue() {
+        // map lin combo box index to the sweep mode keyword emitted in the netlist
+        var modes = ["LIN", "DEC", "OCT", "DATA"]
+        return modes[linSweepModeComboBox.currentIndex] || "LIN"
+    }
+
+    function linIsDataMode() {
+        // true when the selected lin sweep mode is DATA
+        return linSweepModeComboBox.currentIndex === 3
+    }
+
     function supportsSecondary() {
         // true when the selected mode supports a secondary sweep (LIN, DEC, OCT)
         return sweepModeComboBox.currentIndex <= 2
@@ -169,21 +285,45 @@ Item {
             Layout.fillWidth: true
 
             TabButton {
-                text: "Operating Point (.OP)"
+                text: ".OP"
                 // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
-                width: (root.width - 40) / 3
+                width: (root.width - 45) / 7
             }
 
             TabButton {
-                text: "Transient (.TRAN)"
+                text: ".TRAN"
                 // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
-                width: (root.width - 40) / 3
+                width: (root.width - 45) / 7
             }
 
             TabButton {
-                text: "DC Sweep (.DC)"
+                text: ".DC"
                 // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
-                width: (root.width - 40) / 3
+                width: (root.width - 45) / 7
+            }
+
+            TabButton {
+                text: ".AC"
+                // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
+                width: (root.width - 45) / 7
+            }
+
+            TabButton {
+                text: ".NOISE"
+                // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
+                width: (root.width - 45) / 7
+            }
+
+            TabButton {
+                text: ".HB"
+                // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
+                width: (root.width - 45) / 7
+            }
+
+            TabButton {
+                text: ".LIN"
+                // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
+                width: (root.width - 45) / 7
             }
         }
 
@@ -1006,6 +1146,904 @@ Item {
                         }
                     }
                 }
+
+                // --- Tab 3: AC Sweep ---
+                ScrollView {
+                    clip: true
+                    contentWidth: availableWidth
+
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 12
+
+                        // --- .AC section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: acParamsColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: acParamsColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                GridLayout {
+                                    Layout.fillWidth: true
+                                    columns: 2
+                                    rowSpacing: 10
+                                    columnSpacing: 12
+
+                                    Label {
+                                        text: "Sweep Mode *"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: acSweepModeComboBox
+                                        Layout.fillWidth: true
+                                        model: ["LIN (linear)", "DEC (per decade)", "OCT (per octave)", "DATA (table-driven)"]
+                                    }
+
+                                    Label {
+                                        text: "Points *"
+                                        color: "#24292f"
+                                        visible: !root.acIsDataMode()
+                                    }
+                                    TextField {
+                                        id: acPointsField
+                                        placeholderText: "e.g. 100"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        visible: !root.acIsDataMode()
+                                    }
+
+                                    Label {
+                                        text: "Start Frequency *"
+                                        color: "#24292f"
+                                        visible: !root.acIsDataMode()
+                                    }
+                                    TextField {
+                                        id: acStartField
+                                        placeholderText: "e.g. 1"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        visible: !root.acIsDataMode()
+                                    }
+
+                                    Label {
+                                        text: "End Frequency *"
+                                        color: "#24292f"
+                                        visible: !root.acIsDataMode()
+                                    }
+                                    TextField {
+                                        id: acEndField
+                                        placeholderText: "e.g. 1MEG"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        visible: !root.acIsDataMode()
+                                    }
+
+                                    Label {
+                                        text: "Data Table Name *"
+                                        color: "#24292f"
+                                        visible: root.acIsDataMode()
+                                    }
+                                    TextField {
+                                        id: acDataTableNameField
+                                        placeholderText: "e.g. freqTable"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        visible: root.acIsDataMode()
+                                    }
+                                }
+
+                                Label {
+                                    text: root.acErrorText
+                                    visible: root.acErrorText.length > 0
+                                    color: "#b42318"
+                                    font.pixelSize: 12
+                                    wrapMode: Text.Wrap
+                                    Layout.fillWidth: true
+                                }
+                            }
+                        }
+
+                        // --- .PRINT AC section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: acPrintColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: acPrintColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                CheckBox {
+                                    id: acPrintEnabledCheckBox
+                                    text: "Enable .PRINT AC output"
+                                    checked: root.acPrintEnabled
+                                    onCheckedChanged: root.acPrintEnabled = checked
+                                    Layout.fillWidth: true
+                                }
+
+                                RowLayout {
+                                    enabled: acPrintEnabledCheckBox.checked
+                                    Layout.fillWidth: true
+                                    spacing: 16
+                                    CheckBox {
+                                        text: "All voltages  V(*)"
+                                        checked: root.acPrintAllNodes
+                                        onCheckedChanged: root.acPrintAllNodes = checked
+                                    }
+                                    CheckBox {
+                                        text: "All currents  I(*)"
+                                        checked: root.acPrintAllCurrents
+                                        onCheckedChanged: root.acPrintAllCurrents = checked
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                }
+
+                                GridLayout {
+                                    enabled: acPrintEnabledCheckBox.checked
+                                    columns: 4
+                                    Layout.fillWidth: true
+                                    rowSpacing: 6
+                                    columnSpacing: 8
+
+                                    Label {
+                                        text: "Additional"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: acPrintSpecificVarsField
+                                        placeholderText: "e.g. VR(out) VM(1) IP(V1)"
+                                        selectByMouse: true
+                                        text: root.acPrintSpecificVars
+                                        onTextChanged: root.acPrintSpecificVars = text
+                                        Layout.columnSpan: 3
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label {
+                                        text: "Format"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: acPrintFormatCombo
+                                        Layout.fillWidth: true
+                                        model: ["(default)", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"]
+                                    }
+
+                                    Label {
+                                        text: "Output File"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: acPrintFileField
+                                        placeholderText: "optional (e.g. output.raw)"
+                                        selectByMouse: true
+                                        text: root.acPrintFile
+                                        onTextChanged: root.acPrintFile = text
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+
+                        Item {
+                            Layout.fillHeight: true
+                        }
+                    }
+                }
+
+                // --- Tab 4: Noise ---
+                ScrollView {
+                    clip: true
+                    contentWidth: availableWidth
+
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 12
+
+                        // --- .NOISE section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: noiseParamsColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: noiseParamsColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                GridLayout {
+                                    Layout.fillWidth: true
+                                    columns: 2
+                                    rowSpacing: 10
+                                    columnSpacing: 12
+
+                                    Label {
+                                        text: "Output Node *"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: noiseOutputNodeField
+                                        placeholderText: "e.g. out"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label {
+                                        text: "Reference Node"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: noiseRefNodeField
+                                        placeholderText: "optional (default = ground)"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label {
+                                        text: "Input Source *"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: noiseSourceNameField
+                                        placeholderText: "e.g. VIN"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label {
+                                        text: "Sweep Mode *"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: noiseSweepModeComboBox
+                                        Layout.fillWidth: true
+                                        model: ["LIN (linear)", "DEC (per decade)", "OCT (per octave)", "DATA (table-driven)"]
+                                    }
+
+                                    Label {
+                                        text: "Points *"
+                                        color: "#24292f"
+                                        visible: !root.noiseIsDataMode()
+                                    }
+                                    TextField {
+                                        id: noisePointsField
+                                        placeholderText: "e.g. 100"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        visible: !root.noiseIsDataMode()
+                                    }
+
+                                    Label {
+                                        text: "Start Frequency *"
+                                        color: "#24292f"
+                                        visible: !root.noiseIsDataMode()
+                                    }
+                                    TextField {
+                                        id: noiseStartField
+                                        placeholderText: "e.g. 1"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        visible: !root.noiseIsDataMode()
+                                    }
+
+                                    Label {
+                                        text: "End Frequency *"
+                                        color: "#24292f"
+                                        visible: !root.noiseIsDataMode()
+                                    }
+                                    TextField {
+                                        id: noiseEndField
+                                        placeholderText: "e.g. 1MEG"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        visible: !root.noiseIsDataMode()
+                                    }
+
+                                    Label {
+                                        text: "Data Table Name *"
+                                        color: "#24292f"
+                                        visible: root.noiseIsDataMode()
+                                    }
+                                    TextField {
+                                        id: noiseDataTableNameField
+                                        placeholderText: "e.g. freqTable"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        visible: root.noiseIsDataMode()
+                                    }
+                                }
+
+                                Label {
+                                    text: root.noiseErrorText
+                                    visible: root.noiseErrorText.length > 0
+                                    color: "#b42318"
+                                    font.pixelSize: 12
+                                    wrapMode: Text.Wrap
+                                    Layout.fillWidth: true
+                                }
+                            }
+                        }
+
+                        // --- .PRINT NOISE section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: noisePrintColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: noisePrintColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                CheckBox {
+                                    id: noisePrintEnabledCheckBox
+                                    text: "Enable .PRINT NOISE output"
+                                    checked: root.noisePrintEnabled
+                                    onCheckedChanged: root.noisePrintEnabled = checked
+                                    Layout.fillWidth: true
+                                }
+
+                                RowLayout {
+                                    enabled: noisePrintEnabledCheckBox.checked
+                                    Layout.fillWidth: true
+                                    spacing: 16
+                                    CheckBox {
+                                        text: "All voltages  V(*)"
+                                        checked: root.noisePrintAllNodes
+                                        onCheckedChanged: root.noisePrintAllNodes = checked
+                                    }
+                                    CheckBox {
+                                        text: "All currents  I(*)"
+                                        checked: root.noisePrintAllCurrents
+                                        onCheckedChanged: root.noisePrintAllCurrents = checked
+                                    }
+                                    CheckBox {
+                                        text: "INOISE"
+                                        checked: root.noisePrintInoise
+                                        onCheckedChanged: root.noisePrintInoise = checked
+                                    }
+                                    CheckBox {
+                                        text: "ONOISE"
+                                        checked: root.noisePrintOnoise
+                                        onCheckedChanged: root.noisePrintOnoise = checked
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                }
+
+                                GridLayout {
+                                    enabled: noisePrintEnabledCheckBox.checked
+                                    columns: 4
+                                    Layout.fillWidth: true
+                                    rowSpacing: 6
+                                    columnSpacing: 8
+
+                                    Label {
+                                        text: "Additional"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: noisePrintSpecificVarsField
+                                        placeholderText: "e.g. DNI(R1) DNO(Q2,FLICKER)"
+                                        selectByMouse: true
+                                        text: root.noisePrintSpecificVars
+                                        onTextChanged: root.noisePrintSpecificVars = text
+                                        Layout.columnSpan: 3
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label {
+                                        text: "Format"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: noisePrintFormatCombo
+                                        Layout.fillWidth: true
+                                        model: ["(default)", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"]
+                                    }
+
+                                    Label {
+                                        text: "Output File"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: noisePrintFileField
+                                        placeholderText: "optional (e.g. output.raw)"
+                                        selectByMouse: true
+                                        text: root.noisePrintFile
+                                        onTextChanged: root.noisePrintFile = text
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+
+                        Item {
+                            Layout.fillHeight: true
+                        }
+                    }
+                }
+
+                // --- Tab 5: HB ---
+                ScrollView {
+                    clip: true
+                    contentWidth: availableWidth
+
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 12
+
+                        // --- .HB section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: hbParamsColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: hbParamsColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                GridLayout {
+                                    Layout.fillWidth: true
+                                    columns: 2
+                                    rowSpacing: 10
+                                    columnSpacing: 12
+
+                                    Label {
+                                        text: "Fundamental Frequencies *"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: hbFrequenciesField
+                                        placeholderText: "e.g. 1MEG 2MEG 500K"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label {
+                                        text: root.hbErrorText
+                                        visible: root.hbErrorText.length > 0
+                                        color: "#b42318"
+                                        font.pixelSize: 12
+                                        wrapMode: Text.Wrap
+                                        Layout.columnSpan: 2
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+
+                        // --- .PRINT HB section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: hbPrintColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: hbPrintColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                CheckBox {
+                                    id: hbPrintEnabledCheckBox
+                                    text: "Enable .PRINT HB output"
+                                    checked: root.hbPrintEnabled
+                                    onCheckedChanged: root.hbPrintEnabled = checked
+                                    Layout.fillWidth: true
+                                }
+
+                                RowLayout {
+                                    enabled: hbPrintEnabledCheckBox.checked
+                                    Layout.fillWidth: true
+                                    spacing: 16
+                                    CheckBox {
+                                        text: "All voltages  V(*)"
+                                        checked: root.hbPrintAllNodes
+                                        onCheckedChanged: root.hbPrintAllNodes = checked
+                                    }
+                                    CheckBox {
+                                        text: "All currents  I(*)"
+                                        checked: root.hbPrintAllCurrents
+                                        onCheckedChanged: root.hbPrintAllCurrents = checked
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                }
+
+                                GridLayout {
+                                    enabled: hbPrintEnabledCheckBox.checked
+                                    columns: 4
+                                    Layout.fillWidth: true
+                                    rowSpacing: 6
+                                    columnSpacing: 8
+
+                                    Label {
+                                        text: "Additional"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: hbPrintSpecificVarsField
+                                        placeholderText: "e.g. VR(out) VM(1) IP(V1)"
+                                        selectByMouse: true
+                                        text: root.hbPrintSpecificVars
+                                        onTextChanged: root.hbPrintSpecificVars = text
+                                        Layout.columnSpan: 3
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label {
+                                        text: "Print Type"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: hbPrintTypeComboBox
+                                        Layout.fillWidth: true
+                                        model: ["HB", "HB_FD", "HB_TD"]
+                                    }
+                                    Item { Layout.columnSpan: 2 }
+
+                                    Label {
+                                        text: "Format"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: hbPrintFormatCombo
+                                        Layout.fillWidth: true
+                                        model: ["(default)", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"]
+                                    }
+
+                                    Label {
+                                        text: "Output File"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: hbPrintFileField
+                                        placeholderText: "optional (e.g. output.raw)"
+                                        selectByMouse: true
+                                        text: root.hbPrintFile
+                                        onTextChanged: root.hbPrintFile = text
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+
+                        Item {
+                            Layout.fillHeight: true
+                        }
+                    }
+                }
+
+                // --- Tab 6: LIN ---
+                ScrollView {
+                    clip: true
+                    contentWidth: availableWidth
+
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 12
+
+                        // --- .LIN section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: linParamsColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: linParamsColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                CheckBox {
+                                    id: linSparcalcCheckBox
+                                    text: "Enable SPARCALC (linearize into S/Y/Z parameters)"
+                                    checked: root.linSparcalc
+                                    onCheckedChanged: root.linSparcalc = checked
+                                    Layout.fillWidth: true
+                                }
+
+                                GridLayout {
+                                    Layout.fillWidth: true
+                                    columns: 2
+                                    rowSpacing: 10
+                                    columnSpacing: 12
+
+                                    Label {
+                                        text: "Output Format"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: linFormatComboBox
+                                        Layout.fillWidth: true
+                                        model: ["TOUCHSTONE2", "TOUCHSTONE"]
+                                        currentIndex: root.linFormat === "TOUCHSTONE" ? 1 : 0
+                                        onCurrentIndexChanged: root.linFormat = currentIndex === 1 ? "TOUCHSTONE" : "TOUCHSTONE2"
+                                    }
+
+                                    Label {
+                                        text: "Parameter Type"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: linTypeComboBox
+                                        Layout.fillWidth: true
+                                        model: ["S", "Y", "Z"]
+                                        currentIndex: root.linType === "Y" ? 1 : root.linType === "Z" ? 2 : 0
+                                        onCurrentIndexChanged: root.linType = currentIndex === 1 ? "Y" : currentIndex === 2 ? "Z" : "S"
+                                    }
+
+                                    Label {
+                                        text: "Data Format"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: linDataFormatComboBox
+                                        Layout.fillWidth: true
+                                        model: ["RI", "MA", "DB"]
+                                        currentIndex: root.linDataFormat === "MA" ? 1 : root.linDataFormat === "DB" ? 2 : 0
+                                        onCurrentIndexChanged: root.linDataFormat = currentIndex === 1 ? "MA" : currentIndex === 2 ? "DB" : "RI"
+                                    }
+
+                                    Label {
+                                        text: "Output File"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: linFileField
+                                        placeholderText: "optional output file name"
+                                        selectByMouse: true
+                                        text: root.linFile
+                                        onTextChanged: root.linFile = text
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label {
+                                        text: "Width"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: linWidthField
+                                        placeholderText: "optional"
+                                        selectByMouse: true
+                                        text: root.linWidth
+                                        onTextChanged: root.linWidth = text
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label {
+                                        text: "Precision"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: linPrecisionField
+                                        placeholderText: "optional"
+                                        selectByMouse: true
+                                        text: root.linPrecision
+                                        onTextChanged: root.linPrecision = text
+                                        Layout.fillWidth: true
+                                    }
+                                }
+
+                                GridLayout {
+                                    Layout.fillWidth: true
+                                    columns: 2
+                                    rowSpacing: 10
+                                    columnSpacing: 12
+
+                                    Label {
+                                        text: "Sweep Mode *"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: linSweepModeComboBox
+                                        Layout.fillWidth: true
+                                        model: ["LIN (linear)", "DEC (per decade)", "OCT (per octave)", "DATA (table-driven)"]
+                                    }
+
+                                    Label {
+                                        text: "Points *"
+                                        color: "#24292f"
+                                        visible: !root.linIsDataMode()
+                                    }
+                                    TextField {
+                                        id: linPointsField
+                                        placeholderText: "e.g. 100"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        visible: !root.linIsDataMode()
+                                    }
+
+                                    Label {
+                                        text: "Start Frequency *"
+                                        color: "#24292f"
+                                        visible: !root.linIsDataMode()
+                                    }
+                                    TextField {
+                                        id: linStartField
+                                        placeholderText: "e.g. 1"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        visible: !root.linIsDataMode()
+                                    }
+
+                                    Label {
+                                        text: "End Frequency *"
+                                        color: "#24292f"
+                                        visible: !root.linIsDataMode()
+                                    }
+                                    TextField {
+                                        id: linEndField
+                                        placeholderText: "e.g. 1MEG"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        visible: !root.linIsDataMode()
+                                    }
+
+                                    Label {
+                                        text: "Data Table Name *"
+                                        color: "#24292f"
+                                        visible: root.linIsDataMode()
+                                    }
+                                    TextField {
+                                        id: linDataTableNameField
+                                        placeholderText: "e.g. freqTable"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        visible: root.linIsDataMode()
+                                    }
+                                }
+
+                                Label {
+                                    text: root.linErrorText
+                                    visible: root.linErrorText.length > 0
+                                    color: "#b42318"
+                                    font.pixelSize: 12
+                                    wrapMode: Text.Wrap
+                                    Layout.fillWidth: true
+                                }
+                            }
+                        }
+
+                        // --- .PRINT LIN section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: linPrintColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: linPrintColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                CheckBox {
+                                    id: linPrintEnabledCheckBox
+                                    text: "Enable .PRINT AC output"
+                                    checked: root.linPrintEnabled
+                                    onCheckedChanged: root.linPrintEnabled = checked
+                                    Layout.fillWidth: true
+                                }
+
+                                RowLayout {
+                                    enabled: linPrintEnabledCheckBox.checked
+                                    Layout.fillWidth: true
+                                    spacing: 16
+                                    CheckBox {
+                                        text: "All voltages  V(*)"
+                                        checked: root.linPrintAllNodes
+                                        onCheckedChanged: root.linPrintAllNodes = checked
+                                    }
+                                    CheckBox {
+                                        text: "All currents  I(*)"
+                                        checked: root.linPrintAllCurrents
+                                        onCheckedChanged: root.linPrintAllCurrents = checked
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                }
+
+                                GridLayout {
+                                    enabled: linPrintEnabledCheckBox.checked
+                                    columns: 4
+                                    Layout.fillWidth: true
+                                    rowSpacing: 6
+                                    columnSpacing: 8
+
+                                    Label {
+                                        text: "Additional"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: linPrintSpecificVarsField
+                                        placeholderText: "e.g. SR(1,2) YP(2,1)"
+                                        selectByMouse: true
+                                        text: root.linPrintSpecificVars
+                                        onTextChanged: root.linPrintSpecificVars = text
+                                        Layout.columnSpan: 3
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label {
+                                        text: "Format"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: linPrintFormatCombo
+                                        Layout.fillWidth: true
+                                        model: ["(default)", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"]
+                                    }
+
+                                    Label {
+                                        text: "Output File"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: linPrintFileField
+                                        placeholderText: "optional (e.g. output.raw)"
+                                        selectByMouse: true
+                                        text: root.linPrintFile
+                                        onTextChanged: root.linPrintFile = text
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+
+                        Item {
+                            Layout.fillHeight: true
+                        }
+                    }
+                }
             }
         }
 
@@ -1038,8 +2076,16 @@ Item {
                         root.submitOP(root.opPrintEnabled, root.opPrintAllNodes, root.opPrintAllCurrents, root.opPrintPower, root.opPrintBjtLeads, root.opPrintFetLeads, root.opPrintSpecificVars, opPrintFormatCombo.currentIndex > 0 ? opPrintFormatCombo.model[opPrintFormatCombo.currentIndex] : "", root.opPrintFile, root.saveEnabled, root.saveType, root.nodesetEntries, root.saveFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 1) {
                         root.submitTransient(root.initialStep, root.finalTime, root.startTime, root.stepCeiling, root.opKeywordValue(), root.scheduleEnabled, root.schedulePairsText, root.tranPrintEnabled, root.tranPrintAllNodes, root.tranPrintAllCurrents, root.tranPrintPower, root.tranPrintBjtLeads, root.tranPrintFetLeads, root.tranPrintSpecificVars, tranPrintFormatCombo.currentIndex > 0 ? tranPrintFormatCombo.model[tranPrintFormatCombo.currentIndex] : "", root.tranPrintFile, root.replaceGround)
-                    } else {
+                    } else if (simTabBar.currentIndex === 2) {
                         root.submitDC(root.sweepModeValue(), root.primaryVariable, root.startValue, root.stopValue, root.stepValue, root.pointsValue, root.listValuesText, root.dataTableName, root.secondaryEnabled, root.secondaryVariable, root.secondaryStart, root.secondaryStop, root.secondaryStep, root.secondaryPoints, root.dcPrintEnabled, root.dcPrintAllNodes, root.dcPrintAllCurrents, root.dcPrintPower, root.dcPrintBjtLeads, root.dcPrintFetLeads, root.dcPrintSpecificVars, dcPrintFormatCombo.currentIndex > 0 ? dcPrintFormatCombo.model[dcPrintFormatCombo.currentIndex] : "", root.dcPrintFile, root.replaceGround)
+                    } else if (simTabBar.currentIndex === 3) {
+                        root.submitAC(root.acSweepModeValue(), root.acPoints, root.acStart, root.acEnd, root.acDataTableName, root.acPrintEnabled, root.acPrintAllNodes, root.acPrintAllCurrents, root.acPrintSpecificVars, acPrintFormatCombo.currentIndex > 0 ? acPrintFormatCombo.model[acPrintFormatCombo.currentIndex] : "", root.acPrintFile, root.replaceGround)
+                    } else if (simTabBar.currentIndex === 4) {
+                        root.submitNoise(root.noiseOutputNode, root.noiseRefNode, root.noiseSourceName, root.noiseSweepModeValue(), root.noisePoints, root.noiseStart, root.noiseEnd, root.noiseDataTableName, root.noisePrintEnabled, root.noisePrintAllNodes, root.noisePrintAllCurrents, root.noisePrintInoise, root.noisePrintOnoise, root.noisePrintSpecificVars, noisePrintFormatCombo.currentIndex > 0 ? noisePrintFormatCombo.model[noisePrintFormatCombo.currentIndex] : "", root.noisePrintFile, root.replaceGround)
+                    } else if (simTabBar.currentIndex === 5) {
+                        root.submitHB(root.hbFrequenciesText, root.hbPrintEnabled, root.hbPrintAllNodes, root.hbPrintAllCurrents, root.hbPrintTypeValue(), root.hbPrintSpecificVars, hbPrintFormatCombo.currentIndex > 0 ? hbPrintFormatCombo.model[hbPrintFormatCombo.currentIndex] : "", root.hbPrintFile, root.replaceGround)
+                    } else if (simTabBar.currentIndex === 6) {
+                        root.submitLIN(root.linSparcalc, root.linFormat, root.linType, root.linDataFormat, root.linFile, root.linWidth, root.linPrecision, root.linSweepModeValue(), root.linPoints, root.linStart, root.linEnd, root.linDataTableName, root.linPrintEnabled, root.linPrintAllNodes, root.linPrintAllCurrents, root.linPrintSpecificVars, linPrintFormatCombo.currentIndex > 0 ? linPrintFormatCombo.model[linPrintFormatCombo.currentIndex] : "", root.linPrintFile, root.replaceGround)
                     }
                 }
             }

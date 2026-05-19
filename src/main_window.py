@@ -523,8 +523,8 @@ class MainWindow(QMainWindow):
             # set property
             self._root.setProperty("logVisible", not visible)
 
-    @Slot(str, str)
-    def _on_simulation_started(self, netlist_path: str, output_path: str) -> None:
+    @Slot(str)
+    def _on_simulation_started(self, netlist_path: str) -> None:
         # status
         self._show_status("Simulation started...")
         # set flag
@@ -555,8 +555,8 @@ class MainWindow(QMainWindow):
         # status
         self._show_status(f"Simulation error: {text}", 5000)
 
-    @Slot(int, int, bool, str)
-    def _on_simulation_finished(self, exit_code: int, exit_status: int, was_canceled: bool, output_path: str) -> None:
+    @Slot(int, int, bool)
+    def _on_simulation_finished(self, exit_code: int, exit_status: int, was_canceled: bool) -> None:
         # check
         if was_canceled:
             # status
@@ -584,7 +584,7 @@ class MainWindow(QMainWindow):
         if self._simulation_parameters is None:
             return
         # generate simulation directives
-        netlist = netlist.replace(".END", f"\n{'\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))}\n\n.END")
+        netlist = netlist.replace(".END\n", f"\n{'\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))}\n\n.END\n")
         # log information
         logger.info("Running simulation with netlist:\n%s", netlist)
         # try
@@ -614,7 +614,7 @@ class MainWindow(QMainWindow):
             self._simulation_parameters = from_xyce_directives(topology.directives)
         # apply simulation parameters if present
         if self._simulation_parameters is not None:
-            netlist = netlist.replace(".END", f"\n{'\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))}\n\n.END")
+            netlist = netlist.replace(".END\n", f"\n{'\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))}\n\n.END\n")
         # dialog
         dialog = NetlistViewerDialog(parent=self, netlist=netlist)
         # exec

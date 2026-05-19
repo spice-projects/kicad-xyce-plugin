@@ -38,6 +38,25 @@ _Y_NODE_COUNTS: dict[str, int] = {
     "YPDE": 0,
 }
 
+_SIMULATION_DIRECTIVES = (
+    # bias point analysis and its output/setup companions
+    ".OP", ".PRINT", ".SAVE", ".NODESET",
+    # DC sweep analysis
+    ".DC",
+    # transient analysis and its post-processing companions
+    ".TRAN", ".FFT", ".FOUR",
+    # AC frequency-domain analysis and its S/Y/Z-parameter output spec
+    ".AC", ".LIN",
+    # harmonic balance analysis
+    ".HB",
+    # noise analysis
+    ".NOISE",
+    # measure output and sensitivity output
+    ".MEASURE", ".MEAS", ".SENS",
+    # initial condition / bias point setup
+    ".IC", ".DCVOLT",
+)
+
 
 @dataclass
 class Device:
@@ -240,24 +259,7 @@ def parse_netlist(text: str) -> tuple[str, NetlistTopology]:
                 # continue loop
                 continue
             # simulation type and output directives — stripped from sanitized netlist
-            if first_upper in (
-                # bias point analysis and its output/setup companions
-                ".OP", ".PRINT", ".SAVE", ".NODESET",
-                # DC sweep analysis
-                ".DC",
-                # transient analysis and its post-processing companions
-                ".TRAN", ".FFT", ".FOUR",
-                # AC frequency-domain analysis and its S/Y/Z-parameter output spec
-                ".AC", ".LIN",
-                # harmonic balance analysis
-                ".HB",
-                # noise analysis
-                ".NOISE",
-                # measure output and sensitivity output
-                ".MEASURE", ".MEAS", ".SENS",
-                # initial condition / bias point setup
-                ".IC", ".DCVOLT",
-            ):
+            if first_upper in _SIMULATION_DIRECTIVES:
                 # add to directives
                 directives.append(stripped)
                 # continue loop
@@ -344,4 +346,4 @@ def parse_netlist(text: str) -> tuple[str, NetlistTopology]:
                 # add to globals
                 global_nodes.add(node)
     # return result
-    return "\n".join(netlist), NetlistTopology(title=title, devices=top_level_devices, nodes=top_level_nodes, subcircuit_definitions=subcircuit_definitions, global_nodes=global_nodes, directives=directives)
+    return f"{'\n'.join(netlist)}\n", NetlistTopology(title=title, devices=top_level_devices, nodes=top_level_nodes, subcircuit_definitions=subcircuit_definitions, global_nodes=global_nodes, directives=directives)

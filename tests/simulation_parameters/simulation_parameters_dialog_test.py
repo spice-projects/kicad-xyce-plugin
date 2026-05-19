@@ -5,7 +5,19 @@ import pytest
 from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtQuick import QQuickView
 
-from simulation_parameters import DCSimulationParameters, OpSimulationParameters, SimulationParametersDialog, TransientSchedulePoint, TransientSimulationParameters
+from netlist_parser import Device, NetlistTopology
+from simulation_parameters import (
+    AcSimulationParameters,
+    DCSimulationParameters,
+    HbSimulationParameters,
+    LinSimulationParameters,
+    NoiseSimulationParameters,
+    OpSimulationParameters,
+    PrintParameters,
+    SimulationParametersDialog,
+    TransientSchedulePoint,
+    TransientSimulationParameters,
+)
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -588,3 +600,609 @@ class TestSimulationParametersDialogGetParameters:
             result = dialog.get_parameters()
         # assert
         assert isinstance(result, OpSimulationParameters)
+
+
+class TestParseListValues:
+
+    def test_empty_string_returns_empty_tuple(self):
+        # arrange / act
+        from simulation_parameters.simulation_parameters_dialog import _parse_list_values
+        result = _parse_list_values("")
+        # assert
+        assert result == tuple()
+
+
+class TestBuildVariableCandidates:
+
+    def test_with_topology_sets_node_and_device_lists(self):
+        # arrange
+        devices = [Device(name="V1", type_letter="V", nodes=["in", "0"])]
+        topology = NetlistTopology(title="test", devices=devices, nodes={"in", "0"}, subcircuit_definitions={}, global_nodes=set())
+        dialog = _make_dialog()
+        dialog._topology = topology
+        # act
+        dialog._build_variable_candidates()
+        # assert
+        assert "V(in)" in dialog._node_voltages
+        assert "V(0)" not in dialog._node_voltages
+        assert "I(V1)" in dialog._device_currents
+
+    def test_detects_bjt_and_fet_devices(self):
+        # arrange
+        devices = [
+            Device(name="Q1", type_letter="Q", nodes=["c", "b", "e"]),
+            Device(name="M1", type_letter="M", nodes=["d", "g", "s", "b"]),
+        ]
+        topology = NetlistTopology(title="test", devices=devices, nodes={"c", "b", "e", "d", "g", "s"}, subcircuit_definitions={}, global_nodes=set())
+        dialog = _make_dialog()
+        dialog._topology = topology
+        # act
+        dialog._build_variable_candidates()
+        # assert
+        assert dialog._has_bjt_devices is True
+        assert dialog._has_fet_devices is True
+
+
+class TestApplyInitialParametersTabSelection:
+
+    def test_selects_ac_tab(self):
+        # arrange
+        params = AcSimulationParameters(sweep_mode="LIN", points="100", start="1", end="1MEG", replace_ground=False)
+        dialog = _make_dialog(initial_parameters=params)
+        # act
+        dialog._apply_initial_parameters()
+        # assert
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 3)
+
+    def test_selects_noise_tab(self):
+        # arrange
+        params = NoiseSimulationParameters(output_node="5", source_name="V1", sweep_mode="LIN", points="100", start="1", end="1MEG", replace_ground=False)
+        dialog = _make_dialog(initial_parameters=params)
+        # act
+        dialog._apply_initial_parameters()
+        # assert
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 4)
+
+    def test_selects_hb_tab(self):
+        # arrange
+        params = HbSimulationParameters(frequencies=("1MEG",), replace_ground=False)
+        dialog = _make_dialog(initial_parameters=params)
+        # act
+        dialog._apply_initial_parameters()
+        # assert
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 5)
+
+    def test_selects_lin_tab(self):
+        # arrange
+        params = LinSimulationParameters(sweep_mode="LIN", points="100", start="1", end="1MEG", replace_ground=False)
+        dialog = _make_dialog(initial_parameters=params)
+        # act
+        dialog._apply_initial_parameters()
+        # assert
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 6)
+
+
+class TestApplyOpParametersWithPrintParams:
+
+    def test_restores_saved_print_parameters(self):
+        # arrange
+        pp = PrintParameters(print_type="DC", output_variables=("V(*)", "I(*)", "P(*)"), print_format="CSV", print_file="op.csv")
+        params = OpSimulationParameters(print_parameters=pp)
+        dialog = _make_dialog()
+        # act
+        dialog._apply_op_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("opPrintAllNodes", True)
+        dialog._root.setProperty.assert_any_call("opPrintAllCurrents", True)
+        dialog._root.setProperty.assert_any_call("opPrintPower", True)
+        dialog._root.setProperty.assert_any_call("opPrintFile", "op.csv")
+
+
+class TestApplyTransientParametersWithPrintParams:
+
+    def test_restores_saved_print_parameters(self):
+        # arrange
+        pp = PrintParameters(print_type="TRAN", output_variables=("V(*)", "IC(*)"), print_format="RAW", print_file="")
+        params = TransientSimulationParameters("1u", "1m", "", "", "", tuple(), print_parameters=pp)
+        dialog = _make_dialog()
+        # act
+        dialog._apply_transient_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("tranPrintAllNodes", True)
+        dialog._root.setProperty.assert_any_call("tranPrintBjtLeads", True)
+        dialog._root.setProperty.assert_any_call("tranPrintAllCurrents", False)
+
+
+class TestApplyDCParametersWithPrintParams:
+
+    def test_restores_saved_print_parameters(self):
+        # arrange
+        pp = PrintParameters(print_type="DC", output_variables=("V(*)",), print_format="CSV", print_file="dc.csv")
+        params = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", "", tuple(), "", "", "", "", "", "", print_parameters=pp)
+        dialog = _make_dialog()
+        # act
+        dialog._apply_dc_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("dcPrintAllNodes", True)
+        dialog._root.setProperty.assert_any_call("dcPrintFile", "dc.csv")
+
+
+class TestApplyACParameters:
+
+    def test_defaults_when_no_params(self):
+        # arrange
+        dialog = _make_dialog()
+        # act
+        dialog._apply_ac_parameters(None)
+        # assert
+        dialog._root.setProperty.assert_any_call("acPoints", "100")
+        dialog._root.setProperty.assert_any_call("acStart", "1")
+        dialog._root.setProperty.assert_any_call("acEnd", "1MEG")
+
+    def test_fills_values_from_params(self):
+        # arrange
+        params = AcSimulationParameters(sweep_mode="DEC", points="10", start="1k", end="100MEG", replace_ground=False)
+        dialog = _make_dialog()
+        # act
+        dialog._apply_ac_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("acSweepModeIndex", 1)
+        dialog._root.setProperty.assert_any_call("acPoints", "10")
+
+    def test_restores_saved_print_parameters(self):
+        # arrange
+        pp = PrintParameters(print_type="AC", output_variables=("V(*)", "V(OUT)"), print_format="CSV", print_file="ac.csv")
+        params = AcSimulationParameters(sweep_mode="LIN", points="100", start="1", end="1MEG", replace_ground=False, print_parameters=pp)
+        dialog = _make_dialog()
+        # act
+        dialog._apply_ac_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("acPrintAllNodes", True)
+        dialog._root.setProperty.assert_any_call("acPrintFile", "ac.csv")
+        dialog._root.setProperty.assert_any_call("acPrintSpecificVars", "V(OUT)")
+
+
+class TestApplyNoiseParameters:
+
+    def test_defaults_when_no_params(self):
+        # arrange
+        dialog = _make_dialog()
+        # act
+        dialog._apply_noise_parameters(None)
+        # assert
+        dialog._root.setProperty.assert_any_call("noiseOutputNode", "")
+        dialog._root.setProperty.assert_any_call("noisePoints", "100")
+
+    def test_fills_values_from_params(self):
+        # arrange
+        params = NoiseSimulationParameters(output_node="out", ref_node="gnd", source_name="V1", sweep_mode="DEC", points="10", start="1k", end="10MEG", replace_ground=False)
+        dialog = _make_dialog()
+        # act
+        dialog._apply_noise_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("noiseOutputNode", "out")
+        dialog._root.setProperty.assert_any_call("noiseRefNode", "gnd")
+        dialog._root.setProperty.assert_any_call("noiseSweepModeIndex", 1)
+
+    def test_restores_saved_print_parameters(self):
+        # arrange
+        pp = PrintParameters(print_type="NOISE", output_variables=("V(*)", "INOISE", "ONOISE"), print_format="CSV", print_file="noise.csv")
+        params = NoiseSimulationParameters(output_node="5", source_name="V1", sweep_mode="LIN", points="100", start="1", end="1MEG", replace_ground=False, print_parameters=pp)
+        dialog = _make_dialog()
+        # act
+        dialog._apply_noise_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("noisePrintAllNodes", True)
+        dialog._root.setProperty.assert_any_call("noisePrintInoise", True)
+        dialog._root.setProperty.assert_any_call("noisePrintOnoise", True)
+        dialog._root.setProperty.assert_any_call("noisePrintFile", "noise.csv")
+
+
+class TestApplyHBParameters:
+
+    def test_defaults_when_no_params(self):
+        # arrange
+        dialog = _make_dialog()
+        # act
+        dialog._apply_hb_parameters(None)
+        # assert
+        dialog._root.setProperty.assert_any_call("hbFrequenciesText", "1MEG")
+
+    def test_fills_values_from_params(self):
+        # arrange
+        params = HbSimulationParameters(frequencies=("1MEG", "2MEG"), replace_ground=False)
+        dialog = _make_dialog()
+        # act
+        dialog._apply_hb_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("hbFrequenciesText", "1MEG 2MEG")
+
+    def test_restores_saved_print_parameters(self):
+        # arrange
+        pp = PrintParameters(print_type="HB_TD", output_variables=("V(*)",), print_format="CSV", print_file="hb.csv")
+        params = HbSimulationParameters(frequencies=("1MEG",), replace_ground=False, print_parameters=pp)
+        dialog = _make_dialog()
+        # act
+        dialog._apply_hb_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("hbPrintAllNodes", True)
+        dialog._root.setProperty.assert_any_call("hbPrintTypeIndex", 2)
+        dialog._root.setProperty.assert_any_call("hbPrintFile", "hb.csv")
+
+
+class TestApplyLinParameters:
+
+    def test_defaults_when_no_params(self):
+        # arrange
+        dialog = _make_dialog()
+        # act
+        dialog._apply_lin_parameters(None)
+        # assert
+        dialog._root.setProperty.assert_any_call("linSparcalc", True)
+        dialog._root.setProperty.assert_any_call("linFormat", "TOUCHSTONE2")
+        dialog._root.setProperty.assert_any_call("linPoints", "100")
+
+    def test_fills_values_from_params(self):
+        # arrange
+        params = LinSimulationParameters(sweep_mode="DEC", points="10", start="1k", end="10MEG", format="TOUCHSTONE", lintype="Y", dataformat="MA", replace_ground=False)
+        dialog = _make_dialog()
+        # act
+        dialog._apply_lin_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("linSweepModeIndex", 1)
+        dialog._root.setProperty.assert_any_call("linPoints", "10")
+        dialog._root.setProperty.assert_any_call("linFormat", "TOUCHSTONE")
+
+    def test_restores_saved_print_parameters(self):
+        # arrange
+        pp = PrintParameters(print_type="AC", output_variables=("V(*)", "V(OUT)"), print_format="CSV", print_file="lin.csv")
+        params = LinSimulationParameters(sweep_mode="LIN", points="100", start="1", end="1MEG", replace_ground=False, print_parameters=pp)
+        dialog = _make_dialog()
+        # act
+        dialog._apply_lin_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("linPrintAllNodes", True)
+        dialog._root.setProperty.assert_any_call("linPrintFile", "lin.csv")
+        dialog._root.setProperty.assert_any_call("linPrintSpecificVars", "V(OUT)")
+
+
+class TestSimulationParametersDialogOnSubmitNoise:
+
+    def test_accepts_valid_noise_params(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_noise("5", "", "V1", "LIN", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_called_once()
+        assert isinstance(dialog._result, NoiseSimulationParameters)
+
+    def test_rejects_noise_without_output_node(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_noise("", "", "V1", "LIN", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("noiseErrorText", "Output node is required")
+
+    def test_rejects_noise_without_source_name(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_noise("5", "", "", "LIN", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("noiseErrorText", "Input noise source name is required")
+
+    def test_rejects_noise_with_invalid_sweep_mode(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_noise("5", "", "V1", "INVALID", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("noiseErrorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
+
+    def test_rejects_noise_lin_when_sweep_fields_missing(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_noise("5", "", "V1", "LIN", "", "", "", "", False, False, False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("noiseErrorText", "Points, start frequency, and end frequency are required")
+
+    def test_rejects_noise_data_when_table_name_missing(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_noise("5", "", "V1", "DATA", "", "", "", "", False, False, False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("noiseErrorText", "Data table name is required for DATA sweep")
+
+    def test_clears_error_on_success(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_noise("5", "", "V1", "LIN", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False)
+        # assert
+        dialog._root.setProperty.assert_any_call("noiseErrorText", "")
+
+    def test_noise_with_print_enabled(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_noise("5", "", "V1", "LIN", "100", "1", "1MEG", "", True, True, True, True, True, "DNI(V1)", "CSV", "noise.csv", False)
+        # assert
+        dialog.accept.assert_called_once()
+        result = dialog._result
+        assert result.print_parameters is not None
+        assert result.print_parameters.print_type == "NOISE"
+        assert "V(*)" in result.print_parameters.output_variables
+        assert "INOISE" in result.print_parameters.output_variables
+        assert "ONOISE" in result.print_parameters.output_variables
+        assert "DNI(V1)" in result.print_parameters.output_variables
+
+    def test_noise_data_sweep_accepted(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_noise("5", "", "V1", "DATA", "", "", "", "myTable", False, False, False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_called_once()
+        assert dialog._result.sweep_mode == "DATA"
+        assert dialog._result.data_table_name == "myTable"
+
+
+class TestSimulationParametersDialogOnSubmitLin:
+
+    def test_accepts_valid_lin_params(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_lin(True, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "100", "1", "1MEG", "", False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_called_once()
+        assert isinstance(dialog._result, LinSimulationParameters)
+
+    def test_rejects_lin_with_invalid_sweep_mode(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_lin(True, "TOUCHSTONE2", "S", "RI", "", "", "", "INVALID", "100", "1", "1MEG", "", False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("linErrorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
+
+    def test_rejects_lin_when_sweep_fields_missing(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_lin(True, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "", "", "", "", False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("linErrorText", "Points, start frequency, and end frequency are required")
+
+    def test_rejects_lin_data_when_table_name_missing(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_lin(True, "TOUCHSTONE2", "S", "RI", "", "", "", "DATA", "", "", "", "", False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("linErrorText", "Data table name is required for DATA sweep")
+
+    def test_clears_error_on_success(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_lin(True, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "100", "1", "1MEG", "", False, False, False, "", "", "", False)
+        # assert
+        dialog._root.setProperty.assert_any_call("linErrorText", "")
+
+    def test_lin_with_print_enabled(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_lin(True, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "100", "1", "1MEG", "", True, True, True, "V(1)", "CSV", "lin.csv", False)
+        # assert
+        dialog.accept.assert_called_once()
+        result = dialog._result
+        assert result.print_parameters is not None
+        assert "V(*)" in result.print_parameters.output_variables
+        assert "V(1)" in result.print_parameters.output_variables
+
+    def test_lin_data_sweep_accepted(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_lin(True, "TOUCHSTONE2", "S", "RI", "", "", "", "DATA", "", "", "", "myTable", False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_called_once()
+        assert dialog._result.sweep_mode == "DATA"
+
+
+class TestSimulationParametersDialogOnSubmitHB:
+
+    def test_accepts_valid_hb_params(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_hb("1MEG", False, False, False, "HB", "", "", "", False)
+        # assert
+        dialog.accept.assert_called_once()
+        assert isinstance(dialog._result, HbSimulationParameters)
+
+    def test_rejects_hb_when_frequencies_empty(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_hb("", False, False, False, "HB", "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("hbErrorText", "At least one fundamental frequency is required")
+
+    def test_accepts_multiple_frequencies(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_hb("1MEG 2MEG 3MEG", False, False, False, "HB", "", "", "", False)
+        # assert
+        dialog.accept.assert_called_once()
+        assert len(dialog._result.frequencies) == 3
+
+    def test_hb_with_print_enabled(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_hb("1MEG", True, True, True, "HB_FD", "V(1)", "CSV", "hb.csv", False)
+        # assert
+        dialog.accept.assert_called_once()
+        result = dialog._result
+        assert result.print_parameters is not None
+        assert result.print_parameters.print_type == "HB_FD"
+        assert "V(*)" in result.print_parameters.output_variables
+        assert "V(1)" in result.print_parameters.output_variables
+
+    def test_hb_invalid_print_type_falls_back_to_hb(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_hb("1MEG", True, False, False, "INVALID", "", "", "", False)
+        # assert
+        dialog.accept.assert_called_once()
+        assert dialog._result.print_parameters.print_type == "HB"
+
+    def test_clears_hb_error_on_success(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_hb("1MEG", False, False, False, "HB", "", "", "", False)
+        # assert
+        dialog._root.setProperty.assert_any_call("hbErrorText", "")
+
+    def test_rejects_hb_when_frequencies_parse_to_empty(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act — whitespace-only text parses to no tokens
+        dialog._on_submit_hb("  ,  ", False, False, False, "HB", "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("hbErrorText", "At least one fundamental frequency is required")
+
+
+class TestSimulationParametersDialogOnSubmitACWithPrint:
+
+    def test_ac_with_print_enabled(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_ac("LIN", "100", "1", "1MEG", "", True, True, True, "VM(OUT)", "CSV", "ac.csv", False)
+        # assert
+        dialog.accept.assert_called_once()
+        result = dialog._result
+        assert result.print_parameters is not None
+        assert "V(*)" in result.print_parameters.output_variables
+        assert "I(*)" in result.print_parameters.output_variables
+        assert "VM(OUT)" in result.print_parameters.output_variables
+        assert result.print_parameters.print_format == "CSV"
+        assert result.print_parameters.print_file == "ac.csv"
+
+    def test_rejects_ac_with_invalid_sweep_mode(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_ac("INVALID", "100", "1", "1MEG", "", False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("acErrorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
+
+    def test_rejects_ac_lin_when_sweep_fields_missing(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_ac("LIN", "", "", "", "", False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("acErrorText", "Points, start frequency, and end frequency are required")
+
+    def test_rejects_ac_data_when_table_name_missing(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_ac("DATA", "", "", "", "", False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("acErrorText", "Data table name is required for DATA sweep")
+
+
+class TestSimulationParametersDialogOnSubmitTransientWithPrint:
+
+    def test_transient_with_bjt_and_fet_leads(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", True, True, True, True, True, True, "V(1)", "CSV", "t.csv", False)
+        # assert
+        dialog.accept.assert_called_once()
+        result = dialog._result
+        assert result.print_parameters is not None
+        assert "V(*)" in result.print_parameters.output_variables
+        assert "I(*)" in result.print_parameters.output_variables
+        assert "P(*)" in result.print_parameters.output_variables
+        assert "IC(*)" in result.print_parameters.output_variables
+        assert "ID(*)" in result.print_parameters.output_variables
+        assert "V(1)" in result.print_parameters.output_variables
+
+
+class TestSimulationParametersDialogOnSubmitOPWithPrint:
+
+    def test_op_with_bjt_and_fet_leads(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_op(True, True, True, True, True, True, "V(1)", "CSV", "op.csv", False, "NODESET", "", "", False)
+        # assert
+        dialog.accept.assert_called_once()
+        result = dialog._result
+        assert result.print_parameters is not None
+        assert "V(*)" in result.print_parameters.output_variables
+        assert "P(*)" in result.print_parameters.output_variables
+        assert "IC(*)" in result.print_parameters.output_variables
+        assert "ID(*)" in result.print_parameters.output_variables
+        assert "V(1)" in result.print_parameters.output_variables
+
+    def test_op_parses_nodeset_text_into_entries(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_op(False, False, False, False, False, False, "", "", "", True, "NODESET", "V(out)=3.3 V(in)=5.0", "", False)
+        # assert
+        dialog.accept.assert_called_once()
+        result = dialog._result
+        assert len(result.nodeset_entries) == 2
+        assert result.nodeset_entries[0].node == "out"
+        assert result.nodeset_entries[0].voltage == "3.3"
+        assert result.nodeset_entries[1].node == "in"
+        assert result.nodeset_entries[1].voltage == "5.0"
+
+
+class TestSimulationParametersDialogOnSubmitDCWithPrint:
+
+    def test_dc_with_print_enabled(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", False, "", "", "", "", "", True, True, True, True, True, True, "V(1)", "CSV", "dc.csv", False)
+        # assert
+        dialog.accept.assert_called_once()
+        result = dialog._result
+        assert result.print_parameters is not None
+        assert "V(*)" in result.print_parameters.output_variables
+        assert "P(*)" in result.print_parameters.output_variables
+        assert "IC(*)" in result.print_parameters.output_variables
+        assert "ID(*)" in result.print_parameters.output_variables
+        assert "V(1)" in result.print_parameters.output_variables
+
