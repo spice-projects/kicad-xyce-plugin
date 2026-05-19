@@ -6,8 +6,10 @@ from PySide6.QtGui import QColor
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
 
+from netlist_parser import NetlistTopology
 from .dc_simulation_parameters import DCSimulationParameters
 from .op_simulation_parameters import OpSimulationParameters, NodesetEntry
+from .print_parameters import PrintParameters
 from .transient_simulation_parameters import TransientSchedulePoint, TransientSimulationParameters
 
 _QML_FILE = Path(__file__).parent / "simulation_parameters_dialog.qml"
@@ -15,6 +17,16 @@ _BG = "#efefe8"
 
 _DC_SWEEP_MODES = {"LIN", "DEC", "OCT", "LIST", "DATA"}
 _DC_SECONDARY_MODES = {"LIN", "DEC", "OCT"}
+
+# print format values matching the combo model order (index 0 is the empty/default value)
+_PRINT_FORMATS = ["", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"]
+
+# wildcard tokens that map to dedicated checkbox shortcuts in the print section
+_PRINT_WILDCARDS = {"V(*)", "I(*)", "P(*)", "W(*)", "IB(*)", "IC(*)", "ID(*)", "IE(*)", "IG(*)", "IS(*)"}
+
+# ordered lead current wildcards per device family for output emission order
+_BJT_WILDCARDS = ("IB(*)", "IC(*)", "IE(*)", "IS(*)")
+_FET_WILDCARDS = ("IB(*)", "ID(*)", "IG(*)", "IS(*)")
 
 
 def _parse_list_values(list_values_text: str) -> tuple[str, ...]:
@@ -31,12 +43,14 @@ def _parse_list_values(list_values_text: str) -> tuple[str, ...]:
 
 class SimulationParametersDialog(QDialog):
 
-    def __init__(self, parent: QWidget | None, initial_parameters: TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters):
+    def __init__(self, parent: QWidget | None, initial_parameters: TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters, topology: NetlistTopology | None = None):
         super().__init__(parent)
         # set modal
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         # capture initial parameters for form pre-population
         self._initial_parameters = initial_parameters
+        # store topology for deriving variable candidates for the print sections
+        self._topology = topology
         # keep the result empty until the user confirms valid values
         self._result: TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters | None = None
         # run ui setup logic
@@ -73,6 +87,8 @@ class SimulationParametersDialog(QDialog):
             return
         # capture the qml root for signal wiring and property updates
         self._root = self._qml_view.rootObject()
+        # build topology-derived variable candidate lists before applying parameters
+        self._build_variable_candidates()
         # initialize defaults and apply initial parameters if available
         self._apply_initial_parameters()
         # connect qml submit signals to python validation handlers
@@ -81,6 +97,22 @@ class SimulationParametersDialog(QDialog):
         self._root.submitOP.connect(self._on_submit_op)
         # connect qml cancel signal to close without a result
         self._root.cancelRequested.connect(self.reject)
+
+    def _build_variable_candidates(self) -> None:
+        # return empty lists when no topology is available
+        if self._topology is None:
+            self._node_voltages: list[str] = []
+            self._device_currents: list[str] = []
+            self._has_bjt_devices: bool = False
+            self._has_fet_devices: bool = False
+            return
+        # derive node voltage expressions for all non-ground nodes
+        self._node_voltages = sorted(f"V({n})" for n in self._topology.nodes if n != "0")
+        # derive device current expressions for current-carrying element types
+        self._device_currents = sorted(f"I({d.name})" for d in self._topology.devices if d.type_letter in {"V", "L", "E", "H"})
+        # detect device families that have topology-specific lead current wildcards
+        self._has_bjt_devices = any(d.type_letter == "Q" for d in self._topology.devices)
+        self._has_fet_devices = any(d.type_letter in {"M", "J", "Z"} for d in self._topology.devices)
 
     def _apply_initial_parameters(self) -> None:
         # always initialize all tabs to ensure a clean state
@@ -98,13 +130,46 @@ class SimulationParametersDialog(QDialog):
             self._root.setProperty("initialTabIndex", 0)
 
     def _apply_op_parameters(self, p: OpSimulationParameters | None) -> None:
-        # set default values when no parameters are provided
-        self._root.setProperty("printDcEnabled", p.print_dc_enabled if p else False)
-        self._root.setProperty("printDcAllNodes", p.print_dc_all_nodes if p else False)
-        self._root.setProperty("printDcAllCurrents", p.print_dc_all_currents if p else False)
-        self._root.setProperty("printDcVariables", ", ".join(p.print_dc_specific_variables) if p else "")
-        self._root.setProperty("printDcFormat", p.print_dc_format if p else "")
-        self._root.setProperty("printDcFile", p.print_dc_file if p else "")
+        # extract print parameters for pre-population (prefer print_parameters over legacy fields)
+        pp = p.print_parameters if p else None
+        # default to enabled with all wildcards and RAW format when no saved print parameters exist
+        if pp is None:
+            self._root.setProperty("opPrintEnabled", True)
+            self._root.setProperty("opPrintAllNodes", True)
+            self._root.setProperty("opPrintAllCurrents", True)
+            self._root.setProperty("opPrintPower", True)
+            # default lead current checkboxes to on when the device family is present
+            self._root.setProperty("opPrintBjtLeads", self._has_bjt_devices)
+            self._root.setProperty("opPrintFetLeads", self._has_fet_devices)
+            # expose device family flags for conditional checkbox visibility
+            self._root.setProperty("opHasBjtDevices", self._has_bjt_devices)
+            self._root.setProperty("opHasFetDevices", self._has_fet_devices)
+            self._root.setProperty("opPrintFormatIndex", _PRINT_FORMATS.index("RAW"))
+            self._root.setProperty("opPrintFile", "")
+            self._root.setProperty("opPrintSpecificVars", "")
+        else:
+            # restore enabled state from saved parameters
+            self._root.setProperty("opPrintEnabled", True)
+            # index saved output variables for quick wildcard lookup
+            selected = set(pp.output_variables)
+            # check wildcard shortcuts based on saved output variables
+            self._root.setProperty("opPrintAllNodes", "V(*)" in selected)
+            self._root.setProperty("opPrintAllCurrents", "I(*)" in selected)
+            self._root.setProperty("opPrintPower", "P(*)" in selected)
+            # restore lead current state using family-unique tokens as indicators
+            self._root.setProperty("opPrintBjtLeads", bool(selected & {"IC(*)", "IE(*)"}))
+            self._root.setProperty("opPrintFetLeads", bool(selected & {"ID(*)", "IG(*)"}))
+            # expose device family flags for conditional checkbox visibility
+            self._root.setProperty("opHasBjtDevices", self._has_bjt_devices)
+            self._root.setProperty("opHasFetDevices", self._has_fet_devices)
+            # map format string to combo index (index 0 is the default/empty value)
+            fmt_str = pp.print_format.upper() if pp.print_format else ""
+            self._root.setProperty("opPrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
+            # restore saved output file path
+            self._root.setProperty("opPrintFile", pp.print_file)
+            # specific vars: only saved non-wildcard vars (no automatic topology pre-fill)
+            self._root.setProperty("opPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
+        # restore save/nodeset state
         self._root.setProperty("saveEnabled", p.save_enabled if p else False)
         self._root.setProperty("saveType", p.save_type if p else "NODESET")
         self._root.setProperty("saveFile", p.save_file if p else "")
@@ -122,6 +187,45 @@ class SimulationParametersDialog(QDialog):
         self._root.setProperty("scheduleEnabled", bool(p and p.schedule_points))
         self._root.setProperty("schedulePairsText", " ".join(f"{pt.time_value},{pt.max_time_step_value}" for pt in p.schedule_points) if p else "")
         self._root.setProperty("transientErrorText", "")
+        # extract existing print parameters for pre-population
+        pp = p.print_parameters if p else None
+        # default to enabled with all wildcards and RAW format when no saved print parameters exist
+        if pp is None:
+            self._root.setProperty("tranPrintEnabled", True)
+            self._root.setProperty("tranPrintAllNodes", True)
+            self._root.setProperty("tranPrintAllCurrents", True)
+            self._root.setProperty("tranPrintPower", True)
+            # default lead current checkboxes to on when the device family is present
+            self._root.setProperty("tranPrintBjtLeads", self._has_bjt_devices)
+            self._root.setProperty("tranPrintFetLeads", self._has_fet_devices)
+            # expose device family flags for conditional checkbox visibility
+            self._root.setProperty("tranHasBjtDevices", self._has_bjt_devices)
+            self._root.setProperty("tranHasFetDevices", self._has_fet_devices)
+            self._root.setProperty("tranPrintFormatIndex", _PRINT_FORMATS.index("RAW"))
+            self._root.setProperty("tranPrintFile", "")
+            self._root.setProperty("tranPrintSpecificVars", "")
+        else:
+            # restore enabled state from saved parameters
+            self._root.setProperty("tranPrintEnabled", True)
+            # index saved output variables for quick wildcard lookup
+            selected = set(pp.output_variables)
+            # check wildcard shortcuts based on saved output variables
+            self._root.setProperty("tranPrintAllNodes", "V(*)" in selected)
+            self._root.setProperty("tranPrintAllCurrents", "I(*)" in selected)
+            self._root.setProperty("tranPrintPower", "P(*)" in selected)
+            # restore lead current state using family-unique tokens as indicators
+            self._root.setProperty("tranPrintBjtLeads", bool(selected & {"IC(*)", "IE(*)"}))
+            self._root.setProperty("tranPrintFetLeads", bool(selected & {"ID(*)", "IG(*)"}))
+            # expose device family flags for conditional checkbox visibility
+            self._root.setProperty("tranHasBjtDevices", self._has_bjt_devices)
+            self._root.setProperty("tranHasFetDevices", self._has_fet_devices)
+            # map format string to combo index (index 0 is the default/empty value)
+            fmt_str = pp.print_format.upper() if pp.print_format else ""
+            self._root.setProperty("tranPrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
+            # restore saved output file path
+            self._root.setProperty("tranPrintFile", pp.print_file)
+            # specific vars: only saved non-wildcard vars (no automatic topology pre-fill)
+            self._root.setProperty("tranPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
 
     def _apply_dc_parameters(self, p: DCSimulationParameters | None) -> None:
         # sweep mode index mapping
@@ -144,10 +248,39 @@ class SimulationParametersDialog(QDialog):
         self._root.setProperty("secondaryStop", p.secondary_stop if has_secondary else "")
         self._root.setProperty("secondaryStep", p.secondary_step if has_secondary else "")
         self._root.setProperty("secondaryPoints", p.secondary_points if has_secondary else "")
+        # extract print parameters for pre-population
+        pp = p.print_parameters if p else None
+        # default to enabled with all wildcards and RAW format when no saved print parameters exist
+        if pp is None:
+            self._root.setProperty("dcPrintEnabled", True)
+            self._root.setProperty("dcPrintAllNodes", True)
+            self._root.setProperty("dcPrintAllCurrents", True)
+            self._root.setProperty("dcPrintPower", True)
+            self._root.setProperty("dcPrintBjtLeads", self._has_bjt_devices)
+            self._root.setProperty("dcPrintFetLeads", self._has_fet_devices)
+            self._root.setProperty("dcHasBjtDevices", self._has_bjt_devices)
+            self._root.setProperty("dcHasFetDevices", self._has_fet_devices)
+            self._root.setProperty("dcPrintFormatIndex", _PRINT_FORMATS.index("RAW"))
+            self._root.setProperty("dcPrintFile", "")
+            self._root.setProperty("dcPrintSpecificVars", "")
+        else:
+            self._root.setProperty("dcPrintEnabled", True)
+            selected = set(pp.output_variables)
+            self._root.setProperty("dcPrintAllNodes", "V(*)" in selected)
+            self._root.setProperty("dcPrintAllCurrents", "I(*)" in selected)
+            self._root.setProperty("dcPrintPower", "P(*)" in selected)
+            self._root.setProperty("dcPrintBjtLeads", bool(selected & {"IC(*)", "IE(*)"}))
+            self._root.setProperty("dcPrintFetLeads", bool(selected & {"ID(*)", "IG(*)"}))
+            self._root.setProperty("dcHasBjtDevices", self._has_bjt_devices)
+            self._root.setProperty("dcHasFetDevices", self._has_fet_devices)
+            fmt_str = pp.print_format.upper() if pp.print_format else ""
+            self._root.setProperty("dcPrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
+            self._root.setProperty("dcPrintFile", pp.print_file)
+            self._root.setProperty("dcPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
         self._root.setProperty("dcErrorText", "")
 
-    @Slot(str, str, str, str, str, bool, str, bool)
-    def _on_submit_transient(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, replace_ground: bool) -> None:
+    @Slot(str, str, str, str, str, bool, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
+    def _on_submit_transient(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # normalize user-entered values by trimming surrounding spaces
         normalized_initial_step = initial_step.strip()
         # normalize user-entered values by trimming surrounding spaces
@@ -190,15 +323,34 @@ class SimulationParametersDialog(QDialog):
             return
         # clear any stale validation message now that inputs are valid
         self._root.setProperty("transientErrorText", "")
+        # build print parameters when the print section is enabled
+        print_parameters = None
+        if print_enabled:
+            # collect wildcard tokens for each enabled shortcut
+            output_vars: list[str] = []
+            if print_all_nodes:
+                output_vars.append("V(*)")
+            if print_all_currents:
+                output_vars.append("I(*)")
+            if print_power:
+                output_vars.append("P(*)")
+            # append BJT lead wildcards when the BJT checkbox is checked
+            if print_bjt_leads:
+                output_vars.extend(t for t in _BJT_WILDCARDS if t not in output_vars)
+            # append FET lead wildcards deduplicating tokens shared with the BJT group
+            if print_fet_leads:
+                output_vars.extend(t for t in _FET_WILDCARDS if t not in output_vars)
+            # append any explicitly listed specific variables
+            output_vars.extend(v for v in print_specific_vars.split() if v)
+            # construct print parameters for the transient analysis type
+            print_parameters = PrintParameters(print_type="TRAN", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # capture the validated dialog output for the caller
-        self._result = TransientSimulationParameters(normalized_initial_step, normalized_final_time, normalized_start_time, normalized_step_ceiling, normalized_op_keyword, schedule_points, replace_ground=replace_ground)
+        self._result = TransientSimulationParameters(normalized_initial_step, normalized_final_time, normalized_start_time, normalized_step_ceiling, normalized_op_keyword, schedule_points, print_parameters=print_parameters, replace_ground=replace_ground)
         # close the dialog and return acceptance to the caller
         self.accept()
 
-    @Slot(bool, bool, bool, str, bool, str, str, str, str, str, bool)
-    def _on_submit_op(self, print_dc_enabled: bool, print_dc_all_nodes: bool, print_dc_all_currents: bool, print_dc_variables: str, save_enabled: bool, save_type: str, nodeset_text: str, print_dc_format: str, print_dc_file: str, save_file: str, replace_ground: bool) -> None:
-        # split variable string into a tuple of tokens
-        specific_variables = tuple(v.strip() for v in print_dc_variables.split(",") if v.strip())
+    @Slot(bool, bool, bool, bool, bool, bool, str, str, str, bool, str, str, str, bool)
+    def _on_submit_op(self, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, save_enabled: bool, save_type: str, nodeset_text: str, save_file: str, replace_ground: bool) -> None:
         # parse nodeset text into entry objects
         nodeset_entries = []
         # basic pattern for V(node)=voltage
@@ -208,13 +360,34 @@ class SimulationParametersDialog(QDialog):
                 if node_part.startswith("V(") and node_part.endswith(")"):
                     node = node_part[2:-1]
                     nodeset_entries.append(NodesetEntry(node=node, voltage=voltage))
+        # build print parameters when the print section is enabled
+        print_parameters = None
+        if print_enabled:
+            # collect wildcard tokens for each enabled shortcut
+            output_vars: list[str] = []
+            if print_all_nodes:
+                output_vars.append("V(*)")
+            if print_all_currents:
+                output_vars.append("I(*)")
+            if print_power:
+                output_vars.append("P(*)")
+            # append BJT lead wildcards when the BJT checkbox is checked
+            if print_bjt_leads:
+                output_vars.extend(t for t in _BJT_WILDCARDS if t not in output_vars)
+            # append FET lead wildcards deduplicating tokens shared with the BJT group
+            if print_fet_leads:
+                output_vars.extend(t for t in _FET_WILDCARDS if t not in output_vars)
+            # append any explicitly listed specific variables
+            output_vars.extend(v for v in print_specific_vars.split() if v)
+            # construct print parameters for the DC analysis type
+            print_parameters = PrintParameters(print_type="DC", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # capture the validated dialog output for the caller
-        self._result = OpSimulationParameters(print_dc_enabled=print_dc_enabled, print_dc_all_nodes=print_dc_all_nodes, print_dc_all_currents=print_dc_all_currents, print_dc_specific_variables=specific_variables, print_dc_format=print_dc_format.strip(), print_dc_file=print_dc_file.strip(), save_enabled=save_enabled, save_type=save_type, save_file=save_file.strip(), nodeset_entries=tuple(nodeset_entries), replace_ground=replace_ground)
+        self._result = OpSimulationParameters(save_enabled=save_enabled, save_type=save_type, save_file=save_file.strip(), nodeset_entries=tuple(nodeset_entries), print_parameters=print_parameters, replace_ground=replace_ground)
         # close the dialog and return acceptance to the caller
         self.accept()
 
-    @Slot(str, str, str, str, str, str, str, str, bool, str, str, str, str, str, bool)
-    def _on_submit_dc(self, sweep_mode: str, primary_variable: str, start: str, stop: str, step: str, points: str, list_values_text: str, data_table_name: str, secondary_enabled: bool, secondary_variable: str, secondary_start: str, secondary_stop: str, secondary_step: str, secondary_points: str, replace_ground: bool) -> None:
+    @Slot(str, str, str, str, str, str, str, str, bool, str, str, str, str, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
+    def _on_submit_dc(self, sweep_mode: str, primary_variable: str, start: str, stop: str, step: str, points: str, list_values_text: str, data_table_name: str, secondary_enabled: bool, secondary_variable: str, secondary_start: str, secondary_stop: str, secondary_step: str, secondary_points: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # normalize the sweep mode to uppercase for comparison
         normalized_mode = sweep_mode.strip().upper()
         # normalize primary variable by trimming surrounding spaces
@@ -309,8 +482,29 @@ class SimulationParametersDialog(QDialog):
         effective_sec_variable = normalized_sec_variable if secondary_enabled and normalized_mode in _DC_SECONDARY_MODES else ""
         # clear any stale validation message now that inputs are valid
         self._root.setProperty("dcErrorText", "")
+        # build print parameters when the print section is enabled
+        print_parameters = None
+        if print_enabled:
+            # collect wildcard tokens for each enabled shortcut
+            output_vars: list[str] = []
+            if print_all_nodes:
+                output_vars.append("V(*)")
+            if print_all_currents:
+                output_vars.append("I(*)")
+            if print_power:
+                output_vars.append("P(*)")
+            # append BJT lead wildcards when the BJT checkbox is checked
+            if print_bjt_leads:
+                output_vars.extend(t for t in _BJT_WILDCARDS if t not in output_vars)
+            # append FET lead wildcards deduplicating tokens shared with the BJT group
+            if print_fet_leads:
+                output_vars.extend(t for t in _FET_WILDCARDS if t not in output_vars)
+            # append any explicitly listed specific variables
+            output_vars.extend(v for v in print_specific_vars.split() if v)
+            # construct print parameters for the DC sweep analysis type
+            print_parameters = PrintParameters(print_type="DC", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # capture the validated dialog output for the caller
-        self._result = DCSimulationParameters(normalized_mode, normalized_primary, normalized_start, normalized_stop, normalized_step, normalized_points, list_values, normalized_data_table, effective_sec_variable, normalized_sec_start, normalized_sec_stop, normalized_sec_step, normalized_sec_points, replace_ground=replace_ground)
+        self._result = DCSimulationParameters(normalized_mode, normalized_primary, normalized_start, normalized_stop, normalized_step, normalized_points, list_values, normalized_data_table, effective_sec_variable, normalized_sec_start, normalized_sec_stop, normalized_sec_step, normalized_sec_points, replace_ground=replace_ground, print_parameters=print_parameters)
         # close the dialog and return acceptance to the caller
         self.accept()
 

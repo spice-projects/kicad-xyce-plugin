@@ -153,3 +153,41 @@ class TestPrintParameters:
             result = PrintParameters.from_xyce_statement(directive)
             # assert result is not none
             assert result is not None
+
+
+class TestWildcardNormalization:
+
+    def test_w_star_normalizes_to_p_star(self):
+        # arrange
+        statement = ".PRINT TRAN W(*)"
+        # act
+        print_parameters = PrintParameters.from_xyce_statement(statement)
+        # assert — W(*) is a PSpice alias for P(*) and must be stored as P(*)
+        assert print_parameters.output_variables == ("P(*)",)
+
+    def test_w_named_instance_normalizes_to_p_form(self):
+        # arrange
+        statement = ".PRINT DC W(R1)"
+        # act
+        print_parameters = PrintParameters.from_xyce_statement(statement)
+        # assert — named W(...) also maps to P(...)
+        assert print_parameters.output_variables == ("P(R1)",)
+
+    def test_w_star_in_mixed_wildcard_list_normalizes(self):
+        # arrange
+        statement = ".PRINT TRAN V(*) I(*) W(*)"
+        # act
+        print_parameters = PrintParameters.from_xyce_statement(statement)
+        # assert — W(*) becomes P(*); other wildcards are unchanged
+        assert print_parameters.output_variables == ("V(*)", "I(*)", "P(*)")
+
+    def test_normalized_p_star_survives_round_trip(self):
+        # arrange — parse a statement that contains W(*) before serialization
+        statement = ".PRINT TRAN V(*) W(*)"
+        # act
+        parsed = PrintParameters.from_xyce_statement(statement)
+        serialized = parsed.to_xyce_statement()
+        reparsed = PrintParameters.from_xyce_statement(serialized)
+        # assert — W(*) is gone; round-trip contains P(*) only
+        assert "W(*)" not in serialized
+        assert reparsed.output_variables == ("V(*)", "P(*)")

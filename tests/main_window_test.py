@@ -26,14 +26,21 @@ def _make_window() -> MainWindow:
     window._plugin_config = PluginConfig.default()
     window._runner = None
     window._netlist = None
+    window._netlist_file_path = None
     window._topology = None
     window._simulation_parameters = None
     window._simulation_performed = False
     window._simulation_output_action = None
-    window._simulation_cmd_action = None
+    window._simulation_config_action = None
     window._simulation_run_action = None
     window._show_netlist_action = None
     window._charts = []
+    window._abscissa = None
+    window._step_information = None
+    window._expression_manager = None
+    window._abscissa_scale = MagicMock()
+    window._decimate_target = 9600
+    window._initial_selected_steps = None
     return window
 
 
@@ -54,7 +61,7 @@ class TestMainWindowSetupNetlist:
         # arrange
         window = _make_window()
         # act
-        netlist, topology = window._extract_schematic_netlist()
+        netlist, _, topology = window._extract_schematic_netlist()
         # assert
         assert isinstance(netlist, str)
         assert isinstance(topology, NetlistTopology)
@@ -209,7 +216,7 @@ class TestMainWindowOnMenuRunSimulation:
         window._on_menu_configure_simulation = MagicMock()
         # mock parse_netlist to return empty directives so simulation parameters remain None
         with patch("main_window.parse_netlist") as mock_parse:
-            mock_parse.return_value = MagicMock(directives=[])
+            mock_parse.return_value = ("", MagicMock(directives=[]))
             # act
             window._on_menu_run_simulation()
             # assert
@@ -291,7 +298,7 @@ class TestMainWindowOnMenuConfigureSimulation:
     def test_keeps_existing_parameters_when_dialog_canceled(self):
         # arrange
         window = _make_window()
-        with patch.object(window, "_extract_schematic_netlist", return_value=("", MagicMock(directives=[]))):
+        with patch.object(window, "_extract_schematic_netlist", return_value=("", MagicMock(), MagicMock(directives=[]))):
             with patch("main_window.SimulationParametersDialog") as mock_dialog_cls:
                 mock_dialog_cls.return_value.get_parameters.return_value = None
                 # act
@@ -304,10 +311,10 @@ class TestMainWindowOnMenuConfigureSimulation:
         window = _make_window()
         mock_params = MagicMock()
         mock_params.to_xyce_directive.return_value = ".TRAN 1u 1m"
-        with patch.object(window, "_extract_schematic_netlist", return_value=("", MagicMock(directives=[]))):
+        with patch.object(window, "_extract_schematic_netlist", return_value=("", MagicMock(), MagicMock(directives=[]))):
             with patch("main_window.SimulationParametersDialog") as mock_dialog_cls:
-                mock_dialog_cls.Accepted = 1
-                mock_dialog_cls.return_value.exec.return_value = 1
+                mock_dialog_cls.DialogCode.Accepted = "accepted"
+                mock_dialog_cls.return_value.exec.return_value = "accepted"
                 mock_dialog_cls.return_value.get_parameters.return_value = mock_params
                 # act
                 window._on_menu_configure_simulation()
@@ -321,6 +328,8 @@ class TestMainWindowOnMenuConfigureSimulation:
         window._topology = MagicMock(directives=[])
         mock_params = MagicMock()
         with patch("main_window.SimulationParametersDialog") as mock_dialog_cls:
+            mock_dialog_cls.DialogCode.Accepted = "accepted"
+            mock_dialog_cls.return_value.exec.return_value = "accepted"
             mock_dialog_cls.return_value.get_parameters.return_value = mock_params
             # act
             window._on_menu_configure_simulation()
@@ -334,7 +343,7 @@ class TestMainWindowOnMenuConfiguration:
         # arrange
         window = _make_window()
         original_config = window._plugin_config
-        with patch("main_window.ConfigDialog") as mock_dialog_cls:
+        with patch("main_window.PluginConfigDialog") as mock_dialog_cls:
             mock_dialog_cls.return_value.get_config.return_value = None
             # act
             window._on_menu_configuration()
@@ -346,7 +355,9 @@ class TestMainWindowOnMenuConfiguration:
         window = _make_window()
         new_config = MagicMock()
         new_config.xyce_executable_path = "/usr/bin/Xyce"
-        with patch("main_window.ConfigDialog") as mock_dialog_cls:
+        with patch("main_window.PluginConfigDialog") as mock_dialog_cls:
+            mock_dialog_cls.DialogCode.Accepted = "accepted"
+            mock_dialog_cls.return_value.exec.return_value = "accepted"
             mock_dialog_cls.return_value.get_config.return_value = new_config
             # act
             window._on_menu_configuration()
@@ -393,7 +404,7 @@ class TestMainWindowOnMenuOpenFile:
     def test_enables_simulation_actions_when_netlist_file_selected(self):
         # arrange
         window = _make_window()
-        window._simulation_cmd_action = MagicMock()
+        window._simulation_config_action = MagicMock()
         window._simulation_run_action = MagicMock()
         window._show_netlist_action = MagicMock()
         with patch("main_window.QFileDialog.getOpenFileName", return_value=("/tmp/test.cir", "")):
@@ -401,35 +412,35 @@ class TestMainWindowOnMenuOpenFile:
                 # act
                 window._on_menu_open_file()
         # assert
-        window._simulation_cmd_action.setEnabled.assert_called_once_with(True)
+        window._simulation_config_action.setEnabled.assert_called_once_with(True)
         window._simulation_run_action.setEnabled.assert_called_once_with(True)
         window._show_netlist_action.setEnabled.assert_called_once_with(True)
 
     def test_does_not_enable_simulation_actions_when_raw_file_selected(self):
         # arrange
         window = _make_window()
-        window._simulation_cmd_action = MagicMock()
+        window._simulation_config_action = MagicMock()
         window._simulation_run_action = MagicMock()
         window._show_netlist_action = MagicMock()
         with patch("main_window.QFileDialog.getOpenFileName", return_value=("/tmp/test.raw", "")):
             # act
             window._on_menu_open_file()
         # assert
-        window._simulation_cmd_action.setEnabled.assert_not_called()
+        window._simulation_config_action.setEnabled.assert_not_called()
         window._simulation_run_action.setEnabled.assert_not_called()
         window._show_netlist_action.setEnabled.assert_not_called()
 
     def test_does_not_enable_simulation_actions_when_no_file_selected(self):
         # arrange
         window = _make_window()
-        window._simulation_cmd_action = MagicMock()
+        window._simulation_config_action = MagicMock()
         window._simulation_run_action = MagicMock()
         window._show_netlist_action = MagicMock()
         with patch("main_window.QFileDialog.getOpenFileName", return_value=("", "")):
             # act
             window._on_menu_open_file()
         # assert
-        window._simulation_cmd_action.setEnabled.assert_not_called()
+        window._simulation_config_action.setEnabled.assert_not_called()
         window._simulation_run_action.setEnabled.assert_not_called()
         window._show_netlist_action.setEnabled.assert_not_called()
 
@@ -456,14 +467,6 @@ class TestMainWindowViewSimulationOutput:
         # assert
         window._root.setProperty.assert_called_with("logVisible", True)
 
-    def test_populate_charts_adds_one_chart(self):
-        # arrange
-        window = _make_window()
-        # act
-        window._populate_charts()
-        # assert
-        window._root.addChart.assert_called_once()
-
 
 class TestMainWindowAddChart:
 
@@ -471,6 +474,7 @@ class TestMainWindowAddChart:
         # arrange
         window = _make_window()
         # act
-        window._add_chart("", [])
+        with patch("main_window.Chart"):
+            window._add_chart([])
         # assert
         window._root.addChart.assert_called_once()

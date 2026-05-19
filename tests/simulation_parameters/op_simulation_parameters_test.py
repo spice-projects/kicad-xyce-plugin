@@ -1,6 +1,89 @@
 from unittest.mock import MagicMock
 
-from simulation_parameters import IcEntry, NodesetEntry, OpSimulationParameters
+from simulation_parameters import IcEntry, NodesetEntry, OpSimulationParameters, PrintParameters
+
+
+class TestPrintParametersWildcards:
+
+    def test_print_parameters_emits_print_dc_directive(self):
+        # arrange — OP analysis always uses .PRINT DC regardless of context
+        print_params = PrintParameters(print_type="DC", output_variables=("V(*)",))
+        params = OpSimulationParameters(replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        # assert — emitted directive is .PRINT DC, never .PRINT TRAN or .PRINT OP
+        assert any(d.startswith(".PRINT DC") for d in directives)
+        assert not any(d.startswith(".PRINT TRAN") for d in directives)
+
+    def test_generic_wildcards_via_print_parameters(self):
+        # arrange — the three universal wildcards valid for .PRINT DC
+        wildcards = ("V(*)", "I(*)", "P(*)")
+        print_params = PrintParameters(print_type="DC", output_variables=wildcards)
+        params = OpSimulationParameters(replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        # assert — each wildcard token appears in the .PRINT DC line
+        print_line = next(d for d in directives if d.startswith(".PRINT DC"))
+        for wildcard in wildcards:
+            assert wildcard in print_line
+
+    def test_bjt_lead_wildcards_via_print_parameters(self):
+        # arrange — BJT lead current wildcards: IB, IC, IE, IS
+        wildcards = ("IB(*)", "IC(*)", "IE(*)", "IS(*)")
+        print_params = PrintParameters(print_type="DC", output_variables=wildcards)
+        params = OpSimulationParameters(replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        # assert — each BJT wildcard appears in the emitted .PRINT DC line
+        print_line = next(d for d in directives if d.startswith(".PRINT DC"))
+        for wildcard in wildcards:
+            assert wildcard in print_line
+
+    def test_fet_lead_wildcards_via_print_parameters(self):
+        # arrange — FET lead current wildcards: IB, ID, IG, IS
+        wildcards = ("IB(*)", "ID(*)", "IG(*)", "IS(*)")
+        print_params = PrintParameters(print_type="DC", output_variables=wildcards)
+        params = OpSimulationParameters(replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        # assert — each FET wildcard appears in the emitted .PRINT DC line
+        print_line = next(d for d in directives if d.startswith(".PRINT DC"))
+        for wildcard in wildcards:
+            assert wildcard in print_line
+
+    def test_w_star_normalizes_to_p_star_on_parse(self):
+        # arrange — netlist contains PSpice-style W(*) in a .PRINT DC directive
+        directives = [".OP", ".PRINT DC W(*)"]
+        # act
+        params = OpSimulationParameters.from_xyce_directives(directives)
+        # assert — W(*) is stored as P(*) at parse time; no W(*) survives
+        assert params.print_parameters is not None
+        assert "P(*)" in params.print_parameters.output_variables
+        assert "W(*)" not in params.print_parameters.output_variables
+
+    def test_print_parameters_round_trip(self):
+        # arrange — wildcards spanning generic, BJT, and FET sets
+        wildcards = ("V(*)", "I(*)", "P(*)", "IB(*)", "IC(*)", "IE(*)", "IS(*)", "ID(*)", "IG(*)")
+        print_params = PrintParameters(print_type="DC", output_variables=wildcards)
+        params = OpSimulationParameters(replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        reparsed = OpSimulationParameters.from_xyce_directives([".OP"] + [d for d in directives if d.startswith(".PRINT")])
+        # assert — all wildcards survive a full serialize/parse cycle with the correct type
+        assert reparsed.print_parameters is not None
+        assert reparsed.print_parameters.print_type == "DC"
+        assert reparsed.print_parameters.output_variables == wildcards
+
+    def test_print_parameters_takes_priority_over_legacy_fields(self):
+        # arrange — both legacy and new fields are set; print_parameters must win
+        print_params = PrintParameters(print_type="DC", output_variables=("V(*)",))
+        params = OpSimulationParameters(print_dc_enabled=True, print_dc_specific_variables=("I(R1)",), replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        print_line = next(d for d in directives if d.startswith(".PRINT DC"))
+        # assert — only V(*) from print_parameters appears; I(R1) from legacy is not emitted
+        assert "V(*)" in print_line
+        assert "I(R1)" not in print_line
 
 
 class TestOpSimulationParameters:

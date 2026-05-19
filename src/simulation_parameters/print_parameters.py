@@ -214,6 +214,9 @@ class PrintParameters:
                 continue
             # mark output-variable section
             in_output_variables = True
+            # normalize W(...) to P(...) — W is the PSpice alias for P and round-trips as P
+            if token.upper().startswith("W("):
+                token = "P(" + token[2:]
             # append output variable
             output_variables.append(token)
         # return model

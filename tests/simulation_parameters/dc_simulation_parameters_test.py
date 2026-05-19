@@ -1,6 +1,66 @@
 from simulation_parameters import DCSimulationParameters, PrintParameters
 
 
+class TestPrintWildcards:
+
+    def test_generic_wildcards_round_trip(self):
+        # arrange — the three universal wildcards valid for every .PRINT DC statement
+        wildcards = ("V(*)", "I(*)", "P(*)")
+        print_params = PrintParameters(print_type="DC", output_variables=wildcards)
+        params = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        reparsed = DCSimulationParameters.from_xyce_directives(directives)
+        # assert — wildcards survive a full serialize/parse cycle
+        assert reparsed.print_parameters is not None
+        assert reparsed.print_parameters.print_type == "DC"
+        assert reparsed.print_parameters.output_variables == wildcards
+
+    def test_bjt_lead_wildcards_round_trip(self):
+        # arrange — BJT lead current wildcards: IB, IC, IE, IS
+        wildcards = ("IB(*)", "IC(*)", "IE(*)", "IS(*)")
+        print_params = PrintParameters(print_type="DC", output_variables=wildcards)
+        params = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        reparsed = DCSimulationParameters.from_xyce_directives(directives)
+        # assert — all four BJT lead wildcards survive the cycle unchanged
+        assert reparsed.print_parameters is not None
+        assert reparsed.print_parameters.output_variables == wildcards
+
+    def test_fet_lead_wildcards_round_trip(self):
+        # arrange — FET lead current wildcards: IB, ID, IG, IS
+        wildcards = ("IB(*)", "ID(*)", "IG(*)", "IS(*)")
+        print_params = PrintParameters(print_type="DC", output_variables=wildcards)
+        params = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        reparsed = DCSimulationParameters.from_xyce_directives(directives)
+        # assert — all four FET lead wildcards survive the cycle unchanged
+        assert reparsed.print_parameters is not None
+        assert reparsed.print_parameters.output_variables == wildcards
+
+    def test_w_star_normalizes_to_p_star_on_parse(self):
+        # arrange — netlist contains PSpice-style W(*) power wildcard
+        directives = [".DC VIN 0 5 0.1", ".PRINT DC W(*)"]
+        # act
+        params = DCSimulationParameters.from_xyce_directives(directives)
+        # assert — W(*) is stored as P(*) at parse time; no W(*) survives
+        assert params.print_parameters is not None
+        assert "P(*)" in params.print_parameters.output_variables
+        assert "W(*)" not in params.print_parameters.output_variables
+
+    def test_print_directive_uses_dc_not_tran_type(self):
+        # arrange — print_parameters with print_type="DC"
+        print_params = PrintParameters(print_type="DC", output_variables=("V(*)",))
+        params = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", replace_ground=False, print_parameters=print_params)
+        # act
+        directives = params.to_xyce_directives()
+        # assert — emitted directive is .PRINT DC, never .PRINT TRAN
+        assert any(d.startswith(".PRINT DC") for d in directives)
+        assert not any(d.startswith(".PRINT TRAN") for d in directives)
+
+
 class TestToXyceDirectivesLin:
 
     def test_lin_basic(self):

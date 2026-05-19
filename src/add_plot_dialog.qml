@@ -12,8 +12,21 @@ Item {
     property string filterText: ""
     property string expressionError: ""
     property bool allowCustomExpressions: true
+    property var expressionColors: {
+        "voltage": "#5b9bd5",
+        "current": "#7cb342",
+        "frequency": "#e57373",
+        "time": "#ba68c8",
+        "power": "#ffb74d",
+        "misc": "#3a3d4a"
+    }
 
-    readonly property var filteredExpressions: {
+    function getIndicatorColor(type) {
+        var color = root.expressionColors[type.toLowerCase()]
+        return color ? color : root.expressionColors["misc"]
+    }
+
+    property var filteredExpressions: {
         var text = filterText.toLowerCase()
         if (text === "") return root.expressions
         return root.expressions.filter(function(e) {
@@ -48,7 +61,7 @@ Item {
             }
         }
         var updated = root.expressions.slice()
-        updated.push([name, selected])
+        updated.push([name, selected, "Misc"])
         root.expressions = updated
         exprInput.text = ""
     }
@@ -147,6 +160,7 @@ Item {
             required property var modelData
 
             property string expression: String(modelData[0])
+            property string exprType: (modelData.length > 2) ? String(modelData[2]) : "Misc"
             // read selection state from the root map so toggling persists across filter changes
             property bool selected: root.selectionState[cellItem.expression] === true
 
@@ -154,11 +168,19 @@ Item {
                 anchors { fill: parent; margins: 3 }
                 radius: 4
                 color: cellItem.selected ? "#2a4a7a" : "#23252e"
-                border.color: cellItem.selected ? "#5b9bd5" : "#3a3d4a"
+                border.color: "#3a3d4a"
                 border.width: 1
 
+                // indicator circle
+                Rectangle {
+                    anchors { left: parent.left; leftMargin: 6; verticalCenter: parent.verticalCenter }
+                    width: 6; height: 6
+                    radius: 3
+                    color: root.getIndicatorColor(cellItem.exprType)
+                }
+
                 Text {
-                    anchors { verticalCenter: parent.verticalCenter; left: parent.left; leftMargin: 8; right: parent.right; rightMargin: 4 }
+                    anchors { verticalCenter: parent.verticalCenter; left: parent.left; leftMargin: 18; right: parent.right; rightMargin: 4 }
                     text: cellItem.expression
                     color: cellItem.selected ? "#dce8f8" : "#b0b8c8"
                     font.pixelSize: 12
@@ -274,12 +296,12 @@ Item {
     }
 
     // -------------------------------------------------------------------------
-    // Button bar — OK and Cancel
+    // Button bar — Legend, OK and Cancel
     // -------------------------------------------------------------------------
     Rectangle {
         id: buttonBar
         anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-        height: 44
+        height: 60
         color: "#16171e"
 
         // thin top divider
@@ -287,6 +309,20 @@ Item {
             anchors { top: parent.top; left: parent.left; right: parent.right }
             height: 1
             color: "#3a3d4a"
+        }
+
+        // legend
+        Row {
+            anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
+            spacing: 12
+            z: 10
+
+            Row { spacing: 4; Rectangle { width: 8; height: 8; color: root.expressionColors.voltage; radius: 4; z: 11 } Text { text: "Voltage"; color: "#b0b8c8"; font.pixelSize: 10 } }
+            Row { spacing: 4; Rectangle { width: 8; height: 8; color: root.expressionColors.current; radius: 4; z: 11 } Text { text: "Current"; color: "#b0b8c8"; font.pixelSize: 10 } }
+            Row { spacing: 4; Rectangle { width: 8; height: 8; color: root.expressionColors.frequency; radius: 4; z: 11 } Text { text: "Freq"; color: "#b0b8c8"; font.pixelSize: 10 } }
+            Row { spacing: 4; Rectangle { width: 8; height: 8; color: root.expressionColors.time; radius: 4; z: 11 } Text { text: "Time"; color: "#b0b8c8"; font.pixelSize: 10 } }
+            Row { spacing: 4; Rectangle { width: 8; height: 8; color: root.expressionColors.power; radius: 4; z: 11 } Text { text: "Power"; color: "#b0b8c8"; font.pixelSize: 10 } }
+            Row { spacing: 4; Rectangle { width: 8; height: 8; color: root.expressionColors.misc; radius: 4; z: 11 } Text { text: "Misc"; color: "#b0b8c8"; font.pixelSize: 10 } }
         }
 
         Row {

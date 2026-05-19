@@ -209,6 +209,13 @@ class MainWindow(QMainWindow):
         # separator
         toolbar.addSeparator()
 
+        # show netlist
+        self._show_netlist_action = QAction(get_kicad_icon(KiCadIcon.SHOW_NETLIST, dark=False), "Show Netlist", self)
+        self._show_netlist_action.setEnabled(self._kicad_client is not None)
+        self._show_netlist_action.setToolTip("Show processed netlist")
+        self._show_netlist_action.triggered.connect(self._on_menu_show_netlist)
+        toolbar.addAction(self._show_netlist_action)
+
         # simulation settings
         self._simulation_config_action = QAction(get_kicad_icon(KiCadIcon.SIM_CONFIG, dark=False), "Configure Simulation", self)
         self._simulation_config_action.setEnabled(self._kicad_client is not None)
@@ -222,16 +229,6 @@ class MainWindow(QMainWindow):
         self._simulation_run_action.setToolTip("Run the simulation")
         self._simulation_run_action.triggered.connect(self._on_menu_run_simulation)
         toolbar.addAction(self._simulation_run_action)
-
-        # separator
-        toolbar.addSeparator()
-
-        # show netlist
-        self._show_netlist_action = QAction(get_kicad_icon(KiCadIcon.SHOW_NETLIST, dark=False), "Show Netlist", self)
-        self._show_netlist_action.setEnabled(self._kicad_client is not None)
-        self._show_netlist_action.setToolTip("Show processed netlist")
-        self._show_netlist_action.triggered.connect(self._on_menu_show_netlist)
-        toolbar.addAction(self._show_netlist_action)
 
         # separator
         toolbar.addSeparator()
@@ -395,8 +392,6 @@ class MainWindow(QMainWindow):
         # load and parse raw file
         raw_file = XyceRawFile.load(raw_file_path)
         if raw_file is None:
-            # update statusbar
-            self._show_status(f"Failed to load raw file [{raw_file_path.name}]", 5000)
             # exit
             return
         # update state
@@ -410,6 +405,8 @@ class MainWindow(QMainWindow):
         self._simulation_config_action.setEnabled(False)
         self._simulation_run_action.setEnabled(False)
         self._show_netlist_action.setEnabled(False)
+        # update title
+        self.setWindowTitle(f"Xyce Simulation - {raw_file_path.name}")
         # check we need to create a new chart
         if not self._charts:
             self._add_chart([])
@@ -626,17 +623,17 @@ class MainWindow(QMainWindow):
     def _on_menu_configure_simulation(self) -> None:
         # simulation parameters
         initial_parameters = self._simulation_parameters
+        # always resolve topology so the dialog can pre-populate the print variable lists
+        _, _, topology = (None, None, self._topology) if self._topology else self._extract_schematic_netlist()
         # extract topology to pre-populate parameters from schematic directives
         if initial_parameters is None:
-            # topology to use
-            _, _, topology = (None, None, self._topology) if self._topology else self._extract_schematic_netlist()
             # load from directives if available
             initial_parameters = from_xyce_directives(topology.directives)
             # provide a default if no directives are available in the netlist
             if initial_parameters is None:
                 initial_parameters = OpSimulationParameters()
         # dialog
-        dialog = SimulationParametersDialog(self, initial_parameters=initial_parameters)
+        dialog = SimulationParametersDialog(self, initial_parameters=initial_parameters, topology=topology)
         # execute modal dialog and wait for user action
         if dialog.exec() != SimulationParametersDialog.DialogCode.Accepted:
             return None

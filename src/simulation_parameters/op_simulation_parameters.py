@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 from netlist_parser import NetlistTopology
 
+from .print_parameters import PrintParameters
+
 
 @dataclass(frozen=True)
 class NodesetEntry:
@@ -32,6 +34,7 @@ class OpSimulationParameters:
     nodeset_entries: tuple[NodesetEntry, ...] = ()
     ic_entries: tuple[IcEntry, ...] = ()
     replace_ground: bool = True
+    print_parameters: PrintParameters | None = None
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "OpSimulationParameters" | None:
@@ -41,6 +44,8 @@ class OpSimulationParameters:
         print_dc_enabled = False
         # init list
         print_dc_vars = []
+        # init parsed print parameters object
+        print_parameters_parsed: PrintParameters | None = None
         # init flag
         save_enabled = False
         # init list
@@ -65,7 +70,9 @@ class OpSimulationParameters:
             if cmd == ".PRINT" and len(tokens) > 1 and tokens[1].upper() == "DC":
                 # set enabled
                 print_dc_enabled = True
-                # add vars
+                # parse via PrintParameters for structured wildcard/format access
+                print_parameters_parsed = PrintParameters.from_xyce_statement(directive)
+                # also collect raw vars for backward-compatible list
                 print_dc_vars.extend(tokens[2:])
                 # next
                 continue
@@ -118,13 +125,17 @@ class OpSimulationParameters:
                 # set flag based on value
                 replace_ground = tokens[2].upper() == "TRUE"
         # return instance if a valid directive was found
-        return cls(print_dc_enabled=print_dc_enabled, print_dc_specific_variables=tuple(print_dc_vars), save_enabled=save_enabled, nodeset_entries=tuple(nodeset_entries), ic_entries=tuple(ic_entries), replace_ground=replace_ground) if found else None
+        return cls(print_dc_enabled=print_dc_enabled, print_dc_specific_variables=tuple(print_dc_vars), save_enabled=save_enabled, nodeset_entries=tuple(nodeset_entries), ic_entries=tuple(ic_entries), replace_ground=replace_ground, print_parameters=print_parameters_parsed) if found else None
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # start lines
         lines = [".OP"]
+        # use print_parameters when set (newer wildcard approach)
+        if self.print_parameters is not None:
+            # emit the statement directly using the structured print parameters
+            lines.append(self.print_parameters.to_xyce_statement())
         # check enabled
-        if self.print_dc_enabled:
+        elif self.print_dc_enabled:
             # start tokens
             tokens = [".PRINT DC"]
             # check format

@@ -55,7 +55,7 @@ class AddPlotDialog(QDialog):
         root.selectionChanged.connect(self._on_selection_changed)
         root.customExpressionRequested.connect(self._on_custom_expression_requested)
         # initialize view
-        root.initialize([[v.name, v in self._selected_expressions] for v in self._expressions_manager.expressions if self._expression_filter(v)])
+        root.initialize([[v.name, v in self._selected_expressions, v.variable_type or "Misc"] for v in self._expressions_manager.expressions if self._expression_filter(v)])
 
     @Slot(str, bool)
     def _on_selection_changed(self, expression: str, selected: bool):
