@@ -121,6 +121,7 @@ Item {
     property string noisePrintSpecificVars: ""
     property alias noisePrintFormatIndex: noisePrintFormatCombo.currentIndex
     property string noisePrintFile: ""
+    property var noiseDeviceOperators: []
 
     // --- HB tab properties ---
     property alias hbFrequenciesText: hbFrequenciesField.text
@@ -165,7 +166,7 @@ Item {
     signal submitDC(string sweepMode, string primaryVariable, string startValue, string stopValue, string stepValue, string pointsValue, string listValuesText, string dataTableName, bool secondaryEnabled, string secondaryVariable, string secondaryStart, string secondaryStop, string secondaryStep, string secondaryPoints, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitOP(bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool saveEnabled, string saveType, string nodesetEntries, string saveFile, bool replaceGround)
     signal submitAC(string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
-    signal submitNoise(string outputNode, string refNode, string sourceName, string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printInoise, bool printOnoise, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
+    signal submitNoise(string outputNode, string refNode, string sourceName, string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printInoise, bool printOnoise, string printSpecificVars, string printFormat, string printFile, bool replaceGround, var deviceOperatorsList)
     signal submitHB(string frequenciesText, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printType, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitLIN(bool sparcalc, string format, string lintype, string dataformat, string file, string width, string precision, string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal cancelRequested()
@@ -1627,12 +1628,97 @@ Item {
                                     columnSpacing: 8
 
                                     Label {
+                                        text: "Device Noise Operators"
+                                        color: "#24292f"
+                                        Layout.columnSpan: 4
+                                    }
+
+                                    Column {
+                                        Layout.columnSpan: 4
+                                        Layout.fillWidth: true
+                                        spacing: 6
+
+                                        Repeater {
+                                            model: root.noiseDeviceOperators.length
+
+                                            RowLayout {
+                                                required property int index
+
+                                                width: parent.width
+                                                spacing: 8
+
+                                                TextField {
+                                                    Layout.fillWidth: true
+                                                    placeholderText: "Device name"
+                                                    text: root.noiseDeviceOperators[index].deviceName || ""
+                                                    onTextChanged: {
+                                                        if (text !== root.noiseDeviceOperators[index].deviceName) {
+                                                            var updatedOperators = root.noiseDeviceOperators.slice();
+                                                            updatedOperators[index].deviceName = text;
+                                                            root.noiseDeviceOperators = updatedOperators;
+                                                        }
+                                                    }
+                                                }
+
+                                                ComboBox {
+                                                    Layout.preferredWidth: 80
+                                                    model: ["DNI", "DNO"]
+                                                    currentIndex: root.noiseDeviceOperators[index].operatorType === "DNI" ? 0 : 1
+                                                    onActivated: function(activatedIndex) {
+                                                        var updatedOperators = root.noiseDeviceOperators.slice();
+                                                        updatedOperators[index].operatorType = model[activatedIndex];
+                                                        root.noiseDeviceOperators = updatedOperators;
+                                                    }
+                                                }
+
+                                                TextField {
+                                                    Layout.preferredWidth: 120
+                                                    placeholderText: "Noise source (optional)"
+                                                    text: root.noiseDeviceOperators[index].noiseSource || ""
+                                                    onTextChanged: {
+                                                        if (text !== (root.noiseDeviceOperators[index].noiseSource || "")) {
+                                                            var updatedOperators = root.noiseDeviceOperators.slice();
+                                                            updatedOperators[index].noiseSource = text;
+                                                            root.noiseDeviceOperators = updatedOperators;
+                                                        }
+                                                    }
+                                                }
+
+                                                Button {
+                                                    Layout.preferredWidth: 30
+                                                    text: "×"
+                                                    onClicked: {
+                                                        var updatedOperators = root.noiseDeviceOperators.slice();
+                                                        updatedOperators.splice(index, 1);
+                                                        root.noiseDeviceOperators = updatedOperators;
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+
+                                            Button {
+                                                text: "Add Device Operator"
+                                                onClicked: {
+                                                    var updatedOperators = root.noiseDeviceOperators.slice();
+                                                    updatedOperators.push({deviceName: "", operatorType: "DNI", noiseSource: ""});
+                                                    root.noiseDeviceOperators = updatedOperators;
+                                                }
+                                            }
+
+                                            Item { Layout.fillWidth: true }
+                                        }
+                                    }
+
+                                    Label {
                                         text: "Additional"
                                         color: "#24292f"
                                     }
                                     TextField {
                                         id: noisePrintSpecificVarsField
-                                        placeholderText: "e.g. DNI(R1) DNO(Q2,FLICKER)"
+                                        placeholderText: "e.g. V(1) I(V1)"
                                         selectByMouse: true
                                         text: root.noisePrintSpecificVars
                                         onTextChanged: root.noisePrintSpecificVars = text
@@ -2161,7 +2247,7 @@ Item {
                     } else if (simTabBar.currentIndex === 3) {
                         root.submitAC(root.acSweepModeValue(), root.acPoints, root.acStart, root.acEnd, root.acDataTableName, root.acPrintEnabled, root.acPrintAllNodes, root.acPrintAllCurrents, root.acPrintSpecificVars, acPrintFormatCombo.currentIndex > 0 ? acPrintFormatCombo.model[acPrintFormatCombo.currentIndex] : "", root.acPrintFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 4) {
-                        root.submitNoise(root.noiseOutputNode, root.noiseRefNode, root.noiseSourceName, root.noiseSweepModeValue(), root.noisePoints, root.noiseStart, root.noiseEnd, root.noiseDataTableName, root.noisePrintEnabled, root.noisePrintAllNodes, root.noisePrintAllCurrents, root.noisePrintInoise, root.noisePrintOnoise, root.noisePrintSpecificVars, noisePrintFormatCombo.currentIndex > 0 ? noisePrintFormatCombo.model[noisePrintFormatCombo.currentIndex] : "", root.noisePrintFile, root.replaceGround)
+                        root.submitNoise(root.noiseOutputNode, root.noiseRefNode, root.noiseSourceName, root.noiseSweepModeValue(), root.noisePoints, root.noiseStart, root.noiseEnd, root.noiseDataTableName, root.noisePrintEnabled, root.noisePrintAllNodes, root.noisePrintAllCurrents, root.noisePrintInoise, root.noisePrintOnoise, root.noisePrintSpecificVars, noisePrintFormatCombo.currentIndex > 0 ? noisePrintFormatCombo.model[noisePrintFormatCombo.currentIndex] : "", root.noisePrintFile, root.replaceGround, root.noiseDeviceOperators)
                     } else if (simTabBar.currentIndex === 5) {
                         root.submitHB(root.hbFrequenciesText, root.hbPrintEnabled, root.hbPrintAllNodes, root.hbPrintAllCurrents, root.hbPrintTypeValue(), root.hbPrintSpecificVars, hbPrintFormatCombo.currentIndex > 0 ? hbPrintFormatCombo.model[hbPrintFormatCombo.currentIndex] : "", root.hbPrintFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 6) {

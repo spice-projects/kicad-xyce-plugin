@@ -1,4 +1,23 @@
-from simulation_parameters import NoiseSimulationParameters, PrintParameters
+from simulation_parameters import DeviceNoiseOperator, NoiseSimulationParameters, PrintParameters
+
+
+class TestDeviceNoiseOperator:
+
+    def test_create_device_noise_operator(self):
+        # arrange
+        operator = DeviceNoiseOperator(device_name="R1", operator_type="DNI", noise_source="")
+        # act/assert
+        assert operator.device_name == "R1"
+        assert operator.operator_type == "DNI"
+        assert operator.noise_source == ""
+
+    def test_create_device_noise_operator_with_noise_source(self):
+        # arrange
+        operator = DeviceNoiseOperator(device_name="Q2", operator_type="DNO", noise_source="FLICKER")
+        # act/assert
+        assert operator.device_name == "Q2"
+        assert operator.operator_type == "DNO"
+        assert operator.noise_source == "FLICKER"
 
 
 class TestNoiseSimulationParameters:
@@ -169,3 +188,56 @@ class TestNoiseFromXyceDirectives:
         assert params.points == "100"
         assert params.start == "1"
         assert params.end == "1MEG"
+
+    def test_parses_device_noise_operators(self):
+        # arrange / act
+        params = NoiseSimulationParameters.from_xyce_directives([".NOISE V(5) V1 LIN 10 1 1MEG", ".PRINT NOISE INOISE ONOISE DNI(R1) DNO(R2)"])
+        # assert
+        assert params is not None
+        assert len(params.device_noise_operators) == 2
+        assert params.device_noise_operators[0].device_name == "R1"
+        assert params.device_noise_operators[0].operator_type == "DNI"
+        assert params.device_noise_operators[1].device_name == "R2"
+        assert params.device_noise_operators[1].operator_type == "DNO"
+
+    def test_parses_device_noise_operators_with_noise_source(self):
+        # arrange / act
+        params = NoiseSimulationParameters.from_xyce_directives([".NOISE V(5) V1 LIN 10 1 1MEG", ".PRINT NOISE DNI(Q2,FLICKER) DNO(Q2,THERMAL)"])
+        # assert
+        assert params is not None
+        assert len(params.device_noise_operators) == 2
+        assert params.device_noise_operators[0].device_name == "Q2"
+        assert params.device_noise_operators[0].operator_type == "DNI"
+        assert params.device_noise_operators[0].noise_source == "FLICKER"
+        assert params.device_noise_operators[1].device_name == "Q2"
+        assert params.device_noise_operators[1].operator_type == "DNO"
+        assert params.device_noise_operators[1].noise_source == "THERMAL"
+
+    def test_serializes_device_noise_operators(self):
+        # arrange
+        device_operators = (DeviceNoiseOperator(device_name="R1", operator_type="DNI", noise_source=""), DeviceNoiseOperator(device_name="R2", operator_type="DNO", noise_source=""))
+        print_params = PrintParameters(print_type="NOISE", output_variables=("INOISE", "ONOISE"))
+        params = NoiseSimulationParameters(output_node="5", source_name="V1", sweep_mode="LIN", points="10", start="1", end="1MEG", replace_ground=False, print_parameters=print_params, device_noise_operators=device_operators)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert ".PRINT NOISE INOISE ONOISE DNI(R1) DNO(R2)" in directives
+
+    def test_serializes_device_noise_operators_with_noise_source(self):
+        # arrange
+        device_operators = (DeviceNoiseOperator(device_name="Q2", operator_type="DNI", noise_source="FLICKER"),)
+        print_params = PrintParameters(print_type="NOISE", output_variables=())
+        params = NoiseSimulationParameters(output_node="5", source_name="V1", sweep_mode="LIN", points="10", start="1", end="1MEG", replace_ground=False, print_parameters=print_params, device_noise_operators=device_operators)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert ".PRINT NOISE DNI(Q2,FLICKER)" in directives
+
+    def test_omits_print_when_no_output_variables(self):
+        # arrange
+        print_params = PrintParameters(print_type="NOISE", output_variables=())
+        params = NoiseSimulationParameters(output_node="5", source_name="V1", sweep_mode="LIN", points="10", start="1", end="1MEG", replace_ground=False, print_parameters=print_params, device_noise_operators=())
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert directives == [".NOISE V(5) V1 LIN 10 1 1MEG"]

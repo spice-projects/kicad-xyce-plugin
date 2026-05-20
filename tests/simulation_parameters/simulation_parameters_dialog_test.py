@@ -6,18 +6,9 @@ from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtQuick import QQuickView
 
 from netlist_parser import Device, NetlistTopology
-from simulation_parameters import (
-    AcSimulationParameters,
-    DCSimulationParameters,
-    HbSimulationParameters,
-    LinSimulationParameters,
-    NoiseSimulationParameters,
-    OpSimulationParameters,
-    PrintParameters,
-    SimulationParametersDialog,
-    TransientSchedulePoint,
-    TransientSimulationParameters,
-)
+from simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, PrintParameters, SimulationParametersDialog, TransientSchedulePoint, TransientSimulationParameters
+
+from simulation_parameters.simulation_parameters_dialog import _validate_device_name
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -652,6 +643,45 @@ class TestParseListValues:
         assert result == tuple()
 
 
+class TestValidateDeviceName:
+
+    def test_accepts_valid_device_name(self):
+        # arrange / act
+        result = _validate_device_name("R1")
+        # assert
+        assert result is True
+
+    def test_accepts_device_name_with_underscore(self):
+        # arrange / act
+        result = _validate_device_name("R_1")
+        # assert
+        assert result is True
+
+    def test_rejects_empty_device_name(self):
+        # arrange / act
+        result = _validate_device_name("")
+        # assert
+        assert result is False
+
+    def test_rejects_whitespace_only_device_name(self):
+        # arrange / act
+        result = _validate_device_name("   ")
+        # assert
+        assert result is False
+
+    def test_rejects_device_name_starting_with_number(self):
+        # arrange / act
+        result = _validate_device_name("1R1")
+        # assert
+        assert result is False
+
+    def test_rejects_device_name_with_special_characters(self):
+        # arrange / act
+        result = _validate_device_name("R1-2")
+        # assert
+        assert result is False
+
+
 class TestBuildVariableCandidates:
 
     def test_with_topology_sets_node_and_device_lists(self):
@@ -912,7 +942,7 @@ class TestSimulationParametersDialogOnSubmitNoise:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_noise("5", "", "V1", "LIN", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_noise("5", "", "V1", "LIN", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False, [])
         # assert
         dialog.accept.assert_called_once()
         assert isinstance(dialog._result, NoiseSimulationParameters)
@@ -921,7 +951,7 @@ class TestSimulationParametersDialogOnSubmitNoise:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_noise("", "", "V1", "LIN", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_noise("", "", "V1", "LIN", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False, [])
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("noiseErrorText", "Output node is required")
@@ -930,7 +960,7 @@ class TestSimulationParametersDialogOnSubmitNoise:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_noise("5", "", "", "LIN", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_noise("5", "", "", "LIN", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False, [])
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("noiseErrorText", "Input noise source name is required")
@@ -939,7 +969,7 @@ class TestSimulationParametersDialogOnSubmitNoise:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_noise("5", "", "V1", "INVALID", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_noise("5", "", "V1", "INVALID", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False, [])
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("noiseErrorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
@@ -948,7 +978,7 @@ class TestSimulationParametersDialogOnSubmitNoise:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_noise("5", "", "V1", "LIN", "", "", "", "", False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_noise("5", "", "V1", "LIN", "", "", "", "", False, False, False, False, False, "", "", "", False, [])
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("noiseErrorText", "Points, start frequency, and end frequency are required")
@@ -957,7 +987,7 @@ class TestSimulationParametersDialogOnSubmitNoise:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_noise("5", "", "V1", "DATA", "", "", "", "", False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_noise("5", "", "V1", "DATA", "", "", "", "", False, False, False, False, False, "", "", "", False, [])
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("noiseErrorText", "Data table name is required for DATA sweep")
@@ -966,7 +996,7 @@ class TestSimulationParametersDialogOnSubmitNoise:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_noise("5", "", "V1", "LIN", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_noise("5", "", "V1", "LIN", "100", "1", "1MEG", "", False, False, False, False, False, "", "", "", False, [])
         # assert
         dialog._root.setProperty.assert_any_call("noiseErrorText", "")
 
@@ -974,7 +1004,7 @@ class TestSimulationParametersDialogOnSubmitNoise:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_noise("5", "", "V1", "LIN", "100", "1", "1MEG", "", True, True, True, True, True, "DNI(V1)", "CSV", "noise.csv", False)
+        dialog._on_submit_noise("5", "", "V1", "LIN", "100", "1", "1MEG", "", True, True, True, True, True, "DNI(V1)", "CSV", "noise.csv", False, [])
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
@@ -989,7 +1019,7 @@ class TestSimulationParametersDialogOnSubmitNoise:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_noise("5", "", "V1", "DATA", "", "", "", "myTable", False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_noise("5", "", "V1", "DATA", "", "", "", "myTable", False, False, False, False, False, "", "", "", False, [])
         # assert
         dialog.accept.assert_called_once()
         assert dialog._result.sweep_mode == "DATA"

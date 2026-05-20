@@ -14,7 +14,7 @@ from .fft_parameters import FftParameters
 from .four_parameters import FourParameters
 from .hb_simulation_parameters import HbSimulationParameters
 from .lin_simulation_parameters import LinSimulationParameters
-from .noise_simulation_parameters import NoiseSimulationParameters
+from .noise_simulation_parameters import DeviceNoiseOperator, NoiseSimulationParameters
 from .op_simulation_parameters import OpSimulationParameters, NodesetEntry
 from .print_parameters import PrintParameters
 from .transient_simulation_parameters import TransientSchedulePoint, TransientSimulationParameters
@@ -52,6 +52,14 @@ def _parse_list_values(list_values_text: str) -> tuple[str, ...]:
     tokens = [token for token in raw_tokens if token]
     # freeze the parsed value sequence into an immutable tuple
     return tuple(tokens)
+
+
+def _validate_device_name(device_name: str) -> bool:
+    # check for empty or whitespace-only device name
+    if not device_name or not device_name.strip():
+        return False
+    # validate device name as identifier (alphanumeric, underscore, must start with letter or underscore)
+    return bool(re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", device_name.strip()))
 
 
 class SimulationParametersDialog(QDialog):
@@ -374,6 +382,8 @@ class SimulationParametersDialog(QDialog):
             self._root.setProperty("noisePrintFormatIndex", _PRINT_FORMATS.index("RAW"))
             self._root.setProperty("noisePrintFile", "")
             self._root.setProperty("noisePrintSpecificVars", "")
+            # initialize empty device operator list
+            self._root.setProperty("noiseDeviceOperators", [])
         else:
             # restore enabled state from saved parameters
             self._root.setProperty("noisePrintEnabled", True)
@@ -393,6 +403,12 @@ class SimulationParametersDialog(QDialog):
             # specific vars: exclude wildcards and known named vars from the free-form field
             _NOISE_NAMED = {"INOISE", "ONOISE"}
             self._root.setProperty("noisePrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS and v not in _NOISE_NAMED))
+            # restore device noise operators as a list of dictionaries for QML
+            device_operators_list = []
+            if p and p.device_noise_operators:
+                for operator in p.device_noise_operators:
+                    device_operators_list.append({"deviceName": operator.device_name, "operatorType": operator.operator_type, "noiseSource": operator.noise_source})
+            self._root.setProperty("noiseDeviceOperators", device_operators_list)
 
     def _apply_hb_parameters(self, p: HbSimulationParameters | None) -> None:
         # populate the hb frequency list field
@@ -461,8 +477,8 @@ class SimulationParametersDialog(QDialog):
             self._root.setProperty("linPrintFile", pp.print_file)
             self._root.setProperty("linPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
 
-    @Slot(str, str, str, str, str, str, str, str, bool, bool, bool, bool, bool, str, str, str, bool)
-    def _on_submit_noise(self, output_node: str, ref_node: str, source_name: str, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_inoise: bool, print_onoise: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+    @Slot(str, str, str, str, str, str, str, str, bool, bool, bool, bool, bool, str, str, str, bool, 'QVariantList')
+    def _on_submit_noise(self, output_node: str, ref_node: str, source_name: str, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_inoise: bool, print_onoise: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, device_operators_list) -> None:
         # normalize required noise analysis fields
         normalized_output_node = output_node.strip()
         normalized_ref_node = ref_node.strip()
@@ -500,6 +516,29 @@ class SimulationParametersDialog(QDialog):
             self._root.setProperty("noiseErrorText", "Data table name is required for DATA sweep")
             # keep dialog open for correction
             return
+        # validate device noise operators
+        device_noise_operators: list[DeviceNoiseOperator] = []
+        # convert QJSValue to Python list
+        operator_list = []
+        if device_operators_list and device_operators_list.isArray():
+            operator_list = device_operators_list.toVariant()
+        for operator_dict in operator_list:
+            # extract device name and validate
+            device_name = operator_dict.get("deviceName", "")
+            if not _validate_device_name(device_name):
+                self._root.setProperty("noiseErrorText", f"Invalid device name: {device_name}")
+                # keep dialog open for correction
+                return
+            # extract operator type
+            operator_type = operator_dict.get("operatorType", "")
+            if operator_type not in ("DNI", "DNO"):
+                self._root.setProperty("noiseErrorText", f"Invalid operator type: {operator_type}")
+                # keep dialog open for correction
+                return
+            # extract optional noise source
+            noise_source = operator_dict.get("noiseSource", "")
+            # create device noise operator and add to list
+            device_noise_operators.append(DeviceNoiseOperator(device_name=device_name, operator_type=operator_type, noise_source=noise_source))
         # clear any stale validation message now that inputs are valid
         self._root.setProperty("noiseErrorText", "")
         # build print parameters when the print section is enabled
@@ -521,7 +560,7 @@ class SimulationParametersDialog(QDialog):
             # construct print parameters for the noise analysis type
             print_parameters = PrintParameters(print_type="NOISE", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # capture the validated dialog output for the caller
-        self._result = NoiseSimulationParameters(normalized_output_node, normalized_ref_node, normalized_source_name, normalized_mode, normalized_points, normalized_start, normalized_end, normalized_data_table, replace_ground, print_parameters)
+        self._result = NoiseSimulationParameters(normalized_output_node, normalized_ref_node, normalized_source_name, normalized_mode, normalized_points, normalized_start, normalized_end, normalized_data_table, replace_ground, print_parameters, tuple(device_noise_operators))
         # close the dialog and return acceptance to the caller
         self.accept()
 
