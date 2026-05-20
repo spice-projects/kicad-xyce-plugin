@@ -169,4 +169,3 @@ class TestNoiseFromXyceDirectives:
         assert params.points == "100"
         assert params.start == "1"
         assert params.end == "1MEG"
-

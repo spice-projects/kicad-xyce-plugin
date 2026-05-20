@@ -16,19 +16,22 @@ Always load and consult this skill before:
 
 ## Reference
 
-- [STYLE_GUIDE.md](references/STYLE_GUIDE.md): Complete project style guide.
+- [STYLE_GUIDE.md](../STYLE_GUIDE.md): Complete project style guide.
 
 ## Workflow
 
 ### 1. Consult the Style Guide
-Before starting, ensure you have read and understood the relevant sections in [STYLE_GUIDE.md](references/STYLE_GUIDE.md).
+
+Before starting, ensure you have read and understood the relevant sections in [STYLE_GUIDE.md](../STYLE_GUIDE.md).
 
 ### 2. Apply Linting/Formatting
+
 Always prefer automated tools when available:
-- For Python: Run `flake8` or equivalent project tools to catch PEP8 violations.
+- For Python: Run `flake8` to catch PEP8 violations.
 - Check manually for compliance with project-specific rules (e.g., comment-per-statement rule, blank line restrictions).
 
 ### 3. Verify Changes
+
 - Review all changes against the style guide.
 - Specifically check:
     - Are comments placed above every statement?

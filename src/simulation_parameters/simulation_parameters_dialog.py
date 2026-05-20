@@ -1,3 +1,4 @@
+import logging
 import re
 from pathlib import Path
 
@@ -9,12 +10,15 @@ from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
 from netlist_parser import NetlistTopology
 from .ac_simulation_parameters import AcSimulationParameters
 from .dc_simulation_parameters import DCSimulationParameters
+from .fft_parameters import FftParameters
 from .hb_simulation_parameters import HbSimulationParameters
 from .lin_simulation_parameters import LinSimulationParameters
 from .noise_simulation_parameters import NoiseSimulationParameters
 from .op_simulation_parameters import OpSimulationParameters, NodesetEntry
 from .print_parameters import PrintParameters
 from .transient_simulation_parameters import TransientSchedulePoint, TransientSimulationParameters
+
+logger = logging.getLogger(__name__)
 
 _QML_FILE = Path(__file__).parent / "simulation_parameters_dialog.qml"
 _BG = "#efefe8"
@@ -210,6 +214,8 @@ class SimulationParametersDialog(QDialog):
         # schedule pairs text
         self._root.setProperty("scheduleEnabled", bool(p and p.schedule_points))
         self._root.setProperty("schedulePairsText", " ".join(f"{pt.time_value},{pt.max_time_step_value}" for pt in p.schedule_points) if p else "")
+        # fft parameters text
+        self._root.setProperty("fftParametersText", "\n".join(fft.to_xyce_statement() for fft in p.fft_parameters) if p else "")
         self._root.setProperty("transientErrorText", "")
         # extract existing print parameters for pre-population
         pp = p.print_parameters if p else None
@@ -645,8 +651,8 @@ class SimulationParametersDialog(QDialog):
         # close the dialog and return acceptance to the caller
         self.accept()
 
-    @Slot(str, str, str, str, str, bool, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
-    def _on_submit_transient(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+    @Slot(str, str, str, str, str, bool, str, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
+    def _on_submit_transient(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, fft_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # normalize user-entered values by trimming surrounding spaces
         normalized_initial_step = initial_step.strip()
         # normalize user-entered values by trimming surrounding spaces
@@ -687,6 +693,28 @@ class SimulationParametersDialog(QDialog):
             self._root.setProperty("transientErrorText", str(schedule_error))
             # keep dialog open for correction
             return
+        # init fft parameters
+        fft_parameters: list[FftParameters] = []
+        # parse each line as a separate fft directive
+        for line in fft_parameters_text.splitlines():
+            # normalize line
+            stripped_line = line.strip()
+            # skip empties
+            if not stripped_line:
+                # next
+                continue
+            # prepend command prefix if missing to simplify user input
+            fft_statement = stripped_line if stripped_line.upper().startswith(".FFT") else f".FFT {stripped_line}"
+            # parse fft parameters
+            fft = FftParameters.from_xyce_statement(fft_statement)
+            # check parse success
+            if fft:
+                # store the parsed fft parameters
+                fft_parameters.append(fft)
+            # handle parse failure
+            else:
+                # log warning
+                logger.warning("Ignoring invalid .FFT directive: %s", line)
         # clear any stale validation message now that inputs are valid
         self._root.setProperty("transientErrorText", "")
         # build print parameters when the print section is enabled
@@ -711,7 +739,7 @@ class SimulationParametersDialog(QDialog):
             # construct print parameters for the transient analysis type
             print_parameters = PrintParameters(print_type="TRAN", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # capture the validated dialog output for the caller
-        self._result = TransientSimulationParameters(normalized_initial_step, normalized_final_time, normalized_start_time, normalized_step_ceiling, normalized_op_keyword, schedule_points, print_parameters=print_parameters, replace_ground=replace_ground)
+        self._result = TransientSimulationParameters(normalized_initial_step, normalized_final_time, normalized_start_time, normalized_step_ceiling, normalized_op_keyword, schedule_points, print_parameters=print_parameters, fft_parameters=tuple(fft_parameters), replace_ground=replace_ground)
         # close the dialog and return acceptance to the caller
         self.accept()
 

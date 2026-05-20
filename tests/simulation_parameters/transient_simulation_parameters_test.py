@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from simulation_parameters import PrintParameters, TransientSchedulePoint, TransientSimulationParameters
+from simulation_parameters import FftParameters, PrintParameters, TransientSchedulePoint, TransientSimulationParameters
 
 
 FIXTURES_DIR = Path(__file__).parent / "test-suite"
@@ -316,6 +316,26 @@ class TestFromXyceDirectivesBasic:
         assert params.print_parameters.output_variables == ("V(OUT)", "{V(OUT) * I(V1)}")
 
 
+class TestFromXyceDirectivesFft:
+
+    def test_parses_single_fft_directive(self):
+        # arrange / act
+        params = TransientSimulationParameters.from_xyce_directives([".TRAN 1u 1m", ".FFT V(OUT) WINDOW=HANN"])
+        # assert
+        assert len(params.fft_parameters) == 1
+        assert params.fft_parameters[0].output_variable == "V(OUT)"
+        assert params.fft_parameters[0].window == "HANN"
+
+    def test_parses_multiple_fft_directives(self):
+        # arrange / act
+        params = TransientSimulationParameters.from_xyce_directives([".TRAN 1u 1m", ".FFT V(1)", ".FFT V(2) WINDOW=RECT"])
+        # assert
+        assert len(params.fft_parameters) == 2
+        assert params.fft_parameters[0].output_variable == "V(1)"
+        assert params.fft_parameters[1].output_variable == "V(2)"
+        assert params.fft_parameters[1].window == "RECT"
+
+
 class TestFromXyceDirectivesSchedule:
 
     def test_single_schedule_point_is_parsed(self):
@@ -454,6 +474,22 @@ class TestPrintWildcards:
         assert not any(d.startswith(".PRINT DC") for d in directives)
 
 
+class TestToXyceDirectivesFft:
+
+    def test_emits_multiple_fft_directives(self):
+        # arrange
+        fft1 = FftParameters(output_variable="V(1)")
+        fft2 = FftParameters(output_variable="V(2)", window="BLACKMAN")
+        params = TransientSimulationParameters("1u", "1m", fft_parameters=(fft1, fft2), replace_ground=False)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert len(directives) == 3
+        assert directives[0] == ".TRAN 1u 1m"
+        assert directives[1] == ".FFT V(1)"
+        assert directives[2] == ".FFT V(2) WINDOW=BLACKMAN"
+
+
 class TestFromXyceDirectivesRoundTrip:
 
     def test_minimal_round_trip(self):
@@ -492,6 +528,18 @@ class TestFromXyceDirectivesRoundTrip:
         assert parsed.print_parameters.print_format == "RAW"
         assert parsed.print_parameters.print_file == "waves.raw"
         assert parsed.print_parameters.output_variables == ("V(OUT)", "ID(M1)", "{V(OUT)*I(V1)}")
+
+    def test_round_trip_with_fft_parameters(self):
+        # arrange
+        fft = FftParameters(output_variable="V(OUT)", window="HANN", np="1024")
+        original = TransientSimulationParameters("1u", "1m", fft_parameters=(fft,))
+        # act
+        parsed = TransientSimulationParameters.from_xyce_directives(original.to_xyce_directives())
+        # assert
+        assert len(parsed.fft_parameters) == 1
+        assert parsed.fft_parameters[0].output_variable == "V(OUT)"
+        assert parsed.fft_parameters[0].window == "HANN"
+        assert parsed.fft_parameters[0].np == "1024"
 
 
 class TestTransientSchedulePoint:

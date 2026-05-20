@@ -209,4 +209,3 @@ class TestLinFromXyceDirectives:
         # assert
         assert params is not None
         assert params.print_parameters is None
-

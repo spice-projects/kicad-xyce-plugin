@@ -1,5 +1,6 @@
 from .ac_simulation_parameters import AcSimulationParameters
 from .dc_simulation_parameters import DCSimulationParameters
+from .fft_parameters import FftParameters
 from .hb_simulation_parameters import HbSimulationParameters
 from .lin_simulation_parameters import LinSimulationParameters
 from .noise_simulation_parameters import NoiseSimulationParameters
@@ -12,6 +13,7 @@ from .transient_simulation_parameters import TransientSchedulePoint, TransientSi
 __all__ = [
     "AcSimulationParameters",
     "DCSimulationParameters",
+    "FftParameters",
     "HbSimulationParameters",
     "IcEntry", "LinSimulationParameters",
     "NoiseSimulationParameters",
