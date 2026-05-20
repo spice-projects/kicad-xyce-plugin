@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from netlist_parser import NetlistTopology
+from .measure_parameters import MeasureEntry
 from .print_parameters import PrintParameters
 
 
@@ -16,6 +17,7 @@ class AcSimulationParameters:
     data_table_name: str = ""
     replace_ground: bool = True
     print_parameters: PrintParameters | None = None
+    measure_parameters: tuple[MeasureEntry, ...] = ()
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "AcSimulationParameters" | None:
@@ -27,6 +29,8 @@ class AcSimulationParameters:
         data_table_name = ""
         replace_ground = True
         print_parameters = None
+        # init measure parameters
+        measure_parameters: list[MeasureEntry] = []
         # flag indicating whether a valid directive was found
         found = False
         # parse directives
@@ -51,6 +55,16 @@ class AcSimulationParameters:
             if cmd == ".PREPROCESS" and len(tokens) > 2 and tokens[1].upper() == "REPLACEGROUND":
                 # set replace_ground based on the third token
                 replace_ground = tokens[2].upper() == "TRUE"
+                # next
+                continue
+            # parse measure directives
+            if cmd in (".MEASURE", ".MEAS"):
+                # parse the measure statement from the directive
+                measure_statement = MeasureEntry.from_xyce_statement(directive)
+                # retain measure parameters when found and analysis type matches
+                if measure_statement and measure_statement.analysis_type == "AC":
+                    # append the parsed measure parameters
+                    measure_parameters.append(measure_statement)
                 # next
                 continue
             # skip non-AC directives
@@ -92,7 +106,7 @@ class AcSimulationParameters:
                     start = tokens[2]
                     end = tokens[3]
         # return instance if a valid directive was found
-        return cls(sweep_mode=sweep_mode, points=points, start=start, end=end, data_table_name=data_table_name, replace_ground=replace_ground, print_parameters=print_parameters) if found else None
+        return cls(sweep_mode=sweep_mode, points=points, start=start, end=end, data_table_name=data_table_name, replace_ground=replace_ground, print_parameters=print_parameters, measure_parameters=tuple(measure_parameters)) if found else None
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # prepend replaceground preprocessing when enabled
@@ -109,5 +123,9 @@ class AcSimulationParameters:
         if self.print_parameters and self.print_parameters.print_type == "AC":
             # append the print statement
             lines.append(self.print_parameters.to_xyce_statement())
+        # append measure directives
+        for measure in self.measure_parameters:
+            # append measure statement
+            lines.append(measure.to_xyce_statement())
         # return the full directive list
         return preprocess + lines

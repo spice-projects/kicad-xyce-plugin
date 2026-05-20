@@ -372,3 +372,211 @@ class TestFromXyceDirectives:
         # assert
         assert params is not None
         assert params.print_parameters is None
+
+
+class TestDCFromXyceDirectivesMeasure:
+
+    def test_parses_single_measure_directive(self):
+        # arrange / act
+        params = DCSimulationParameters.from_xyce_directives([".DC VIN 0 5 0.1", ".MEASURE DC vout_at_2v FIND V(OUT) WHEN VIN=2"])
+        # assert
+        assert len(params.measure_parameters) == 1
+        assert params.measure_parameters[0].result_name == "vout_at_2v"
+        assert params.measure_parameters[0].measure_type == "FIND"
+        assert params.measure_parameters[0].analysis_type == "DC"
+        assert params.measure_parameters[0].variable == "V(OUT)"
+
+    def test_parses_multiple_measure_directives(self):
+        # arrange / act
+        params = DCSimulationParameters.from_xyce_directives([".DC VIN 0 5 0.1", ".MEASURE DC vout_at_2v FIND V(OUT) WHEN VIN=2", ".MEASURE DC vout_at_4v FIND V(OUT) WHEN VIN=4"])
+        # assert
+        assert len(params.measure_parameters) == 2
+        assert params.measure_parameters[0].result_name == "vout_at_2v"
+        assert params.measure_parameters[1].result_name == "vout_at_4v"
+
+    def test_ignores_non_dc_measure_directive(self):
+        # arrange / act
+        params = DCSimulationParameters.from_xyce_directives([".DC VIN 0 5 0.1", ".MEASURE TRAN avg_out AVG V(OUT)"])
+        # assert
+        assert len(params.measure_parameters) == 0
+
+
+class TestDCToXyceDirectivesMeasure:
+
+    def test_emits_single_measure_directive(self):
+        # arrange
+        from simulation_parameters import MeasureEntry
+        measure = MeasureEntry(result_name="vout_at_2v", measure_type="FIND", analysis_type="DC", variable="V(OUT)", when_variable="VIN", when_condition="=2")
+        params = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", replace_ground=False, measure_parameters=(measure,))
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert any(d.startswith(".MEASURE DC vout_at_2v FIND V(OUT) WHEN VIN=2") for d in directives)
+
+    def test_emits_multiple_measure_directives(self):
+        # arrange
+        from simulation_parameters import MeasureEntry
+        measure1 = MeasureEntry(result_name="vout_at_2v", measure_type="FIND", analysis_type="DC", variable="V(OUT)", when_variable="VIN", when_condition="=2")
+        measure2 = MeasureEntry(result_name="vout_at_4v", measure_type="FIND", analysis_type="DC", variable="V(OUT)", when_variable="VIN", when_condition="=4")
+        params = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", replace_ground=False, measure_parameters=(measure1, measure2))
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert any(d.startswith(".MEASURE DC vout_at_2v FIND V(OUT) WHEN VIN=2") for d in directives)
+        assert any(d.startswith(".MEASURE DC vout_at_4v FIND V(OUT) WHEN VIN=4") for d in directives)
+
+    def test_measure_round_trip(self):
+        # arrange
+        from simulation_parameters import MeasureEntry
+        measure = MeasureEntry(result_name="vout_at_2v", measure_type="FIND", analysis_type="DC", variable="V(OUT)", when_variable="VIN", when_condition="=2")
+        params = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", replace_ground=False, measure_parameters=(measure,))
+        # act
+        directives = params.to_xyce_directives()
+        reparsed = DCSimulationParameters.from_xyce_directives(directives)
+        # assert
+        assert len(reparsed.measure_parameters) == 1
+        assert reparsed.measure_parameters[0].result_name == "vout_at_2v"
+        assert reparsed.measure_parameters[0].measure_type == "FIND"
+        assert reparsed.measure_parameters[0].analysis_type == "DC"
+
+
+class TestReferenceGuideExamples:
+    # reference guide examples from xyce_rg.txt section 2.1.3 (lines 904-984)
+
+    def test_reference_guide_example_lin_sweep(self):
+        # arrange - .DC LIN V1 5 25 5
+        directive = ".DC LIN V1 5 25 5"
+        # act
+        params = DCSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "LIN"
+        assert params.primary_variable == "V1"
+        assert params.start == "5"
+        assert params.stop == "25"
+        assert params.step == "5"
+        # verify the directive contains the expected dc line
+        directives = params.to_xyce_directives()
+        dc_line = next(d for d in directives if d.startswith(".DC"))
+        assert "V1 5 25 5" in dc_line
+
+    def test_reference_guide_example_lin_implicit(self):
+        # arrange - .DC VIN -10 15 1
+        directive = ".DC VIN -10 15 1"
+        # act
+        params = DCSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "LIN"
+        assert params.primary_variable == "VIN"
+        assert params.start == "-10"
+        assert params.stop == "15"
+        assert params.step == "1"
+        # verify the directive contains the expected dc line
+        directives = params.to_xyce_directives()
+        assert ".DC VIN -10 15 1" in directives
+
+    def test_reference_guide_example_lin_with_secondary(self):
+        # arrange - .DC R1 0 3.5 0.05 C1 0 3.5 0.5
+        directive = ".DC R1 0 3.5 0.05 C1 0 3.5 0.5"
+        # act
+        params = DCSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "LIN"
+        assert params.primary_variable == "R1"
+        assert params.secondary_variable == "C1"
+        # verify the directive contains the expected dc line
+        directives = params.to_xyce_directives()
+        assert ".DC R1 0 3.5 0.05 C1 0 3.5 0.5" in directives
+
+    def test_reference_guide_example_dec_sweep(self):
+        # arrange - .DC DEC VIN 1 100 2
+        directive = ".DC DEC VIN 1 100 2"
+        # act
+        params = DCSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "DEC"
+        assert params.primary_variable == "VIN"
+        assert params.start == "1"
+        assert params.stop == "100"
+        assert params.points == "2"
+        # verify the directive contains the expected dc line
+        directives = params.to_xyce_directives()
+        assert ".DC DEC VIN 1 100 2" in directives
+
+    def test_reference_guide_example_dec_with_secondary(self):
+        # arrange - .DC DEC R1 100 10000 3 DEC VGS 0.001 1.0 2
+        directive = ".DC DEC R1 100 10000 3 DEC VGS 0.001 1.0 2"
+        # act
+        params = DCSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "DEC"
+        assert params.primary_variable == "R1"
+        assert params.secondary_variable == "VGS"
+        # verify the directive contains the expected dc line
+        directives = params.to_xyce_directives()
+        dc_line = next(d for d in directives if d.startswith(".DC"))
+        assert "R1 100 10000 3" in dc_line
+        assert "VGS 0.001 1.0 2" in dc_line
+
+    def test_reference_guide_example_oct_sweep(self):
+        # arrange - .DC OCT VIN 0.125 64 2
+        directive = ".DC OCT VIN 0.125 64 2"
+        # act
+        params = DCSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "OCT"
+        assert params.primary_variable == "VIN"
+        assert params.start == "0.125"
+        assert params.stop == "64"
+        assert params.points == "2"
+        # verify the directive contains the expected dc line
+        directives = params.to_xyce_directives()
+        assert ".DC OCT VIN 0.125 64 2" in directives
+
+    def test_reference_guide_example_oct_with_secondary(self):
+        # arrange - .DC OCT R1 0.015625 512 3 OCT C1 512 4096 1
+        directive = ".DC OCT R1 0.015625 512 3 OCT C1 512 4096 1"
+        # act
+        params = DCSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "OCT"
+        assert params.primary_variable == "R1"
+        assert params.secondary_variable == "C1"
+        # verify the directive contains the expected dc line
+        directives = params.to_xyce_directives()
+        dc_line = next(d for d in directives if d.startswith(".DC"))
+        assert "R1 0.015625 512 3" in dc_line
+        assert "C1 512 4096 1" in dc_line
+
+    def test_reference_guide_example_list_sweep(self):
+        # arrange - .DC VIN LIST 1.0 2.0 5.0 6.0 10.0
+        directive = ".DC VIN LIST 1.0 2.0 5.0 6.0 10.0"
+        # act
+        params = DCSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "LIST"
+        assert params.primary_variable == "VIN"
+        assert params.list_values == ("1.0", "2.0", "5.0", "6.0", "10.0")
+        # verify the directive contains the expected dc line
+        directives = params.to_xyce_directives()
+        assert ".DC VIN LIST 1.0 2.0 5.0 6.0 10.0" in directives
+
+    def test_reference_guide_example_data_sweep(self):
+        # arrange - .DC DATA=resistorValues
+        directive = ".DC DATA=resistorValues"
+        # act
+        params = DCSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "DATA"
+        assert params.data_table_name == "resistorValues"
+        # verify the directive contains the expected dc line
+        directives = params.to_xyce_directives()
+        assert ".DC DATA=resistorValues" in directives

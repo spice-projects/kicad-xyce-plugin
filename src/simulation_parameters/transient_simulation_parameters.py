@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from netlist_parser import NetlistTopology
 from .fft_parameters import FftParameters
 from .four_parameters import FourParameters
+from .measure_parameters import MeasureEntry
 from .print_parameters import PrintParameters
 
 
@@ -28,6 +29,7 @@ class TransientSimulationParameters:
     print_parameters: PrintParameters | None = None
     fft_parameters: tuple[FftParameters, ...] = ()
     four_parameters: tuple[FourParameters, ...] = ()
+    measure_parameters: tuple[MeasureEntry, ...] = ()
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "TransientSimulationParameters" | None:
@@ -44,6 +46,8 @@ class TransientSimulationParameters:
         fft_parameters: list[FftParameters] = []
         # init four parameters
         four_parameters: list[FourParameters] = []
+        # init measure parameters
+        measure_parameters: list[MeasureEntry] = []
         # flag indicating whether a valid directive was found
         found = False
         # parse directives
@@ -83,6 +87,16 @@ class TransientSimulationParameters:
                 if four_statement:
                     # append the parsed four parameters
                     four_parameters.append(four_statement)
+                # next
+                continue
+            # parse measure directives
+            if cmd in (".MEASURE", ".MEAS"):
+                # parse the measure statement from the directive
+                measure_statement = MeasureEntry.from_xyce_statement(directive)
+                # retain measure parameters when found and analysis type matches
+                if measure_statement and measure_statement.analysis_type == "TRAN":
+                    # append the parsed measure parameters
+                    measure_parameters.append(measure_statement)
                 # next
                 continue
             # handle preprocess replaceground
@@ -132,7 +146,7 @@ class TransientSimulationParameters:
             if len(positional) >= 2:
                 step_ceiling_value = positional[1]
         # return instance if a valid directive was found
-        return cls(initial_step_value=initial_step_value, final_time_value=final_time_value, start_time_value=start_time_value, step_ceiling_value=step_ceiling_value, op_keyword=op_keyword, schedule_points=tuple(schedule_points), replace_ground=replace_ground, print_parameters=print_parameters, fft_parameters=tuple(fft_parameters), four_parameters=tuple(four_parameters)) if found else None
+        return cls(initial_step_value=initial_step_value, final_time_value=final_time_value, start_time_value=start_time_value, step_ceiling_value=step_ceiling_value, op_keyword=op_keyword, schedule_points=tuple(schedule_points), replace_ground=replace_ground, print_parameters=print_parameters, fft_parameters=tuple(fft_parameters), four_parameters=tuple(four_parameters), measure_parameters=tuple(measure_parameters)) if found else None
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # prepend replaceground preprocessor directive when enabled
@@ -151,6 +165,10 @@ class TransientSimulationParameters:
         for four in self.four_parameters:
             # append four statement
             lines.append(four.to_xyce_statement())
+        # append measure directives
+        for measure in self.measure_parameters:
+            # append measure statement
+            lines.append(measure.to_xyce_statement())
         # return the full directive list
         return preprocess + lines
 

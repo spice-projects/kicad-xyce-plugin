@@ -564,3 +564,152 @@ class TestTransientSchedulePoint:
         b = TransientSchedulePoint("2u", "10n")
         # assert
         assert a != b
+
+
+class TestFromXyceDirectivesMeasure:
+
+    def test_parses_single_measure_directive(self):
+        # arrange / act
+        params = TransientSimulationParameters.from_xyce_directives([".TRAN 1u 1m", ".MEASURE TRAN avg_out AVG V(OUT)"])
+        # assert
+        assert len(params.measure_parameters) == 1
+        assert params.measure_parameters[0].result_name == "avg_out"
+        assert params.measure_parameters[0].measure_type == "AVG"
+        assert params.measure_parameters[0].analysis_type == "TRAN"
+        assert params.measure_parameters[0].variable == "V(OUT)"
+
+    def test_parses_multiple_measure_directives(self):
+        # arrange / act
+        params = TransientSimulationParameters.from_xyce_directives([".TRAN 1u 1m", ".MEASURE TRAN avg_out AVG V(OUT)", ".MEASURE TRAN max_out MAX V(OUT)"])
+        # assert
+        assert len(params.measure_parameters) == 2
+        assert params.measure_parameters[0].result_name == "avg_out"
+        assert params.measure_parameters[1].result_name == "max_out"
+
+    def test_ignores_non_tran_measure_directive(self):
+        # arrange / act
+        params = TransientSimulationParameters.from_xyce_directives([".TRAN 1u 1m", ".MEASURE AC avg_out AVG V(OUT)"])
+        # assert
+        assert len(params.measure_parameters) == 0
+
+    def test_parses_measure_with_qualifiers(self):
+        # arrange / act
+        params = TransientSimulationParameters.from_xyce_directives([".TRAN 1u 1m", ".MEASURE TRAN avg_out AVG V(OUT) FROM=0 TO=1m"])
+        # assert
+        assert len(params.measure_parameters) == 1
+        assert params.measure_parameters[0].from_val == "0"
+        assert params.measure_parameters[0].to_val == "1m"
+
+    def test_parses_meas_alias(self):
+        # arrange / act
+        params = TransientSimulationParameters.from_xyce_directives([".TRAN 1u 1m", ".MEAS TRAN avg_out AVG V(OUT)"])
+        # assert
+        assert len(params.measure_parameters) == 1
+        assert params.measure_parameters[0].result_name == "avg_out"
+
+
+class TestToXyceDirectivesMeasure:
+
+    def test_emits_single_measure_directive(self):
+        # arrange
+        from simulation_parameters import MeasureEntry
+        measure = MeasureEntry(result_name="avg_out", measure_type="AVG", analysis_type="TRAN", variable="V(OUT)")
+        params = TransientSimulationParameters("1u", "1m", measure_parameters=(measure,))
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert any(d.startswith(".MEASURE TRAN avg_out AVG V(OUT)") for d in directives)
+
+    def test_emits_multiple_measure_directives(self):
+        # arrange
+        from simulation_parameters import MeasureEntry
+        measure1 = MeasureEntry(result_name="avg_out", measure_type="AVG", analysis_type="TRAN", variable="V(OUT)")
+        measure2 = MeasureEntry(result_name="max_out", measure_type="MAX", analysis_type="TRAN", variable="V(OUT)")
+        params = TransientSimulationParameters("1u", "1m", measure_parameters=(measure1, measure2))
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert any(d.startswith(".MEASURE TRAN avg_out AVG V(OUT)") for d in directives)
+        assert any(d.startswith(".MEASURE TRAN max_out MAX V(OUT)") for d in directives)
+
+    def test_emits_measure_with_qualifiers(self):
+        # arrange
+        from simulation_parameters import MeasureEntry
+        measure = MeasureEntry(result_name="avg_out", measure_type="AVG", analysis_type="TRAN", variable="V(OUT)", from_val="0", to_val="1m")
+        params = TransientSimulationParameters("1u", "1m", measure_parameters=(measure,))
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert any(d.startswith(".MEASURE TRAN avg_out AVG V(OUT) FROM=0 TO=1m") for d in directives)
+
+    def test_measure_round_trip(self):
+        # arrange
+        from simulation_parameters import MeasureEntry
+        measure = MeasureEntry(result_name="avg_out", measure_type="AVG", analysis_type="TRAN", variable="V(OUT)", from_val="0", to_val="1m")
+        params = TransientSimulationParameters("1u", "1m", measure_parameters=(measure,))
+        # act
+        directives = params.to_xyce_directives()
+        reparsed = TransientSimulationParameters.from_xyce_directives(directives)
+        # assert
+        assert len(reparsed.measure_parameters) == 1
+        assert reparsed.measure_parameters[0].result_name == "avg_out"
+        assert reparsed.measure_parameters[0].measure_type == "AVG"
+        assert reparsed.measure_parameters[0].analysis_type == "TRAN"
+        assert reparsed.measure_parameters[0].variable == "V(OUT)"
+        assert reparsed.measure_parameters[0].from_val == "0"
+        assert reparsed.measure_parameters[0].to_val == "1m"
+
+
+class TestReferenceGuideExamples:
+    # reference guide examples from xyce_rg.txt section 2.1.38 (lines 6921-6926)
+
+    def test_reference_guide_example_basic_transient(self):
+        # arrange - .TRAN 1us 100ms
+        directive = ".TRAN 1us 100ms"
+        # act
+        params = TransientSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.initial_step_value == "1us"
+        assert params.final_time_value == "100ms"
+        assert params.start_time_value == ""
+        assert params.step_ceiling_value == ""
+        # verify the directive contains the expected tran line
+        directives = params.to_xyce_directives()
+        assert ".TRAN 1us 100ms" in directives
+
+    def test_reference_guide_example_with_start_and_step_ceiling(self):
+        # arrange - .TRAN 1ms 100ms 0ms .1ms
+        directive = ".TRAN 1ms 100ms 0ms .1ms"
+        # act
+        params = TransientSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.initial_step_value == "1ms"
+        assert params.final_time_value == "100ms"
+        assert params.start_time_value == "0ms"
+        assert params.step_ceiling_value == ".1ms"
+        # verify the directive contains the expected tran line
+        directives = params.to_xyce_directives()
+        assert ".TRAN 1ms 100ms 0ms .1ms" in directives
+
+    def test_reference_guide_example_with_schedule(self):
+        # arrange - .TRAN 0 2.0e-3 {schedule( 0.5e-3, 0, 1.0e-3, 1.0e-6, 2.0e-3, 0 )}
+        directive = ".TRAN 0 2.0e-3 {schedule( 0.5e-3, 0, 1.0e-3, 1.0e-6, 2.0e-3, 0 )}"
+        # act
+        params = TransientSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.initial_step_value == "0"
+        assert params.final_time_value == "2.0e-3"
+        assert len(params.schedule_points) == 3
+        assert params.schedule_points[0] == TransientSchedulePoint("0.5e-3", "0")
+        assert params.schedule_points[1] == TransientSchedulePoint("1.0e-3", "1.0e-6")
+        assert params.schedule_points[2] == TransientSchedulePoint("2.0e-3", "0")
+        # verify the directive contains the expected schedule clause
+        directives = params.to_xyce_directives()
+        tran_line = next(d for d in directives if d.startswith(".TRAN"))
+        assert "schedule" in tran_line
+        assert "0.5e-3, 0" in tran_line
+        assert "1.0e-3, 1.0e-6" in tran_line
+        assert "2.0e-3, 0" in tran_line

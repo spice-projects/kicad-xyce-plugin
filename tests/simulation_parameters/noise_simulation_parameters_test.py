@@ -241,3 +241,144 @@ class TestNoiseFromXyceDirectives:
         directives = params.to_xyce_directives()
         # assert
         assert directives == [".NOISE V(5) V1 LIN 10 1 1MEG"]
+
+
+class TestNoiseFromXyceDirectivesMeasure:
+
+    def test_parses_single_measure_directive(self):
+        # arrange / act
+        params = NoiseSimulationParameters.from_xyce_directives([".NOISE V(5) V1 LIN 10 1 1MEG", ".MEASURE NOISE noise_at_1k FIND INOISE AT=1k"])
+        # assert
+        assert len(params.measure_parameters) == 1
+        assert params.measure_parameters[0].result_name == "noise_at_1k"
+        assert params.measure_parameters[0].measure_type == "FIND"
+        assert params.measure_parameters[0].analysis_type == "NOISE"
+        assert params.measure_parameters[0].variable == "INOISE"
+
+    def test_parses_multiple_measure_directives(self):
+        # arrange / act
+        params = NoiseSimulationParameters.from_xyce_directives([".NOISE V(5) V1 LIN 10 1 1MEG", ".MEASURE NOISE noise_at_1k FIND INOISE AT=1k", ".MEASURE NOISE onoise_at_10k FIND ONOISE AT=10k"])
+        # assert
+        assert len(params.measure_parameters) == 2
+        assert params.measure_parameters[0].result_name == "noise_at_1k"
+        assert params.measure_parameters[1].result_name == "onoise_at_10k"
+
+    def test_ignores_non_noise_measure_directive(self):
+        # arrange / act
+        params = NoiseSimulationParameters.from_xyce_directives([".NOISE V(5) V1 LIN 10 1 1MEG", ".MEASURE TRAN avg_out AVG V(OUT)"])
+        # assert
+        assert len(params.measure_parameters) == 0
+
+
+class TestNoiseToXyceDirectivesMeasure:
+
+    def test_emits_single_measure_directive(self):
+        # arrange
+        from simulation_parameters import MeasureEntry
+        measure = MeasureEntry(result_name="noise_at_1k", measure_type="FIND", analysis_type="NOISE", variable="INOISE", at_val="1k")
+        params = NoiseSimulationParameters(output_node="5", source_name="V1", sweep_mode="LIN", points="10", start="1", end="1MEG", replace_ground=False, measure_parameters=(measure,))
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert any(d.startswith(".MEASURE NOISE noise_at_1k FIND INOISE AT=1k") for d in directives)
+
+    def test_emits_multiple_measure_directives(self):
+        # arrange
+        from simulation_parameters import MeasureEntry
+        measure1 = MeasureEntry(result_name="noise_at_1k", measure_type="FIND", analysis_type="NOISE", variable="INOISE", at_val="1k")
+        measure2 = MeasureEntry(result_name="onoise_at_10k", measure_type="FIND", analysis_type="NOISE", variable="ONOISE", at_val="10k")
+        params = NoiseSimulationParameters(output_node="5", source_name="V1", sweep_mode="LIN", points="10", start="1", end="1MEG", replace_ground=False, measure_parameters=(measure1, measure2))
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert any(d.startswith(".MEASURE NOISE noise_at_1k FIND INOISE AT=1k") for d in directives)
+        assert any(d.startswith(".MEASURE NOISE onoise_at_10k FIND ONOISE AT=10k") for d in directives)
+
+    def test_measure_round_trip(self):
+        # arrange
+        from simulation_parameters import MeasureEntry
+        measure = MeasureEntry(result_name="noise_at_1k", measure_type="FIND", analysis_type="NOISE", variable="INOISE", at_val="1k")
+        params = NoiseSimulationParameters(output_node="5", source_name="V1", sweep_mode="LIN", points="10", start="1", end="1MEG", replace_ground=False, measure_parameters=(measure,))
+        # act
+        directives = params.to_xyce_directives()
+        reparsed = NoiseSimulationParameters.from_xyce_directives(directives)
+        # assert
+        assert len(reparsed.measure_parameters) == 1
+        assert reparsed.measure_parameters[0].result_name == "noise_at_1k"
+        assert reparsed.measure_parameters[0].measure_type == "FIND"
+        assert reparsed.measure_parameters[0].analysis_type == "NOISE"
+        assert reparsed.measure_parameters[0].variable == "INOISE"
+        assert reparsed.measure_parameters[0].at_val == "1k"
+
+
+class TestReferenceGuideExamples:
+    # reference guide examples from xyce_rg.txt section 2.1.23 (lines 3716-3719)
+
+    def test_reference_guide_example_lin_sweep(self):
+        # arrange - .NOISE V(5) VIN LIN 101 100Hz 200Hz
+        directive = ".NOISE V(5) VIN LIN 101 100Hz 200Hz"
+        # act
+        params = NoiseSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.output_node == "5"
+        assert params.ref_node == ""
+        assert params.source_name == "VIN"
+        assert params.sweep_mode == "LIN"
+        assert params.points == "101"
+        assert params.start == "100Hz"
+        assert params.end == "200Hz"
+        # verify the directive contains the expected noise line
+        directives = params.to_xyce_directives()
+        assert ".NOISE V(5) VIN LIN 101 100Hz 200Hz" in directives
+
+    def test_reference_guide_example_oct_sweep_with_ref(self):
+        # arrange - .NOISE V(5,3) V1 OCT 10 1kHz 16kHz
+        directive = ".NOISE V(5,3) V1 OCT 10 1kHz 16kHz"
+        # act
+        params = NoiseSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.output_node == "5"
+        assert params.ref_node == "3"
+        assert params.source_name == "V1"
+        assert params.sweep_mode == "OCT"
+        assert params.points == "10"
+        assert params.start == "1kHz"
+        assert params.end == "16kHz"
+        # verify the directive contains the expected noise line
+        directives = params.to_xyce_directives()
+        assert ".NOISE V(5,3) V1 OCT 10 1kHz 16kHz" in directives
+
+    def test_reference_guide_example_dec_sweep(self):
+        # arrange - .NOISE V(4) V2 DEC 20 1MEG 100MEG
+        directive = ".NOISE V(4) V2 DEC 20 1MEG 100MEG"
+        # act
+        params = NoiseSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.output_node == "4"
+        assert params.ref_node == ""
+        assert params.source_name == "V2"
+        assert params.sweep_mode == "DEC"
+        assert params.points == "20"
+        assert params.start == "1MEG"
+        assert params.end == "100MEG"
+        # verify the directive contains the expected noise line
+        directives = params.to_xyce_directives()
+        assert ".NOISE V(4) V2 DEC 20 1MEG 100MEG" in directives
+
+    def test_reference_guide_example_data_sweep(self):
+        # arrange - .NOISE V(4) V2 DATA=<table name>
+        directive = ".NOISE V(4) V2 DATA=myTable"
+        # act
+        params = NoiseSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.output_node == "4"
+        assert params.source_name == "V2"
+        assert params.sweep_mode == "DATA"
+        assert params.data_table_name == "myTable"
+        # verify the directive contains the expected noise line
+        directives = params.to_xyce_directives()
+        assert ".NOISE V(4) V2 DATA=myTable" in directives

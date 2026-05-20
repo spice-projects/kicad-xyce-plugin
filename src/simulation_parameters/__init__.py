@@ -4,6 +4,7 @@ from .fft_parameters import FftParameters
 from .four_parameters import FourParameters
 from .hb_simulation_parameters import HbSimulationParameters
 from .lin_simulation_parameters import LinSimulationParameters
+from .measure_parameters import MeasureEntry
 from .noise_simulation_parameters import DeviceNoiseOperator, NoiseSimulationParameters
 from .op_simulation_parameters import IcEntry, NodesetEntry, OpSimulationParameters
 from .print_parameters import PrintParameters
@@ -20,6 +21,7 @@ __all__ = [
     "HbSimulationParameters",
     "IcEntry",
     "LinSimulationParameters",
+    "MeasureEntry",
     "NoiseSimulationParameters",
     "NodesetEntry",
     "OpSimulationParameters",

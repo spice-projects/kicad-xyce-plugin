@@ -209,3 +209,38 @@ class TestLinFromXyceDirectives:
         # assert
         assert params is not None
         assert params.print_parameters is None
+
+
+class TestReferenceGuideExamples:
+    # reference guide examples from xyce_rg.txt section 2.1.17 (lines 1811-1812)
+
+    def test_reference_guide_example_minimal(self):
+        # arrange - .LIN
+        directive = ".LIN"
+        # act
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 100 1 1MEG", directive])
+        # assert
+        assert params is not None
+        assert params.sweep_mode == "LIN"
+        assert params.points == "100"
+        assert params.start == "1"
+        assert params.end == "1MEG"
+        # minimal .lin should emit with defaults
+        directives = params.to_xyce_directives()
+        assert ".LIN" in directives
+
+    def test_reference_guide_example_with_options(self):
+        # arrange - .LIN FORMAT=TOUCHSTONE DATAFORMAT=MA FILE=foo
+        directive = ".LIN FORMAT=TOUCHSTONE DATAFORMAT=MA FILE=foo"
+        # act
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 100 1 1MEG", directive])
+        # assert
+        assert params is not None
+        assert params.format == "TOUCHSTONE"
+        assert params.dataformat == "MA"
+        assert params.file == "foo"
+        regenerated = params.to_xyce_directives()
+        lin_line = next(d for d in regenerated if d.startswith(".LIN"))
+        assert "FORMAT=TOUCHSTONE" in lin_line
+        assert "DATAFORMAT=MA" in lin_line
+        assert "FILE=foo" in lin_line

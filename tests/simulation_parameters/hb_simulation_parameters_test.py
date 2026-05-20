@@ -87,3 +87,31 @@ class TestHbFromXyceDirectives:
         # assert
         assert params is not None
         assert params.print_parameters is None
+
+
+class TestReferenceGuideExamples:
+    # reference guide examples from xyce_rg.txt section 2.1.13 (lines 1622-1623)
+
+    def test_reference_guide_example_single_frequency(self):
+        # arrange - .HB 1e4
+        directive = ".HB 1e4"
+        # act
+        params = HbSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.frequencies == ("1e4",)
+        # verify the directive contains the expected hb line
+        directives = params.to_xyce_directives()
+        assert ".HB 1e4" in directives
+
+    def test_reference_guide_example_multiple_frequencies(self):
+        # arrange - .hb 1e4 2e2
+        directive = ".hb 1e4 2e2"
+        # act
+        params = HbSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        assert params.frequencies == ("1e4", "2e2")
+        # verify the directive contains the expected hb line
+        directives = params.to_xyce_directives()
+        assert ".HB 1e4 2e2" in directives

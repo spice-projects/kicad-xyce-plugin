@@ -282,3 +282,29 @@ class TestFromXyceDirectives:
         params = OpSimulationParameters.from_xyce_directives([".OP", ".PRINT"])
         # assert
         assert params.print_dc_enabled is False
+
+
+class TestReferenceGuideExamples:
+    # reference guide examples from xyce_rg.txt section 2.1.24 (lines 3784)
+
+    def test_reference_guide_example_basic(self):
+        # arrange - .OP
+        directive = ".OP"
+        # act
+        params = OpSimulationParameters.from_xyce_directives([directive])
+        # assert
+        assert params is not None
+        directives = params.to_xyce_directives()
+        assert ".OP" in directives
+
+    def test_reference_guide_example_round_trip(self):
+        # arrange - .OP (simple directive with no arguments)
+        directive = ".OP"
+        # act
+        params = OpSimulationParameters.from_xyce_directives([directive])
+        regenerated = params.to_xyce_directives()
+        reparsed = OpSimulationParameters.from_xyce_directives(regenerated)
+        # assert
+        assert reparsed is not None
+        regenerated2 = reparsed.to_xyce_directives()
+        assert ".OP" in regenerated2

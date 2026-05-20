@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 
 from netlist_parser import NetlistTopology
+from .measure_parameters import MeasureEntry
 from .print_parameters import PrintParameters
 
 
@@ -61,6 +62,7 @@ class NoiseSimulationParameters:
     replace_ground: bool = True
     print_parameters: PrintParameters | None = None
     device_noise_operators: tuple[DeviceNoiseOperator, ...] = ()
+    measure_parameters: tuple[MeasureEntry, ...] = ()
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "NoiseSimulationParameters" | None:
@@ -76,6 +78,8 @@ class NoiseSimulationParameters:
         replace_ground = True
         print_parameters = None
         device_noise_operators: list[DeviceNoiseOperator] = []
+        # init measure parameters
+        measure_parameters: list[MeasureEntry] = []
         # flag indicating whether a valid directive was found
         found = False
         # parse directives
@@ -107,6 +111,16 @@ class NoiseSimulationParameters:
             if cmd == ".PREPROCESS" and len(tokens) > 2 and tokens[1].upper() == "REPLACEGROUND":
                 # set replace_ground based on the third token
                 replace_ground = tokens[2].upper() == "TRUE"
+                # next
+                continue
+            # parse measure directives
+            if cmd in (".MEASURE", ".MEAS"):
+                # parse the measure statement from the directive
+                measure_statement = MeasureEntry.from_xyce_statement(directive)
+                # retain measure parameters when found and analysis type matches
+                if measure_statement and measure_statement.analysis_type == "NOISE":
+                    # append the parsed measure parameters
+                    measure_parameters.append(measure_statement)
                 # next
                 continue
             # skip non-NOISE directives
@@ -150,7 +164,7 @@ class NoiseSimulationParameters:
                     start = tokens[4]
                     end = tokens[5]
         # return instance if a valid directive was found
-        return cls(output_node=output_node, ref_node=ref_node, source_name=source_name, sweep_mode=sweep_mode, points=points, start=start, end=end, data_table_name=data_table_name, replace_ground=replace_ground, print_parameters=print_parameters, device_noise_operators=tuple(device_noise_operators)) if found else None
+        return cls(output_node=output_node, ref_node=ref_node, source_name=source_name, sweep_mode=sweep_mode, points=points, start=start, end=end, data_table_name=data_table_name, replace_ground=replace_ground, print_parameters=print_parameters, device_noise_operators=tuple(device_noise_operators), measure_parameters=tuple(measure_parameters)) if found else None
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # prepend replaceground preprocessing when enabled
@@ -186,5 +200,8 @@ class NoiseSimulationParameters:
                 updated_print = PrintParameters(print_type="NOISE", print_format=self.print_parameters.print_format, print_file=self.print_parameters.print_file, output_variables=tuple(output_vars), extra_options=self.print_parameters.extra_options)
                 # append the updated print statement
                 lines.append(updated_print.to_xyce_statement())
+        # append measure directives when configured
+        for measure in self.measure_parameters:
+            lines.append(measure.to_xyce_statement())
         # return the full directive list
         return preprocess + lines
