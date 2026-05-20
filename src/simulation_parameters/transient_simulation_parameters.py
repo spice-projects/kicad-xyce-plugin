@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from netlist_parser import NetlistTopology
 from .fft_parameters import FftParameters
+from .four_parameters import FourParameters
 from .print_parameters import PrintParameters
 
 
@@ -26,6 +27,7 @@ class TransientSimulationParameters:
     replace_ground: bool = True
     print_parameters: PrintParameters | None = None
     fft_parameters: tuple[FftParameters, ...] = ()
+    four_parameters: tuple[FourParameters, ...] = ()
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "TransientSimulationParameters" | None:
@@ -40,6 +42,8 @@ class TransientSimulationParameters:
         print_parameters = None
         # init fft parameters
         fft_parameters: list[FftParameters] = []
+        # init four parameters
+        four_parameters: list[FourParameters] = []
         # flag indicating whether a valid directive was found
         found = False
         # parse directives
@@ -69,6 +73,16 @@ class TransientSimulationParameters:
                 if fft_statement:
                     # append the parsed fft parameters
                     fft_parameters.append(fft_statement)
+                # next
+                continue
+            # parse four directives
+            if cmd == ".FOUR":
+                # parse the four statement from the directive
+                four_statement = FourParameters.from_xyce_statement(directive)
+                # retain four parameters when found
+                if four_statement:
+                    # append the parsed four parameters
+                    four_parameters.append(four_statement)
                 # next
                 continue
             # handle preprocess replaceground
@@ -118,7 +132,7 @@ class TransientSimulationParameters:
             if len(positional) >= 2:
                 step_ceiling_value = positional[1]
         # return instance if a valid directive was found
-        return cls(initial_step_value=initial_step_value, final_time_value=final_time_value, start_time_value=start_time_value, step_ceiling_value=step_ceiling_value, op_keyword=op_keyword, schedule_points=tuple(schedule_points), replace_ground=replace_ground, print_parameters=print_parameters, fft_parameters=tuple(fft_parameters),) if found else None
+        return cls(initial_step_value=initial_step_value, final_time_value=final_time_value, start_time_value=start_time_value, step_ceiling_value=step_ceiling_value, op_keyword=op_keyword, schedule_points=tuple(schedule_points), replace_ground=replace_ground, print_parameters=print_parameters, fft_parameters=tuple(fft_parameters), four_parameters=tuple(four_parameters)) if found else None
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # prepend replaceground preprocessor directive when enabled
@@ -133,6 +147,10 @@ class TransientSimulationParameters:
         for fft in self.fft_parameters:
             # append fft statement
             lines.append(fft.to_xyce_statement())
+        # append four directives
+        for four in self.four_parameters:
+            # append four statement
+            lines.append(four.to_xyce_statement())
         # return the full directive list
         return preprocess + lines
 

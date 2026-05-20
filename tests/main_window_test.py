@@ -157,7 +157,7 @@ class TestMainWindowOnStdoutReceived:
         # arrange
         window = _make_window()
         received: list[str] = []
-        window.logAppendRequested.connect(received.append)
+        window.log_append_requested.connect(received.append)
         # act
         window._on_stdout_received("xyce output line")
         # assert
@@ -170,7 +170,7 @@ class TestMainWindowOnStderrReceived:
         # arrange
         window = _make_window()
         received: list[str] = []
-        window.logAppendRequested.connect(received.append)
+        window.log_append_requested.connect(received.append)
         # act
         window._on_stderr_received("error text")
         # assert

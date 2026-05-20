@@ -1,6 +1,7 @@
 from .ac_simulation_parameters import AcSimulationParameters
 from .dc_simulation_parameters import DCSimulationParameters
 from .fft_parameters import FftParameters
+from .four_parameters import FourParameters
 from .hb_simulation_parameters import HbSimulationParameters
 from .lin_simulation_parameters import LinSimulationParameters
 from .noise_simulation_parameters import NoiseSimulationParameters
@@ -14,6 +15,7 @@ __all__ = [
     "AcSimulationParameters",
     "DCSimulationParameters",
     "FftParameters",
+    "FourParameters",
     "HbSimulationParameters",
     "IcEntry", "LinSimulationParameters",
     "NoiseSimulationParameters",

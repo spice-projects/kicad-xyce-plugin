@@ -22,6 +22,7 @@ Item {
     property alias scheduleEnabled: scheduleEnabledCheckBox.checked
     property alias schedulePairsText: schedulePairsTextArea.text
     property alias fftParametersText: fftParametersTextArea.text
+    property alias fourParametersText: fourParametersTextArea.text
     property string transientErrorText: ""
 
     // --- DC Sweep tab properties ---
@@ -160,7 +161,7 @@ Item {
     // --- Shared properties ---
     property bool replaceGround: false
 
-    signal submitTransient(string initialStep, string finalTime, string startTime, string stepCeiling, string opKeyword, bool scheduleEnabled, string schedulePairsText, string fftParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
+    signal submitTransient(string initialStep, string finalTime, string startTime, string stepCeiling, string opKeyword, bool scheduleEnabled, string schedulePairsText, string fftParametersText, string fourParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitDC(string sweepMode, string primaryVariable, string startValue, string stopValue, string stepValue, string pointsValue, string listValuesText, string dataTableName, bool secondaryEnabled, string secondaryVariable, string secondaryStart, string secondaryStop, string secondaryStep, string secondaryPoints, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitOP(bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool saveEnabled, string saveType, string nodesetEntries, string saveFile, bool replaceGround)
     signal submitAC(string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
@@ -827,6 +828,45 @@ Item {
                                     TextArea {
                                         id: fftParametersTextArea
                                         placeholderText: "Enter one .FFT directive per line.\nExample: .FFT V(OUT) WINDOW=HANN"
+                                        selectByMouse: true
+                                        wrapMode: TextEdit.NoWrap
+                                    }
+                                }
+                            }
+                        }
+
+                        // --- .FOUR section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: fourParamsColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: fourParamsColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                Label {
+                                    text: "Fourier Analysis (.FOUR)"
+                                    font.bold: true
+                                    color: "#24292f"
+                                    Layout.fillWidth: true
+                                }
+
+                                ScrollView {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 120
+                                    clip: true
+
+                                    TextArea {
+                                        id: fourParametersTextArea
+                                        placeholderText: "Enter one .FOUR directive per line.\nExample: .FOUR 1k V(OUT)"
                                         selectByMouse: true
                                         wrapMode: TextEdit.NoWrap
                                     }
@@ -2115,7 +2155,7 @@ Item {
                     if (simTabBar.currentIndex === 0) {
                         root.submitOP(root.opPrintEnabled, root.opPrintAllNodes, root.opPrintAllCurrents, root.opPrintPower, root.opPrintBjtLeads, root.opPrintFetLeads, root.opPrintSpecificVars, opPrintFormatCombo.currentIndex > 0 ? opPrintFormatCombo.model[opPrintFormatCombo.currentIndex] : "", root.opPrintFile, root.saveEnabled, root.saveType, root.nodesetEntries, root.saveFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 1) {
-                        root.submitTransient(root.initialStep, root.finalTime, root.startTime, root.stepCeiling, root.opKeywordValue(), root.scheduleEnabled, root.schedulePairsText, root.fftParametersText, root.tranPrintEnabled, root.tranPrintAllNodes, root.tranPrintAllCurrents, root.tranPrintPower, root.tranPrintBjtLeads, root.tranPrintFetLeads, root.tranPrintSpecificVars, tranPrintFormatCombo.currentIndex > 0 ? tranPrintFormatCombo.model[tranPrintFormatCombo.currentIndex] : "", root.tranPrintFile, root.replaceGround)
+                        root.submitTransient(root.initialStep, root.finalTime, root.startTime, root.stepCeiling, root.opKeywordValue(), root.scheduleEnabled, root.schedulePairsText, root.fftParametersText, root.fourParametersText, root.tranPrintEnabled, root.tranPrintAllNodes, root.tranPrintAllCurrents, root.tranPrintPower, root.tranPrintBjtLeads, root.tranPrintFetLeads, root.tranPrintSpecificVars, tranPrintFormatCombo.currentIndex > 0 ? tranPrintFormatCombo.model[tranPrintFormatCombo.currentIndex] : "", root.tranPrintFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 2) {
                         root.submitDC(root.sweepModeValue(), root.primaryVariable, root.startValue, root.stopValue, root.stepValue, root.pointsValue, root.listValuesText, root.dataTableName, root.secondaryEnabled, root.secondaryVariable, root.secondaryStart, root.secondaryStop, root.secondaryStep, root.secondaryPoints, root.dcPrintEnabled, root.dcPrintAllNodes, root.dcPrintAllCurrents, root.dcPrintPower, root.dcPrintBjtLeads, root.dcPrintFetLeads, root.dcPrintSpecificVars, dcPrintFormatCombo.currentIndex > 0 ? dcPrintFormatCombo.model[dcPrintFormatCombo.currentIndex] : "", root.dcPrintFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 3) {

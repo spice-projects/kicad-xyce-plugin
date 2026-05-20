@@ -41,8 +41,8 @@ def _compute_decimate_target(screen: QScreen) -> int:
 
 class MainWindow(QMainWindow):
 
-    logAppendRequested = Signal(str)
-    logClearRequested = Signal()
+    log_append_requested = Signal(str)
+    log_clear_requested = Signal()
 
     def __init__(self, kicad_client: KiCad | None, plugin_config: PluginConfig, raw_file: XyceRawFile | None = None, raw_file_path: Path | None = None):
         super().__init__()
@@ -264,8 +264,8 @@ class MainWindow(QMainWindow):
         # self._root.menuFft.connect(self._on_menu_fft)
         self._root.menuStepTool.connect(self._on_menu_step_tool)
         # self._root.menuSmithChart.connect(self._on_menu_smith_chart)
-        self.logAppendRequested.connect(self._root.logAppendRequested)
-        self.logClearRequested.connect(self._root.logClearRequested)
+        self.log_append_requested.connect(self._root.logAppendRequested)
+        self.log_clear_requested.connect(self._root.logClearRequested)
         # log screen information for debugging purposes
         if logger.isEnabledFor(logging.DEBUG):
             QTimer.singleShot(0, lambda: log_screen_info(self.screen()))
@@ -536,14 +536,14 @@ class MainWindow(QMainWindow):
         # log
         self._root.setProperty("logVisible", True)
         # clear
-        self.logClearRequested.emit()
+        self.log_clear_requested.emit()
 
     @Slot(str)
     def _on_stdout_received(self, text: str) -> None:
         # log
         logger.info("Xyce: %s", text)
         # log
-        self.logAppendRequested.emit(text)
+        self.log_append_requested.emit(text)
 
     @Slot(str)
     def _on_stderr_received(self, text: str) -> None:
@@ -551,7 +551,7 @@ class MainWindow(QMainWindow):
         logger.error("Xyce stderr: %s", text)
         # error
         msg = f"ERROR: {text}"
-        self.logAppendRequested.emit(msg)
+        self.log_append_requested.emit(msg)
         # status
         self._show_status(f"Simulation error: {text}", 5000)
 

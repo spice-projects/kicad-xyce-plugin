@@ -243,7 +243,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", "", False, False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
         assert isinstance(dialog._result, TransientSimulationParameters)
@@ -252,7 +252,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("2u", "2m", "100n", "10u", "NOOP", False, "", "", False, False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_transient("2u", "2m", "100n", "10u", "NOOP", False, "", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         result = dialog._result
         assert result.initial_step_value == "2u"
@@ -265,7 +265,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("", "1m", "", "", "", False, "", "", False, False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_transient("", "1m", "", "", "", False, "", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("transientErrorText", "Initial step and final time are required")
@@ -274,7 +274,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1u", "", "", "", "", False, "", "", False, False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_transient("1u", "", "", "", "", False, "", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
 
@@ -282,7 +282,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1u", "1m", "", "", "INVALID", False, "", "", False, False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_transient("1u", "1m", "", "", "INVALID", False, "", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("transientErrorText", "Operating-point mode must be Default, NOOP, or UIC")
@@ -291,7 +291,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1u", "1m", "", "", "", True, "", "", False, False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_transient("1u", "1m", "", "", "", True, "", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("transientErrorText", "Schedule is enabled but no time,max-step pairs were provided")
@@ -300,7 +300,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1n", "10u", "", "", "", True, "1u,10n 5u,50n", "", False, False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_transient("1n", "10u", "", "", "", True, "1u,10n 5u,50n", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
@@ -310,7 +310,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1n", "10u", "", "", "", True, "1u 10n 5u", "", False, False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_transient("1n", "10u", "", "", "", True, "1u 10n 5u", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert — odd tokens is invalid format
         dialog.accept.assert_not_called()
 
@@ -318,7 +318,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", "", False, False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         dialog._root.setProperty.assert_any_call("transientErrorText", "")
 
@@ -326,7 +326,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", "", False, False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         result = dialog._result
         assert result.initial_step_value == "1u"
@@ -337,7 +337,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         dialog = _make_dialog_with_accept()
         fft_text = ".FFT V(1)\nV(2) WINDOW=RECT\n"
         # act
-        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", fft_text, False, False, False, False, False, False, "", "", "", False)
+        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", fft_text, "", False, False, False, False, False, False, "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
@@ -345,6 +345,21 @@ class TestSimulationParametersDialogOnSubmitTransient:
         assert result.fft_parameters[0].output_variable == "V(1)"
         assert result.fft_parameters[1].output_variable == "V(2)"
         assert result.fft_parameters[1].window == "RECT"
+
+    def test_accepts_valid_four_directives(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        four_text = ".FOUR 1k V(1)\n2k V(2) I(1)\n"
+        # act
+        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", "", four_text, False, False, False, False, False, False, "", "", "", False)
+        # assert
+        dialog.accept.assert_called_once()
+        result = dialog._result
+        assert len(result.four_parameters) == 2
+        assert result.four_parameters[0].fundamental_frequency == "1k"
+        assert result.four_parameters[0].output_variables == ("V(1)",)
+        assert result.four_parameters[1].fundamental_frequency == "2k"
+        assert result.four_parameters[1].output_variables == ("V(2)", "I(1)")
 
 
 class TestSimulationParametersDialogOnSubmitDC:
@@ -1169,7 +1184,7 @@ class TestSimulationParametersDialogOnSubmitTransientWithPrint:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", "", True, True, True, True, True, True, "V(1)", "CSV", "t.csv", False)
+        dialog._on_submit_transient("1u", "1m", "", "", "", False, "", "", "", True, True, True, True, True, True, "V(1)", "CSV", "t.csv", False)
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
