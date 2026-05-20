@@ -1,4 +1,4 @@
-from simulation_parameters import FourParameters, TransientSchedulePoint, TransientSimulationParameters
+from simulation_parameters import FourParameters, TransientSimulationParameters
 
 
 class TestToXyceDirectivesFour:
