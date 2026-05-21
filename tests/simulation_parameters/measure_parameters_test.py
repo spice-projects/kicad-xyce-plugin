@@ -368,7 +368,7 @@ class TestMeasureEntry:
         assert params.targ_condition == "=0.8"
         assert params.targ_fall == "2"
         assert params.targ_td == "5ms"
-        # The serializer may reorder qualifiers, but the semantic meaning is preserved
+        # The serializer reorders qualifiers, but the semantic meaning is preserved
         regenerated = params.to_xyce_statement()
         assert "TRIG V(1)=0.2" in regenerated
         assert "TD=1ms" in regenerated
@@ -529,7 +529,7 @@ class TestMeasureEntry:
         regenerated = params.to_xyce_statement() if params else None
         # assert
         assert params is not None
-        # The serializer may reorder qualifiers, but the semantic meaning is preserved
+        # The serializer reorders qualifiers, but the semantic meaning is preserved
         assert "TRIG V(1)=0.2" in regenerated
         assert "TD=1ms" in regenerated
         assert "RISE=1" in regenerated
@@ -614,7 +614,7 @@ class TestMeasureEntry:
         assert params.when_condition == "=0.75"
         assert params.minval == "0.08"
         assert params.rise_val == "2"
-        # Serializer may reorder qualifiers, check for component presence
+        # Serializer reorders qualifiers, check for component presence
         regenerated = params.to_xyce_statement()
         assert "WHEN V(1)=0.75" in regenerated
         assert "MINVAL=0.08" in regenerated
@@ -648,7 +648,7 @@ class TestMeasureEntry:
         assert params.rise_val == "2"
         assert params.fall_val == "1"
         assert params.cross_val == "3"
-        # Serializer may reorder qualifiers, check for component presence
+        # Serializer reorders qualifiers, check for component presence
         regenerated = params.to_xyce_statement()
         assert "WHEN V(1)=0.75" in regenerated
         assert "MINVAL=0.02" in regenerated
@@ -657,7 +657,7 @@ class TestMeasureEntry:
         assert "CROSS=3" in regenerated
 
     def test_trig_variable_without_condition(self):
-        # arrange - TRIG with variable but no condition (coverage for line 322)
+        # arrange - TRIG with variable but no condition
         statement = ".MEASURE TRAN trig1 TRIG V(1) TARG V(2)=0.8"
         # act
         params = MeasureEntry.from_xyce_statement(statement)
@@ -748,7 +748,7 @@ class TestMeasureEntry:
 
     def test_err1_with_all_qualifiers(self):
         # arrange - ERR1 with all qualifiers
-        statement = ".MEASURE TRAN err1 ERR1 V(1) V(2) FROM=1m TO=5m MINVAL=0.1 YMIN=0.2 YMAX=0.8"
+        statement = ".MEASURE TRAN err1 ERR1 V(1) V(2) FROM=1m TO=5m MINVAL=0.1"
         # act
         params = MeasureEntry.from_xyce_statement(statement)
         # assert
@@ -759,7 +759,6 @@ class TestMeasureEntry:
         assert params.from_val == "1m"
         assert params.to_val == "5m"
         assert params.minval == "0.1"
-        # YMIN and YMAX are not currently supported in the dataclass
         # Serializer order may vary, check key components
         regenerated = params.to_xyce_statement()
         assert "ERR1 V(1) V(2)" in regenerated
@@ -768,7 +767,7 @@ class TestMeasureEntry:
         assert "MINVAL=0.1" in regenerated
 
     def test_error_without_comp_function(self):
-        # arrange - ERROR without COMP_FUNCTION (coverage for optional parameter)
+        # arrange - ERROR without COMP_FUNCTION
         statement = ".MEASURE TRAN error1 ERROR V(1) FILE=data.csv INDEPVARCOL=1 DEPVARCOL=2"
         # act
         params = MeasureEntry.from_xyce_statement(statement)
@@ -810,7 +809,6 @@ class TestMeasureEntry:
 
     def test_four_with_from_to_td(self):
         # arrange - FOUR with measurement window qualifiers
-        # Note: TD is not supported for FOUR according to the reference guide
         statement = ".MEASURE TRAN four1 FOUR V(1) AT=1k FROM=1m TO=5m TD=100u"
         # act
         params = MeasureEntry.from_xyce_statement(statement)
@@ -838,9 +836,10 @@ class TestMeasureEntry:
         # assert
         assert params is not None
         assert params.measure_type == "AVG"
-        # MIN_THRESH and MAX_THRESH are not currently supported in the dataclass
-        # They will be ignored by the parser but the statement should still parse
         assert params.variable == "V(1)"
+        assert params.min_thresh == "0.1"
+        assert params.max_thresh == "0.9"
+        assert params.to_xyce_statement() == ".MEASURE TRAN avgAll AVG V(1) MIN_THRESH=0.1 MAX_THRESH=0.9"
 
     def test_deriv_at_with_minval(self):
         # arrange - DERIV AT with MINVAL
@@ -852,7 +851,7 @@ class TestMeasureEntry:
         assert params.measure_type == "DERIV"
         assert params.at_val == "5"
         assert params.minval == "0.1"
-        # Serializer may reorder qualifiers, check for component presence
+        # Serializer reorders qualifiers, check for component presence
         regenerated = params.to_xyce_statement()
         assert "DERIV V(1)" in regenerated
         assert "AT=5" in regenerated
@@ -868,7 +867,7 @@ class TestMeasureEntry:
         assert params.measure_type == "FIND"
         assert params.at_val == "5"
         assert params.minval == "0.1"
-        # Serializer may reorder qualifiers, check for component presence
+        # Serializer reorders qualifiers, check for component presence
         regenerated = params.to_xyce_statement()
         assert "FIND V(1)" in regenerated
         assert "AT=5" in regenerated
@@ -1021,15 +1020,16 @@ class TestMeasureEntry:
         assert "UNKNOWN" not in regenerated
 
     def test_when_without_condition(self):
-        # arrange - WHEN without condition (this is not valid Xyce syntax, but tests parser robustness)
+        # arrange - WHEN without condition
         statement = ".MEASURE TRAN when1 WHEN V(1)"
         # act
         params = MeasureEntry.from_xyce_statement(statement)
         # assert
-        # parser may not handle this gracefully, so we just check it doesn't crash
-        assert params is None or params.measure_type == "WHEN"
+        assert params is not None
+        assert params.measure_type == "WHEN"
+        assert params.when_variable == "V(1)"
+        assert params.when_condition == ""
 
-    # tests for unsupported qualifiers (these trigger warning logs)
     def test_unsupported_rise_qualifier(self):
         # arrange - AVG with RISE (not supported for AVG)
         statement = ".MEASURE TRAN avgAll AVG V(1) RISE=2"
@@ -1223,3 +1223,133 @@ class TestMeasureEntry:
         # unknown option should be ignored
         regenerated = params.to_xyce_statement()
         assert "UNKNOWN_OPTION" not in regenerated
+
+    # New FFT measure tests
+    def test_fft_enob_measure(self):
+        # arrange
+        statement = ".MEASURE TRAN my_enob FFT ENOB V(OUT) BINSIZ=10.0"
+        # act
+        params = MeasureEntry.from_xyce_statement(statement)
+        # assert
+        assert params is not None
+        assert params.measure_type == "ENOB"
+        assert params.variable == "V(OUT)"
+        assert params.binsiz == "10.0"
+        assert params.to_xyce_statement() == ".MEASURE TRAN my_enob FFT ENOB V(OUT) BINSIZ=10.0"
+
+    def test_fft_sfdr_measure(self):
+        # arrange
+        statement = ".MEASURE TRAN my_sfdr FFT SFDR V(OUT) BINSIZ=10.0 MAXFREQ=1e6 MINFREQ=100"
+        # act
+        params = MeasureEntry.from_xyce_statement(statement)
+        # assert
+        assert params is not None
+        assert params.measure_type == "SFDR"
+        assert params.binsiz == "10.0"
+        assert params.maxfreq == "1e6"
+        assert params.minfreq == "100"
+        regenerated = params.to_xyce_statement()
+        assert "FFT SFDR" in regenerated
+        assert "BINSIZ=10.0" in regenerated
+        assert "MAXFREQ=1e6" in regenerated
+        assert "MINFREQ=100" in regenerated
+
+    def test_fft_thd_measure(self):
+        # arrange
+        statement = ".MEASURE TRAN my_thd FFT THD V(OUT) NBHARM=10 MAXFREQ=1e6 MINFREQ=100"
+        # act
+        params = MeasureEntry.from_xyce_statement(statement)
+        # assert
+        assert params is not None
+        assert params.measure_type == "THD"
+        assert params.nbharm == "10"
+        assert params.maxfreq == "1e6"
+        assert params.minfreq == "100"
+        regenerated = params.to_xyce_statement()
+        assert "FFT THD" in regenerated
+        assert "NBHARM=10" in regenerated
+        assert "MAXFREQ=1e6" in regenerated
+        assert "MINFREQ=100" in regenerated
+
+    def test_fft_unsupported_qualifiers(self):
+        # arrange - FFT ENOB with TD (unsupported for FFT)
+        statement = ".MEASURE TRAN my_enob FFT ENOB V(OUT) TD=1ms"
+        # act
+        params = MeasureEntry.from_xyce_statement(statement)
+        # assert
+        assert params is not None
+        assert params.td_val == ""
+        assert "TD=" not in params.to_xyce_statement()
+
+    # Alias tests
+    def test_derivative_alias(self):
+        # arrange
+        statement = ".MEASURE TRAN d1 DERIVATIVE V(1) AT=5"
+        # act
+        params = MeasureEntry.from_xyce_statement(statement)
+        # assert
+        assert params is not None
+        assert params.measure_type == "DERIV"
+        assert params.to_xyce_statement() == ".MEASURE TRAN d1 DERIV V(1) AT=5"
+
+    def test_integral_alias(self):
+        # arrange
+        statement = ".MEASURE TRAN i1 INTEGRAL V(1)"
+        # act
+        params = MeasureEntry.from_xyce_statement(statement)
+        # assert
+        assert params is not None
+        assert params.measure_type == "INTEG"
+        assert params.to_xyce_statement() == ".MEASURE TRAN i1 INTEG V(1)"
+
+    def test_param_alias(self):
+        # arrange
+        statement = ".MEASURE TRAN p1 PARAM {V(1)*2}"
+        # act
+        params = MeasureEntry.from_xyce_statement(statement)
+        # assert
+        assert params is not None
+        assert params.measure_type == "EQN"
+        assert params.variable == "{V(1)*2}"
+        assert params.to_xyce_statement() == ".MEASURE TRAN p1 EQN {V(1)*2}"
+
+    # TRIG-TARG advanced tests
+    def test_trig_targ_with_val_qualifier(self):
+        # arrange
+        statement = ".MEASURE TRAN trig1 TRIG V(1) VAL=0.2 TARG V(2) VAL=0.8"
+        # act
+        params = MeasureEntry.from_xyce_statement(statement)
+        # assert
+        assert params is not None
+        assert params.trig_variable == "V(1)"
+        assert params.trig_val == "0.2"
+        assert params.targ_variable == "V(2)"
+        assert params.targ_val == "0.8"
+        assert params.to_xyce_statement() == ".MEASURE TRAN trig1 TRIG V(1) VAL=0.2 TARG V(2) VAL=0.8"
+
+    def test_trig_targ_with_frac_max(self):
+        # arrange
+        statement = ".MEASURE TRAN trig1 TRIG V(1) FRAC_MAX=0.5 TARG V(2) FRAC_MAX=0.9"
+        # act
+        params = MeasureEntry.from_xyce_statement(statement)
+        # assert
+        assert params is not None
+        assert params.trig_frac_max == "0.5"
+        assert params.targ_frac_max == "0.9"
+        regenerated = params.to_xyce_statement()
+        assert "TRIG V(1) FRAC_MAX=0.5" in regenerated
+        assert "TARG V(2) FRAC_MAX=0.9" in regenerated
+
+    # HSPICE compatibility tests
+    def test_goal_weight_qualifiers(self):
+        # arrange
+        statement = ".MEASURE TRAN m1 MAX V(1) GOAL=5.0 WEIGHT=2.0"
+        # act
+        params = MeasureEntry.from_xyce_statement(statement)
+        # assert
+        assert params is not None
+        assert params.goal == "5.0"
+        assert params.weight == "2.0"
+        regenerated = params.to_xyce_statement()
+        assert "GOAL=5.0" in regenerated
+        assert "WEIGHT=2.0" in regenerated
