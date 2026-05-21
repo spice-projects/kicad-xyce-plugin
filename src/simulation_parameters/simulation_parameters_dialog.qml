@@ -23,7 +23,7 @@ Item {
     property alias schedulePairsText: schedulePairsTextArea.text
     property alias fftParametersText: fftParametersTextArea.text
     property alias fourParametersText: fourParametersTextArea.text
-    property string transientErrorText: ""
+    property alias tranMeasureParametersText: tranMeasureParametersTextArea.text
 
     // --- DC Sweep tab properties ---
     property alias sweepModeIndex: sweepModeComboBox.currentIndex
@@ -40,7 +40,7 @@ Item {
     property alias secondaryStop: secondaryStopField.text
     property alias secondaryStep: secondaryStepField.text
     property alias secondaryPoints: secondaryPointsField.text
-    property string dcErrorText: ""
+    property alias dcMeasureParametersText: dcMeasureParametersTextArea.text
 
     // --- OP simulation properties
     property bool opPrintEnabled: false
@@ -91,7 +91,7 @@ Item {
     property alias acStart: acStartField.text
     property alias acEnd: acEndField.text
     property alias acDataTableName: acDataTableNameField.text
-    property string acErrorText: ""
+    property alias acMeasureParametersText: acMeasureParametersTextArea.text
 
     // --- AC print properties ---
     property bool acPrintEnabled: false
@@ -110,7 +110,7 @@ Item {
     property alias noiseStart: noiseStartField.text
     property alias noiseEnd: noiseEndField.text
     property alias noiseDataTableName: noiseDataTableNameField.text
-    property string noiseErrorText: ""
+    property alias noiseMeasureParametersText: noiseMeasureParametersTextArea.text
 
     // --- NOISE print properties ---
     property bool noisePrintEnabled: false
@@ -125,7 +125,6 @@ Item {
 
     // --- HB tab properties ---
     property alias hbFrequenciesText: hbFrequenciesField.text
-    property string hbErrorText: ""
 
     // --- HB print properties ---
     property bool hbPrintEnabled: false
@@ -149,7 +148,6 @@ Item {
     property alias linStart: linStartField.text
     property alias linEnd: linEndField.text
     property alias linDataTableName: linDataTableNameField.text
-    property string linErrorText: ""
 
     // --- LIN print properties ---
     property bool linPrintEnabled: false
@@ -161,12 +159,13 @@ Item {
 
     // --- Shared properties ---
     property bool replaceGround: false
+    property string errorText: ""
 
-    signal submitTransient(string initialStep, string finalTime, string startTime, string stepCeiling, string opKeyword, bool scheduleEnabled, string schedulePairsText, string fftParametersText, string fourParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
-    signal submitDC(string sweepMode, string primaryVariable, string startValue, string stopValue, string stepValue, string pointsValue, string listValuesText, string dataTableName, bool secondaryEnabled, string secondaryVariable, string secondaryStart, string secondaryStop, string secondaryStep, string secondaryPoints, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
+    signal submitTransient(string initialStep, string finalTime, string startTime, string stepCeiling, string opKeyword, bool scheduleEnabled, string schedulePairsText, string fftParametersText, string fourParametersText, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
+    signal submitDC(string sweepMode, string primaryVariable, string startValue, string stopValue, string stepValue, string pointsValue, string listValuesText, string dataTableName, bool secondaryEnabled, string secondaryVariable, string secondaryStart, string secondaryStop, string secondaryStep, string secondaryPoints, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitOP(bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool saveEnabled, string saveType, string nodesetEntries, string saveFile, bool replaceGround)
-    signal submitAC(string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
-    signal submitNoise(string outputNode, string refNode, string sourceName, string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printInoise, bool printOnoise, string printSpecificVars, string printFormat, string printFile, bool replaceGround, var deviceOperatorsList)
+    signal submitAC(string sweepMode, string points, string start, string end, string dataTableName, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
+    signal submitNoise(string outputNode, string refNode, string sourceName, string sweepMode, string points, string start, string end, string dataTableName, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printInoise, bool printOnoise, string printSpecificVars, string printFormat, string printFile, bool replaceGround, var deviceOperatorsList)
     signal submitHB(string frequenciesText, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printType, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitLIN(bool sparcalc, string format, string lintype, string dataformat, string file, string width, string precision, string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal cancelRequested()
@@ -286,6 +285,7 @@ Item {
         TabBar {
             id: simTabBar
             Layout.fillWidth: true
+            onCurrentIndexChanged: root.errorText = ""
 
             TabButton {
                 text: ".OP"
@@ -653,16 +653,6 @@ Item {
                                         Layout.fillWidth: true
                                         model: ["Default (compute OP)", "NOOP (skip OP)", "UIC (skip OP)"]
                                     }
-
-                                    Label {
-                                        text: root.transientErrorText
-                                        visible: root.transientErrorText.length > 0
-                                        color: "#b42318"
-                                        font.pixelSize: 12
-                                        wrapMode: Text.Wrap
-                                        Layout.columnSpan: 4
-                                        Layout.fillWidth: true
-                                    }
                                 }
 
                                 CheckBox {
@@ -868,6 +858,45 @@ Item {
                                     TextArea {
                                         id: fourParametersTextArea
                                         placeholderText: "Enter one .FOUR directive per line.\nExample: .FOUR 1k V(OUT)"
+                                        selectByMouse: true
+                                        wrapMode: TextEdit.NoWrap
+                                    }
+                                }
+                            }
+                        }
+
+                        // --- .MEASURE section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: tranMeasureColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: tranMeasureColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                Label {
+                                    text: "Measurements (.MEASURE)"
+                                    font.bold: true
+                                    color: "#24292f"
+                                    Layout.fillWidth: true
+                                }
+
+                                ScrollView {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 120
+                                    clip: true
+
+                                    TextArea {
+                                        id: tranMeasureParametersTextArea
+                                        placeholderText: "Enter one .MEASURE directive per line.\nExample: .MEASURE TRAN RISE_TIME MAX V(OUT) RISE=1"
                                         selectByMouse: true
                                         wrapMode: TextEdit.NoWrap
                                     }
@@ -1096,15 +1125,6 @@ Item {
                                         }
                                     }
                                 }
-
-                                Label {
-                                    text: root.dcErrorText
-                                    visible: root.dcErrorText.length > 0
-                                    color: "#b42318"
-                                    font.pixelSize: 12
-                                    wrapMode: Text.Wrap
-                                    Layout.fillWidth: true
-                                }
                             }
                         }
 
@@ -1222,6 +1242,45 @@ Item {
                             }
                         }
 
+                        // --- .MEASURE section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: dcMeasureColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: dcMeasureColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                Label {
+                                    text: "Measurements (.MEASURE)"
+                                    font.bold: true
+                                    color: "#24292f"
+                                    Layout.fillWidth: true
+                                }
+
+                                ScrollView {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 120
+                                    clip: true
+
+                                    TextArea {
+                                        id: dcMeasureParametersTextArea
+                                        placeholderText: "Enter one .MEASURE directive per line.\nExample: .MEASURE DC VIN_AT_2V FIND V(1) WHEN V(1)=2"
+                                        selectByMouse: true
+                                        wrapMode: TextEdit.NoWrap
+                                    }
+                                }
+                            }
+                        }
+
                         Item {
                             Layout.fillHeight: true
                         }
@@ -1322,15 +1381,6 @@ Item {
                                         visible: root.acIsDataMode()
                                     }
                                 }
-
-                                Label {
-                                    text: root.acErrorText
-                                    visible: root.acErrorText.length > 0
-                                    color: "#b42318"
-                                    font.pixelSize: 12
-                                    wrapMode: Text.Wrap
-                                    Layout.fillWidth: true
-                                }
                             }
                         }
 
@@ -1418,6 +1468,45 @@ Item {
                                         text: root.acPrintFile
                                         onTextChanged: root.acPrintFile = text
                                         Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+
+                        // --- .MEASURE section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: acMeasureColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: acMeasureColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                Label {
+                                    text: "Measurements (.MEASURE)"
+                                    font.bold: true
+                                    color: "#24292f"
+                                    Layout.fillWidth: true
+                                }
+
+                                ScrollView {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 120
+                                    clip: true
+
+                                    TextArea {
+                                        id: acMeasureParametersTextArea
+                                        placeholderText: "Enter one .MEASURE directive per line.\nExample: .MEASURE AC BANDWIDTH FIND V(OUT) WHEN V(OUT)=0.707"
+                                        selectByMouse: true
+                                        wrapMode: TextEdit.NoWrap
                                     }
                                 }
                             }
@@ -1555,15 +1644,6 @@ Item {
                                         Layout.fillWidth: true
                                         visible: root.noiseIsDataMode()
                                     }
-                                }
-
-                                Label {
-                                    text: root.noiseErrorText
-                                    visible: root.noiseErrorText.length > 0
-                                    color: "#b42318"
-                                    font.pixelSize: 12
-                                    wrapMode: Text.Wrap
-                                    Layout.fillWidth: true
                                 }
                             }
                         }
@@ -1752,6 +1832,45 @@ Item {
                             }
                         }
 
+                        // --- .MEASURE section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: noiseMeasureColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: noiseMeasureColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                Label {
+                                    text: "Measurements (.MEASURE)"
+                                    font.bold: true
+                                    color: "#24292f"
+                                    Layout.fillWidth: true
+                                }
+
+                                ScrollView {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 120
+                                    clip: true
+
+                                    TextArea {
+                                        id: noiseMeasureParametersTextArea
+                                        placeholderText: "Enter one .MEASURE directive per line.\nExample: .MEASURE NOISE TOTAL_INOISE INTEG INOISE"
+                                        selectByMouse: true
+                                        wrapMode: TextEdit.NoWrap
+                                    }
+                                }
+                            }
+                        }
+
                         Item {
                             Layout.fillHeight: true
                         }
@@ -1798,16 +1917,6 @@ Item {
                                         id: hbFrequenciesField
                                         placeholderText: "e.g. 1MEG 2MEG 500K"
                                         selectByMouse: true
-                                        Layout.fillWidth: true
-                                    }
-
-                                    Label {
-                                        text: root.hbErrorText
-                                        visible: root.hbErrorText.length > 0
-                                        color: "#b42318"
-                                        font.pixelSize: 12
-                                        wrapMode: Text.Wrap
-                                        Layout.columnSpan: 2
                                         Layout.fillWidth: true
                                     }
                                 }
@@ -2104,15 +2213,6 @@ Item {
                                         visible: root.linIsDataMode()
                                     }
                                 }
-
-                                Label {
-                                    text: root.linErrorText
-                                    visible: root.linErrorText.length > 0
-                                    color: "#b42318"
-                                    font.pixelSize: 12
-                                    wrapMode: Text.Wrap
-                                    Layout.fillWidth: true
-                                }
                             }
                         }
 
@@ -2213,6 +2313,15 @@ Item {
             }
         }
 
+        Label {
+            text: root.errorText
+            visible: root.errorText.length > 0
+            color: "#b42318"
+            font.pixelSize: 12
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
+        }
+
         CheckBox {
             id: replaceGroundCheckBox
             text: "Replace ground node (.PREPROCESS REPLACEGROUND TRUE)"
@@ -2241,13 +2350,13 @@ Item {
                     if (simTabBar.currentIndex === 0) {
                         root.submitOP(root.opPrintEnabled, root.opPrintAllNodes, root.opPrintAllCurrents, root.opPrintPower, root.opPrintBjtLeads, root.opPrintFetLeads, root.opPrintSpecificVars, opPrintFormatCombo.currentIndex > 0 ? opPrintFormatCombo.model[opPrintFormatCombo.currentIndex] : "", root.opPrintFile, root.saveEnabled, root.saveType, root.nodesetEntries, root.saveFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 1) {
-                        root.submitTransient(root.initialStep, root.finalTime, root.startTime, root.stepCeiling, root.opKeywordValue(), root.scheduleEnabled, root.schedulePairsText, root.fftParametersText, root.fourParametersText, root.tranPrintEnabled, root.tranPrintAllNodes, root.tranPrintAllCurrents, root.tranPrintPower, root.tranPrintBjtLeads, root.tranPrintFetLeads, root.tranPrintSpecificVars, tranPrintFormatCombo.currentIndex > 0 ? tranPrintFormatCombo.model[tranPrintFormatCombo.currentIndex] : "", root.tranPrintFile, root.replaceGround)
+                        root.submitTransient(root.initialStep, root.finalTime, root.startTime, root.stepCeiling, root.opKeywordValue(), root.scheduleEnabled, root.schedulePairsText, root.fftParametersText, root.fourParametersText, root.tranMeasureParametersText, root.tranPrintEnabled, root.tranPrintAllNodes, root.tranPrintAllCurrents, root.tranPrintPower, root.tranPrintBjtLeads, root.tranPrintFetLeads, root.tranPrintSpecificVars, tranPrintFormatCombo.currentIndex > 0 ? tranPrintFormatCombo.model[tranPrintFormatCombo.currentIndex] : "", root.tranPrintFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 2) {
-                        root.submitDC(root.sweepModeValue(), root.primaryVariable, root.startValue, root.stopValue, root.stepValue, root.pointsValue, root.listValuesText, root.dataTableName, root.secondaryEnabled, root.secondaryVariable, root.secondaryStart, root.secondaryStop, root.secondaryStep, root.secondaryPoints, root.dcPrintEnabled, root.dcPrintAllNodes, root.dcPrintAllCurrents, root.dcPrintPower, root.dcPrintBjtLeads, root.dcPrintFetLeads, root.dcPrintSpecificVars, dcPrintFormatCombo.currentIndex > 0 ? dcPrintFormatCombo.model[dcPrintFormatCombo.currentIndex] : "", root.dcPrintFile, root.replaceGround)
+                        root.submitDC(root.sweepModeValue(), root.primaryVariable, root.startValue, root.stopValue, root.stepValue, root.pointsValue, root.listValuesText, root.dataTableName, root.secondaryEnabled, root.secondaryVariable, root.secondaryStart, root.secondaryStop, root.secondaryStep, root.secondaryPoints, root.dcMeasureParametersText, root.dcPrintEnabled, root.dcPrintAllNodes, root.dcPrintAllCurrents, root.dcPrintPower, root.dcPrintBjtLeads, root.dcPrintFetLeads, root.dcPrintSpecificVars, dcPrintFormatCombo.currentIndex > 0 ? dcPrintFormatCombo.model[dcPrintFormatCombo.currentIndex] : "", root.dcPrintFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 3) {
-                        root.submitAC(root.acSweepModeValue(), root.acPoints, root.acStart, root.acEnd, root.acDataTableName, root.acPrintEnabled, root.acPrintAllNodes, root.acPrintAllCurrents, root.acPrintSpecificVars, acPrintFormatCombo.currentIndex > 0 ? acPrintFormatCombo.model[acPrintFormatCombo.currentIndex] : "", root.acPrintFile, root.replaceGround)
+                        root.submitAC(root.acSweepModeValue(), root.acPoints, root.acStart, root.acEnd, root.acDataTableName, root.acMeasureParametersText, root.acPrintEnabled, root.acPrintAllNodes, root.acPrintAllCurrents, root.acPrintSpecificVars, acPrintFormatCombo.currentIndex > 0 ? acPrintFormatCombo.model[acPrintFormatCombo.currentIndex] : "", root.acPrintFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 4) {
-                        root.submitNoise(root.noiseOutputNode, root.noiseRefNode, root.noiseSourceName, root.noiseSweepModeValue(), root.noisePoints, root.noiseStart, root.noiseEnd, root.noiseDataTableName, root.noisePrintEnabled, root.noisePrintAllNodes, root.noisePrintAllCurrents, root.noisePrintInoise, root.noisePrintOnoise, root.noisePrintSpecificVars, noisePrintFormatCombo.currentIndex > 0 ? noisePrintFormatCombo.model[noisePrintFormatCombo.currentIndex] : "", root.noisePrintFile, root.replaceGround, root.noiseDeviceOperators)
+                        root.submitNoise(root.noiseOutputNode, root.noiseRefNode, root.noiseSourceName, root.noiseSweepModeValue(), root.noisePoints, root.noiseStart, root.noiseEnd, root.noiseDataTableName, root.noiseMeasureParametersText, root.noisePrintEnabled, root.noisePrintAllNodes, root.noisePrintAllCurrents, root.noisePrintInoise, root.noisePrintOnoise, root.noisePrintSpecificVars, noisePrintFormatCombo.currentIndex > 0 ? noisePrintFormatCombo.model[noisePrintFormatCombo.currentIndex] : "", root.noisePrintFile, root.replaceGround, root.noiseDeviceOperators)
                     } else if (simTabBar.currentIndex === 5) {
                         root.submitHB(root.hbFrequenciesText, root.hbPrintEnabled, root.hbPrintAllNodes, root.hbPrintAllCurrents, root.hbPrintTypeValue(), root.hbPrintSpecificVars, hbPrintFormatCombo.currentIndex > 0 ? hbPrintFormatCombo.model[hbPrintFormatCombo.currentIndex] : "", root.hbPrintFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 6) {

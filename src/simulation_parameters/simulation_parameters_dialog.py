@@ -14,6 +14,7 @@ from .fft_parameters import FftParameters
 from .four_parameters import FourParameters
 from .hb_simulation_parameters import HbSimulationParameters
 from .lin_simulation_parameters import LinSimulationParameters
+from .measure_parameters import MeasureEntry
 from .noise_simulation_parameters import DeviceNoiseOperator, NoiseSimulationParameters
 from .op_simulation_parameters import OpSimulationParameters, NodesetEntry
 from .print_parameters import PrintParameters
@@ -227,7 +228,9 @@ class SimulationParametersDialog(QDialog):
         self._root.setProperty("fftParametersText", "\n".join(fft.to_xyce_statement() for fft in p.fft_parameters) if p else "")
         # four parameters text
         self._root.setProperty("fourParametersText", "\n".join(four.to_xyce_statement() for four in p.four_parameters) if p else "")
-        self._root.setProperty("transientErrorText", "")
+        # measure parameters text
+        self._root.setProperty("tranMeasureParametersText", "\n".join(measure.to_xyce_statement() for measure in p.measure_parameters) if p else "")
+        self._root.setProperty("errorText", "")
         # extract existing print parameters for pre-population
         pp = p.print_parameters if p else None
         # default to enabled with all wildcards and RAW format when no saved print parameters exist
@@ -289,6 +292,8 @@ class SimulationParametersDialog(QDialog):
         self._root.setProperty("secondaryStop", p.secondary_stop if has_secondary else "")
         self._root.setProperty("secondaryStep", p.secondary_step if has_secondary else "")
         self._root.setProperty("secondaryPoints", p.secondary_points if has_secondary else "")
+        # measure parameters text
+        self._root.setProperty("dcMeasureParametersText", "\n".join(measure.to_xyce_statement() for measure in p.measure_parameters) if p else "")
         # extract print parameters for pre-population
         pp = p.print_parameters if p else None
         # default to enabled with all wildcards and RAW format when no saved print parameters exist
@@ -318,7 +323,7 @@ class SimulationParametersDialog(QDialog):
             self._root.setProperty("dcPrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
             self._root.setProperty("dcPrintFile", pp.print_file)
             self._root.setProperty("dcPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
-        self._root.setProperty("dcErrorText", "")
+        self._root.setProperty("errorText", "")
 
     def _apply_ac_parameters(self, p: AcSimulationParameters | None) -> None:
         # sweep mode index mapping (ac supports LIN, DEC, OCT, DATA — no LIST)
@@ -329,7 +334,9 @@ class SimulationParametersDialog(QDialog):
         self._root.setProperty("acStart", p.start if p else "1")
         self._root.setProperty("acEnd", p.end if p else "1MEG")
         self._root.setProperty("acDataTableName", p.data_table_name if p else "")
-        self._root.setProperty("acErrorText", "")
+        # measure parameters text
+        self._root.setProperty("acMeasureParametersText", "\n".join(measure.to_xyce_statement() for measure in p.measure_parameters) if p else "")
+        self._root.setProperty("errorText", "")
         # extract print parameters for pre-population
         pp = p.print_parameters if p else None
         # default to enabled with V(*) and I(*) and RAW format when no saved print parameters exist
@@ -369,7 +376,9 @@ class SimulationParametersDialog(QDialog):
         self._root.setProperty("noiseStart", p.start if p else "1")
         self._root.setProperty("noiseEnd", p.end if p else "1MEG")
         self._root.setProperty("noiseDataTableName", p.data_table_name if p else "")
-        self._root.setProperty("noiseErrorText", "")
+        # measure parameters text
+        self._root.setProperty("noiseMeasureParametersText", "\n".join(measure.to_xyce_statement() for measure in p.measure_parameters) if p else "")
+        self._root.setProperty("errorText", "")
         # extract print parameters for pre-population
         pp = p.print_parameters if p else None
         # default to enabled with V(*) and I(*) and RAW format when no saved print parameters exist
@@ -413,7 +422,7 @@ class SimulationParametersDialog(QDialog):
     def _apply_hb_parameters(self, p: HbSimulationParameters | None) -> None:
         # populate the hb frequency list field
         self._root.setProperty("hbFrequenciesText", " ".join(p.frequencies) if p else "1MEG")
-        self._root.setProperty("hbErrorText", "")
+        self._root.setProperty("errorText", "")
         # extract print parameters for pre-population
         pp = p.print_parameters if p else None
         # default to enabled with V(*) and I(*) and raw output when no saved print parameters exist
@@ -457,7 +466,7 @@ class SimulationParametersDialog(QDialog):
         self._root.setProperty("linStart", p.start if p else "1")
         self._root.setProperty("linEnd", p.end if p else "1MEG")
         self._root.setProperty("linDataTableName", p.data_table_name if p else "")
-        self._root.setProperty("linErrorText", "")
+        self._root.setProperty("errorText", "")
         # extract print parameters for pre-population
         pp = p.print_parameters if p else None
         if pp is None:
@@ -477,8 +486,8 @@ class SimulationParametersDialog(QDialog):
             self._root.setProperty("linPrintFile", pp.print_file)
             self._root.setProperty("linPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
 
-    @Slot(str, str, str, str, str, str, str, str, bool, bool, bool, bool, bool, str, str, str, bool, 'QVariantList')
-    def _on_submit_noise(self, output_node: str, ref_node: str, source_name: str, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_inoise: bool, print_onoise: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, device_operators_list) -> None:
+    @Slot(str, str, str, str, str, str, str, str, str, bool, bool, bool, bool, bool, str, str, str, bool, 'QVariantList')
+    def _on_submit_noise(self, output_node: str, ref_node: str, source_name: str, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_inoise: bool, print_onoise: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, device_operators_list) -> None:
         # normalize required noise analysis fields
         normalized_output_node = output_node.strip()
         normalized_ref_node = ref_node.strip()
@@ -493,27 +502,27 @@ class SimulationParametersDialog(QDialog):
         normalized_data_table = data_table_name.strip()
         # require output node before any sweep validation
         if not normalized_output_node:
-            self._root.setProperty("noiseErrorText", "Output node is required")
+            self._root.setProperty("errorText", "Output node is required")
             # keep dialog open for correction
             return
         # require source name before any sweep validation
         if not normalized_source_name:
-            self._root.setProperty("noiseErrorText", "Input noise source name is required")
+            self._root.setProperty("errorText", "Input noise source name is required")
             # keep dialog open for correction
             return
         # reject unrecognized sweep modes before any further validation
         if normalized_mode not in _AC_SWEEP_MODES:
-            self._root.setProperty("noiseErrorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
+            self._root.setProperty("errorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
             # keep dialog open for correction
             return
         # validate required fields for non-DATA sweep modes
         if normalized_mode != "DATA" and (not normalized_points or not normalized_start or not normalized_end):
-            self._root.setProperty("noiseErrorText", "Points, start frequency, and end frequency are required")
+            self._root.setProperty("errorText", "Points, start frequency, and end frequency are required")
             # keep dialog open for correction
             return
         # validate DATA-specific required fields
         if normalized_mode == "DATA" and not normalized_data_table:
-            self._root.setProperty("noiseErrorText", "Data table name is required for DATA sweep")
+            self._root.setProperty("errorText", "Data table name is required for DATA sweep")
             # keep dialog open for correction
             return
         # validate device noise operators
@@ -526,21 +535,45 @@ class SimulationParametersDialog(QDialog):
             # extract device name and validate
             device_name = operator_dict.get("deviceName", "")
             if not _validate_device_name(device_name):
-                self._root.setProperty("noiseErrorText", f"Invalid device name: {device_name}")
+                self._root.setProperty("errorText", f"Invalid device name: {device_name}")
                 # keep dialog open for correction
                 return
             # extract operator type
             operator_type = operator_dict.get("operatorType", "")
             if operator_type not in ("DNI", "DNO"):
-                self._root.setProperty("noiseErrorText", f"Invalid operator type: {operator_type}")
+                self._root.setProperty("errorText", f"Invalid operator type: {operator_type}")
                 # keep dialog open for correction
                 return
             # extract optional noise source
             noise_source = operator_dict.get("noiseSource", "")
             # create device noise operator and add to list
             device_noise_operators.append(DeviceNoiseOperator(device_name=device_name, operator_type=operator_type, noise_source=noise_source))
+        # init measure parameters
+        measure_parameters: list[MeasureEntry] = []
+        # parse each line as a separate measure directive
+        for line in measure_parameters_text.splitlines():
+            # normalize line
+            stripped_line = line.strip()
+            # skip empties
+            if not stripped_line:
+                # next
+                continue
+            # prepend command prefix if missing to simplify user input
+            measure_statement = stripped_line if stripped_line.upper().startswith((".MEASURE", ".MEAS")) else f".MEASURE NOISE {stripped_line}"
+            # parse measure parameters
+            measure = MeasureEntry.from_xyce_statement(measure_statement)
+            # check parse success and analysis type match
+            if measure and measure.analysis_type == "NOISE":
+                # store the parsed measure parameters
+                measure_parameters.append(measure)
+            # handle parse failure or wrong analysis type
+            else:
+                # log warning
+                # Instead of ignoring the invalid .MEASURE directive, report an error to the user
+                self._root.setProperty("errorText", f"Invalid .MEASURE directive for NOISE: {line}")
+                return
         # clear any stale validation message now that inputs are valid
-        self._root.setProperty("noiseErrorText", "")
+        self._root.setProperty("errorText", "")
         # build print parameters when the print section is enabled
         print_parameters = None
         if print_enabled:
@@ -560,7 +593,7 @@ class SimulationParametersDialog(QDialog):
             # construct print parameters for the noise analysis type
             print_parameters = PrintParameters(print_type="NOISE", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # capture the validated dialog output for the caller
-        self._result = NoiseSimulationParameters(normalized_output_node, normalized_ref_node, normalized_source_name, normalized_mode, normalized_points, normalized_start, normalized_end, normalized_data_table, replace_ground, print_parameters, tuple(device_noise_operators))
+        self._result = NoiseSimulationParameters(normalized_output_node, normalized_ref_node, normalized_source_name, normalized_mode, normalized_points, normalized_start, normalized_end, normalized_data_table, replace_ground, print_parameters, tuple(device_noise_operators), measure_parameters=tuple(measure_parameters))
         # close the dialog and return acceptance to the caller
         self.accept()
 
@@ -581,21 +614,21 @@ class SimulationParametersDialog(QDialog):
         normalized_data_table_name = data_table_name.strip()
         # reject unrecognized sweep modes before any further validation
         if normalized_mode not in _AC_SWEEP_MODES:
-            self._root.setProperty("linErrorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
+            self._root.setProperty("errorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
             # keep dialog open for correction
             return
         # validate required fields for non-DATA sweep modes
         if normalized_mode != "DATA" and (not normalized_points or not normalized_start or not normalized_end):
-            self._root.setProperty("linErrorText", "Points, start frequency, and end frequency are required")
+            self._root.setProperty("errorText", "Points, start frequency, and end frequency are required")
             # keep dialog open for correction
             return
         # validate DATA-specific required fields
         if normalized_mode == "DATA" and not normalized_data_table_name:
-            self._root.setProperty("linErrorText", "Data table name is required for DATA sweep")
+            self._root.setProperty("errorText", "Data table name is required for DATA sweep")
             # keep dialog open for correction
             return
         # clear any stale validation message now that inputs are valid
-        self._root.setProperty("linErrorText", "")
+        self._root.setProperty("errorText", "")
         # build print parameters when the print section is enabled
         print_parameters = None
         if print_enabled:
@@ -615,18 +648,18 @@ class SimulationParametersDialog(QDialog):
         normalized_frequencies_text = frequencies_text.strip()
         # require at least one frequency for hb analysis
         if not normalized_frequencies_text:
-            self._root.setProperty("hbErrorText", "At least one fundamental frequency is required")
+            self._root.setProperty("errorText", "At least one fundamental frequency is required")
             # keep dialog open for correction
             return
         # split the frequency field on spaces and commas
         frequencies = _parse_list_values(normalized_frequencies_text)
         # reject empty token lists after parsing
         if not frequencies:
-            self._root.setProperty("hbErrorText", "At least one fundamental frequency is required")
+            self._root.setProperty("errorText", "At least one fundamental frequency is required")
             # keep dialog open for correction
             return
         # clear any stale validation message now that inputs are valid
-        self._root.setProperty("hbErrorText", "")
+        self._root.setProperty("errorText", "")
         # build print parameters when the print section is enabled
         print_parameters = None
         if print_enabled:
@@ -648,8 +681,8 @@ class SimulationParametersDialog(QDialog):
         # close the dialog and return acceptance to the caller
         self.accept()
 
-    @Slot(str, str, str, str, str, bool, bool, bool, str, str, str, bool)
-    def _on_submit_ac(self, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+    @Slot(str, str, str, str, str, str, bool, bool, bool, str, str, str, bool)
+    def _on_submit_ac(self, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # normalize the sweep mode to uppercase for comparison
         normalized_mode = sweep_mode.strip().upper()
         # normalize numeric sweep fields
@@ -660,21 +693,45 @@ class SimulationParametersDialog(QDialog):
         normalized_data_table = data_table_name.strip()
         # reject unrecognized sweep modes before any further validation
         if normalized_mode not in _AC_SWEEP_MODES:
-            self._root.setProperty("acErrorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
+            self._root.setProperty("errorText", "Sweep mode must be one of LIN, DEC, OCT, or DATA")
             # keep dialog open for correction
             return
         # validate required fields for non-DATA sweep modes
         if normalized_mode != "DATA" and (not normalized_points or not normalized_start or not normalized_end):
-            self._root.setProperty("acErrorText", "Points, start frequency, and end frequency are required")
+            self._root.setProperty("errorText", "Points, start frequency, and end frequency are required")
             # keep dialog open for correction
             return
         # validate DATA-specific required fields
         if normalized_mode == "DATA" and not normalized_data_table:
-            self._root.setProperty("acErrorText", "Data table name is required for DATA sweep")
+            self._root.setProperty("errorText", "Data table name is required for DATA sweep")
             # keep dialog open for correction
             return
+        # init measure parameters
+        measure_parameters: list[MeasureEntry] = []
+        # parse each line as a separate measure directive
+        for line in measure_parameters_text.splitlines():
+            # normalize line
+            stripped_line = line.strip()
+            # skip empties
+            if not stripped_line:
+                # next
+                continue
+            # prepend command prefix if missing to simplify user input
+            measure_statement = stripped_line if stripped_line.upper().startswith((".MEASURE", ".MEAS")) else f".MEASURE AC {stripped_line}"
+            # parse measure parameters
+            measure = MeasureEntry.from_xyce_statement(measure_statement)
+            # check parse success and analysis type match
+            if measure and measure.analysis_type == "AC":
+                # store the parsed measure parameters
+                measure_parameters.append(measure)
+            # handle parse failure or wrong analysis type
+            else:
+                # log warning
+                # Instead of ignoring the invalid .MEASURE directive, report an error to the user
+                self._root.setProperty("errorText", f"Invalid .MEASURE directive for AC: {line}")
+                return
         # clear any stale validation message now that inputs are valid
-        self._root.setProperty("acErrorText", "")
+        self._root.setProperty("errorText", "")
         # build print parameters when the print section is enabled
         print_parameters = None
         if print_enabled:
@@ -689,12 +746,12 @@ class SimulationParametersDialog(QDialog):
             # construct print parameters for the ac analysis type
             print_parameters = PrintParameters(print_type="AC", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # capture the validated dialog output for the caller
-        self._result = AcSimulationParameters(normalized_mode, normalized_points, normalized_start, normalized_end, normalized_data_table, replace_ground, print_parameters)
+        self._result = AcSimulationParameters(normalized_mode, normalized_points, normalized_start, normalized_end, normalized_data_table, replace_ground, print_parameters, measure_parameters=tuple(measure_parameters))
         # close the dialog and return acceptance to the caller
         self.accept()
 
-    @Slot(str, str, str, str, str, bool, str, str, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
-    def _on_submit_transient(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, fft_parameters_text: str, four_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+    @Slot(str, str, str, str, str, bool, str, str, str, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
+    def _on_submit_transient(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, fft_parameters_text: str, four_parameters_text: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # normalize user-entered values by trimming surrounding spaces
         normalized_initial_step = initial_step.strip()
         # normalize user-entered values by trimming surrounding spaces
@@ -710,19 +767,19 @@ class SimulationParametersDialog(QDialog):
         # enforce required transient fields before accepting the dialog
         if not normalized_initial_step or not normalized_final_time:
             # show a form-level message when required values are missing
-            self._root.setProperty("transientErrorText", "Initial step and final time are required")
+            self._root.setProperty("errorText", "Initial step and final time are required")
             # keep dialog open for correction
             return
         # enforce allowed operating-point keywords from the transient grammar
         if normalized_op_keyword not in ["", "NOOP", "UIC"]:
             # show a form-level message when the keyword is unsupported
-            self._root.setProperty("transientErrorText", "Operating-point mode must be Default, NOOP, or UIC")
+            self._root.setProperty("errorText", "Operating-point mode must be Default, NOOP, or UIC")
             # keep dialog open for correction
             return
         # enforce schedule input when schedule mode is enabled
         if schedule_enabled and not normalized_schedule_pairs_text:
             # show a form-level message for missing schedule pairs
-            self._root.setProperty("transientErrorText", "Schedule is enabled but no time,max-step pairs were provided")
+            self._root.setProperty("errorText", "Schedule is enabled but no time,max-step pairs were provided")
             # keep dialog open for correction
             return
         # parse schedule pairs into structured entries when schedule mode is enabled
@@ -732,7 +789,7 @@ class SimulationParametersDialog(QDialog):
         # handle invalid schedule format and surface a readable message to the user
         except ValueError as schedule_error:
             # show parse failure details in the form-level validation message
-            self._root.setProperty("transientErrorText", str(schedule_error))
+            self._root.setProperty("errorText", str(schedule_error))
             # keep dialog open for correction
             return
         # init fft parameters
@@ -756,7 +813,9 @@ class SimulationParametersDialog(QDialog):
             # handle parse failure
             else:
                 # log warning
-                logger.warning("Ignoring invalid .FFT directive: %s", line)
+                # Instead of ignoring the invalid .FFT directive, report an error to the user
+                self._root.setProperty("errorText", f"Invalid .FFT directive: {line}")
+                return
         # init four parameters
         four_parameters: list[FourParameters] = []
         # parse each line as a separate four directive
@@ -778,9 +837,35 @@ class SimulationParametersDialog(QDialog):
             # handle parse failure
             else:
                 # log warning
-                logger.warning("Ignoring invalid .FOUR directive: %s", line)
+                # Instead of ignoring the invalid .FOUR directive, report an error to the user
+                self._root.setProperty("errorText", f"Invalid .FOUR directive: {line}")
+                return
+        # init measure parameters
+        measure_parameters: list[MeasureEntry] = []
+        # parse each line as a separate measure directive
+        for line in measure_parameters_text.splitlines():
+            # normalize line
+            stripped_line = line.strip()
+            # skip empties
+            if not stripped_line:
+                # next
+                continue
+            # prepend command prefix if missing to simplify user input
+            measure_statement = stripped_line if stripped_line.upper().startswith((".MEASURE", ".MEAS")) else f".MEASURE TRAN {stripped_line}"
+            # parse measure parameters
+            measure = MeasureEntry.from_xyce_statement(measure_statement)
+            # check parse success and analysis type match
+            if measure and measure.analysis_type == "TRAN":
+                # store the parsed measure parameters
+                measure_parameters.append(measure)
+            # handle parse failure or wrong analysis type
+            else:
+                # log warning
+                # Instead of ignoring the invalid .MEASURE directive, report an error to the user
+                self._root.setProperty("errorText", f"Invalid .MEASURE directive for TRAN: {line}")
+                return
         # clear any stale validation message now that inputs are valid
-        self._root.setProperty("transientErrorText", "")
+        self._root.setProperty("errorText", "")
         # build print parameters when the print section is enabled
         print_parameters = None
         if print_enabled:
@@ -803,7 +888,7 @@ class SimulationParametersDialog(QDialog):
             # construct print parameters for the transient analysis type
             print_parameters = PrintParameters(print_type="TRAN", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # capture the validated dialog output for the caller
-        self._result = TransientSimulationParameters(normalized_initial_step, normalized_final_time, normalized_start_time, normalized_step_ceiling, normalized_op_keyword, schedule_points, print_parameters=print_parameters, fft_parameters=tuple(fft_parameters), four_parameters=tuple(four_parameters), replace_ground=replace_ground)
+        self._result = TransientSimulationParameters(normalized_initial_step, normalized_final_time, normalized_start_time, normalized_step_ceiling, normalized_op_keyword, schedule_points, print_parameters=print_parameters, fft_parameters=tuple(fft_parameters), four_parameters=tuple(four_parameters), measure_parameters=tuple(measure_parameters), replace_ground=replace_ground)
         # close the dialog and return acceptance to the caller
         self.accept()
 
@@ -844,8 +929,8 @@ class SimulationParametersDialog(QDialog):
         # close the dialog and return acceptance to the caller
         self.accept()
 
-    @Slot(str, str, str, str, str, str, str, str, bool, str, str, str, str, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
-    def _on_submit_dc(self, sweep_mode: str, primary_variable: str, start: str, stop: str, step: str, points: str, list_values_text: str, data_table_name: str, secondary_enabled: bool, secondary_variable: str, secondary_start: str, secondary_stop: str, secondary_step: str, secondary_points: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+    @Slot(str, str, str, str, str, str, str, str, bool, str, str, str, str, str, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
+    def _on_submit_dc(self, sweep_mode: str, primary_variable: str, start: str, stop: str, step: str, points: str, list_values_text: str, data_table_name: str, secondary_enabled: bool, secondary_variable: str, secondary_start: str, secondary_stop: str, secondary_step: str, secondary_points: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # normalize the sweep mode to uppercase for comparison
         normalized_mode = sweep_mode.strip().upper()
         # normalize primary variable by trimming surrounding spaces
@@ -867,65 +952,65 @@ class SimulationParametersDialog(QDialog):
         normalized_sec_points = secondary_points.strip()
         # reject unrecognized sweep modes before any further validation
         if normalized_mode not in _DC_SWEEP_MODES:
-            self._root.setProperty("dcErrorText", "Sweep mode must be one of LIN, DEC, OCT, LIST, or DATA")
+            self._root.setProperty("errorText", "Sweep mode must be one of LIN, DEC, OCT, LIST, or DATA")
             # keep dialog open for correction
             return
         # require primary variable for all non-DATA modes
         if normalized_mode != "DATA" and not normalized_primary:
-            self._root.setProperty("dcErrorText", "Primary sweep variable is required")
+            self._root.setProperty("errorText", "Primary sweep variable is required")
             # keep dialog open for correction
             return
         # validate LIN-specific required fields
         if normalized_mode == "LIN":
             if not normalized_start or not normalized_stop or not normalized_step:
-                self._root.setProperty("dcErrorText", "Start, stop, and step values are required for LIN sweep")
+                self._root.setProperty("errorText", "Start, stop, and step values are required for LIN sweep")
                 # keep dialog open for correction
                 return
         # validate DEC/OCT-specific required fields
         if normalized_mode in ("DEC", "OCT"):
             if not normalized_start or not normalized_stop or not normalized_points:
-                self._root.setProperty("dcErrorText", "Start, stop, and points are required for DEC/OCT sweep")
+                self._root.setProperty("errorText", "Start, stop, and points are required for DEC/OCT sweep")
                 # keep dialog open for correction
                 return
             # enforce integer constraint on points value
             if not normalized_points.isdigit() or int(normalized_points) < 1:
-                self._root.setProperty("dcErrorText", "Points must be an integer \u2265 1")
+                self._root.setProperty("errorText", "Points must be an integer \u2265 1")
                 # keep dialog open for correction
                 return
         # validate LIST-specific required fields
         if normalized_mode == "LIST":
             if not normalized_list_text:
-                self._root.setProperty("dcErrorText", "At least one list value is required for LIST sweep")
+                self._root.setProperty("errorText", "At least one list value is required for LIST sweep")
                 # keep dialog open for correction
                 return
         # validate DATA-specific required fields
         if normalized_mode == "DATA":
             if not normalized_data_table:
-                self._root.setProperty("dcErrorText", "Data table name is required for DATA sweep")
+                self._root.setProperty("errorText", "Data table name is required for DATA sweep")
                 # keep dialog open for correction
                 return
         # validate secondary sweep completeness when it is enabled
         if secondary_enabled and normalized_mode in _DC_SECONDARY_MODES:
             if not normalized_sec_variable:
-                self._root.setProperty("dcErrorText", "Secondary sweep variable is required when secondary sweep is enabled")
+                self._root.setProperty("errorText", "Secondary sweep variable is required when secondary sweep is enabled")
                 # keep dialog open for correction
                 return
             if not normalized_sec_start or not normalized_sec_stop:
-                self._root.setProperty("dcErrorText", "Secondary sweep start and stop are required")
+                self._root.setProperty("errorText", "Secondary sweep start and stop are required")
                 # keep dialog open for correction
                 return
             if normalized_mode == "LIN" and not normalized_sec_step:
-                self._root.setProperty("dcErrorText", "Secondary sweep step is required for LIN mode")
+                self._root.setProperty("errorText", "Secondary sweep step is required for LIN mode")
                 # keep dialog open for correction
                 return
             if normalized_mode in ("DEC", "OCT"):
                 if not normalized_sec_points:
-                    self._root.setProperty("dcErrorText", "Secondary sweep points are required for DEC/OCT mode")
+                    self._root.setProperty("errorText", "Secondary sweep points are required for DEC/OCT mode")
                     # keep dialog open for correction
                     return
                 # enforce integer constraint on secondary points value
                 if not normalized_sec_points.isdigit() or int(normalized_sec_points) < 1:
-                    self._root.setProperty("dcErrorText", "Secondary points must be an integer \u2265 1")
+                    self._root.setProperty("errorText", "Secondary points must be an integer \u2265 1")
                     # keep dialog open for correction
                     return
         # parse the list values text into an immutable sequence for the dataclass
@@ -933,13 +1018,37 @@ class SimulationParametersDialog(QDialog):
             list_values = _parse_list_values(normalized_list_text) if normalized_mode == "LIST" else tuple()
         # surface list parse errors as form-level validation messages
         except ValueError as parse_error:
-            self._root.setProperty("dcErrorText", str(parse_error))
+            self._root.setProperty("errorText", str(parse_error))
             # keep dialog open for correction
             return
         # resolve the effective secondary variable (empty when secondary is disabled)
         effective_sec_variable = normalized_sec_variable if secondary_enabled and normalized_mode in _DC_SECONDARY_MODES else ""
+        # init measure parameters
+        measure_parameters: list[MeasureEntry] = []
+        # parse each line as a separate measure directive
+        for line in measure_parameters_text.splitlines():
+            # normalize line
+            stripped_line = line.strip()
+            # skip empties
+            if not stripped_line:
+                # next
+                continue
+            # prepend command prefix if missing to simplify user input
+            measure_statement = stripped_line if stripped_line.upper().startswith((".MEASURE", ".MEAS")) else f".MEASURE DC {stripped_line}"
+            # parse measure parameters
+            measure = MeasureEntry.from_xyce_statement(measure_statement)
+            # check parse success and analysis type match
+            if measure and measure.analysis_type == "DC":
+                # store the parsed measure parameters
+                measure_parameters.append(measure)
+            # handle parse failure or wrong analysis type
+            else:
+                # log warning
+                # Instead of ignoring the invalid .MEASURE directive, report an error to the user
+                self._root.setProperty("errorText", f"Invalid .MEASURE directive for DC: {line}")
+                return
         # clear any stale validation message now that inputs are valid
-        self._root.setProperty("dcErrorText", "")
+        self._root.setProperty("errorText", "")
         # build print parameters when the print section is enabled
         print_parameters = None
         if print_enabled:
@@ -962,7 +1071,7 @@ class SimulationParametersDialog(QDialog):
             # construct print parameters for the DC sweep analysis type
             print_parameters = PrintParameters(print_type="DC", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # capture the validated dialog output for the caller
-        self._result = DCSimulationParameters(normalized_mode, normalized_primary, normalized_start, normalized_stop, normalized_step, normalized_points, list_values, normalized_data_table, effective_sec_variable, normalized_sec_start, normalized_sec_stop, normalized_sec_step, normalized_sec_points, replace_ground=replace_ground, print_parameters=print_parameters)
+        self._result = DCSimulationParameters(normalized_mode, normalized_primary, normalized_start, normalized_stop, normalized_step, normalized_points, list_values, normalized_data_table, effective_sec_variable, normalized_sec_start, normalized_sec_stop, normalized_sec_step, normalized_sec_points, replace_ground=replace_ground, print_parameters=print_parameters, measure_parameters=tuple(measure_parameters))
         # close the dialog and return acceptance to the caller
         self.accept()
 
