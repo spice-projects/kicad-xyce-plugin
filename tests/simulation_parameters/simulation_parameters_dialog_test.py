@@ -1212,7 +1212,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_hb("1MEG", False, False, False, "HB", "", "", "", False)
+        dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
         assert isinstance(dialog._result, HbSimulationParameters)
@@ -1221,7 +1221,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_hb("", False, False, False, "HB", "", "", "", False)
+        dialog._on_submit_hb("", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("errorText", "At least one fundamental frequency is required")
@@ -1230,7 +1230,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_hb("1MEG 2MEG 3MEG", False, False, False, "HB", "", "", "", False)
+        dialog._on_submit_hb("1MEG 2MEG 3MEG", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
         assert len(dialog._result.frequencies) == 3
@@ -1239,7 +1239,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_hb("1MEG", True, True, True, "HB_FD", "V(1)", "CSV", "hb.csv", False)
+        dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, True, True, True, "HB_FD", "V(1)", "CSV", "hb.csv", False)
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
@@ -1252,7 +1252,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_hb("1MEG", True, False, False, "INVALID", "", "", "", False)
+        dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, True, False, False, "INVALID", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
         assert dialog._result.print_parameters.print_type == "HB"
@@ -1261,7 +1261,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_hb("1MEG", False, False, False, "HB", "", "", "", False)
+        dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", False)
         # assert
         dialog._root.setProperty.assert_any_call("errorText", "")
 
@@ -1269,7 +1269,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act — whitespace-only text parses to no tokens
-        dialog._on_submit_hb("  ,  ", False, False, False, "HB", "", "", "", False)
+        dialog._on_submit_hb("  ,  ", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("errorText", "At least one fundamental frequency is required")

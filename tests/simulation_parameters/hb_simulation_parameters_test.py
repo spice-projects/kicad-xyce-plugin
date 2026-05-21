@@ -27,6 +27,47 @@ class TestHbSimulationParameters:
         # assert
         assert directives == [".PREPROCESS REPLACEGROUND TRUE", ".HB 1MEG"]
 
+    def test_harmonics_directive(self):
+        # arrange
+        params = HbSimulationParameters(frequencies=("1MEG", "2MEG"), harmonics=(15, 12), replace_ground=False)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert ".HB 1MEG 2MEG" in directives
+        assert ".OPTIONS HBINT NUMFREQ=15,12" in directives
+
+    def test_tahb_directive(self):
+        # arrange
+        params = HbSimulationParameters(frequencies=("1MEG",), tahb=2, replace_ground=False)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert ".OPTIONS HBINT TAHB=2" in directives
+
+    def test_selectharms_directive(self):
+        # arrange
+        params = HbSimulationParameters(frequencies=("1MEG",), selectharms="box", replace_ground=False)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert ".OPTIONS HBINT SELECTHARMS=box" in directives
+
+    def test_startup_periods_directive(self):
+        # arrange
+        params = HbSimulationParameters(frequencies=("1MEG",), startup_periods=5, replace_ground=False)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert ".OPTIONS HBINT STARTUPPERIODS=5" in directives
+
+    def test_combined_hbint_options(self):
+        # arrange
+        params = HbSimulationParameters(frequencies=("1MEG",), harmonics=(10,), tahb=1, selectharms="hybrid", startup_periods=0, replace_ground=False)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert ".OPTIONS HBINT NUMFREQ=10 TAHB=1 SELECTHARMS=hybrid STARTUPPERIODS=0" in directives
+
 
 class TestHbFromXyceDirectives:
 
@@ -50,6 +91,33 @@ class TestHbFromXyceDirectives:
         # assert
         assert params is not None
         assert params.replace_ground is True
+
+    def test_parses_hbint_options(self):
+        # arrange / act
+        params = HbSimulationParameters.from_xyce_directives([".HB 1MEG", ".OPTIONS HBINT NUMFREQ=15 TAHB=2 SELECTHARMS=box STARTUPPERIODS=5"])
+        # assert
+        assert params is not None
+        assert params.harmonics == (15,)
+        assert params.tahb == 2
+        assert params.selectharms == "box"
+        assert params.startup_periods == 5
+
+    def test_parses_nonlin_and_linsol_hb_options(self):
+        # arrange / act
+        params = HbSimulationParameters.from_xyce_directives([".HB 1MEG", ".OPTIONS NONLIN-HB ABSTOL=1e-9", ".OPTIONS LINSOL-HB TYPE=AZTECOO"])
+        # assert
+        assert params is not None
+        assert params.nonlin_options == {"ABSTOL": "1e-9"}
+        assert params.linsol_options == {"TYPE": "AZTECOO"}
+
+    def test_serializes_nonlin_and_linsol_hb_options(self):
+        # arrange
+        params = HbSimulationParameters(frequencies=("1MEG",), nonlin_options={"ABSTOL": "1e-9"}, linsol_options={"TYPE": "AZTECOO"}, replace_ground=False)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        assert ".OPTIONS NONLIN-HB ABSTOL=1e-9" in directives
+        assert ".OPTIONS LINSOL-HB TYPE=AZTECOO" in directives
 
     def test_empty_directives_returns_none(self):
         # arrange / act

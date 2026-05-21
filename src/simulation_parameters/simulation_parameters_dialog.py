@@ -422,17 +422,35 @@ class SimulationParametersDialog(QDialog):
     def _apply_hb_parameters(self, p: HbSimulationParameters | None) -> None:
         # populate the hb frequency list field
         self._root.setProperty("hbFrequenciesText", " ".join(p.frequencies) if p else "1MEG")
+        # populate the harmonics field
+        self._root.setProperty("hbHarmonicsText", " ".join(str(h) for h in p.harmonics) if p and p.harmonics else "")
+        # restore the tahb selection index or default to transient assistance
+        self._root.setProperty("hbTahbIndex", p.tahb if p and p.tahb is not None else 1)
+        # map selectharms string to combo box index
+        selectharms_map = {"hybrid": 0, "box": 1, "diamond": 2}
+        # restore truncation selection index
+        self._root.setProperty("hbSelectHarmsIndex", selectharms_map.get(p.selectharms, 0) if p and p.selectharms else 0)
+        # restore startup periods text
+        self._root.setProperty("hbStartupPeriodsText", str(p.startup_periods) if p and p.startup_periods is not None else "")
+        # reset error display
         self._root.setProperty("errorText", "")
         # extract print parameters for pre-population
         pp = p.print_parameters if p else None
         # default to enabled with V(*) and I(*) and raw output when no saved print parameters exist
         if pp is None:
+            # set defaults
             self._root.setProperty("hbPrintEnabled", True)
+            # set nodes
             self._root.setProperty("hbPrintAllNodes", True)
+            # set currents
             self._root.setProperty("hbPrintAllCurrents", True)
+            # set print type
             self._root.setProperty("hbPrintTypeIndex", _HB_PRINT_TYPES.index("HB"))
+            # set format
             self._root.setProperty("hbPrintFormatIndex", _PRINT_FORMATS.index("RAW"))
+            # set file
             self._root.setProperty("hbPrintFile", "")
+            # set vars
             self._root.setProperty("hbPrintSpecificVars", "")
         else:
             # restore enabled state from saved parameters
@@ -441,11 +459,13 @@ class SimulationParametersDialog(QDialog):
             selected = set(pp.output_variables)
             # check wildcard shortcuts based on saved output variables
             self._root.setProperty("hbPrintAllNodes", "V(*)" in selected)
+            # check currents
             self._root.setProperty("hbPrintAllCurrents", "I(*)" in selected)
             # map print type to combo index
             self._root.setProperty("hbPrintTypeIndex", _HB_PRINT_TYPES.index(pp.print_type) if pp.print_type in _HB_PRINT_TYPES else 0)
             # map format string to combo index (index 0 is the default/empty value)
             fmt_str = pp.print_format.upper() if pp.print_format else ""
+            # restore format
             self._root.setProperty("hbPrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
             # restore saved output file path
             self._root.setProperty("hbPrintFile", pp.print_file)
@@ -642,12 +662,13 @@ class SimulationParametersDialog(QDialog):
         self._result = LinSimulationParameters(sparcalc=sparcalc, format=normalized_format if normalized_format else "TOUCHSTONE2", lintype=normalized_lintype if normalized_lintype else "S", dataformat=normalized_dataformat if normalized_dataformat else "RI", file=normalized_file, width=normalized_width, precision=normalized_precision, sweep_mode=normalized_mode, points=normalized_points, start=normalized_start, end=normalized_end, data_table_name=normalized_data_table_name, replace_ground=replace_ground, print_parameters=print_parameters)
         self.accept()
 
-    @Slot(str, bool, bool, bool, str, str, str, bool)
-    def _on_submit_hb(self, frequencies_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_type: str, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+    @Slot(str, str, int, str, int, bool, bool, bool, str, str, str, str, bool)
+    def _on_submit_hb(self, frequencies_text: str, harmonics_text: str, tahb: int, selectharms: str, startup_periods: int, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_type: str, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # normalize the frequency list text
         normalized_frequencies_text = frequencies_text.strip()
         # require at least one frequency for hb analysis
         if not normalized_frequencies_text:
+            # set error
             self._root.setProperty("errorText", "At least one fundamental frequency is required")
             # keep dialog open for correction
             return
@@ -655,29 +676,52 @@ class SimulationParametersDialog(QDialog):
         frequencies = _parse_list_values(normalized_frequencies_text)
         # reject empty token lists after parsing
         if not frequencies:
+            # set error
             self._root.setProperty("errorText", "At least one fundamental frequency is required")
             # keep dialog open for correction
             return
+        # parse harmonics
+        harmonics_list = []
+        # check if harmonics text was provided
+        if harmonics_text.strip():
+            # split and parse
+            try:
+                # convert to ints
+                harmonics_list = [int(h) for h in _parse_list_values(harmonics_text)]
+            # catch errors
+            except ValueError:
+                # set error message
+                self._root.setProperty("errorText", "Invalid harmonics list: must be a list of integers")
+                # return
+                return
         # clear any stale validation message now that inputs are valid
         self._root.setProperty("errorText", "")
         # build print parameters when the print section is enabled
         print_parameters = None
+        # check if enabled
         if print_enabled:
             # collect wildcard tokens for each enabled shortcut
             output_vars: list[str] = []
+            # check nodes
             if print_all_nodes:
+                # add wildcard
                 output_vars.append("V(*)")
+            # check currents
             if print_all_currents:
+                # add wildcard
                 output_vars.append("I(*)")
             # append any explicitly listed specific variables
             output_vars.extend(v for v in print_specific_vars.split() if v)
             # construct print parameters for the hb analysis type
             normalized_print_type = print_type.strip().upper()
+            # validate print type
             if normalized_print_type not in _HB_PRINT_TYPES:
+                # default to HB
                 normalized_print_type = "HB"
+            # create print parameters
             print_parameters = PrintParameters(print_type=normalized_print_type, print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # capture the validated dialog output for the caller
-        self._result = HbSimulationParameters(frequencies=tuple(frequencies), replace_ground=replace_ground, print_parameters=print_parameters)
+        self._result = HbSimulationParameters(frequencies=tuple(frequencies), harmonics=tuple(harmonics_list), tahb=tahb, selectharms=selectharms, startup_periods=startup_periods, replace_ground=replace_ground, print_parameters=print_parameters)
         # close the dialog and return acceptance to the caller
         self.accept()
 

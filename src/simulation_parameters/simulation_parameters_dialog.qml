@@ -125,6 +125,10 @@ Item {
 
     // --- HB tab properties ---
     property alias hbFrequenciesText: hbFrequenciesField.text
+    property alias hbHarmonicsText: hbHarmonicsField.text
+    property int hbTahbIndex: 1
+    property int hbSelectHarmsIndex: 0
+    property alias hbStartupPeriodsText: hbStartupPeriodsField.text
 
     // --- HB print properties ---
     property bool hbPrintEnabled: false
@@ -166,7 +170,7 @@ Item {
     signal submitOP(bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool saveEnabled, string saveType, string nodesetEntries, string saveFile, bool replaceGround)
     signal submitAC(string sweepMode, string points, string start, string end, string dataTableName, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitNoise(string outputNode, string refNode, string sourceName, string sweepMode, string points, string start, string end, string dataTableName, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printInoise, bool printOnoise, string printSpecificVars, string printFormat, string printFile, bool replaceGround, var deviceOperatorsList)
-    signal submitHB(string frequenciesText, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printType, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
+    signal submitHB(string frequenciesText, string harmonicsText, int tahb, string selectharms, int startupPeriods, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printType, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitLIN(bool sparcalc, string format, string lintype, string dataformat, string file, string width, string precision, string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal cancelRequested()
 
@@ -1919,6 +1923,53 @@ Item {
                                         selectByMouse: true
                                         Layout.fillWidth: true
                                     }
+
+                                    Label {
+                                        text: "Harmonics (NUMFREQ)"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: hbHarmonicsField
+                                        placeholderText: "e.g. 10 10 (defaults to 10 if empty)"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label {
+                                        text: "Transient Assistance (TAHB)"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: hbTahbCombo
+                                        Layout.fillWidth: true
+                                        model: ["Off (0)", "Transient (1)", "DC (2)"]
+                                        currentIndex: root.hbTahbIndex
+                                        onCurrentIndexChanged: root.hbTahbIndex = currentIndex
+                                    }
+
+                                    Label {
+                                        text: "Truncation (SELECTHARMS)"
+                                        color: "#24292f"
+                                    }
+                                    ComboBox {
+                                        id: hbSelectHarmsCombo
+                                        Layout.fillWidth: true
+                                        model: ["Hybrid", "Box", "Diamond"]
+                                        currentIndex: root.hbSelectHarmsIndex
+                                        onCurrentIndexChanged: root.hbSelectHarmsIndex = currentIndex
+                                    }
+
+                                    Label {
+                                        text: "Startup Periods"
+                                        color: "#24292f"
+                                    }
+                                    TextField {
+                                        id: hbStartupPeriodsField
+                                        placeholderText: "e.g. 0"
+                                        selectByMouse: true
+                                        Layout.fillWidth: true
+                                        validator: IntValidator { bottom: 0 }
+                                    }
                                 }
                             }
                         }
@@ -2358,7 +2409,7 @@ Item {
                     } else if (simTabBar.currentIndex === 4) {
                         root.submitNoise(root.noiseOutputNode, root.noiseRefNode, root.noiseSourceName, root.noiseSweepModeValue(), root.noisePoints, root.noiseStart, root.noiseEnd, root.noiseDataTableName, root.noiseMeasureParametersText, root.noisePrintEnabled, root.noisePrintAllNodes, root.noisePrintAllCurrents, root.noisePrintInoise, root.noisePrintOnoise, root.noisePrintSpecificVars, noisePrintFormatCombo.currentIndex > 0 ? noisePrintFormatCombo.model[noisePrintFormatCombo.currentIndex] : "", root.noisePrintFile, root.replaceGround, root.noiseDeviceOperators)
                     } else if (simTabBar.currentIndex === 5) {
-                        root.submitHB(root.hbFrequenciesText, root.hbPrintEnabled, root.hbPrintAllNodes, root.hbPrintAllCurrents, root.hbPrintTypeValue(), root.hbPrintSpecificVars, hbPrintFormatCombo.currentIndex > 0 ? hbPrintFormatCombo.model[hbPrintFormatCombo.currentIndex] : "", root.hbPrintFile, root.replaceGround)
+                        root.submitHB(root.hbFrequenciesText, root.hbHarmonicsText, root.hbTahbIndex, hbSelectHarmsCombo.model[root.hbSelectHarmsIndex].toLowerCase(), parseInt(root.hbStartupPeriodsText) || 0, root.hbPrintEnabled, root.hbPrintAllNodes, root.hbPrintAllCurrents, root.hbPrintTypeValue(), root.hbPrintSpecificVars, hbPrintFormatCombo.currentIndex > 0 ? hbPrintFormatCombo.model[hbPrintFormatCombo.currentIndex] : "", root.hbPrintFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 6) {
                         root.submitLIN(root.linSparcalc, root.linFormat, root.linType, root.linDataFormat, root.linFile, root.linWidth, root.linPrecision, root.linSweepModeValue(), root.linPoints, root.linStart, root.linEnd, root.linDataTableName, root.linPrintEnabled, root.linPrintAllNodes, root.linPrintAllCurrents, root.linPrintSpecificVars, linPrintFormatCombo.currentIndex > 0 ? linPrintFormatCombo.model[linPrintFormatCombo.currentIndex] : "", root.linPrintFile, root.replaceGround)
                     }
