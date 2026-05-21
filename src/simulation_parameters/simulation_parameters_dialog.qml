@@ -1730,11 +1730,11 @@ Item {
                                                 TextField {
                                                     Layout.fillWidth: true
                                                     placeholderText: "Device name"
-                                                    text: root.noiseDeviceOperators[index].deviceName || ""
+                                                    text: root.noiseDeviceOperators[parent.index].deviceName || ""
                                                     onTextChanged: {
-                                                        if (text !== root.noiseDeviceOperators[index].deviceName) {
+                                                        if (text !== root.noiseDeviceOperators[parent.index].deviceName) {
                                                             var updatedOperators = root.noiseDeviceOperators.slice();
-                                                            updatedOperators[index].deviceName = text;
+                                                            updatedOperators[parent.index].deviceName = text;
                                                             root.noiseDeviceOperators = updatedOperators;
                                                         }
                                                     }
@@ -1743,10 +1743,10 @@ Item {
                                                 ComboBox {
                                                     Layout.preferredWidth: 80
                                                     model: ["DNI", "DNO"]
-                                                    currentIndex: root.noiseDeviceOperators[index].operatorType === "DNI" ? 0 : 1
+                                                    currentIndex: root.noiseDeviceOperators[parent.index].operatorType === "DNI" ? 0 : 1
                                                     onActivated: function(activatedIndex) {
                                                         var updatedOperators = root.noiseDeviceOperators.slice();
-                                                        updatedOperators[index].operatorType = model[activatedIndex];
+                                                        updatedOperators[parent.index].operatorType = model[activatedIndex];
                                                         root.noiseDeviceOperators = updatedOperators;
                                                     }
                                                 }
@@ -1754,11 +1754,11 @@ Item {
                                                 TextField {
                                                     Layout.preferredWidth: 120
                                                     placeholderText: "Noise source (optional)"
-                                                    text: root.noiseDeviceOperators[index].noiseSource || ""
+                                                    text: root.noiseDeviceOperators[parent.index].noiseSource || ""
                                                     onTextChanged: {
-                                                        if (text !== (root.noiseDeviceOperators[index].noiseSource || "")) {
+                                                        if (text !== (root.noiseDeviceOperators[parent.index].noiseSource || "")) {
                                                             var updatedOperators = root.noiseDeviceOperators.slice();
-                                                            updatedOperators[index].noiseSource = text;
+                                                            updatedOperators[parent.index].noiseSource = text;
                                                             root.noiseDeviceOperators = updatedOperators;
                                                         }
                                                     }
@@ -1769,7 +1769,7 @@ Item {
                                                     text: "×"
                                                     onClicked: {
                                                         var updatedOperators = root.noiseDeviceOperators.slice();
-                                                        updatedOperators.splice(index, 1);
+                                                        updatedOperators.splice(parent.index, 1);
                                                         root.noiseDeviceOperators = updatedOperators;
                                                     }
                                                 }
