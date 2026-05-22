@@ -183,7 +183,7 @@ Item {
     signal submitNoise(string outputNode, string refNode, string sourceName, string sweepMode, string points, string start, string end, string dataTableName, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printInoise, bool printOnoise, string printSpecificVars, string printFormat, string printFile, bool replaceGround, var deviceOperatorsList)
     signal submitHB(string frequenciesText, string harmonicsText, int tahb, string selectharms, int startupPeriods, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printType, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitLIN(bool sparcalc, string format, string lintype, string dataformat, string file, string width, string precision, string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
-    signal submitSens(string objectiveMode, string objectiveValues, string parameters, bool direct, bool adjoint, bool printEnabled, string printSpecificVars, string printFormat, string printFile)
+    signal submitSens(string objectiveMode, string objectiveValues, string parameters, bool direct, bool adjoint, bool replaceGround, bool printEnabled, string printSpecificVars, string printFormat, string printFile)
     signal cancelRequested()
 
     function opKeywordValue() {
@@ -1575,7 +1575,7 @@ Item {
                                     Label { text: "Objective Values *"; color: "#24292f" }
                                     TextField {
                                         id: sensObjectiveValuesField
-                                        placeholderText: "e.g. {V(2)}"
+                                        placeholderText: "e.g. V(2)"
                                         text: root.sensObjectiveValues
                                         onTextChanged: root.sensObjectiveValues = text
                                         Layout.fillWidth: true
@@ -2569,8 +2569,9 @@ Item {
                     } else if (simTabBar.currentIndex === 3) {
                         root.submitAC(root.acSweepModeValue(), root.acPoints, root.acStart, root.acEnd, root.acDataTableName, root.acMeasureParametersText, root.acPrintEnabled, root.acPrintAllNodes, root.acPrintAllCurrents, root.acPrintSpecificVars, acPrintFormatCombo.currentIndex > 0 ? acPrintFormatCombo.model[acPrintFormatCombo.currentIndex] : "", root.acPrintFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 4) {
-                        root.submitSens(sensObjectiveModeCombo.model[sensObjectiveModeCombo.currentIndex], sensObjectiveValuesField.text, sensParametersField.text, sensDirectCheckBox.checked, sensAdjointCheckBox.checked, sensPrintEnabledCheckBox.checked, sensPrintSpecificVarsField.text, sensPrintFormatCombo.currentIndex > 0 ? sensPrintFormatCombo.model[sensPrintFormatCombo.currentIndex] : "", sensPrintFileField.text)
-                    } else if (simTabBar.currentIndex === 5) {
+                        root.submitSens(sensObjectiveModeCombo.model[sensObjectiveModeCombo.currentIndex], sensObjectiveValuesField.text, sensParametersField.text, sensDirectCheckBox.checked, sensAdjointCheckBox.checked, root.replaceGround, sensPrintEnabledCheckBox.checked, sensPrintSpecificVarsField.text, sensPrintFormatCombo.currentIndex > 0 ? sensPrintFormatCombo.model[sensPrintFormatCombo.currentIndex] : "", sensPrintFileField.text)
+                    }
+ else if (simTabBar.currentIndex === 5) {
                         root.submitNoise(root.noiseOutputNode, root.noiseRefNode, root.noiseSourceName, root.noiseSweepModeValue(), root.noisePoints, root.noiseStart, root.noiseEnd, root.noiseDataTableName, root.noiseMeasureParametersText, root.noisePrintEnabled, root.noisePrintAllNodes, root.noisePrintAllCurrents, root.noisePrintInoise, root.noisePrintOnoise, root.noisePrintSpecificVars, noisePrintFormatCombo.currentIndex > 0 ? noisePrintFormatCombo.model[noisePrintFormatCombo.currentIndex] : "", root.noisePrintFile, root.replaceGround, root.noiseDeviceOperators)
                     } else if (simTabBar.currentIndex === 6) {
                         root.submitHB(root.hbFrequenciesText, root.hbHarmonicsText, root.hbTahbIndex, hbSelectHarmsCombo.model[root.hbSelectHarmsIndex].toLowerCase(), parseInt(root.hbStartupPeriodsText) || 0, root.hbPrintEnabled, root.hbPrintAllNodes, root.hbPrintAllCurrents, root.hbPrintTypeValue(), root.hbPrintSpecificVars, hbPrintFormatCombo.currentIndex > 0 ? hbPrintFormatCombo.model[hbPrintFormatCombo.currentIndex] : "", root.hbPrintFile, root.replaceGround)

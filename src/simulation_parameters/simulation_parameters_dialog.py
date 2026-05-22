@@ -126,8 +126,8 @@ class SimulationParametersDialog(QDialog):
         # connect qml cancel signal to close without a result
         self._root.cancelRequested.connect(self.reject)
 
-    @Slot(str, str, str, bool, bool, bool, str, str, str)
-    def _on_submit_sens(self, objective_mode: str, objective_values: str, parameters: str, direct: bool, adjoint: bool, print_enabled: bool, print_specific_vars: str, print_format: str, print_file: str) -> None:
+    @Slot(str, str, str, bool, bool, bool, bool, str, str, str)
+    def _on_submit_sens(self, objective_mode: str, objective_values: str, parameters: str, direct: bool, adjoint: bool, replace_ground: bool, print_enabled: bool, print_specific_vars: str, print_format: str, print_file: str) -> None:
         # validate objective mode
         if not objective_mode.strip():
             # report error
@@ -155,7 +155,7 @@ class SimulationParametersDialog(QDialog):
             # construct print parameters for sens
             print_parameters = PrintParameters(print_type="SENS", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(v for v in print_specific_vars.split() if v))
         # construct parameters instance
-        self._result = SensSimulationParameters("DC", objective_mode, tuple(objective_values.split(",")), tuple(parameters.split(",")), direct, adjoint, print_parameters)
+        self._result = SensSimulationParameters("DC", objective_mode, tuple(objective_values.split(",")), tuple(parameters.split(",")), direct, adjoint, print_parameters, replace_ground)
         # close dialog with success
         self.accept()
 

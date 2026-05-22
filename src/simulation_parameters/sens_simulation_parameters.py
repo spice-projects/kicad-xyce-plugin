@@ -91,6 +91,10 @@ class SensSimulationParameters:
                     if token.lower().startswith("adjoint="):
                         # set adjoint flag
                         adjoint = token.split("=")[1] == "1"
+            # check for preprocess directive
+            if cmd == ".PREPROCESS" and len(tokens) > 2 and tokens[1].upper() == "REPLACEGROUND" and tokens[2].upper() == "TRUE":
+                # set replace ground flag
+                replace_ground = True
             # check for print directive
             if cmd == ".PRINT" and len(tokens) > 1 and tokens[1].upper() == "SENS":
                 # create print parameters
@@ -105,6 +109,10 @@ class SensSimulationParameters:
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # init line list
         lines: list[str] = []
+        # handle replace ground directive
+        if self.replace_ground:
+            # add preprocess directive
+            lines.append(".PREPROCESS REPLACEGROUND TRUE")
         # build objective directive string
         obj_str = ",".join(self.objective_values)
         # build parameter string

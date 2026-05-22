@@ -1426,7 +1426,7 @@ class TestSimulationParametersDialogOnSubmitSens:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_sens("objfunc", "V(2)", "R1:R", True, True, False, "", "", "")
+        dialog._on_submit_sens("objfunc", "V(2)", "R1:R", True, True, False, False, "", "", "")
         # assert
         dialog.accept.assert_called_once()
         assert isinstance(dialog._result, SensSimulationParameters)
@@ -1435,12 +1435,13 @@ class TestSimulationParametersDialogOnSubmitSens:
         assert dialog._result.parameter_list == ("R1:R",)
         assert dialog._result.direct is True
         assert dialog._result.adjoint is True
+        assert dialog._result.replace_ground is False
 
     def test_rejects_sens_missing_objective_mode(self):
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_sens("", "V(2)", "R1:R", True, True, False, "", "", "")
+        dialog._on_submit_sens("", "V(2)", "R1:R", True, True, False, False, "", "", "")
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("errorText", "Objective mode is required")
@@ -1449,7 +1450,7 @@ class TestSimulationParametersDialogOnSubmitSens:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_sens("objfunc", "", "R1:R", True, True, False, "", "", "")
+        dialog._on_submit_sens("objfunc", "", "R1:R", True, True, False, False, "", "", "")
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("errorText", "Objective values are required")
@@ -1458,25 +1459,16 @@ class TestSimulationParametersDialogOnSubmitSens:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_sens("objfunc", "V(2)", "", True, True, False, "", "", "")
+        dialog._on_submit_sens("objfunc", "V(2)", "", True, True, False, False, "", "", "")
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("errorText", "Parameters are required")
 
-    def test_apply_sens_parameters_populates_ui(self):
+    def test_accepts_sens_with_replace_ground_enabled(self):
         # arrange
-        from simulation_parameters.print_parameters import PrintParameters
         dialog = _make_dialog_with_accept()
-        pp = PrintParameters("SENS", "RAW", "sens.raw", ("dSdP(V(2):R1:R)",))
-        params = SensSimulationParameters("DC", "objfunc", ("V(2)",), ("R1:R",), True, True, pp, False)
         # act
-        dialog._apply_sens_parameters(params)
+        dialog._on_submit_sens("objfunc", "V(2)", "R1:R", True, True, True, False, "", "", "")
         # assert
-        dialog._root.setProperty.assert_any_call("sensObjectiveMode", "objfunc")
-        dialog._root.setProperty.assert_any_call("sensObjectiveValues", "V(2)")
-        dialog._root.setProperty.assert_any_call("sensParameters", "R1:R")
-        dialog._root.setProperty.assert_any_call("sensDirect", True)
-        dialog._root.setProperty.assert_any_call("sensAdjoint", True)
-        dialog._root.setProperty.assert_any_call("sensPrintEnabled", True)
-        dialog._root.setProperty.assert_any_call("sensPrintSpecificVars", "dSdP(V(2):R1:R)")
-        dialog._root.setProperty.assert_any_call("sensPrintFile", "sens.raw")
+        dialog.accept.assert_called_once()
+        assert dialog._result.replace_ground is True

@@ -7,6 +7,7 @@ class TestSensSimulationParameters:
         directives = [
             ".SENS objfunc={V(2)} param=R1:R,C1:C",
             ".OPTIONS SENSITIVITY direct=0 adjoint=1",
+            ".PREPROCESS REPLACEGROUND TRUE",
         ]
         # act
         params = SensSimulationParameters.from_xyce_directives(directives)
@@ -17,9 +18,10 @@ class TestSensSimulationParameters:
         assert params.parameter_list == ("R1:R", "C1:C")
         assert params.direct is False
         assert params.adjoint is True
-        assert params.replace_ground is False
+        assert params.replace_ground is True
         # act/assert
         assert params.to_xyce_directives() == [
+            ".PREPROCESS REPLACEGROUND TRUE",
             ".SENS objfunc={V(2)} param=R1:R,C1:C",
             ".OPTIONS SENSITIVITY direct=0 adjoint=1",
         ]
