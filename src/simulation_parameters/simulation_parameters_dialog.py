@@ -18,6 +18,7 @@ from .measure_parameters import MeasureEntry
 from .noise_simulation_parameters import DeviceNoiseOperator, NoiseSimulationParameters
 from .op_simulation_parameters import OpSimulationParameters, NodesetEntry
 from .print_parameters import PrintParameters
+from .sens_simulation_parameters import SensSimulationParameters
 from .transient_simulation_parameters import TransientSchedulePoint, TransientSimulationParameters
 
 logger = logging.getLogger(__name__)
@@ -114,15 +115,49 @@ class SimulationParametersDialog(QDialog):
         # initialize defaults and apply initial parameters if available
         self._apply_initial_parameters()
         # connect qml submit signals to python validation handlers
+        self._root.submitOP.connect(self._on_submit_op)
         self._root.submitTransient.connect(self._on_submit_transient)
         self._root.submitDC.connect(self._on_submit_dc)
-        self._root.submitOP.connect(self._on_submit_op)
         self._root.submitAC.connect(self._on_submit_ac)
+        self._root.submitSens.connect(self._on_submit_sens)
         self._root.submitNoise.connect(self._on_submit_noise)
         self._root.submitHB.connect(self._on_submit_hb)
         self._root.submitLIN.connect(self._on_submit_lin)
         # connect qml cancel signal to close without a result
         self._root.cancelRequested.connect(self.reject)
+
+    @Slot(str, str, str, bool, bool, bool, str, str, str)
+    def _on_submit_sens(self, objective_mode: str, objective_values: str, parameters: str, direct: bool, adjoint: bool, print_enabled: bool, print_specific_vars: str, print_format: str, print_file: str) -> None:
+        # validate objective mode
+        if not objective_mode.strip():
+            # report error
+            self._root.setProperty("errorText", "Objective mode is required")
+            # stop submission
+            return
+        # validate objective values
+        if not objective_values.strip():
+            # report error
+            self._root.setProperty("errorText", "Objective values are required")
+            # stop submission
+            return
+        # validate parameters
+        if not parameters.strip():
+            # report error
+            self._root.setProperty("errorText", "Parameters are required")
+            # stop submission
+            return
+        # clear any previous errors
+        self._root.setProperty("errorText", "")
+        # build print parameters when enabled
+        print_parameters = None
+        # check if enabled
+        if print_enabled:
+            # construct print parameters for sens
+            print_parameters = PrintParameters(print_type="SENS", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(v for v in print_specific_vars.split() if v))
+        # construct parameters instance
+        self._result = SensSimulationParameters("DC", objective_mode, tuple(objective_values.split(",")), tuple(parameters.split(",")), direct, adjoint, print_parameters)
+        # close dialog with success
+        self.accept()
 
     def _build_variable_candidates(self) -> None:
         # return empty lists when no topology is available
@@ -142,28 +177,33 @@ class SimulationParametersDialog(QDialog):
 
     def _apply_initial_parameters(self) -> None:
         # always initialize all tabs to ensure a clean state
+        self._apply_op_parameters(self._initial_parameters if isinstance(self._initial_parameters, OpSimulationParameters) else None)
         self._apply_transient_parameters(self._initial_parameters if isinstance(self._initial_parameters, TransientSimulationParameters) else None)
         self._apply_dc_parameters(self._initial_parameters if isinstance(self._initial_parameters, DCSimulationParameters) else None)
-        self._apply_op_parameters(self._initial_parameters if isinstance(self._initial_parameters, OpSimulationParameters) else None)
         self._apply_ac_parameters(self._initial_parameters if isinstance(self._initial_parameters, AcSimulationParameters) else None)
+        self._apply_sens_parameters(self._initial_parameters if isinstance(self._initial_parameters, SensSimulationParameters) else None)
+        self._apply_noise_parameters(self._initial_parameters if isinstance(self._initial_parameters, NoiseSimulationParameters) else None)
         self._apply_hb_parameters(self._initial_parameters if isinstance(self._initial_parameters, HbSimulationParameters) else None)
         self._apply_lin_parameters(self._initial_parameters if isinstance(self._initial_parameters, LinSimulationParameters) else None)
-        self._apply_noise_parameters(self._initial_parameters if isinstance(self._initial_parameters, NoiseSimulationParameters) else None)
         # initialize the shared replace ground checkbox
         self._root.setProperty("replaceGround", self._initial_parameters.replace_ground if self._initial_parameters else False)
         # select the appropriate tab based on the parameter type
-        if isinstance(self._initial_parameters, TransientSimulationParameters):
+        if isinstance(self._initial_parameters, OpSimulationParameters):
+            self._root.setProperty("initialTabIndex", 0)
+        elif isinstance(self._initial_parameters, TransientSimulationParameters):
             self._root.setProperty("initialTabIndex", 1)
         elif isinstance(self._initial_parameters, DCSimulationParameters):
             self._root.setProperty("initialTabIndex", 2)
         elif isinstance(self._initial_parameters, AcSimulationParameters):
             self._root.setProperty("initialTabIndex", 3)
-        elif isinstance(self._initial_parameters, NoiseSimulationParameters):
+        elif isinstance(self._initial_parameters, SensSimulationParameters):
             self._root.setProperty("initialTabIndex", 4)
-        elif isinstance(self._initial_parameters, HbSimulationParameters):
+        elif isinstance(self._initial_parameters, NoiseSimulationParameters):
             self._root.setProperty("initialTabIndex", 5)
-        elif isinstance(self._initial_parameters, LinSimulationParameters):
+        elif isinstance(self._initial_parameters, HbSimulationParameters):
             self._root.setProperty("initialTabIndex", 6)
+        elif isinstance(self._initial_parameters, LinSimulationParameters):
+            self._root.setProperty("initialTabIndex", 7)
         else:
             self._root.setProperty("initialTabIndex", 0)
 
@@ -362,6 +402,38 @@ class SimulationParametersDialog(QDialog):
             self._root.setProperty("acPrintFile", pp.print_file)
             # specific vars: only saved non-wildcard vars (no automatic topology pre-fill)
             self._root.setProperty("acPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
+
+    def _apply_sens_parameters(self, p: SensSimulationParameters | None) -> None:
+        # initialize sensitivity controls
+        if p:
+            self._root.setProperty("sensObjectiveMode", p.objective_mode)
+            self._root.setProperty("sensObjectiveValues", ",".join(p.objective_values))
+            self._root.setProperty("sensParameters", ",".join(p.parameter_list))
+            self._root.setProperty("sensDirect", p.direct)
+            self._root.setProperty("sensAdjoint", p.adjoint)
+            # handle print parameter initialization
+            if p.print_parameters:
+                self._root.setProperty("sensPrintEnabled", True)
+                self._root.setProperty("sensPrintSpecificVars", " ".join(p.print_parameters.output_variables))
+                fmt_str = p.print_parameters.print_format.upper() if p.print_parameters.print_format else ""
+                self._root.setProperty("sensPrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
+                self._root.setProperty("sensPrintFile", p.print_parameters.print_file)
+            else:
+                self._root.setProperty("sensPrintEnabled", False)
+                self._root.setProperty("sensPrintSpecificVars", "")
+                self._root.setProperty("sensPrintFormatIndex", 0)
+                self._root.setProperty("sensPrintFile", "")
+        else:
+            self._root.setProperty("sensObjectiveMode", "objfunc")
+            self._root.setProperty("sensObjectiveValues", "")
+            self._root.setProperty("sensParameters", "")
+            self._root.setProperty("sensDirect", False)
+            self._root.setProperty("sensAdjoint", False)
+            # set default print settings
+            self._root.setProperty("sensPrintEnabled", True)
+            self._root.setProperty("sensPrintSpecificVars", "")
+            self._root.setProperty("sensPrintFormatIndex", _PRINT_FORMATS.index("RAW"))
+            self._root.setProperty("sensPrintFile", "")
 
     def _apply_noise_parameters(self, p: NoiseSimulationParameters | None) -> None:
         # populate required noise analysis fields

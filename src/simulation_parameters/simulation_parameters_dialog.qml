@@ -85,6 +85,17 @@ Item {
     property alias dcPrintFormatIndex: dcPrintFormatCombo.currentIndex
     property string dcPrintFile: ""
 
+    // --- Sensitivity tab properties ---
+    property string sensObjectiveMode: "objfunc"
+    property string sensObjectiveValues: ""
+    property string sensParameters: ""
+    property bool sensDirect: false
+    property bool sensAdjoint: false
+    property bool sensPrintEnabled: false
+    property string sensPrintSpecificVars: ""
+    property alias sensPrintFormatIndex: sensPrintFormatCombo.currentIndex
+    property string sensPrintFile: ""
+
     // --- AC sweep tab properties ---
     property alias acSweepModeIndex: acSweepModeComboBox.currentIndex
     property alias acPoints: acPointsField.text
@@ -172,6 +183,7 @@ Item {
     signal submitNoise(string outputNode, string refNode, string sourceName, string sweepMode, string points, string start, string end, string dataTableName, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printInoise, bool printOnoise, string printSpecificVars, string printFormat, string printFile, bool replaceGround, var deviceOperatorsList)
     signal submitHB(string frequenciesText, string harmonicsText, int tahb, string selectharms, int startupPeriods, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printType, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitLIN(bool sparcalc, string format, string lintype, string dataformat, string file, string width, string precision, string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
+    signal submitSens(string objectiveMode, string objectiveValues, string parameters, bool direct, bool adjoint, bool printEnabled, string printSpecificVars, string printFormat, string printFile)
     signal cancelRequested()
 
     function opKeywordValue() {
@@ -293,44 +305,42 @@ Item {
 
             TabButton {
                 text: ".OP"
-                // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
-                width: (root.width - 45) / 7
+                width: (root.width - 45) / 8
             }
 
             TabButton {
                 text: ".TRAN"
-                // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
-                width: (root.width - 45) / 7
+                width: (root.width - 45) / 8
             }
 
             TabButton {
                 text: ".DC"
-                // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
-                width: (root.width - 45) / 7
+                width: (root.width - 45) / 8
             }
 
             TabButton {
                 text: ".AC"
-                // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
-                width: (root.width - 45) / 7
+                width: (root.width - 45) / 8
+            }
+
+            TabButton {
+                text: ".SENS"
+                width: (root.width - 45) / 8
             }
 
             TabButton {
                 text: ".NOISE"
-                // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
-                width: (root.width - 45) / 7
+                width: (root.width - 45) / 8
             }
 
             TabButton {
                 text: ".HB"
-                // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
-                width: (root.width - 45) / 7
+                width: (root.width - 45) / 8
             }
 
             TabButton {
                 text: ".LIN"
-                // bind to root width (minus margins) to avoid circular dependency with TabBar's own width
-                width: (root.width - 45) / 7
+                width: (root.width - 45) / 8
             }
         }
 
@@ -869,7 +879,7 @@ Item {
                             }
                         }
 
-                        // --- .MEASURE section ---
+    // --- .MEASURE section ---
                         Rectangle {
                             Layout.fillWidth: true
                             implicitHeight: tranMeasureColumn.implicitHeight + 16
@@ -1246,7 +1256,7 @@ Item {
                             }
                         }
 
-                        // --- .MEASURE section ---
+    // --- .MEASURE section ---
                         Rectangle {
                             Layout.fillWidth: true
                             implicitHeight: dcMeasureColumn.implicitHeight + 16
@@ -1477,7 +1487,7 @@ Item {
                             }
                         }
 
-                        // --- .MEASURE section ---
+    // --- .MEASURE section ---
                         Rectangle {
                             Layout.fillWidth: true
                             implicitHeight: acMeasureColumn.implicitHeight + 16
@@ -1522,7 +1532,159 @@ Item {
                     }
                 }
 
-                // --- Tab 4: Noise ---
+                // --- Tab 4: Sensitivity ---
+                ScrollView {
+                    clip: true
+                    contentWidth: availableWidth
+
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 12
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: sensParamsColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: sensParamsColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                GridLayout {
+                                    Layout.fillWidth: true
+                                    columns: 2
+                                    rowSpacing: 10
+                                    columnSpacing: 12
+
+                                    Label { text: "Objective Mode"; color: "#24292f" }
+                                    ComboBox {
+                                        id: sensObjectiveModeCombo
+                                        model: ["objfunc", "objvars", "acobjfunc"]
+                                        currentIndex: ["objfunc", "objvars", "acobjfunc"].indexOf(root.sensObjectiveMode)
+                                        onCurrentIndexChanged: root.sensObjectiveMode = model[currentIndex]
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label { text: "Objective Values *"; color: "#24292f" }
+                                    TextField {
+                                        id: sensObjectiveValuesField
+                                        placeholderText: "e.g. {V(2)}"
+                                        text: root.sensObjectiveValues
+                                        onTextChanged: root.sensObjectiveValues = text
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label { text: "Parameters *"; color: "#24292f" }
+                                    TextField {
+                                        id: sensParametersField
+                                        placeholderText: "e.g. R1:R,C1:C"
+                                        text: root.sensParameters
+                                        onTextChanged: root.sensParameters = text
+                                        Layout.fillWidth: true
+                                    }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 16
+                                    CheckBox {
+                                        id: sensDirectCheckBox
+                                        text: "Direct Method"
+                                        checked: root.sensDirect
+                                        onCheckedChanged: root.sensDirect = checked
+                                    }
+                                    CheckBox {
+                                        id: sensAdjointCheckBox
+                                        text: "Adjoint Method"
+                                        checked: root.sensAdjoint
+                                        onCheckedChanged: root.sensAdjoint = checked
+                                    }
+                                }
+                            }
+                        }
+
+                        // --- .PRINT SENS section ---
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: sensPrintColumn.implicitHeight + 16
+                            color: "#f6f8fa"
+                            radius: 6
+                            border.color: "#d0d7de"
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: sensPrintColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 6
+
+                                CheckBox {
+                                    id: sensPrintEnabledCheckBox
+                                    text: "Enable .PRINT SENS output"
+                                    checked: root.sensPrintEnabled
+                                    onCheckedChanged: root.sensPrintEnabled = checked
+                                    Layout.fillWidth: true
+                                    Component.onCompleted: {
+                                        if (root.sensPrintEnabled === false) {
+                                            root.sensPrintEnabled = true
+                                        }
+                                    }
+                                }
+
+                                GridLayout {
+                                    enabled: sensPrintEnabledCheckBox.checked
+                                    columns: 4
+                                    Layout.fillWidth: true
+                                    rowSpacing: 6
+                                    columnSpacing: 8
+
+                                    Label { text: "Additional Vars"; color: "#24292f" }
+                                    TextField {
+                                        id: sensPrintSpecificVarsField
+                                        placeholderText: "e.g. dSdP(V(2):R1:R)"
+                                        selectByMouse: true
+                                        text: root.sensPrintSpecificVars
+                                        onTextChanged: root.sensPrintSpecificVars = text
+                                        Layout.columnSpan: 3
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Label { text: "Format"; color: "#24292f" }
+                                    ComboBox {
+                                        id: sensPrintFormatCombo
+                                        Layout.fillWidth: true
+                                        model: ["(default)", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"]
+                                        Component.onCompleted: {
+                                            var formatIndex = ["", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"].indexOf("RAW")
+                                            currentIndex = formatIndex
+                                        }
+                                    }
+
+                                    Label { text: "Output File"; color: "#24292f" }
+                                    TextField {
+                                        id: sensPrintFileField
+                                        placeholderText: "optional (e.g. output.raw)"
+                                        selectByMouse: true
+                                        text: root.sensPrintFile
+                                        onTextChanged: root.sensPrintFile = text
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // --- Tab 5: Noise ---
                 ScrollView {
                     clip: true
                     contentWidth: availableWidth
@@ -1836,7 +1998,7 @@ Item {
                             }
                         }
 
-                        // --- .MEASURE section ---
+    // --- .MEASURE section ---
                         Rectangle {
                             Layout.fillWidth: true
                             implicitHeight: noiseMeasureColumn.implicitHeight + 16
@@ -2407,10 +2569,12 @@ Item {
                     } else if (simTabBar.currentIndex === 3) {
                         root.submitAC(root.acSweepModeValue(), root.acPoints, root.acStart, root.acEnd, root.acDataTableName, root.acMeasureParametersText, root.acPrintEnabled, root.acPrintAllNodes, root.acPrintAllCurrents, root.acPrintSpecificVars, acPrintFormatCombo.currentIndex > 0 ? acPrintFormatCombo.model[acPrintFormatCombo.currentIndex] : "", root.acPrintFile, root.replaceGround)
                     } else if (simTabBar.currentIndex === 4) {
-                        root.submitNoise(root.noiseOutputNode, root.noiseRefNode, root.noiseSourceName, root.noiseSweepModeValue(), root.noisePoints, root.noiseStart, root.noiseEnd, root.noiseDataTableName, root.noiseMeasureParametersText, root.noisePrintEnabled, root.noisePrintAllNodes, root.noisePrintAllCurrents, root.noisePrintInoise, root.noisePrintOnoise, root.noisePrintSpecificVars, noisePrintFormatCombo.currentIndex > 0 ? noisePrintFormatCombo.model[noisePrintFormatCombo.currentIndex] : "", root.noisePrintFile, root.replaceGround, root.noiseDeviceOperators)
+                        root.submitSens(sensObjectiveModeCombo.model[sensObjectiveModeCombo.currentIndex], sensObjectiveValuesField.text, sensParametersField.text, sensDirectCheckBox.checked, sensAdjointCheckBox.checked, sensPrintEnabledCheckBox.checked, sensPrintSpecificVarsField.text, sensPrintFormatCombo.currentIndex > 0 ? sensPrintFormatCombo.model[sensPrintFormatCombo.currentIndex] : "", sensPrintFileField.text)
                     } else if (simTabBar.currentIndex === 5) {
-                        root.submitHB(root.hbFrequenciesText, root.hbHarmonicsText, root.hbTahbIndex, hbSelectHarmsCombo.model[root.hbSelectHarmsIndex].toLowerCase(), parseInt(root.hbStartupPeriodsText) || 0, root.hbPrintEnabled, root.hbPrintAllNodes, root.hbPrintAllCurrents, root.hbPrintTypeValue(), root.hbPrintSpecificVars, hbPrintFormatCombo.currentIndex > 0 ? hbPrintFormatCombo.model[hbPrintFormatCombo.currentIndex] : "", root.hbPrintFile, root.replaceGround)
+                        root.submitNoise(root.noiseOutputNode, root.noiseRefNode, root.noiseSourceName, root.noiseSweepModeValue(), root.noisePoints, root.noiseStart, root.noiseEnd, root.noiseDataTableName, root.noiseMeasureParametersText, root.noisePrintEnabled, root.noisePrintAllNodes, root.noisePrintAllCurrents, root.noisePrintInoise, root.noisePrintOnoise, root.noisePrintSpecificVars, noisePrintFormatCombo.currentIndex > 0 ? noisePrintFormatCombo.model[noisePrintFormatCombo.currentIndex] : "", root.noisePrintFile, root.replaceGround, root.noiseDeviceOperators)
                     } else if (simTabBar.currentIndex === 6) {
+                        root.submitHB(root.hbFrequenciesText, root.hbHarmonicsText, root.hbTahbIndex, hbSelectHarmsCombo.model[root.hbSelectHarmsIndex].toLowerCase(), parseInt(root.hbStartupPeriodsText) || 0, root.hbPrintEnabled, root.hbPrintAllNodes, root.hbPrintAllCurrents, root.hbPrintTypeValue(), root.hbPrintSpecificVars, hbPrintFormatCombo.currentIndex > 0 ? hbPrintFormatCombo.model[hbPrintFormatCombo.currentIndex] : "", root.hbPrintFile, root.replaceGround)
+                    } else if (simTabBar.currentIndex === 7) {
                         root.submitLIN(root.linSparcalc, root.linFormat, root.linType, root.linDataFormat, root.linFile, root.linWidth, root.linPrecision, root.linSweepModeValue(), root.linPoints, root.linStart, root.linEnd, root.linDataTableName, root.linPrintEnabled, root.linPrintAllNodes, root.linPrintAllCurrents, root.linPrintSpecificVars, linPrintFormatCombo.currentIndex > 0 ? linPrintFormatCombo.model[linPrintFormatCombo.currentIndex] : "", root.linPrintFile, root.replaceGround)
                     }
                 }

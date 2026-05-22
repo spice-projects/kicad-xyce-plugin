@@ -817,7 +817,7 @@ class TestApplyInitialParametersTabSelection:
         # act
         dialog._apply_initial_parameters()
         # assert
-        dialog._root.setProperty.assert_any_call("initialTabIndex", 4)
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 5)
 
     def test_selects_hb_tab(self):
         # arrange
@@ -826,7 +826,7 @@ class TestApplyInitialParametersTabSelection:
         # act
         dialog._apply_initial_parameters()
         # assert
-        dialog._root.setProperty.assert_any_call("initialTabIndex", 5)
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 6)
 
     def test_selects_lin_tab(self):
         # arrange
@@ -835,7 +835,7 @@ class TestApplyInitialParametersTabSelection:
         # act
         dialog._apply_initial_parameters()
         # assert
-        dialog._root.setProperty.assert_any_call("initialTabIndex", 6)
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 7)
 
 
 class TestApplyOpParametersWithPrintParams:
@@ -1413,3 +1413,70 @@ class TestSimulationParametersDialogOnSubmitDCWithPrint:
         assert "IC(*)" in result.print_parameters.output_variables
         assert "ID(*)" in result.print_parameters.output_variables
         assert "V(1)" in result.print_parameters.output_variables
+from simulation_parameters.sens_simulation_parameters import SensSimulationParameters
+from unittest.mock import MagicMock
+import pytest
+
+# Note: The following tests are part of TestSimulationParametersDialogOnSubmitSens 
+# to be added to simulation_parameters_dialog_test.py.
+
+class TestSimulationParametersDialogOnSubmitSens:
+
+    def test_accepts_valid_sens_params(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_sens("objfunc", "V(2)", "R1:R", True, True, False, "", "", "")
+        # assert
+        dialog.accept.assert_called_once()
+        assert isinstance(dialog._result, SensSimulationParameters)
+        assert dialog._result.objective_mode == "objfunc"
+        assert dialog._result.objective_values == ("V(2)",)
+        assert dialog._result.parameter_list == ("R1:R",)
+        assert dialog._result.direct is True
+        assert dialog._result.adjoint is True
+
+    def test_rejects_sens_missing_objective_mode(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_sens("", "V(2)", "R1:R", True, True, False, "", "", "")
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("errorText", "Objective mode is required")
+
+    def test_rejects_sens_missing_objective_values(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_sens("objfunc", "", "R1:R", True, True, False, "", "", "")
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("errorText", "Objective values are required")
+
+    def test_rejects_sens_missing_parameters(self):
+        # arrange
+        dialog = _make_dialog_with_accept()
+        # act
+        dialog._on_submit_sens("objfunc", "V(2)", "", True, True, False, "", "", "")
+        # assert
+        dialog.accept.assert_not_called()
+        dialog._root.setProperty.assert_any_call("errorText", "Parameters are required")
+
+    def test_apply_sens_parameters_populates_ui(self):
+        # arrange
+        from simulation_parameters.print_parameters import PrintParameters
+        dialog = _make_dialog_with_accept()
+        pp = PrintParameters("SENS", "RAW", "sens.raw", ("dSdP(V(2):R1:R)",))
+        params = SensSimulationParameters("DC", "objfunc", ("V(2)",), ("R1:R",), True, True, pp, False)
+        # act
+        dialog._apply_sens_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("sensObjectiveMode", "objfunc")
+        dialog._root.setProperty.assert_any_call("sensObjectiveValues", "V(2)")
+        dialog._root.setProperty.assert_any_call("sensParameters", "R1:R")
+        dialog._root.setProperty.assert_any_call("sensDirect", True)
+        dialog._root.setProperty.assert_any_call("sensAdjoint", True)
+        dialog._root.setProperty.assert_any_call("sensPrintEnabled", True)
+        dialog._root.setProperty.assert_any_call("sensPrintSpecificVars", "dSdP(V(2):R1:R)")
+        dialog._root.setProperty.assert_any_call("sensPrintFile", "sens.raw")

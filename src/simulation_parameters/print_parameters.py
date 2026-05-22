@@ -26,7 +26,7 @@ _SAMPLE_OPTION_KEYS = {
 }
 
 # init known print types with sample-specific options
-_SAMPLE_PRINT_TYPES = {"ES", "PCE"}
+_SAMPLE_PRINT_TYPES = {"ES", "PCE", "TRANADJOINT"}
 
 # init allowed format values from the reference guide
 _ALLOWED_FORMAT_VALUES = {
