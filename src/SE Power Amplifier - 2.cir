@@ -1,0 +1,52 @@
+.title KiCad schematic
+.include "/Users/rogelio/Projects/SE Power Amplifier/spice/LL1623.LIB"
+.include "/Users/rogelio/Projects/SE Power Amplifier/spice/LM317_TRANS.LIB"
+.include "/Users/rogelio/Projects/SE Power Amplifier/spice/Tubes.LIB"
+V304 Input GND DC 0 SIN( 0 0.5 1000 0 0 0 ) AC 1 0 
+V301 H1 HGND DC 12.6 AC 0 0 
+R306 Net-_U302A-K_ Net-_U302B-A_ 820
+XU301 /Power_Amplifier/VCC2 Net-_U301A-A_ Net-_U301B-K_ H1 HGND Net-_U301A-A_ Net-_U301A-G_ Net-_U301A-K_ Net-_U301C-F2_ ECC83_KiCad
+XT301 VCC OT GND SPEAKER LL1623_160MA_1600_8
+R314 /Power_Amplifier/VCC1 /Power_Amplifier/VCC2 10k
+C312 /Power_Amplifier/Katode GND 20u
+XU302 Net-_U302B-A_ Net-_U302B-G_ Net-_U302B-K_ H1 HGND /Power_Amplifier/VCC2 Net-_U302A-G_ Net-_U302A-K_ Net-_U302C-F2_ ECC82_KiCad
+R315 Net-_U305-VO_ GND 10
+C310 /Power_Amplifier/Katode GND 470u
+R317 Net-_U305-VO_ GND 51
+R319 VCC /Power_Amplifier/VCC1 20k
+C309 VCC /Power_Amplifier/Katode 33u
+C311 VCC /Power_Amplifier/Katode 33u
+V302 H2 HGND DC 12.6 AC 0 0 
+R324 HGND GND 1Meg
+R309 Net-_C303-Pad2_ Net-_R308-Pad1_ 82k
+C308 /Power_Amplifier/VCC1 GND 100u
+R302 Net-_U301A-G_ Input 300
+C305 /Power_Amplifier/VCC2 GND 1u
+V303 VCC GND DC 450 AC 0 0 
+R305 Net-_U302A-G_ Net-_U301A-A_ 300
+C303 /Power_Amplifier/VCC2 Net-_C303-Pad2_ 1u
+R322 OT Net-_U304A-G2_ 100
+C304 Net-_U302B-A_ /Power_Amplifier/Line-out 0.1u
+R316 OT Net-_U303A-A_ 10
+XU304 /Power_Amplifier/Katode /Power_Amplifier/H2-1 Net-_U304A-A_ Net-_U304A-G2_ Net-_U304A-G1_ H2 /Power_Amplifier/Katode KT88_KiCad
+C301 Net-_U301C-F2_ GND 0.1u
+R301 Input GND 100k
+R303 Net-_U301A-K_ GND 680
+R307 Net-_U302B-K_ GND 820
+R311 Net-_C303-Pad2_ Net-_R308-Pad1_ 2Meg
+R312 /Power_Amplifier/Line-out GND 200k
+XU303 /Power_Amplifier/Katode HGND Net-_U303A-A_ Net-_U303A-G2_ Net-_U303A-G1_ /Power_Amplifier/H2-1 /Power_Amplifier/Katode KT88_KiCad
+R313 Net-_U303A-G1_ /Power_Amplifier/Line-out 10k
+C313 VCC /Power_Amplifier/Katode 1u
+R323 SPEAKER GND 8
+R310 Net-_R308-Pad1_ GND 100k
+C306 /Power_Amplifier/VCC2 GND 100u
+C307 /Power_Amplifier/VCC1 GND 2.2u
+R318 OT Net-_U303A-G2_ 100
+C302 Net-_U302C-F2_ GND 0.1u
+R304 Net-_U301B-K_ Net-_U301A-A_ 680
+R308 Net-_R308-Pad1_ Net-_U302B-G_ 300
+XU305 /Power_Amplifier/Katode GND Net-_U305-VO_ Net-_U305-VO_ LM317_TRANS
+R320 Net-_U304A-G1_ /Power_Amplifier/Line-out 10k
+R321 OT Net-_U304A-A_ 10
+.end

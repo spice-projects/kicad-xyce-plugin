@@ -9,8 +9,10 @@ from .noise_simulation_parameters import DeviceNoiseOperator, NoiseSimulationPar
 from .op_simulation_parameters import IcEntry, NodesetEntry, OpSimulationParameters
 from .print_parameters import PrintParameters
 from .sens_simulation_parameters import SensSimulationParameters
+from .simulation_config import SimulationConfig
 from .simulation_parameters_dialog import SimulationParametersDialog
 from .simulation_parameters import from_xyce_directives
+from .step_parameters import StepParameters
 from .transient_simulation_parameters import TransientSchedulePoint, TransientSimulationParameters
 
 __all__ = [
@@ -28,7 +30,9 @@ __all__ = [
     "OpSimulationParameters",
     "PrintParameters",
     "SensSimulationParameters",
+    "SimulationConfig",
     "SimulationParametersDialog",
+    "StepParameters",
     "TransientSchedulePoint",
     "TransientSimulationParameters",
     "from_xyce_directives",

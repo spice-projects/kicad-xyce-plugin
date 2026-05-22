@@ -4,7 +4,7 @@ from .hb_simulation_parameters import HbSimulationParameters
 from .lin_simulation_parameters import LinSimulationParameters
 from .noise_simulation_parameters import NoiseSimulationParameters
 from .op_simulation_parameters import OpSimulationParameters
-from .sens_simulation_parameters import SensSimulationParameters
+from .simulation_config import SimulationConfig
 from .transient_simulation_parameters import TransientSimulationParameters
 
 # LinSimulationParameters MUST appear before AcSimulationParameters because
@@ -17,17 +17,10 @@ ALL_SIMULATION_PARAMETERS_TYPES = [
     NoiseSimulationParameters,
     DCSimulationParameters,
     OpSimulationParameters,
-    SensSimulationParameters,
     TransientSimulationParameters,
 ]
 
 
-def from_xyce_directives(directives: list[str]) -> AcSimulationParameters | DCSimulationParameters | HbSimulationParameters | LinSimulationParameters | NoiseSimulationParameters | OpSimulationParameters | SensSimulationParameters | TransientSimulationParameters | None:
-    # loop simulation parameters types
-    for simulation_parameters_type in ALL_SIMULATION_PARAMETERS_TYPES:
-        # try to parse directives
-        simulation_parameters = simulation_parameters_type.from_xyce_directives(directives)
-        if simulation_parameters is not None:
-            return simulation_parameters
-    # directives did not match any simulation parameters type
-    return None
+def from_xyce_directives(directives: list[str]) -> SimulationConfig:
+    # use the unified config factory to parse all directives
+    return SimulationConfig.from_xyce_directives(directives)

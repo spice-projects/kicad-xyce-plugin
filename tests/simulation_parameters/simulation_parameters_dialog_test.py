@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtQuick import QQuickView
 
 from netlist_parser import Device, NetlistTopology
-from simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, PrintParameters, SensSimulationParameters, SimulationParametersDialog, TransientSchedulePoint, TransientSimulationParameters
+from simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, PrintParameters, SensSimulationParameters, SimulationConfig, SimulationParametersDialog, StepParameters, TransientSchedulePoint, TransientSimulationParameters
 
 from simulation_parameters.simulation_parameters_dialog import _validate_device_name
 
@@ -18,9 +18,27 @@ def _make_dialog(initial_parameters=None) -> SimulationParametersDialog:
     dialog = SimulationParametersDialog.__new__(SimulationParametersDialog)
     # call QDialog.__init__ without triggering the full SimulationParametersDialog.__init__
     QDialog.__init__(dialog)
+    # wrap parameters in SimulationConfig if they are individual analysis types
+    if initial_parameters is not None and not isinstance(initial_parameters, SimulationConfig):
+        initial_parameters = SimulationConfig(analysis=initial_parameters, step=StepParameters())
+    elif initial_parameters is None:
+        initial_parameters = SimulationConfig(analysis=None, step=StepParameters())
     dialog._initial_parameters = initial_parameters
     dialog._result = None
     dialog._root = MagicMock()
+    # mock property values for _get_current_step_parameters
+    properties = {
+        "stepEnabled": False,
+        "stepSweepModeIndex": 0,
+        "stepVariable": "",
+        "stepStartValue": "",
+        "stepStopValue": "",
+        "stepStepValue": "",
+        "stepPointsValue": "",
+        "stepListValuesText": "",
+        "stepDataTableName": ""
+    }
+    dialog._root.property.side_effect = lambda name: properties.get(name)
     dialog._has_bjt_devices = False
     dialog._has_fet_devices = False
     return dialog
@@ -36,13 +54,13 @@ class TestSimulationParametersDialogConstruction:
 
     def test_dialog_can_be_instantiated(self):
         # act
-        dialog = SimulationParametersDialog(None, OpSimulationParameters())
+        dialog = SimulationParametersDialog(None, SimulationConfig(analysis=OpSimulationParameters(), step=StepParameters()))
         # assert
         assert isinstance(dialog, SimulationParametersDialog)
 
     def test_dialog_result_is_none_initially(self):
         # act
-        dialog = SimulationParametersDialog(None, OpSimulationParameters())
+        dialog = SimulationParametersDialog(None, SimulationConfig(analysis=OpSimulationParameters(), step=StepParameters()))
         # assert
         assert dialog._result is None
 
@@ -224,7 +242,7 @@ class TestSimulationParametersDialogOnSubmitOP:
         # act
         dialog._on_submit_op(False, False, False, False, False, False, "", "", "", False, "NODESET", "", "", False)
         # assert
-        assert isinstance(dialog._result, OpSimulationParameters)
+        assert isinstance(dialog._result.analysis, OpSimulationParameters)
         assert len(accepted) == 1
 
 
@@ -237,7 +255,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         dialog._on_submit_transient("1u", "1m", "", "", "", False, "", "", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
-        assert isinstance(dialog._result, TransientSimulationParameters)
+        assert isinstance(dialog._result.analysis, TransientSimulationParameters)
 
     def test_result_has_correct_values(self):
         # arrange
@@ -246,11 +264,11 @@ class TestSimulationParametersDialogOnSubmitTransient:
         dialog._on_submit_transient("2u", "2m", "100n", "10u", "NOOP", False, "", "", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         result = dialog._result
-        assert result.initial_step_value == "2u"
-        assert result.final_time_value == "2m"
-        assert result.start_time_value == "100n"
-        assert result.step_ceiling_value == "10u"
-        assert result.op_keyword == "NOOP"
+        assert result.analysis.initial_step_value == "2u"
+        assert result.analysis.final_time_value == "2m"
+        assert result.analysis.start_time_value == "100n"
+        assert result.analysis.step_ceiling_value == "10u"
+        assert result.analysis.op_keyword == "NOOP"
 
     def test_rejects_when_initial_step_empty(self):
         # arrange
@@ -304,7 +322,7 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert len(result.schedule_points) == 2
+        assert len(result.analysis.schedule_points) == 2
 
     def test_rejects_odd_number_of_schedule_tokens(self):
         # arrange
@@ -329,8 +347,8 @@ class TestSimulationParametersDialogOnSubmitTransient:
         dialog._on_submit_transient("1u", "1m", "", "", "", False, "", "", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         result = dialog._result
-        assert result.initial_step_value == "1u"
-        assert result.final_time_value == "1m"
+        assert result.analysis.initial_step_value == "1u"
+        assert result.analysis.final_time_value == "1m"
 
     def test_accepts_valid_fft_directives(self):
         # arrange
@@ -341,10 +359,10 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert len(result.fft_parameters) == 2
-        assert result.fft_parameters[0].output_variable == "V(1)"
-        assert result.fft_parameters[1].output_variable == "V(2)"
-        assert result.fft_parameters[1].window == "RECT"
+        assert len(result.analysis.fft_parameters) == 2
+        assert result.analysis.fft_parameters[0].output_variable == "V(1)"
+        assert result.analysis.fft_parameters[1].output_variable == "V(2)"
+        assert result.analysis.fft_parameters[1].window == "RECT"
 
     def test_accepts_valid_four_directives(self):
         # arrange
@@ -355,11 +373,11 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert len(result.four_parameters) == 2
-        assert result.four_parameters[0].fundamental_frequency == "1k"
-        assert result.four_parameters[0].output_variables == ("V(1)",)
-        assert result.four_parameters[1].fundamental_frequency == "2k"
-        assert result.four_parameters[1].output_variables == ("V(2)", "I(1)")
+        assert len(result.analysis.four_parameters) == 2
+        assert result.analysis.four_parameters[0].fundamental_frequency == "1k"
+        assert result.analysis.four_parameters[0].output_variables == ("V(1)",)
+        assert result.analysis.four_parameters[1].fundamental_frequency == "2k"
+        assert result.analysis.four_parameters[1].output_variables == ("V(2)", "I(1)")
 
     def test_accepts_valid_measure_directives(self):
         # arrange
@@ -370,15 +388,15 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert len(result.measure_parameters) == 2
-        assert result.measure_parameters[0].result_name == "RISE_TIME"
-        assert result.measure_parameters[0].measure_type == "MAX"
-        assert result.measure_parameters[0].variable == "V(OUT)"
-        assert result.measure_parameters[0].rise_val == "1"
-        assert result.measure_parameters[1].result_name == "FALL_TIME"
-        assert result.measure_parameters[1].measure_type == "MIN"
-        assert result.measure_parameters[1].variable == "V(OUT)"
-        assert result.measure_parameters[1].fall_val == "1"
+        assert len(result.analysis.measure_parameters) == 2
+        assert result.analysis.measure_parameters[0].result_name == "RISE_TIME"
+        assert result.analysis.measure_parameters[0].measure_type == "MAX"
+        assert result.analysis.measure_parameters[0].variable == "V(OUT)"
+        assert result.analysis.measure_parameters[0].rise_val == "1"
+        assert result.analysis.measure_parameters[1].result_name == "FALL_TIME"
+        assert result.analysis.measure_parameters[1].measure_type == "MIN"
+        assert result.analysis.measure_parameters[1].variable == "V(OUT)"
+        assert result.analysis.measure_parameters[1].fall_val == "1"
 
     def test_accepts_measure_directives_without_prefix(self):
         # arrange
@@ -389,8 +407,8 @@ class TestSimulationParametersDialogOnSubmitTransient:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert len(result.measure_parameters) == 2
-        assert result.measure_parameters[0].analysis_type == "TRAN"
+        assert len(result.analysis.measure_parameters) == 2
+        assert result.analysis.measure_parameters[0].analysis_type == "TRAN"
 
     def test_rejects_measure_directives_with_wrong_analysis_type(self):
         # arrange
@@ -422,7 +440,7 @@ class TestSimulationParametersDialogOnSubmitDC:
         dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", False, "", "", "", "", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
-        assert isinstance(dialog._result, DCSimulationParameters)
+        assert isinstance(dialog._result.analysis, DCSimulationParameters)
 
     def test_invalid_measure_dc(self):
         # arrange
@@ -604,7 +622,7 @@ class TestSimulationParametersDialogOnSubmitDC:
         dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", True, "VCC", "3", "5", "0.5", "", "", False, False, False, False, False, False, "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
-        assert dialog._result.secondary_variable == "VCC"
+        assert dialog._result.analysis.secondary_variable == "VCC"
 
     def test_data_mode_ignores_secondary_sweep(self):
         # arrange — DATA mode does not support secondary
@@ -631,13 +649,13 @@ class TestSimulationParametersDialogOnSubmitDC:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert len(result.measure_parameters) == 2
-        assert result.measure_parameters[0].result_name == "VIN_AT_2V"
-        assert result.measure_parameters[0].measure_type == "FIND"
-        assert result.measure_parameters[0].variable == "V(1)"
-        assert result.measure_parameters[1].result_name == "MAX_CURRENT"
-        assert result.measure_parameters[1].measure_type == "MAX"
-        assert result.measure_parameters[1].variable == "I(R1)"
+        assert len(result.analysis.measure_parameters) == 2
+        assert result.analysis.measure_parameters[0].result_name == "VIN_AT_2V"
+        assert result.analysis.measure_parameters[0].measure_type == "FIND"
+        assert result.analysis.measure_parameters[0].variable == "V(1)"
+        assert result.analysis.measure_parameters[1].result_name == "MAX_CURRENT"
+        assert result.analysis.measure_parameters[1].measure_type == "MAX"
+        assert result.analysis.measure_parameters[1].variable == "I(R1)"
 
 
 class TestSimulationParametersDialogParseSchedulePoints:
@@ -817,7 +835,7 @@ class TestApplyInitialParametersTabSelection:
         # act
         dialog._apply_initial_parameters()
         # assert
-        dialog._root.setProperty.assert_any_call("initialTabIndex", 5)
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 4)
 
     def test_selects_hb_tab(self):
         # arrange
@@ -826,7 +844,7 @@ class TestApplyInitialParametersTabSelection:
         # act
         dialog._apply_initial_parameters()
         # assert
-        dialog._root.setProperty.assert_any_call("initialTabIndex", 6)
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 5)
 
     def test_selects_lin_tab(self):
         # arrange
@@ -835,7 +853,7 @@ class TestApplyInitialParametersTabSelection:
         # act
         dialog._apply_initial_parameters()
         # assert
-        dialog._root.setProperty.assert_any_call("initialTabIndex", 7)
+        dialog._root.setProperty.assert_any_call("initialTabIndex", 6)
 
 
 class TestApplyOpParametersWithPrintParams:
@@ -1031,7 +1049,7 @@ class TestSimulationParametersDialogOnSubmitNoise:
         dialog._on_submit_noise("5", "", "V1", "LIN", "100", "1", "1MEG", "", "", False, False, False, False, False, "", "", "", False, [])
         # assert
         dialog.accept.assert_called_once()
-        assert isinstance(dialog._result, NoiseSimulationParameters)
+        assert isinstance(dialog._result.analysis, NoiseSimulationParameters)
 
     def test_rejects_noise_without_output_node(self):
         # arrange
@@ -1103,12 +1121,12 @@ class TestSimulationParametersDialogOnSubmitNoise:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert result.print_parameters is not None
-        assert result.print_parameters.print_type == "NOISE"
-        assert "V(*)" in result.print_parameters.output_variables
-        assert "INOISE" in result.print_parameters.output_variables
-        assert "ONOISE" in result.print_parameters.output_variables
-        assert "DNI(V1)" in result.print_parameters.output_variables
+        assert result.analysis.print_parameters is not None
+        assert result.analysis.print_parameters.print_type == "NOISE"
+        assert "V(*)" in result.analysis.print_parameters.output_variables
+        assert "INOISE" in result.analysis.print_parameters.output_variables
+        assert "ONOISE" in result.analysis.print_parameters.output_variables
+        assert "DNI(V1)" in result.analysis.print_parameters.output_variables
 
     def test_noise_data_sweep_accepted(self):
         # arrange
@@ -1117,8 +1135,8 @@ class TestSimulationParametersDialogOnSubmitNoise:
         dialog._on_submit_noise("5", "", "V1", "DATA", "", "", "", "myTable", "", False, False, False, False, False, "", "", "", False, [])
         # assert
         dialog.accept.assert_called_once()
-        assert dialog._result.sweep_mode == "DATA"
-        assert dialog._result.data_table_name == "myTable"
+        assert dialog._result.analysis.sweep_mode == "DATA"
+        assert dialog._result.analysis.data_table_name == "myTable"
 
     def test_accepts_valid_measure_directives(self):
         # arrange
@@ -1129,13 +1147,13 @@ class TestSimulationParametersDialogOnSubmitNoise:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert len(result.measure_parameters) == 2
-        assert result.measure_parameters[0].result_name == "TOTAL_INOISE"
-        assert result.measure_parameters[0].measure_type == "INTEG"
-        assert result.measure_parameters[0].variable == "INOISE"
-        assert result.measure_parameters[1].result_name == "TOTAL_ONOISE"
-        assert result.measure_parameters[1].measure_type == "INTEG"
-        assert result.measure_parameters[1].variable == "ONOISE"
+        assert len(result.analysis.measure_parameters) == 2
+        assert result.analysis.measure_parameters[0].result_name == "TOTAL_INOISE"
+        assert result.analysis.measure_parameters[0].measure_type == "INTEG"
+        assert result.analysis.measure_parameters[0].variable == "INOISE"
+        assert result.analysis.measure_parameters[1].result_name == "TOTAL_ONOISE"
+        assert result.analysis.measure_parameters[1].measure_type == "INTEG"
+        assert result.analysis.measure_parameters[1].variable == "ONOISE"
 
 
 class TestSimulationParametersDialogOnSubmitLin:
@@ -1147,7 +1165,7 @@ class TestSimulationParametersDialogOnSubmitLin:
         dialog._on_submit_lin(True, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "100", "1", "1MEG", "", False, False, False, "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
-        assert isinstance(dialog._result, LinSimulationParameters)
+        assert isinstance(dialog._result.analysis, LinSimulationParameters)
 
     def test_rejects_lin_with_invalid_sweep_mode(self):
         # arrange
@@ -1192,9 +1210,9 @@ class TestSimulationParametersDialogOnSubmitLin:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert result.print_parameters is not None
-        assert "V(*)" in result.print_parameters.output_variables
-        assert "V(1)" in result.print_parameters.output_variables
+        assert result.analysis.print_parameters is not None
+        assert "V(*)" in result.analysis.print_parameters.output_variables
+        assert "V(1)" in result.analysis.print_parameters.output_variables
 
     def test_lin_data_sweep_accepted(self):
         # arrange
@@ -1203,7 +1221,7 @@ class TestSimulationParametersDialogOnSubmitLin:
         dialog._on_submit_lin(True, "TOUCHSTONE2", "S", "RI", "", "", "", "DATA", "", "", "", "myTable", False, False, False, "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
-        assert dialog._result.sweep_mode == "DATA"
+        assert dialog._result.analysis.sweep_mode == "DATA"
 
 
 class TestSimulationParametersDialogOnSubmitHB:
@@ -1215,7 +1233,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
-        assert isinstance(dialog._result, HbSimulationParameters)
+        assert isinstance(dialog._result.analysis, HbSimulationParameters)
 
     def test_rejects_hb_when_frequencies_empty(self):
         # arrange
@@ -1233,7 +1251,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         dialog._on_submit_hb("1MEG 2MEG 3MEG", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
-        assert len(dialog._result.frequencies) == 3
+        assert len(dialog._result.analysis.frequencies) == 3
 
     def test_hb_with_print_enabled(self):
         # arrange
@@ -1243,10 +1261,10 @@ class TestSimulationParametersDialogOnSubmitHB:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert result.print_parameters is not None
-        assert result.print_parameters.print_type == "HB_FD"
-        assert "V(*)" in result.print_parameters.output_variables
-        assert "V(1)" in result.print_parameters.output_variables
+        assert result.analysis.print_parameters is not None
+        assert result.analysis.print_parameters.print_type == "HB_FD"
+        assert "V(*)" in result.analysis.print_parameters.output_variables
+        assert "V(1)" in result.analysis.print_parameters.output_variables
 
     def test_hb_invalid_print_type_falls_back_to_hb(self):
         # arrange
@@ -1255,7 +1273,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, True, False, False, "INVALID", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
-        assert dialog._result.print_parameters.print_type == "HB"
+        assert dialog._result.analysis.print_parameters.print_type == "HB"
 
     def test_clears_hb_error_on_success(self):
         # arrange
@@ -1285,12 +1303,12 @@ class TestSimulationParametersDialogOnSubmitACWithPrint:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert result.print_parameters is not None
-        assert "V(*)" in result.print_parameters.output_variables
-        assert "I(*)" in result.print_parameters.output_variables
-        assert "VM(OUT)" in result.print_parameters.output_variables
-        assert result.print_parameters.print_format == "CSV"
-        assert result.print_parameters.print_file == "ac.csv"
+        assert result.analysis.print_parameters is not None
+        assert "V(*)" in result.analysis.print_parameters.output_variables
+        assert "I(*)" in result.analysis.print_parameters.output_variables
+        assert "VM(OUT)" in result.analysis.print_parameters.output_variables
+        assert result.analysis.print_parameters.print_format == "CSV"
+        assert result.analysis.print_parameters.print_file == "ac.csv"
 
     def test_rejects_ac_with_invalid_sweep_mode(self):
         # arrange
@@ -1337,13 +1355,13 @@ class TestSimulationParametersDialogOnSubmitACWithPrint:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert len(result.measure_parameters) == 2
-        assert result.measure_parameters[0].result_name == "BANDWIDTH"
-        assert result.measure_parameters[0].measure_type == "FIND"
-        assert result.measure_parameters[0].variable == "V(OUT)"
-        assert result.measure_parameters[1].result_name == "GAIN_AT_1K"
-        assert result.measure_parameters[1].measure_type == "FIND"
-        assert result.measure_parameters[1].at_val == "1k"
+        assert len(result.analysis.measure_parameters) == 2
+        assert result.analysis.measure_parameters[0].result_name == "BANDWIDTH"
+        assert result.analysis.measure_parameters[0].measure_type == "FIND"
+        assert result.analysis.measure_parameters[0].variable == "V(OUT)"
+        assert result.analysis.measure_parameters[1].result_name == "GAIN_AT_1K"
+        assert result.analysis.measure_parameters[1].measure_type == "FIND"
+        assert result.analysis.measure_parameters[1].at_val == "1k"
 
 
 class TestSimulationParametersDialogOnSubmitTransientWithPrint:
@@ -1356,13 +1374,13 @@ class TestSimulationParametersDialogOnSubmitTransientWithPrint:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert result.print_parameters is not None
-        assert "V(*)" in result.print_parameters.output_variables
-        assert "I(*)" in result.print_parameters.output_variables
-        assert "P(*)" in result.print_parameters.output_variables
-        assert "IC(*)" in result.print_parameters.output_variables
-        assert "ID(*)" in result.print_parameters.output_variables
-        assert "V(1)" in result.print_parameters.output_variables
+        assert result.analysis.print_parameters is not None
+        assert "V(*)" in result.analysis.print_parameters.output_variables
+        assert "I(*)" in result.analysis.print_parameters.output_variables
+        assert "P(*)" in result.analysis.print_parameters.output_variables
+        assert "IC(*)" in result.analysis.print_parameters.output_variables
+        assert "ID(*)" in result.analysis.print_parameters.output_variables
+        assert "V(1)" in result.analysis.print_parameters.output_variables
 
 
 class TestSimulationParametersDialogOnSubmitOPWithPrint:
@@ -1375,12 +1393,12 @@ class TestSimulationParametersDialogOnSubmitOPWithPrint:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert result.print_parameters is not None
-        assert "V(*)" in result.print_parameters.output_variables
-        assert "P(*)" in result.print_parameters.output_variables
-        assert "IC(*)" in result.print_parameters.output_variables
-        assert "ID(*)" in result.print_parameters.output_variables
-        assert "V(1)" in result.print_parameters.output_variables
+        assert result.analysis.print_parameters is not None
+        assert "V(*)" in result.analysis.print_parameters.output_variables
+        assert "P(*)" in result.analysis.print_parameters.output_variables
+        assert "IC(*)" in result.analysis.print_parameters.output_variables
+        assert "ID(*)" in result.analysis.print_parameters.output_variables
+        assert "V(1)" in result.analysis.print_parameters.output_variables
 
     def test_op_parses_nodeset_text_into_entries(self):
         # arrange
@@ -1390,11 +1408,11 @@ class TestSimulationParametersDialogOnSubmitOPWithPrint:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert len(result.nodeset_entries) == 2
-        assert result.nodeset_entries[0].node == "out"
-        assert result.nodeset_entries[0].voltage == "3.3"
-        assert result.nodeset_entries[1].node == "in"
-        assert result.nodeset_entries[1].voltage == "5.0"
+        assert len(result.analysis.nodeset_entries) == 2
+        assert result.analysis.nodeset_entries[0].node == "out"
+        assert result.analysis.nodeset_entries[0].voltage == "3.3"
+        assert result.analysis.nodeset_entries[1].node == "in"
+        assert result.analysis.nodeset_entries[1].voltage == "5.0"
 
 
 class TestSimulationParametersDialogOnSubmitDCWithPrint:
@@ -1407,12 +1425,12 @@ class TestSimulationParametersDialogOnSubmitDCWithPrint:
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
-        assert result.print_parameters is not None
-        assert "V(*)" in result.print_parameters.output_variables
-        assert "P(*)" in result.print_parameters.output_variables
-        assert "IC(*)" in result.print_parameters.output_variables
-        assert "ID(*)" in result.print_parameters.output_variables
-        assert "V(1)" in result.print_parameters.output_variables
+        assert result.analysis.print_parameters is not None
+        assert "V(*)" in result.analysis.print_parameters.output_variables
+        assert "P(*)" in result.analysis.print_parameters.output_variables
+        assert "IC(*)" in result.analysis.print_parameters.output_variables
+        assert "ID(*)" in result.analysis.print_parameters.output_variables
+        assert "V(1)" in result.analysis.print_parameters.output_variables
 
 
 class TestSimulationParametersDialogOnSubmitSens:
@@ -1424,13 +1442,13 @@ class TestSimulationParametersDialogOnSubmitSens:
         dialog._on_submit_sens("objfunc", "V(2)", "R1:R", True, True, False, False, "", "", "")
         # assert
         dialog.accept.assert_called_once()
-        assert isinstance(dialog._result, SensSimulationParameters)
-        assert dialog._result.objective_mode == "objfunc"
-        assert dialog._result.objective_values == ("V(2)",)
-        assert dialog._result.parameter_list == ("R1:R",)
-        assert dialog._result.direct is True
-        assert dialog._result.adjoint is True
-        assert dialog._result.replace_ground is False
+        assert isinstance(dialog._result.analysis, SensSimulationParameters)
+        assert dialog._result.analysis.objective_mode == "objfunc"
+        assert dialog._result.analysis.objective_values == ("V(2)",)
+        assert dialog._result.analysis.parameter_list == ("R1:R",)
+        assert dialog._result.analysis.direct is True
+        assert dialog._result.analysis.adjoint is True
+        assert dialog._result.analysis.replace_ground is False
 
     def test_rejects_sens_missing_objective_mode(self):
         # arrange
@@ -1466,4 +1484,4 @@ class TestSimulationParametersDialogOnSubmitSens:
         dialog._on_submit_sens("objfunc", "V(2)", "R1:R", True, True, True, False, "", "", "")
         # assert
         dialog.accept.assert_called_once()
-        assert dialog._result.replace_ground is True
+        assert dialog._result.analysis.replace_ground is True

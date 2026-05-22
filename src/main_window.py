@@ -16,7 +16,7 @@ from netlist_parser import NetlistTopology, parse_netlist
 from netlist_viewer_dialog import NetlistViewerDialog
 from run_xyce_simulation import run_xyce_simulation, XyceSimulationRunner
 from smith_chart_window import SmithChartWindow
-from simulation_parameters import DCSimulationParameters, from_xyce_directives, OpSimulationParameters, SimulationParametersDialog, TransientSimulationParameters
+from simulation_parameters import from_xyce_directives, OpSimulationParameters, SimulationConfig, SimulationParametersDialog
 from step_tool_dialog import StepToolDialog
 from window import load_app_icon, log_screen_info, register_child_window
 from xyce_raw_file import AbscissaScale, StepInformation, XyceRawFile
@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
         # initialize state
         self._charts: list[Chart] = []
         self._runner: XyceSimulationRunner | None = None
-        self._simulation_parameters: TransientSimulationParameters | DCSimulationParameters | OpSimulationParameters | None = None
+        self._simulation_parameters: SimulationConfig | None = None
         self._simulation_performed: bool = False
         self._simulation_output_action: QAction | None = None
         self._simulation_config_action: QAction | None = None

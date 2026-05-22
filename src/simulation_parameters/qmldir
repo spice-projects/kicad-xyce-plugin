@@ -1,0 +1,8 @@
+OpPanel 1.0 op_panel.qml
+TranPanel 1.0 tran_panel.qml
+DcPanel 1.0 dc_panel.qml
+AcPanel 1.0 ac_panel.qml
+SensPanel 1.0 sens_panel.qml
+NoisePanel 1.0 noise_panel.qml
+HbPanel 1.0 hb_panel.qml
+LinPanel 1.0 lin_panel.qml
