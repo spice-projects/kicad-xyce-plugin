@@ -409,10 +409,14 @@ class MeasureEntry:
                 if "=" in token:
                     key, val = token.split("=", 1)
                     key_upper = key.upper()
-                    if key_upper == "MINVAL": fields["minval"] = val
-                    elif key_upper == "DEFAULT_VAL": fields["default_val"] = val
-                    elif key_upper == "PRECISION": fields["precision"] = val
-                    elif key_upper == "PRINT": fields["print_val"] = val
+                    if key_upper == "MINVAL":
+                        fields["minval"] = val
+                    elif key_upper == "DEFAULT_VAL":
+                        fields["default_val"] = val
+                    elif key_upper == "PRECISION":
+                        fields["precision"] = val
+                    elif key_upper == "PRINT":
+                        fields["print_val"] = val
 
         # handle standard measurement types
         else:
@@ -708,11 +712,16 @@ class MeasureEntry:
                 if self.targ_frac_max:
                     tokens.append(f"FRAC_MAX={self.targ_frac_max}")
             # Standard qualifiers can follow TRIG-TARG
-            if self.minval: tokens.append(f"MINVAL={self.minval}")
-            if self.default_val: tokens.append(f"DEFAULT_VAL={self.default_val}")
-            if self.precision: tokens.append(f"PRECISION={self.precision}")
-            if self.frac_max: tokens.append(f"FRAC_MAX={self.frac_max}")
-            if self.print_val: tokens.append(f"PRINT={self.print_val}")
+            if self.minval:
+                tokens.append(f"MINVAL={self.minval}")
+            if self.default_val:
+                tokens.append(f"DEFAULT_VAL={self.default_val}")
+            if self.precision:
+                tokens.append(f"PRECISION={self.precision}")
+            if self.frac_max:
+                tokens.append(f"FRAC_MAX={self.frac_max}")
+            if self.print_val:
+                tokens.append(f"PRINT={self.print_val}")
         # handle standard measurement types
         else:
             # check for FFT measure type
@@ -745,40 +754,70 @@ class MeasureEntry:
                 else:
                     tokens.append(self.when_variable)
             # append common qualifiers
-            if self.from_val: tokens.append(f"FROM={self.from_val}")
-            if self.to_val: tokens.append(f"TO={self.to_val}")
-            if self.td_val: tokens.append(f"TD={self.td_val}")
-            if self.rise_val: tokens.append(f"RISE={self.rise_val}")
-            if self.fall_val: tokens.append(f"FALL={self.fall_val}")
-            if self.cross_val: tokens.append(f"CROSS={self.cross_val}")
-            if self.minval: tokens.append(f"MINVAL={self.minval}")
-            if self.default_val: tokens.append(f"DEFAULT_VAL={self.default_val}")
-            if self.precision: tokens.append(f"PRECISION={self.precision}")
-            if self.frac_max: tokens.append(f"FRAC_MAX={self.frac_max}")
-            if self.print_val: tokens.append(f"PRINT={self.print_val}")
+            if self.from_val:
+                tokens.append(f"FROM={self.from_val}")
+            if self.to_val:
+                tokens.append(f"TO={self.to_val}")
+            if self.td_val:
+                tokens.append(f"TD={self.td_val}")
+            if self.rise_val:
+                tokens.append(f"RISE={self.rise_val}")
+            if self.fall_val:
+                tokens.append(f"FALL={self.fall_val}")
+            if self.cross_val:
+                tokens.append(f"CROSS={self.cross_val}")
+            if self.minval:
+                tokens.append(f"MINVAL={self.minval}")
+            if self.default_val:
+                tokens.append(f"DEFAULT_VAL={self.default_val}")
+            if self.precision:
+                tokens.append(f"PRECISION={self.precision}")
+            if self.frac_max:
+                tokens.append(f"FRAC_MAX={self.frac_max}")
+            if self.print_val:
+                tokens.append(f"PRINT={self.print_val}")
             # type-specific qualifiers
-            if self.at_val: tokens.append(f"AT={self.at_val}")
-            if self.on_val: tokens.append(f"ON={self.on_val}")
-            if self.off_val: tokens.append(f"OFF={self.off_val}")
-            if self.rfc_level: tokens.append(f"RFC_LEVEL={self.rfc_level}")
-            if self.output: tokens.append(f"OUTPUT={self.output}")
-            if self.min_thresh: tokens.append(f"MIN_THRESH={self.min_thresh}")
-            if self.max_thresh: tokens.append(f"MAX_THRESH={self.max_thresh}")
+            if self.at_val:
+                tokens.append(f"AT={self.at_val}")
+            if self.on_val:
+                tokens.append(f"ON={self.on_val}")
+            if self.off_val:
+                tokens.append(f"OFF={self.off_val}")
+            if self.rfc_level:
+                tokens.append(f"RFC_LEVEL={self.rfc_level}")
+            if self.output:
+                tokens.append(f"OUTPUT={self.output}")
+            if self.min_thresh:
+                tokens.append(f"MIN_THRESH={self.min_thresh}")
+            if self.max_thresh:
+                tokens.append(f"MAX_THRESH={self.max_thresh}")
             # ERROR-specific qualifiers
-            if self.error_file: tokens.append(f"FILE={self.error_file}")
-            if self.indepvarcol: tokens.append(f"INDEPVARCOL={self.indepvarcol}")
-            if self.depvarcol: tokens.append(f"DEPVARCOL={self.depvarcol}")
-            if self.comp_function: tokens.append(f"COMP_FUNCTION={self.comp_function}")
+            if self.error_file:
+                tokens.append(f"FILE={self.error_file}")
+            if self.indepvarcol:
+                tokens.append(f"INDEPVARCOL={self.indepvarcol}")
+            if self.depvarcol:
+                tokens.append(f"DEPVARCOL={self.depvarcol}")
+            if self.comp_function:
+                tokens.append(f"COMP_FUNCTION={self.comp_function}")
             # FOUR-specific qualifiers
-            if self.numfreq: tokens.append(f"NUMFREQ={self.numfreq}")
-            if self.gridsize: tokens.append(f"GRIDSIZE={self.gridsize}")
+            if self.numfreq:
+                tokens.append(f"NUMFREQ={self.numfreq}")
+            if self.gridsize:
+                tokens.append(f"GRIDSIZE={self.gridsize}")
             # FFT-specific qualifiers
-            if self.binsiz: tokens.append(f"BINSIZ={self.binsiz}")
-            if self.maxfreq: tokens.append(f"MAXFREQ={self.maxfreq}")
-            if self.minfreq: tokens.append(f"MINFREQ={self.minfreq}")
-            if self.nbharm: tokens.append(f"NBHARM={self.nbharm}")
+            if self.binsiz:
+                tokens.append(f"BINSIZ={self.binsiz}")
+            if self.maxfreq:
+                tokens.append(f"MAXFREQ={self.maxfreq}")
+            if self.minfreq:
+                tokens.append(f"MINFREQ={self.minfreq}")
+            if self.nbharm:
+                tokens.append(f"NBHARM={self.nbharm}")
             # Compatibility
-            if self.goal: tokens.append(f"GOAL={self.goal}")
-            if self.weight: tokens.append(f"WEIGHT={self.weight}")
+            if self.goal:
+                tokens.append(f"GOAL={self.goal}")
+            if self.weight:
+                tokens.append(f"WEIGHT={self.weight}")
         # return joined statement
         return " ".join(tokens)
