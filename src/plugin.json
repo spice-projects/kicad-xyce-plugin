@@ -18,7 +18,7 @@
             ],
             "entrypoint": "run_simulator.py",
             "icons-light": [
-                "toolbar-icon-24x24.png"
+                "plugin-icon-24x24.png"
             ]
         }
     ]

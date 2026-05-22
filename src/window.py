@@ -9,8 +9,7 @@ from PySide6.QtWidgets import QMainWindow
 logger = logging.getLogger(__name__)
 
 _CHILD_WINDOWS: set[QMainWindow] = set()
-_RESOURCE_DIR = Path(__file__).parent / "resources"
-_ICON_PATH = _RESOURCE_DIR / "xyce-window-icon-2.ico"
+_ICON_PATH = Path(__file__).parent / "window-icon-512x512.png"
 
 
 def register_child_window(window: QMainWindow) -> None:

@@ -41,7 +41,15 @@ jobs:
 
       - name: Build
         run: |
-          python -m hatch build --target kicad-package
+          # git information
+          export GIT_TAG_NAME=$(git tag --points-at HEAD 2>/dev/null | head -1)
+          # release build only when version is available
+          if [ -n "$GIT_TAG_NAME" ]; then
+            # project version
+            PROJECT_VERSION=$(echo "$GIT_TAG_NAME" | sed 's/^v//')
+            # create package
+            ./build/create-kicad-package.sh "$PROJECT_VERSION"
+          fi
 
       - name: Build Wheel
         run: |

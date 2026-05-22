@@ -1,5 +1,5 @@
 {
-    "$schema": "https://go.kicad.org/pcm/schemas/v1",
+    "$schema": "https://go.kicad.org/pcm/schemas/v2",
     "name": "Xyce Simulation Plugin for KiCad",
     "description": "Xyce Simulation Plugin for KiCad",
     "description_full": "Xyce Simulation Plugin for KiCad - TODO: change this to a more detailed description",
@@ -7,19 +7,22 @@
     "type": "plugin",
     "author": {
         "name": "SPICE Projects",
-        "contact": {}
+        "contact": {
+            "website": "https://github.com/spice-projects/kicad-xyce-plugin"
+        }
     },
     "license": "Apache-2.0",
     "resources": {
-        "Homepage": "https://github.com/spice-projects/kicad-xyce-plugin",
-        "Repository": "https://github.com/spice-projects/kicad-xyce-plugin",
-        "Issues": "https://github.com/spice-projects/kicad-xyce-plugin/issues"
+        "homepage": "https://github.com/spice-projects/kicad-xyce-plugin",
+        "repository": "https://github.com/spice-projects/kicad-xyce-plugin",
+        "issues": "https://github.com/spice-projects/kicad-xyce-plugin/issues"
     },
     "versions": [
         {
-            "version": "0.1.0",
+            "version": "0.0.1",
             "status": "development",
-            "kicad_version": "10.99"
+            "kicad_version": "10.99",
+            "download_url": "https://spice-projects.github.io/kicad-xyce-plugin/kicad_xyce_plugin-0.0.1.zip"
         }
     ]
 }
