@@ -1,12 +1,12 @@
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtQuick import QQuickView
 
 from netlist_parser import Device, NetlistTopology
-from simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, PrintParameters, SimulationParametersDialog, TransientSchedulePoint, TransientSimulationParameters
+from simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, PrintParameters, SensSimulationParameters, SimulationParametersDialog, TransientSchedulePoint, TransientSimulationParameters
 
 from simulation_parameters.simulation_parameters_dialog import _validate_device_name
 
@@ -1413,12 +1413,7 @@ class TestSimulationParametersDialogOnSubmitDCWithPrint:
         assert "IC(*)" in result.print_parameters.output_variables
         assert "ID(*)" in result.print_parameters.output_variables
         assert "V(1)" in result.print_parameters.output_variables
-from simulation_parameters.sens_simulation_parameters import SensSimulationParameters
-from unittest.mock import MagicMock
-import pytest
 
-# Note: The following tests are part of TestSimulationParametersDialogOnSubmitSens 
-# to be added to simulation_parameters_dialog_test.py.
 
 class TestSimulationParametersDialogOnSubmitSens:
 

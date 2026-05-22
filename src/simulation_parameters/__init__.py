@@ -8,6 +8,7 @@ from .measure_parameters import MeasureEntry
 from .noise_simulation_parameters import DeviceNoiseOperator, NoiseSimulationParameters
 from .op_simulation_parameters import IcEntry, NodesetEntry, OpSimulationParameters
 from .print_parameters import PrintParameters
+from .sens_simulation_parameters import SensSimulationParameters
 from .simulation_parameters_dialog import SimulationParametersDialog
 from .simulation_parameters import from_xyce_directives
 from .transient_simulation_parameters import TransientSchedulePoint, TransientSimulationParameters
@@ -26,6 +27,7 @@ __all__ = [
     "NodesetEntry",
     "OpSimulationParameters",
     "PrintParameters",
+    "SensSimulationParameters",
     "SimulationParametersDialog",
     "TransientSchedulePoint",
     "TransientSimulationParameters",
