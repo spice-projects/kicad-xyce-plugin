@@ -18,19 +18,19 @@ class LinPanel:
 
     def apply(self, p: LinSimulationParameters | None) -> None:
         # restore sparcalc flag
-        self._root.setProperty("linSparcalc", bool(p and p.sparcalc))
+        self._root.setProperty("linSparcalc", bool(p.sparcalc) if p else True)
         # restore lin format (S, Y, Z, etc.)
-        self._root.setProperty("linFormat", p.lin_format if p else "")
-        # restore lin type (R, dB, MA, etc.)
-        self._root.setProperty("linType", p.lin_type if p else "")
+        self._root.setProperty("linFormat", p.format if p else "TOUCHSTONE2")
+        # restore lin type (S, Y, Z, etc.)
+        self._root.setProperty("linType", p.lintype if p else "")
         # restore lin data format
-        self._root.setProperty("linDataFormat", p.lin_data_format if p else "")
+        self._root.setProperty("linDataFormat", p.dataformat if p else "")
         # restore lin file path
-        self._root.setProperty("linFile", p.lin_file if p else "")
+        self._root.setProperty("linFile", p.file if p else "")
         # restore lin width
-        self._root.setProperty("linWidth", p.lin_width if p else "")
+        self._root.setProperty("linWidth", p.width if p else "")
         # restore lin precision
-        self._root.setProperty("linPrecision", p.lin_precision if p else "")
+        self._root.setProperty("linPrecision", p.precision if p else "")
         # sweep mode index mapping
         modes = ["LIN", "DEC", "OCT", "DATA"]
         # resolve index for the saved sweep mode or default to LIN

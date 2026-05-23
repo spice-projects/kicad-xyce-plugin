@@ -8,7 +8,7 @@ from PySide6.QtQuick import QQuickView
 from netlist_parser import Device, NetlistTopology
 from simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, PrintParameters, SensSimulationParameters, SimulationConfig, SimulationParametersDialog, StepParameters, TransientSchedulePoint, TransientSimulationParameters
 
-from simulation_parameters.simulation_parameters_dialog import _validate_device_name
+from simulation_parameters.noise_panel import _validate_device_name
 
 _app = QApplication.instance() or QApplication(sys.argv)
 
@@ -26,6 +26,26 @@ def _make_dialog(initial_parameters=None) -> SimulationParametersDialog:
     dialog._initial_parameters = initial_parameters
     dialog._result = None
     dialog._root = MagicMock()
+
+    # Bypassing _on_qml_ready which is not called in unit tests
+    from simulation_parameters.op_panel import OpPanel
+    from simulation_parameters.tran_panel import TranPanel
+    from simulation_parameters.dc_panel import DcPanel
+    from simulation_parameters.ac_panel import AcPanel
+    from simulation_parameters.sens_panel import SensPanel
+    from simulation_parameters.noise_panel import NoisePanel
+    from simulation_parameters.hb_panel import HbPanel
+    from simulation_parameters.lin_panel import LinPanel
+
+    dialog._op_panel = OpPanel(dialog._root)
+    dialog._tran_panel = TranPanel(dialog._root)
+    dialog._dc_panel = DcPanel(dialog._root)
+    dialog._ac_panel = AcPanel(dialog._root)
+    dialog._sens_panel = SensPanel(dialog._root)
+    dialog._noise_panel = NoisePanel(dialog._root)
+    dialog._hb_panel = HbPanel(dialog._root)
+    dialog._lin_panel = LinPanel(dialog._root)
+
     # mock property values for _get_current_step_parameters
     properties = {
         "stepEnabled": False,

@@ -18,6 +18,7 @@ _FET_WILDCARDS = ("IB(*)", "ID(*)", "IG(*)", "IS(*)")
 
 
 class TranPanel:
+
     def __init__(self, root):
         # retain root reference for property reads and writes
         self._root = root

@@ -32,7 +32,7 @@ class HbPanel:
 
     def apply(self, p: HbSimulationParameters | None) -> None:
         # restore frequency values text
-        self._root.setProperty("hbFrequenciesText", " ".join(p.frequencies) if p else "")
+        self._root.setProperty("hbFrequenciesText", " ".join(p.frequencies) if p else "1MEG")
         # restore harmonics text
         self._root.setProperty("hbHarmonicsText", " ".join(str(h) for h in p.harmonics) if p else "")
         # tahb option index: 0 = False, 1 = True
@@ -40,8 +40,8 @@ class HbPanel:
         # select_harms option: map to combo index
         select_harms_options = ["none", "all", "acknowledged"]
         # resolve index for the saved select_harms option or default to none
-        harms_index = select_harms_options.index(p.select_harms.lower()) if p and p.select_harms.lower() in select_harms_options else 0
-        # restore select harms combo selection
+        harms_index = select_harms_options.index(p.selectharms.lower()) if p and p.selectharms and p.selectharms.lower() in select_harms_options else 0
+        # restore selection
         self._root.setProperty("hbSelectHarmsIndex", harms_index)
         # restore startup periods text
         self._root.setProperty("hbStartupPeriodsText", str(p.startup_periods) if p and p.startup_periods else "")
@@ -116,7 +116,7 @@ class HbPanel:
             # append any explicitly listed specific variables
             output_vars.extend(v for v in print_specific_vars.split() if v)
             # construct print parameters using the selected HB print type
-            print_parameters = PrintParameters(print_type=print_type.strip().upper() if print_type.strip() else "HB", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
+            print_parameters = PrintParameters(print_type=print_type.strip().upper() if print_type.strip().upper() in ("HB", "HB_FD", "HB_TD") else "HB", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # construct parameters instance
         analysis = HbSimulationParameters(frequencies, tuple(harmonics), tahb, normalized_select_harms, startup_periods, replace_ground, print_parameters)
         # return parameters to caller for config assembly

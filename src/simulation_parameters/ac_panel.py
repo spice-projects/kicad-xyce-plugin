@@ -13,6 +13,7 @@ _PRINT_WILDCARDS = {"V(*)", "I(*)", "P(*)", "W(*)", "IB(*)", "IC(*)", "ID(*)", "
 
 
 class AcPanel:
+
     def __init__(self, root):
         # retain root reference for property reads and writes
         self._root = root

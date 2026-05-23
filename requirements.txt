@@ -1,2 +1,1 @@
-hatch 
-hatch-kicad
+pytest-qt

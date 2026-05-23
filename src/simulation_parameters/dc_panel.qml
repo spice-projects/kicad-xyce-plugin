@@ -4,8 +4,10 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Item {
+ColumnLayout {
+
     id: panel
+    spacing: 24
 
     property alias sweepModeIndex: sweepModeComboBox.currentIndex
     property alias primaryVariable: primaryVariableField.text
@@ -31,6 +33,7 @@ Item {
     property bool hasBjtDevices: false
     property bool hasFetDevices: false
     property string printSpecificVars: ""
+    property bool replaceGround: true
     property alias printFormatIndex: printFormatCombo.currentIndex
     property string printFile: ""
     readonly property string sweepModeValue: (["LIN", "DEC", "OCT", "LIST", "DATA"])[sweepModeComboBox.currentIndex] || "LIN"
@@ -42,379 +45,338 @@ Item {
     readonly property bool supportsSecondary: sweepModeComboBox.currentIndex <= 2
     readonly property string printFormatValue: printFormatCombo.currentIndex > 0 ? printFormatCombo.model[printFormatCombo.currentIndex] : ""
 
-    ScrollView {
-        anchors.fill: parent
-        clip: true
-        contentWidth: availableWidth
+    // --- .DC section ---
+    SimulationCard {
+
+        title: "DC Sweep Parameters (.DC)"
+        badge: "REQUIRED"
+        Layout.fillWidth: true
 
         ColumnLayout {
-            width: parent.width
-            spacing: 12
+            Layout.fillWidth: true
+            spacing: 16
 
-            // --- .DC section ---
-            Rectangle {
+            GridLayout {
                 Layout.fillWidth: true
-                implicitHeight: dcParamsColumn.implicitHeight + 16
-                color: "#f6f8fa"
-                radius: 6
-                border.color: "#d0d7de"
-                border.width: 1
+                columns: 2
+                rowSpacing: 12
+                columnSpacing: 20
 
-                ColumnLayout {
-                    id: dcParamsColumn
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 8
-                    spacing: 6
+                Label { text: "Sweep Mode *"; color: "#6B6B66"; font.pixelSize: 12 }
+                ComboBox {
+                    id: sweepModeComboBox
+                    Layout.fillWidth: true
+                    model: ["LIN (linear)", "DEC (per decade)", "OCT (per octave)", "LIST (explicit)", "DATA (table-driven)"]
+                }
 
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: 2
-                        rowSpacing: 10
-                        columnSpacing: 12
+                Label {
+                    text: "Primary Variable *"
+                    color: "#6B6B66"; font.pixelSize: 12
+                    visible: !panel.isDataMode
+                }
+                TextField {
+                    id: primaryVariableField
+                    placeholderText: "e.g. VIN, R1, TEMP"
+                    Layout.fillWidth: true
+                    visible: !panel.isDataMode
+                    selectByMouse: true
+                }
 
-                        Label {
-                            text: "Sweep Mode *"
-                            color: "#24292f"
-                        }
-                        ComboBox {
-                            id: sweepModeComboBox
-                            Layout.fillWidth: true
-                            model: ["LIN (linear)", "DEC (per decade)", "OCT (per octave)", "LIST (explicit)", "DATA (table-driven)"]
-                        }
+                Label {
+                    text: "Start *"
+                    color: "#6B6B66"; font.pixelSize: 12
+                    visible: panel.isRangeMode
+                }
+                TextField {
+                    id: startField
+                    placeholderText: "e.g. 0"
+                    Layout.fillWidth: true
+                    visible: panel.isRangeMode
+                    selectByMouse: true
+                }
 
-                        Label {
-                            text: "Primary Variable *"
-                            color: "#24292f"
-                            visible: !panel.isDataMode
-                        }
-                        TextField {
-                            id: primaryVariableField
-                            placeholderText: "e.g. VIN, R1, TEMP"
-                            selectByMouse: true
-                            Layout.fillWidth: true
-                            visible: !panel.isDataMode
-                        }
+                Label {
+                    text: "Stop *"
+                    color: "#6B6B66"; font.pixelSize: 12
+                    visible: panel.isRangeMode
+                }
+                TextField {
+                    id: stopField
+                    placeholderText: "e.g. 5"
+                    Layout.fillWidth: true
+                    visible: panel.isRangeMode
+                    selectByMouse: true
+                }
 
-                        Label {
-                            text: "Start *"
-                            color: "#24292f"
-                            visible: panel.isRangeMode
-                        }
-                        TextField {
-                            id: startField
-                            placeholderText: "e.g. 0"
-                            selectByMouse: true
-                            Layout.fillWidth: true
-                            visible: panel.isRangeMode
-                        }
+                Label {
+                    text: "Step *"
+                    color: "#6B6B66"; font.pixelSize: 12
+                    visible: panel.isLinMode
+                }
+                TextField {
+                    id: stepField
+                    placeholderText: "e.g. 0.1"
+                    Layout.fillWidth: true
+                    visible: panel.isLinMode
+                    selectByMouse: true
+                }
 
-                        Label {
-                            text: "Stop *"
-                            color: "#24292f"
-                            visible: panel.isRangeMode
-                        }
-                        TextField {
-                            id: stopField
-                            placeholderText: "e.g. 5"
-                            selectByMouse: true
-                            Layout.fillWidth: true
-                            visible: panel.isRangeMode
-                        }
+                Label {
+                    text: "Points *"
+                    color: "#6B6B66"; font.pixelSize: 12
+                    visible: panel.isLogMode
+                }
+                TextField {
+                    id: pointsField
+                    placeholderText: "e.g. 10"
+                    Layout.fillWidth: true
+                    visible: panel.isLogMode
+                    selectByMouse: true
+                }
 
-                        Label {
-                            text: "Step *"
-                            color: "#24292f"
-                            visible: panel.isLinMode
-                        }
-                        TextField {
-                            id: stepField
-                            placeholderText: "e.g. 0.1"
-                            selectByMouse: true
-                            Layout.fillWidth: true
-                            visible: panel.isLinMode
-                        }
+                Label {
+                    text: "List Values *"
+                    color: "#6B6B66"; font.pixelSize: 12
+                    visible: panel.isListMode
+                }
+                TextArea {
+                    id: listValuesTextArea
+                    placeholderText: "Enter values separated by spaces or commas.\nExample: 10 15 18 27 33"
+                    wrapMode: TextEdit.Wrap
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 72
+                    font.family: "monospace"
+                    font.pixelSize: 11
+                    visible: panel.isListMode
+                    selectByMouse: true
+                }
 
-                        Label {
-                            text: "Points *"
-                            color: "#24292f"
-                            visible: panel.isLogMode
-                        }
-                        TextField {
-                            id: pointsField
-                            placeholderText: "e.g. 10"
-                            selectByMouse: true
-                            Layout.fillWidth: true
-                            visible: panel.isLogMode
-                        }
-
-                        Label {
-                            text: "List Values *"
-                            color: "#24292f"
-                            visible: panel.isListMode
-                        }
-                        TextArea {
-                            id: listValuesTextArea
-                            placeholderText: "Enter values separated by spaces or commas.\nExample: 10 15 18 27 33"
-                            selectByMouse: true
-                            wrapMode: TextEdit.Wrap
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 72
-                            visible: panel.isListMode
-                        }
-
-                        Label {
-                            text: "Data Table Name *"
-                            color: "#24292f"
-                            visible: panel.isDataMode
-                        }
-                        TextField {
-                            id: dataTableNameField
-                            placeholderText: "e.g. resistorValues"
-                            selectByMouse: true
-                            Layout.fillWidth: true
-                            visible: panel.isDataMode
-                        }
-                    }
-
-                    // secondary sweep (visible only for supported sweep modes)
-                    ColumnLayout {
-                        visible: panel.supportsSecondary
-                        Layout.fillWidth: true
-                        spacing: 6
-
-                        CheckBox {
-                            id: secondaryEnabledCheckBox
-                            text: "Enable secondary (nested) sweep"
-                            Layout.fillWidth: true
-                        }
-
-                        GridLayout {
-                            visible: secondaryEnabledCheckBox.checked
-                            Layout.fillWidth: true
-                            columns: 2
-                            rowSpacing: 10
-                            columnSpacing: 12
-
-                            Label {
-                                text: "Secondary Variable *"
-                                color: "#24292f"
-                            }
-                            TextField {
-                                id: secondaryVariableField
-                                placeholderText: "e.g. C1"
-                                selectByMouse: true
-                                Layout.fillWidth: true
-                            }
-
-                            Label {
-                                text: "Secondary Start *"
-                                color: "#24292f"
-                            }
-                            TextField {
-                                id: secondaryStartField
-                                placeholderText: "e.g. 0"
-                                selectByMouse: true
-                                Layout.fillWidth: true
-                            }
-
-                            Label {
-                                text: "Secondary Stop *"
-                                color: "#24292f"
-                            }
-                            TextField {
-                                id: secondaryStopField
-                                placeholderText: "e.g. 3.5"
-                                selectByMouse: true
-                                Layout.fillWidth: true
-                            }
-
-                            Label {
-                                text: "Secondary Step *"
-                                color: "#24292f"
-                                visible: panel.isLinMode
-                            }
-                            TextField {
-                                id: secondaryStepField
-                                placeholderText: "e.g. 0.5"
-                                selectByMouse: true
-                                Layout.fillWidth: true
-                                visible: panel.isLinMode
-                            }
-
-                            Label {
-                                text: "Secondary Points *"
-                                color: "#24292f"
-                                visible: panel.isLogMode
-                            }
-                            TextField {
-                                id: secondaryPointsField
-                                placeholderText: "e.g. 5"
-                                selectByMouse: true
-                                Layout.fillWidth: true
-                                visible: panel.isLogMode
-                            }
-                        }
-                    }
+                Label {
+                    text: "Data Table Name *"
+                    color: "#6B6B66"; font.pixelSize: 12
+                    visible: panel.isDataMode
+                }
+                TextField {
+                    id: dataTableNameField
+                    placeholderText: "e.g. resistorValues"
+                    Layout.fillWidth: true
+                    visible: panel.isDataMode
+                    selectByMouse: true
                 }
             }
 
-            // --- .PRINT DC section ---
-            Rectangle {
+            // secondary sweep
+            ColumnLayout {
+                visible: panel.supportsSecondary
                 Layout.fillWidth: true
-                implicitHeight: dcPrintColumn.implicitHeight + 16
-                color: "#f6f8fa"
-                radius: 6
-                border.color: "#d0d7de"
-                border.width: 1
+                spacing: 12
 
-                ColumnLayout {
-                    id: dcPrintColumn
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 8
-                    spacing: 6
-
-                    CheckBox {
-                        id: dcPrintEnabledCheckBox
-                        text: "Enable .PRINT DC output"
-                        checked: panel.printEnabled
-                        onCheckedChanged: panel.printEnabled = checked
-                        Layout.fillWidth: true
-                    }
-
-                    RowLayout {
-                        enabled: dcPrintEnabledCheckBox.checked
-                        Layout.fillWidth: true
-                        spacing: 16
-                        CheckBox {
-                            text: "All voltages  V(*)"
-                            checked: panel.printAllNodes
-                            onCheckedChanged: panel.printAllNodes = checked
-                        }
-                        CheckBox {
-                            text: "All currents  I(*)"
-                            checked: panel.printAllCurrents
-                            onCheckedChanged: panel.printAllCurrents = checked
-                        }
-                        CheckBox {
-                            text: "Power  P(*)"
-                            checked: panel.printPower
-                            onCheckedChanged: panel.printPower = checked
-                        }
-                        Item { Layout.fillWidth: true }
-                    }
-
-                    RowLayout {
-                        enabled: dcPrintEnabledCheckBox.checked
-                        visible: panel.hasBjtDevices || panel.hasFetDevices
-                        Layout.fillWidth: true
-                        spacing: 16
-                        CheckBox {
-                            text: "BJT leads  IB(*) IC(*) IE(*) IS(*)"
-                            visible: panel.hasBjtDevices
-                            checked: panel.printBjtLeads
-                            onCheckedChanged: panel.printBjtLeads = checked
-                        }
-                        CheckBox {
-                            text: "FET leads  IB(*) ID(*) IG(*) IS(*)"
-                            visible: panel.hasFetDevices
-                            checked: panel.printFetLeads
-                            onCheckedChanged: panel.printFetLeads = checked
-                        }
-                        Item { Layout.fillWidth: true }
-                    }
-
-                    GridLayout {
-                        enabled: dcPrintEnabledCheckBox.checked
-                        columns: 4
-                        Layout.fillWidth: true
-                        rowSpacing: 6
-                        columnSpacing: 8
-
-                        Label {
-                            text: "Additional"
-                            color: "#24292f"
-                        }
-                        TextField {
-                            id: dcPrintSpecificVarsField
-                            placeholderText: "e.g. V(1) I(R1)"
-                            selectByMouse: true
-                            text: panel.printSpecificVars
-                            onTextChanged: panel.printSpecificVars = text
-                            Layout.columnSpan: 3
-                            Layout.fillWidth: true
-                        }
-
-                        Label {
-                            text: "Format"
-                            color: "#24292f"
-                        }
-                        ComboBox {
-                            id: printFormatCombo
-                            Layout.fillWidth: true
-                            model: ["(default)", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"]
-                        }
-
-                        Label {
-                            text: "Output File"
-                            color: "#24292f"
-                        }
-                        TextField {
-                            id: dcPrintFileField
-                            placeholderText: "optional (e.g. output.raw)"
-                            selectByMouse: true
-                            text: panel.printFile
-                            onTextChanged: panel.printFile = text
-                            Layout.fillWidth: true
-                        }
-                    }
+                CheckBox {
+                    id: secondaryEnabledCheckBox
+                    text: "Enable secondary (nested) sweep"
+                    font.weight: Font.Medium
                 }
-            }
 
-            // --- .MEASURE section ---
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: dcMeasureColumn.implicitHeight + 16
-                color: "#f6f8fa"
-                radius: 6
-                border.color: "#d0d7de"
-                border.width: 1
+                GridLayout {
+                    visible: secondaryEnabledCheckBox.checked
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 28
+                    columns: 2
+                    rowSpacing: 12
+                    columnSpacing: 20
 
-                ColumnLayout {
-                    id: dcMeasureColumn
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 8
-                    spacing: 6
+                    Label { text: "Secondary Variable *"; color: "#6B6B66"; font.pixelSize: 12 }
+                    TextField {
+                        id: secondaryVariableField
+                        placeholderText: "e.g. C1"
+                        Layout.fillWidth: true
+                        selectByMouse: true
+                    }
+
+                    Label { text: "Secondary Start *"; color: "#6B6B66"; font.pixelSize: 12 }
+                    TextField {
+                        id: secondaryStartField
+                        placeholderText: "e.g. 0"
+                        Layout.fillWidth: true
+                        selectByMouse: true
+                    }
+
+                    Label { text: "Secondary Stop *"; color: "#6B6B66"; font.pixelSize: 12 }
+                    TextField {
+                        id: secondaryStopField
+                        placeholderText: "e.g. 3.5"
+                        Layout.fillWidth: true
+                        selectByMouse: true
+                    }
 
                     Label {
-                        text: "Measurements (.MEASURE)"
-                        font.bold: true
-                        color: "#24292f"
+                        text: "Secondary Step *"
+                        color: "#6B6B66"; font.pixelSize: 12
+                        visible: panel.isLinMode
+                    }
+                    TextField {
+                        id: secondaryStepField
+                        placeholderText: "e.g. 0.5"
                         Layout.fillWidth: true
+                        visible: panel.isLinMode
+                        selectByMouse: true
                     }
 
-                    ScrollView {
+                    Label {
+                        text: "Secondary Points *"
+                        color: "#6B6B66"; font.pixelSize: 12
+                        visible: panel.isLogMode
+                    }
+                    TextField {
+                        id: secondaryPointsField
+                        placeholderText: "e.g. 5"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 120
-                        clip: true
-
-                        TextArea {
-                            id: dcMeasureParametersTextArea
-                            placeholderText: "Enter one .MEASURE directive per line.\nExample: .MEASURE DC VIN_AT_2V FIND V(1) WHEN V(1)=2"
-                            selectByMouse: true
-                            wrapMode: TextEdit.NoWrap
-                        }
+                        visible: panel.isLogMode
+                        selectByMouse: true
                     }
                 }
             }
+        }
+    }
 
-            Item {
-                Layout.fillHeight: true
+    // --- .PRINT DC section ---
+    SimulationCard {
+        title: "Output Variables (.PRINT DC)"
+        Layout.fillWidth: true
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 16
+
+            CheckBox {
+                id: dcPrintEnabledCheckBox
+                text: "Enable .PRINT DC output"
+                checked: panel.printEnabled
+                onCheckedChanged: panel.printEnabled = checked
+                font.weight: Font.Medium
+            }
+
+            ColumnLayout {
+                enabled: dcPrintEnabledCheckBox.checked
+                Layout.fillWidth: true
+                Layout.leftMargin: 28
+                spacing: 12
+
+                RowLayout {
+                    spacing: 20
+                    CheckBox {
+                        text: "All voltages V(*)"
+                        checked: panel.printAllNodes
+                        onCheckedChanged: panel.printAllNodes = checked
+                    }
+                    CheckBox {
+                        text: "All currents I(*)"
+                        checked: panel.printAllCurrents
+                        onCheckedChanged: panel.printAllCurrents = checked
+                    }
+                    CheckBox {
+                        text: "Power P(*)"
+                        checked: panel.printPower
+                        onCheckedChanged: panel.printPower = checked
+                    }
+                }
+
+                RowLayout {
+                    visible: panel.hasBjtDevices || panel.hasFetDevices
+                    spacing: 20
+                    CheckBox {
+                        text: "BJT leads"
+                        visible: panel.hasBjtDevices
+                        checked: panel.printBjtLeads
+                        onCheckedChanged: panel.printBjtLeads = checked
+                    }
+                    CheckBox {
+                        text: "FET leads"
+                        visible: panel.hasFetDevices
+                        checked: panel.printFetLeads
+                        onCheckedChanged: panel.printFetLeads = checked
+                    }
+                }
+
+                GridLayout {
+                    columns: 2
+                    rowSpacing: 10
+                    columnSpacing: 12
+                    Layout.fillWidth: true
+
+                    Label { text: "Additional variables"; color: "#6B6B66"; font.pixelSize: 12 }
+                    TextField {
+                        id: dcPrintSpecificVarsField
+                        placeholderText: "e.g. V(1) I(R1)"
+                        text: panel.printSpecificVars
+                        onTextChanged: panel.printSpecificVars = text
+                        Layout.fillWidth: true
+                        selectByMouse: true
+                    }
+
+                    Label { text: "Format"; color: "#6B6B66"; font.pixelSize: 12 }
+                    ComboBox {
+                        id: printFormatCombo
+                        Layout.fillWidth: true
+                        model: ["(default)", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"]
+                    }
+
+                    Label { text: "Output file"; color: "#6B6B66"; font.pixelSize: 12 }
+                    TextField {
+                        id: dcPrintFileField
+                        placeholderText: "optional (e.g. output.raw)"
+                        text: panel.printFile
+                        onTextChanged: panel.printFile = text
+                        Layout.fillWidth: true
+                        selectByMouse: true
+                    }
+                }
+            }
+        }
+    }
+
+    // --- .MEASURE section ---
+    SimulationCard {
+        title: "Measurements (.MEASURE)"
+        Layout.fillWidth: true
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            Label { text: "DC analysis measurements"; font.pixelSize: 12; color: "#6B6B66" }
+            TextArea {
+                id: dcMeasureParametersTextArea
+                placeholderText: "Example: .MEASURE DC VIN_AT_2V FIND V(1) WHEN V(1)=2"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 80
+                font.family: "monospace"
+                font.pixelSize: 11
+                selectByMouse: true
+            }
+        }
+    }
+
+    // --- Global Settings ---
+    SimulationCard {
+        title: "Global Settings"
+        Layout.fillWidth: true
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            CheckBox {
+                text: "Replace ground (GND) with 0"
+                checked: panel.replaceGround
+                onCheckedChanged: panel.replaceGround = checked
+                font.weight: Font.Medium
+            }
+
+            Label {
+                text: "Matches KiCad's ground symbol to Xyce's expected 0 net"
+                color: "#6B6B66"
+                font.pixelSize: 11
+                Layout.leftMargin: 28
             }
         }
     }

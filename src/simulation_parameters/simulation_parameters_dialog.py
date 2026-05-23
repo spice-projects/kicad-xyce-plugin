@@ -25,12 +25,12 @@ from .sens_simulation_parameters import SensSimulationParameters
 from .sens_panel import SensPanel
 from .simulation_config import SimulationConfig
 from .step_parameters import StepParameters
-from .transient_simulation_parameters import TransientSimulationParameters
+from .transient_simulation_parameters import TransientSimulationParameters, TransientSchedulePoint
 from .tran_panel import TranPanel
 
 logger = logging.getLogger(__name__)
 
-_QML_FILE = Path(__file__).parent / "simulation_parameters_dialog.qml"
+_QML_FILE = Path(__file__).parent / "new_simulation_dialog.qml"
 _BG = "#efefe8"
 
 
@@ -83,7 +83,7 @@ class SimulationParametersDialog(QDialog):
         # insert the qml container into the dialog layout
         self._layout.addWidget(self._container)
         # set an initial size that fits both tab forms on first open
-        self.resize(640, 680)
+        self.resize(800, 600)
 
     @Slot(QQuickView.Status)
     def _on_qml_ready(self, status: QQuickView.Status) -> None:
@@ -149,13 +149,14 @@ class SimulationParametersDialog(QDialog):
         # always initialize all tabs to ensure a clean state
         p = self._initial_parameters.analysis
         # delegate panel initialization to each panel's apply() method
-        self._op_panel.apply(p if isinstance(p, OpSimulationParameters) else None, self._has_bjt_devices, self._has_fet_devices)
-        self._tran_panel.apply(p if isinstance(p, TransientSimulationParameters) else None, self._has_bjt_devices, self._has_fet_devices)
-        self._dc_panel.apply(p if isinstance(p, DCSimulationParameters) else None, self._has_bjt_devices, self._has_fet_devices)
-        self._ac_panel.apply(p if isinstance(p, AcSimulationParameters) else None)
-        self._noise_panel.apply(p if isinstance(p, NoiseSimulationParameters) else None)
-        self._hb_panel.apply(p if isinstance(p, HbSimulationParameters) else None)
-        self._lin_panel.apply(p if isinstance(p, LinSimulationParameters) else None)
+        self._apply_op_parameters(p if isinstance(p, OpSimulationParameters) else None)
+        self._apply_transient_parameters(p if isinstance(p, TransientSimulationParameters) else None)
+        self._apply_dc_parameters(p if isinstance(p, DCSimulationParameters) else None)
+        self._apply_ac_parameters(p if isinstance(p, AcSimulationParameters) else None)
+        self._apply_noise_parameters(p if isinstance(p, NoiseSimulationParameters) else None)
+        self._apply_hb_parameters(p if isinstance(p, HbSimulationParameters) else None)
+        self._apply_lin_parameters(p if isinstance(p, LinSimulationParameters) else None)
+
         # initialize the shared step parameters
         self._apply_step_parameters(self._initial_parameters.step)
         # initialize sens tab: use the active analysis when it is a SensSimulationParameters,
@@ -172,16 +173,37 @@ class SimulationParametersDialog(QDialog):
             self._root.setProperty("initialTabIndex", 2)
         elif isinstance(p, AcSimulationParameters):
             self._root.setProperty("initialTabIndex", 3)
-        elif isinstance(p, SensSimulationParameters):
-            self._root.setProperty("initialTabIndex", 4)
         elif isinstance(p, NoiseSimulationParameters):
-            self._root.setProperty("initialTabIndex", 5)
+            self._root.setProperty("initialTabIndex", 4)
         elif isinstance(p, HbSimulationParameters):
-            self._root.setProperty("initialTabIndex", 6)
+            self._root.setProperty("initialTabIndex", 5)
         elif isinstance(p, LinSimulationParameters):
+            self._root.setProperty("initialTabIndex", 6)
+        elif isinstance(p, SensSimulationParameters):
             self._root.setProperty("initialTabIndex", 7)
         else:
             self._root.setProperty("initialTabIndex", 0)
+
+    def _apply_op_parameters(self, p: OpSimulationParameters | None) -> None:
+        self._op_panel.apply(p, self._has_bjt_devices, self._has_fet_devices)
+
+    def _apply_transient_parameters(self, p: TransientSimulationParameters | None) -> None:
+        self._tran_panel.apply(p, self._has_bjt_devices, self._has_fet_devices)
+
+    def _apply_dc_parameters(self, p: DCSimulationParameters | None) -> None:
+        self._dc_panel.apply(p, self._has_bjt_devices, self._has_fet_devices)
+
+    def _apply_ac_parameters(self, p: AcSimulationParameters | None) -> None:
+        self._ac_panel.apply(p)
+
+    def _apply_noise_parameters(self, p: NoiseSimulationParameters | None) -> None:
+        self._noise_panel.apply(p)
+
+    def _apply_hb_parameters(self, p: HbSimulationParameters | None) -> None:
+        self._hb_panel.apply(p)
+
+    def _apply_lin_parameters(self, p: LinSimulationParameters | None) -> None:
+        self._lin_panel.apply(p)
 
     def _apply_step_parameters(self, p: StepParameters) -> None:
         # sweep mode index mapping
@@ -251,6 +273,27 @@ class SimulationParametersDialog(QDialog):
         # return parameters model
         return SensSimulationParameters("DC", mode, values, params, direct, adjoint, print_parameters, replace_ground)
 
+    def _parse_schedule_points(self, schedule_pairs_text: str) -> tuple[TransientSchedulePoint, ...]:
+        # return an empty schedule when no schedule text was provided
+        if not schedule_pairs_text:
+            return tuple()
+        # split schedule text on commas and whitespace to support flexible input
+        raw_tokens = re.split(r"[\s,]+", schedule_pairs_text)
+        # remove empty token fragments introduced by split boundaries
+        tokens = [raw_token for raw_token in raw_tokens if raw_token]
+        # enforce alternating time,max-step token pairs
+        if len(tokens) % 2 != 0:
+            # raise parse error with expected input format guidance
+            raise ValueError("Schedule format must use time,max-step pairs")
+        # initialize list used to collect structured schedule points
+        schedule_points = []
+        # iterate all token pairs in the original user-provided order
+        for index in range(0, len(tokens), 2):
+            # build one schedule point from the current token pair
+            schedule_points.append(TransientSchedulePoint(tokens[index], tokens[index + 1]))
+        # freeze the schedule points so dialog result stays immutable
+        return tuple(schedule_points)
+
     @Slot(str, str, str, str, str, str, str, str, str, bool, bool, bool, bool, bool, str, str, str, bool, 'QVariantList')
     def _on_submit_noise(self, output_node: str, ref_node: str, source_name: str, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_inoise: bool, print_onoise: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, device_operators_list) -> None:
         # delegate validation and construction to the noise panel
@@ -271,7 +314,11 @@ class SimulationParametersDialog(QDialog):
         if analysis is None:
             return
         # assemble final config and close dialog
-        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+        try:
+            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+        except ValueError as e:
+            self._root.setProperty("errorText", str(e))
+            return
         self.accept()
 
     @Slot(str, str, int, str, int, bool, bool, bool, str, str, str, str, bool)
@@ -282,7 +329,11 @@ class SimulationParametersDialog(QDialog):
         if analysis is None:
             return
         # assemble final config and close dialog
-        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+        try:
+            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+        except ValueError as e:
+            self._root.setProperty("errorText", str(e))
+            return
         self.accept()
 
     @Slot(str, str, str, str, str, str, bool, bool, bool, str, str, str, bool)
@@ -293,7 +344,11 @@ class SimulationParametersDialog(QDialog):
         if analysis is None:
             return
         # assemble final config and close dialog
-        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+        try:
+            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+        except ValueError as e:
+            self._root.setProperty("errorText", str(e))
+            return
         self.accept()
 
     @Slot(str, str, str, str, str, bool, str, str, str, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
@@ -304,7 +359,11 @@ class SimulationParametersDialog(QDialog):
         if analysis is None:
             return
         # assemble final config and close dialog
-        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+        try:
+            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+        except ValueError as e:
+            self._root.setProperty("errorText", str(e))
+            return
         self.accept()
 
     @Slot(bool, bool, bool, bool, bool, bool, str, str, str, bool, str, str, str, bool)
@@ -324,7 +383,11 @@ class SimulationParametersDialog(QDialog):
         if analysis is None:
             return
         # assemble final config and close dialog
-        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+        try:
+            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+        except ValueError as e:
+            self._root.setProperty("errorText", str(e))
+            return
         self.accept()
 
     def get_parameters(self) -> SimulationConfig | None:
