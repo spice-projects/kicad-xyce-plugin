@@ -30,7 +30,7 @@ from .tran_panel import TranPanel
 
 logger = logging.getLogger(__name__)
 
-_QML_FILE = Path(__file__).parent / "new_simulation_dialog.qml"
+_QML_FILE = Path(__file__).parent / "simulation_parameters_dialog.qml"
 _BG = "#efefe8"
 
 

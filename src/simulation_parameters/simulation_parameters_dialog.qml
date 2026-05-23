@@ -6,15 +6,17 @@ import QtQuick.Layouts
 import "."
 
 Item {
+
     id: root
-    implicitWidth: 640
-    implicitHeight: 680
+    implicitWidth: 800
+    implicitHeight: 600
 
-    // --- Tab persistence ---
-    property int initialTabIndex: 0
-    onInitialTabIndexChanged: simTabBar.currentIndex = initialTabIndex
+    // --- Properties from original dialog for compatibility ---
+    property alias initialTabIndex: root.currentTabIndex
+    property int currentTabIndex: 0
+    onCurrentTabIndexChanged: root.errorText = ""
 
-    // --- Transient tab properties (delegated to TranPanel) ---
+    // --- Transient tab properties ---
     property alias initialStep: tranPanel.initialStep
     property alias finalTime: tranPanel.finalTime
     property alias startTime: tranPanel.startTime
@@ -26,7 +28,7 @@ Item {
     property alias fourParametersText: tranPanel.fourParametersText
     property alias tranMeasureParametersText: tranPanel.measureParametersText
 
-    // --- DC Sweep tab properties (delegated to DcPanel) ---
+    // --- DC Sweep tab properties ---
     property alias sweepModeIndex: dcPanel.sweepModeIndex
     property alias primaryVariable: dcPanel.primaryVariable
     property alias startValue: dcPanel.startValue
@@ -43,7 +45,7 @@ Item {
     property alias secondaryPoints: dcPanel.secondaryPoints
     property alias dcMeasureParametersText: dcPanel.measureParametersText
 
-    // --- OP simulation properties (delegated to OpPanel) ---
+    // --- OP simulation properties ---
     property alias opPrintEnabled: opPanel.printEnabled
     property alias opPrintAllNodes: opPanel.printAllNodes
     property alias opPrintAllCurrents: opPanel.printAllCurrents
@@ -60,7 +62,7 @@ Item {
     property alias saveFile: opPanel.saveFile
     property alias nodesetEntries: opPanel.nodesetEntries
 
-    // --- Transient print properties (delegated to TranPanel) ---
+    // --- Transient print properties ---
     property alias tranPrintEnabled: tranPanel.printEnabled
     property alias tranPrintAllNodes: tranPanel.printAllNodes
     property alias tranPrintAllCurrents: tranPanel.printAllCurrents
@@ -73,7 +75,7 @@ Item {
     property alias tranPrintFormatIndex: tranPanel.printFormatIndex
     property alias tranPrintFile: tranPanel.printFile
 
-    // --- DC Sweep print properties (delegated to DcPanel) ---
+    // --- DC Sweep print properties ---
     property alias dcPrintEnabled: dcPanel.printEnabled
     property alias dcPrintAllNodes: dcPanel.printAllNodes
     property alias dcPrintAllCurrents: dcPanel.printAllCurrents
@@ -86,7 +88,7 @@ Item {
     property alias dcPrintFormatIndex: dcPanel.printFormatIndex
     property alias dcPrintFile: dcPanel.printFile
 
-    // --- Sensitivity tab properties (delegated to SensPanel) ---
+    // --- Sensitivity properties ---
     property alias sensEnabled: sensPanel.active
     property alias sensObjectiveMode: sensPanel.objectiveMode
     property alias sensObjectiveValues: sensPanel.objectiveValues
@@ -98,7 +100,7 @@ Item {
     property alias sensPrintFormatIndex: sensPanel.printFormatIndex
     property alias sensPrintFile: sensPanel.printFile
 
-    // --- AC sweep tab properties (delegated to AcPanel) ---
+    // --- AC sweep properties ---
     property alias acSweepModeIndex: acPanel.sweepModeIndex
     property alias acPoints: acPanel.points
     property alias acStart: acPanel.start
@@ -106,7 +108,7 @@ Item {
     property alias acDataTableName: acPanel.dataTableName
     property alias acMeasureParametersText: acPanel.measureParametersText
 
-    // --- AC print properties (delegated to AcPanel) ---
+    // --- AC print properties ---
     property alias acPrintEnabled: acPanel.printEnabled
     property alias acPrintAllNodes: acPanel.printAllNodes
     property alias acPrintAllCurrents: acPanel.printAllCurrents
@@ -114,7 +116,7 @@ Item {
     property alias acPrintFormatIndex: acPanel.printFormatIndex
     property alias acPrintFile: acPanel.printFile
 
-    // --- NOISE sweep tab properties (delegated to NoisePanel) ---
+    // --- NOISE sweep properties ---
     property alias noiseOutputNode: noisePanel.outputNode
     property alias noiseRefNode: noisePanel.refNode
     property alias noiseSourceName: noisePanel.sourceName
@@ -125,7 +127,7 @@ Item {
     property alias noiseDataTableName: noisePanel.dataTableName
     property alias noiseMeasureParametersText: noisePanel.measureParametersText
 
-    // --- NOISE print properties (delegated to NoisePanel) ---
+    // --- NOISE print properties ---
     property alias noisePrintEnabled: noisePanel.printEnabled
     property alias noisePrintAllNodes: noisePanel.printAllNodes
     property alias noisePrintAllCurrents: noisePanel.printAllCurrents
@@ -136,14 +138,14 @@ Item {
     property alias noisePrintFile: noisePanel.printFile
     property alias noiseDeviceOperators: noisePanel.deviceOperators
 
-    // --- HB tab properties (delegated to HbPanel) ---
+    // --- HB properties ---
     property alias hbFrequenciesText: hbPanel.frequenciesText
     property alias hbHarmonicsText: hbPanel.harmonicsText
     property alias hbTahbIndex: hbPanel.tahbIndex
     property alias hbSelectHarmsIndex: hbPanel.selectHarmsIndex
     property alias hbStartupPeriodsText: hbPanel.startupPeriodsText
 
-    // --- HB print properties (delegated to HbPanel) ---
+    // --- HB print properties ---
     property alias hbPrintEnabled: hbPanel.printEnabled
     property alias hbPrintAllNodes: hbPanel.printAllNodes
     property alias hbPrintAllCurrents: hbPanel.printAllCurrents
@@ -152,7 +154,7 @@ Item {
     property alias hbPrintFormatIndex: hbPanel.printFormatIndex
     property alias hbPrintFile: hbPanel.printFile
 
-    // --- LIN tab properties (delegated to LinPanel) ---
+    // --- LIN properties ---
     property alias linSparcalc: linPanel.sparcalc
     property alias linFormat: linPanel.linFormat
     property alias linType: linPanel.linType
@@ -166,7 +168,7 @@ Item {
     property alias linEnd: linPanel.end
     property alias linDataTableName: linPanel.dataTableName
 
-    // --- LIN print properties (delegated to LinPanel) ---
+    // --- LIN print properties ---
     property alias linPrintEnabled: linPanel.printEnabled
     property alias linPrintAllNodes: linPanel.printAllNodes
     property alias linPrintAllCurrents: linPanel.printAllCurrents
@@ -178,6 +180,7 @@ Item {
     property bool replaceGround: false
     property string errorText: ""
 
+    // --- Signals ---
     signal submitTransient(string initialStep, string finalTime, string startTime, string stepCeiling, string opKeyword, bool scheduleEnabled, string schedulePairsText, string fftParametersText, string fourParametersText, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitDC(string sweepMode, string primaryVariable, string startValue, string stopValue, string stepValue, string pointsValue, string listValuesText, string dataTableName, bool secondaryEnabled, string secondaryVariable, string secondaryStart, string secondaryStop, string secondaryStep, string secondaryPoints, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitOP(bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool saveEnabled, string saveType, string nodesetEntries, string saveFile, bool replaceGround)
@@ -188,184 +191,295 @@ Item {
     signal submitSens(string objectiveMode, string objectiveValues, string parameters, bool direct, bool adjoint, bool replaceGround, bool printEnabled, string printSpecificVars, string printFormat, string printFile)
     signal cancelRequested()
 
+    // --- Internal Logic ---
+    function handleApply() {
+        if (root.currentTabIndex === 0)
+            root.submitOP(opPanel.printEnabled, opPanel.printAllNodes, opPanel.printAllCurrents, opPanel.printPower, opPanel.printBjtLeads, opPanel.printFetLeads, opPanel.printSpecificVars, opPanel.printFormatValue, opPanel.printFile, opPanel.saveEnabled, opPanel.saveType, opPanel.nodesetEntries, opPanel.saveFile, root.replaceGround);
+        else if (root.currentTabIndex === 1)
+            root.submitTransient(tranPanel.initialStep, tranPanel.finalTime, tranPanel.startTime, tranPanel.stepCeiling, tranPanel.opKeywordValue, tranPanel.scheduleEnabled, tranPanel.schedulePairsText, tranPanel.fftParametersText, tranPanel.fourParametersText, tranPanel.measureParametersText, tranPanel.printEnabled, tranPanel.printAllNodes, tranPanel.printAllCurrents, tranPanel.printPower, tranPanel.printBjtLeads, tranPanel.printFetLeads, tranPanel.printSpecificVars, tranPanel.printFormatValue, tranPanel.printFile, root.replaceGround);
+        else if (root.currentTabIndex === 2)
+            root.submitDC(dcPanel.sweepModeValue, dcPanel.primaryVariable, dcPanel.startValue, dcPanel.stopValue, dcPanel.stepValue, dcPanel.pointsValue, dcPanel.listValuesText, dcPanel.dataTableName, dcPanel.secondaryEnabled, dcPanel.secondaryVariable, dcPanel.secondaryStart, dcPanel.secondaryStop, dcPanel.secondaryStep, dcPanel.secondaryPoints, dcPanel.measureParametersText, dcPanel.printEnabled, dcPanel.printAllNodes, dcPanel.printAllCurrents, dcPanel.printPower, dcPanel.printBjtLeads, dcPanel.printFetLeads, dcPanel.printSpecificVars, dcPanel.printFormatValue, dcPanel.printFile, root.replaceGround);
+        else if (root.currentTabIndex === 3)
+            root.submitAC(acPanel.sweepModeValue, acPanel.points, acPanel.start, acPanel.end, acPanel.dataTableName, acPanel.measureParametersText, acPanel.printEnabled, acPanel.printAllNodes, acPanel.printAllCurrents, acPanel.printSpecificVars, acPanel.printFormatValue, acPanel.printFile, root.replaceGround);
+        else if (root.currentTabIndex === 4)
+            root.submitSens(sensPanel.objectiveMode, sensPanel.objectiveValues, sensPanel.parameters, sensPanel.direct, sensPanel.adjoint, root.replaceGround, sensPanel.printEnabled, sensPanel.printSpecificVars, sensPanel.printFormatValue, sensPanel.printFile);
+        else if (root.currentTabIndex === 5)
+            root.submitNoise(noisePanel.outputNode, noisePanel.refNode, noisePanel.sourceName, noisePanel.sweepModeValue, noisePanel.points, noisePanel.start, noisePanel.end, noisePanel.dataTableName, noisePanel.measureParametersText, noisePanel.printEnabled, noisePanel.printAllNodes, noisePanel.printAllCurrents, noisePanel.printInoise, noisePanel.printOnoise, noisePanel.printSpecificVars, noisePanel.printFormatValue, noisePanel.printFile, root.replaceGround, noisePanel.deviceOperators);
+        else if (root.currentTabIndex === 6)
+            root.submitHB(hbPanel.frequenciesText, hbPanel.harmonicsText, hbPanel.tahbIndex, hbPanel.selectHarmsValue, parseInt(hbPanel.startupPeriodsText) || 0, hbPanel.printEnabled, hbPanel.printAllNodes, hbPanel.printAllCurrents, hbPanel.printTypeValue, hbPanel.printSpecificVars, hbPanel.printFormatValue, hbPanel.printFile, root.replaceGround);
+        else if (root.currentTabIndex === 7)
+            root.submitLIN(linPanel.sparcalc, linPanel.linFormat, linPanel.linType, linPanel.linDataFormat, linPanel.linFile, linPanel.linWidth, linPanel.linPrecision, linPanel.sweepModeValue, linPanel.points, linPanel.start, linPanel.end, linPanel.dataTableName, linPanel.printEnabled, linPanel.printAllNodes, linPanel.printAllCurrents, linPanel.printSpecificVars, linPanel.printFormatValue, linPanel.printFile, root.replaceGround);
+    }
+
+    // --- Styling Constants ---
+    readonly property color bgColor: "#FFFFFF"
+    readonly property color sidebarColor: "#F5F5F3"
+    readonly property color borderColor: "#E0E0DC"
+    readonly property color textColor: "#1A1A18"
+    readonly property color mutedTextColor: "#6B6B66"
+    readonly property color accentBlue: "#185FA5"
 
     Rectangle {
         anchors.fill: parent
-        color: "#efefe8"
-    }
-
-    ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: 20
-        spacing: 14
-
-        Label {
-            text: "Xyce Simulation"
-            font.pixelSize: 22
-            font.bold: true
-            color: "#1b1f23"
-            Layout.fillWidth: true
-        }
-
-        Label {
-            text: "Select a simulation type and configure its parameters"
-            font.pixelSize: 13
-            color: "#4a5560"
-            Layout.fillWidth: true
-            wrapMode: Text.Wrap
-        }
-
-        TabBar {
-            id: simTabBar
-            Layout.fillWidth: true
-            onCurrentIndexChanged: root.errorText = ""
-
-            TabButton {
-                text: ".OP"
-                width: (root.width - 45) / 8
-            }
-
-            TabButton {
-                text: ".TRAN"
-                width: (root.width - 45) / 8
-            }
-
-            TabButton {
-                text: ".DC"
-                width: (root.width - 45) / 8
-            }
-
-            TabButton {
-                text: ".AC"
-                width: (root.width - 45) / 8
-            }
-
-            TabButton {
-                text: ".SENS"
-                width: (root.width - 45) / 8
-            }
-
-            TabButton {
-                text: ".NOISE"
-                width: (root.width - 45) / 8
-            }
-
-            TabButton {
-                text: ".HB"
-                width: (root.width - 45) / 8
-            }
-
-            TabButton {
-                text: ".LIN"
-                width: (root.width - 45) / 8
-            }
-        }
-
-        Rectangle {
-            color: "#ffffff"
-            radius: 8
-            border.color: "#d0d7de"
-            border.width: 1
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-
-            StackLayout {
-                anchors.fill: parent
-                anchors.margins: 16
-                currentIndex: simTabBar.currentIndex
-
-                // --- Tab 0: Operating Point ---
-                OpPanel {
-                    id: opPanel
-                }
-
-                // --- Tab 1: Transient ---
-                TranPanel {
-                    id: tranPanel
-                }
-
-                // --- Tab 2: DC Sweep ---
-                DcPanel {
-                    id: dcPanel
-                }
-
-                // --- Tab 3: AC Sweep ---
-                AcPanel {
-                    id: acPanel
-                }
-
-                // --- Tab 4: Sensitivity ---
-                SensPanel {
-                    id: sensPanel
-                }
-
-                // --- Tab 5: Noise ---
-                NoisePanel {
-                    id: noisePanel
-                }
-
-                // --- Tab 6: HB ---
-                HbPanel {
-                    id: hbPanel
-                }
-
-                // --- Tab 7: LIN ---
-                LinPanel {
-                    id: linPanel
-                }
-            }
-        }
-
-        Label {
-            text: root.errorText
-            visible: root.errorText.length > 0
-            color: "#b42318"
-            font.pixelSize: 12
-            wrapMode: Text.Wrap
-            Layout.fillWidth: true
-        }
-
-        CheckBox {
-            id: replaceGroundCheckBox
-            text: "Replace ground node (.PREPROCESS REPLACEGROUND TRUE)"
-            checked: root.replaceGround
-            onCheckedChanged: root.replaceGround = checked
-            Layout.fillWidth: true
-        }
+        color: root.bgColor
+        border.color: root.borderColor
+        border.width: 1
+        radius: 12
+        clip: true
 
         RowLayout {
-            Layout.fillWidth: true
-            spacing: 10
+            anchors.fill: parent
+            anchors.bottomMargin: 48 // Footer height
+            spacing: 0
 
-            Item {
+            // --- Sidebar ---
+            Rectangle {
+                id: sidebar
+                width: 220
+                Layout.fillHeight: true
+                color: root.sidebarColor
+                
+                Rectangle {
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.right: parent.right
+                    width: 1
+                    color: root.borderColor
+                }
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 4
+
+                    Label {
+                        text: "SIMULATION TYPE"
+                        font.pixelSize: 10
+                        font.weight: Font.Bold
+                        font.letterSpacing: 1.0
+                        color: root.mutedTextColor
+                        Layout.fillWidth: true
+                        topPadding: 16
+                        leftPadding: 12
+                        bottomPadding: 8
+                    }
+
+                    Repeater {
+                        model: [
+                            {directive: ".OP", name: "Operating point"},
+                            {directive: ".TRAN", name: "Transient"},
+                            {directive: ".DC", name: "DC sweep"},
+                            {directive: ".AC", name: "AC small-signal"},
+                            {directive: ".SENS", name: "Sensitivity"},
+                            {directive: ".NOISE", name: "Noise"},
+                            {directive: ".HB", name: "Harmonic balance"},
+                            {directive: ".LIN", name: "Linear network"}
+                        ]
+                        delegate: Rectangle {
+                            id: sidebarButton
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 8
+                            Layout.rightMargin: 8
+                            height: 34
+                            radius: 6
+
+                            required property int index
+                            required property var modelData
+
+                            color: (root.currentTabIndex === index) ? root.bgColor : (mouseArea.containsMouse ? "#EBEAE6" : "transparent")
+                            border.color: (root.currentTabIndex === index) ? root.borderColor : "transparent"
+                            border.width: 1
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                spacing: 10
+
+                                Rectangle {
+                                    id: badgeRect
+                                    width: 38
+                                    height: 18
+                                    radius: 4
+                                    color: (root.currentTabIndex === index) ? root.accentBlue : "#E6F1FB"
+                                    
+                                    Text {
+                                        id: badgeText
+                                        anchors.centerIn: parent
+                                        text: modelData.directive
+                                        font.family: "monospace"
+                                        font.pixelSize: 10
+                                        font.weight: Font.Bold
+                                        color: (root.currentTabIndex === index) ? root.bgColor : root.accentBlue
+                                    }
+                                }
+                                
+                                Label {
+                                    id: labelText
+                                    text: modelData.name
+                                    font.pixelSize: 13
+                                    verticalAlignment: Text.AlignVCenter
+                                    color: (root.currentTabIndex === index) ? root.textColor : root.mutedTextColor
+                                    font.weight: (root.currentTabIndex === index) ? Font.Medium : Font.Normal
+                                    Layout.fillWidth: true
+                                }
+                            }
+                            
+                            MouseArea {
+                                id: mouseArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: root.currentTabIndex = index
+                            }
+                        }
+                    }
+                    
+                    Item { Layout.fillHeight: true }
+                }
+            }
+
+            // --- Main Content Area ---
+            Rectangle {
                 Layout.fillWidth: true
-            }
+                Layout.fillHeight: true
+                color: root.bgColor
+                
+                ScrollView {
+                    anchors.fill: parent
+                    contentWidth: availableWidth
+                    ScrollBar.vertical.policy: ScrollBar.AsNeeded
+                    clip: true
+                    
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 0
+                        
+                        StackLayout {
+                            Layout.fillWidth: true
+                            Layout.margins: 24
+                            currentIndex: root.currentTabIndex
 
-            Button {
-                text: "Cancel"
-                onClicked: root.cancelRequested()
+                            OpPanel {
+                                id: opPanel
+                                replaceGround: root.replaceGround
+                                onReplaceGroundChanged: root.replaceGround = replaceGround
+                            }
+                            TranPanel {
+                                id: tranPanel
+                                replaceGround: root.replaceGround
+                                onReplaceGroundChanged: root.replaceGround = replaceGround
+                            }
+                            DcPanel {
+                                id: dcPanel
+                                replaceGround: root.replaceGround
+                                onReplaceGroundChanged: root.replaceGround = replaceGround
+                            }
+                            AcPanel {
+                                id: acPanel
+                                replaceGround: root.replaceGround
+                                onReplaceGroundChanged: root.replaceGround = replaceGround
+                            }
+                            SensPanel {
+                                id: sensPanel
+                                replaceGround: root.replaceGround
+                                onReplaceGroundChanged: root.replaceGround = replaceGround
+                            }
+                            NoisePanel {
+                                id: noisePanel
+                                replaceGround: root.replaceGround
+                                onReplaceGroundChanged: root.replaceGround = replaceGround
+                            }
+                            HbPanel {
+                                id: hbPanel
+                                replaceGround: root.replaceGround
+                                onReplaceGroundChanged: root.replaceGround = replaceGround
+                            }
+                            LinPanel {
+                                id: linPanel
+                                replaceGround: root.replaceGround
+                                onReplaceGroundChanged: root.replaceGround = replaceGround
+                            }
+                        }
+                        
+                        // Spacer to ensure bottom margin if content is short
+                        Item { Layout.fillHeight: true; Layout.preferredHeight: 24 }
+                    }
+                }
             }
-
-            Button {
-                text: "Apply"
-                highlighted: true
-                onClicked: {
-                    if (simTabBar.currentIndex === 0) {
-                        root.submitOP(opPanel.printEnabled, opPanel.printAllNodes, opPanel.printAllCurrents, opPanel.printPower, opPanel.printBjtLeads, opPanel.printFetLeads, opPanel.printSpecificVars, opPanel.printFormatValue, opPanel.printFile, opPanel.saveEnabled, opPanel.saveType, opPanel.nodesetEntries, opPanel.saveFile, root.replaceGround)
-                    } else if (simTabBar.currentIndex === 1) {
-                        root.submitTransient(tranPanel.initialStep, tranPanel.finalTime, tranPanel.startTime, tranPanel.stepCeiling, tranPanel.opKeywordValue, tranPanel.scheduleEnabled, tranPanel.schedulePairsText, tranPanel.fftParametersText, tranPanel.fourParametersText, tranPanel.measureParametersText, tranPanel.printEnabled, tranPanel.printAllNodes, tranPanel.printAllCurrents, tranPanel.printPower, tranPanel.printBjtLeads, tranPanel.printFetLeads, tranPanel.printSpecificVars, tranPanel.printFormatValue, tranPanel.printFile, root.replaceGround)
-                    } else if (simTabBar.currentIndex === 2) {
-                        root.submitDC(dcPanel.sweepModeValue, dcPanel.primaryVariable, dcPanel.startValue, dcPanel.stopValue, dcPanel.stepValue, dcPanel.pointsValue, dcPanel.listValuesText, dcPanel.dataTableName, dcPanel.secondaryEnabled, dcPanel.secondaryVariable, dcPanel.secondaryStart, dcPanel.secondaryStop, dcPanel.secondaryStep, dcPanel.secondaryPoints, dcPanel.measureParametersText, dcPanel.printEnabled, dcPanel.printAllNodes, dcPanel.printAllCurrents, dcPanel.printPower, dcPanel.printBjtLeads, dcPanel.printFetLeads, dcPanel.printSpecificVars, dcPanel.printFormatValue, dcPanel.printFile, root.replaceGround)
-                    } else if (simTabBar.currentIndex === 3) {
-                        root.submitAC(acPanel.sweepModeValue, acPanel.points, acPanel.start, acPanel.end, acPanel.dataTableName, acPanel.measureParametersText, acPanel.printEnabled, acPanel.printAllNodes, acPanel.printAllCurrents, acPanel.printSpecificVars, acPanel.printFormatValue, acPanel.printFile, root.replaceGround)
-                    } else if (simTabBar.currentIndex === 4) {
-                        root.submitSens(sensPanel.objectiveMode, sensPanel.objectiveValues, sensPanel.parameters, sensPanel.direct, sensPanel.adjoint, root.replaceGround, sensPanel.printEnabled, sensPanel.printSpecificVars, sensPanel.printFormatValue, sensPanel.printFile)
-                    } else if (simTabBar.currentIndex === 5) {
-                        root.submitNoise(noisePanel.outputNode, noisePanel.refNode, noisePanel.sourceName, noisePanel.sweepModeValue, noisePanel.points, noisePanel.start, noisePanel.end, noisePanel.dataTableName, noisePanel.measureParametersText, noisePanel.printEnabled, noisePanel.printAllNodes, noisePanel.printAllCurrents, noisePanel.printInoise, noisePanel.printOnoise, noisePanel.printSpecificVars, noisePanel.printFormatValue, noisePanel.printFile, root.replaceGround, noisePanel.deviceOperators)
-                    } else if (simTabBar.currentIndex === 6) {
-                        root.submitHB(hbPanel.frequenciesText, hbPanel.harmonicsText, hbPanel.tahbIndex, hbPanel.selectHarmsValue, parseInt(hbPanel.startupPeriodsText) || 0, hbPanel.printEnabled, hbPanel.printAllNodes, hbPanel.printAllCurrents, hbPanel.printTypeValue, hbPanel.printSpecificVars, hbPanel.printFormatValue, hbPanel.printFile, root.replaceGround)
-                    } else if (simTabBar.currentIndex === 7) {
-                        root.submitLIN(linPanel.sparcalc, linPanel.linFormat, linPanel.linType, linPanel.linDataFormat, linPanel.linFile, linPanel.linWidth, linPanel.linPrecision, linPanel.sweepModeValue, linPanel.points, linPanel.start, linPanel.end, linPanel.dataTableName, linPanel.printEnabled, linPanel.printAllNodes, linPanel.printAllCurrents, linPanel.printSpecificVars, linPanel.printFormatValue, linPanel.printFile, root.replaceGround)
+        }
+        
+        // --- Footer ---
+        Rectangle {
+            anchors.bottom: parent.bottom
+            width: parent.width
+            height: 60
+            color: root.sidebarColor
+            
+            Rectangle {
+                anchors.top: parent.top
+                width: parent.width
+                height: 1
+                color: root.borderColor
+            }
+            
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                spacing: 20
+                
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.topMargin: 12
+                    Layout.bottomMargin: 12
+                    color: "#EBEAE6"
+                    radius: 6
+                    border.color: root.borderColor
+                    border.width: 1
+                    
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 12
+                        
+                        Label {
+                            text: "DIRECTIVE"
+                            font.pixelSize: 9
+                            font.weight: Font.Bold
+                            color: root.mutedTextColor
+                        }
+                        
+                        Label {
+                            text: (root.currentTabIndex === 0 ? ".OP" : 
+                                   root.currentTabIndex === 1 ? ".TRAN " + root.initialStep + " " + root.finalTime :
+                                   root.currentTabIndex === 2 ? ".DC " + root.primaryVariable + " " + root.startValue + " " + root.stopValue :
+                                   root.currentTabIndex === 3 ? ".AC " + root.acStart + " " + root.acEnd :
+                                   root.currentTabIndex === 4 ? ".SENS" :
+                                   root.currentTabIndex === 5 ? ".NOISE" :
+                                   root.currentTabIndex === 6 ? ".HB" :
+                                   root.currentTabIndex === 7 ? ".LIN" : "")
+                            font.family: "monospace"
+                            font.pixelSize: 11
+                            color: root.textColor
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+                
+                RowLayout {
+                    spacing: 12
+                    Button { 
+                        text: "Cancel"
+                        implicitWidth: 100
+                        onClicked: root.cancelRequested()
+                    }
+                    Button { 
+                        text: "Apply"
+                        highlighted: true
+                        implicitWidth: 100
+                        onClicked: root.handleApply()
                     }
                 }
             }
