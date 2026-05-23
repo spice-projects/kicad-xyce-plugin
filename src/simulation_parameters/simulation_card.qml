@@ -5,7 +5,7 @@ import QtQuick.Layouts
 Rectangle {
 
     id: root
-    width: parent.width
+    width: parent ? parent.width : mainLayout.implicitWidth
     implicitHeight: mainLayout.implicitHeight
     color: "#FFFFFF"
     border.color: "#E0E0DC"
@@ -29,7 +29,7 @@ Rectangle {
         Rectangle {
             id: headerRect
             Layout.fillWidth: true
-            height: 36
+            Layout.preferredHeight: 36
             color: "#F5F5F3"
             
             Rectangle {
@@ -47,6 +47,7 @@ Rectangle {
 
                 Label {
                     text: root.title
+                    font.family: "Arial"
                     font.pixelSize: 12
                     font.weight: Font.Bold
                     font.letterSpacing: 0.5
@@ -56,8 +57,8 @@ Rectangle {
 
                 Rectangle {
                     visible: root.badge !== ""
-                    width: badgeLabel.implicitWidth + 12
-                    height: 18
+                    Layout.preferredWidth: badgeLabel.implicitWidth + 12
+                    Layout.preferredHeight: 18
                     radius: 4
                     color: "#E0E0DC"
                     
@@ -65,6 +66,7 @@ Rectangle {
                         id: badgeLabel
                         anchors.centerIn: parent
                         text: root.badge
+                        font.family: "Arial"
                         font.pixelSize: 9
                         font.weight: Font.Bold
                         color: "#6B6B66"
