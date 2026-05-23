@@ -50,10 +50,3 @@ jobs:
             # create package
             ./build/create-kicad-package.sh "$PROJECT_VERSION"
           fi
-
-      - name: Build Wheel
-        run: |
-          cp -r src xyce_simulator
-          printf 'import os, sys; sys.path.insert(0, os.path.dirname(__file__))\n' > xyce_simulator/__init__.py
-          python -m hatch build --target wheel
-          rm -rf xyce_simulator
