@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 from PySide6.QtQuick import QQuickItem, QQuickView
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QUrl, qInstallMessageHandler
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -15,6 +15,16 @@ QML_PATH = Path(__file__).parent.parent / "src" / "step_tool_dialog.qml"
 
 @pytest.fixture
 def view(qapp: QApplication):
+    # collect warnings loading the qml file
+    warnings = []
+
+    def message_handler(msg_type, context, message):
+        # check for warning messages
+        if msg_type == QtMsgType.QtWarningMsg:
+            warnings.append(message)
+
+    # install custom message handler
+    previous_handler = qInstallMessageHandler(message_handler)
     # create view
     v = QQuickView()
     # set qml source
@@ -23,8 +33,12 @@ def view(qapp: QApplication):
     QTest.qWait(100)
     # use view in tests
     yield v
+    # restore previous message handler
+    qInstallMessageHandler(previous_handler)
     # close it
     v.close()
+    # assert no warnings were emitted
+    assert warnings == [], warnings
 
 
 @pytest.fixture
