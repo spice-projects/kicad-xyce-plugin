@@ -578,11 +578,12 @@ class MainWindow(QMainWindow):
         if self._simulation_parameters is None:
             self._simulation_parameters = from_xyce_directives(topology.directives)
         # initialize simulation parameters from dialog
-        if self._simulation_parameters is None:
+        if self._simulation_parameters.analysis is None:
+            # configure simulation
             self._on_menu_configure_simulation()
-        # check simulation parameters
-        if self._simulation_parameters is None:
-            return
+            # check simulation parameters
+            if self._simulation_parameters.analysis is None:
+                return
         # generate simulation directives
         netlist = netlist.replace(".END\n", f"\n{'\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))}\n\n.END\n")
         # log information
