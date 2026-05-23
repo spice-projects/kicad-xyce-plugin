@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 
 import pytest
+import smith_chart_window
+from PySide6.QtQml import qmlRegisterType
 from PySide6.QtQuick import QQuickItem, QQuickView
 from PySide6.QtCore import QUrl
 from PySide6.QtTest import QTest
@@ -15,6 +17,8 @@ QML_PATH = Path(__file__).parent.parent / "src" / "smith_chart_window.qml"
 
 @pytest.fixture
 def view(qapp: QApplication):
+    # register the Python-backed SmithChart QML element before loading the QML
+    qmlRegisterType(smith_chart_window.SmithGridItem, "SmithChart", 1, 0, "SmithGridItem")
     # create view
     v = QQuickView()
     # set qml source
@@ -42,3 +46,9 @@ def test_loads_without_errors(view: QQuickView):
     errors = view.errors()
     # assert
     assert errors == [], [e.description() for e in errors]
+
+
+def test_property_default_values(root: QQuickItem):
+    # assert default values for top-level properties
+    assert root.property("_seriesCount") == 0
+    assert root.property("stepToolVisible") is False

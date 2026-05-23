@@ -42,3 +42,9 @@ def test_loads_without_errors(view: QQuickView):
     errors = view.errors()
     # assert
     assert errors == [], [e.description() for e in errors]
+
+
+def test_property_default_values(root: QQuickItem):
+    # assert default values for the configuration dialog
+    assert root.property("xyceExecutablePath") == ""
+    assert root.property("errorText") == ""

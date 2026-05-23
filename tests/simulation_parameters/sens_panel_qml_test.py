@@ -42,3 +42,19 @@ def test_loads_without_errors(view: QQuickView):
     errors = view.errors()
     # assert
     assert errors == [], [e.description() for e in errors]
+
+
+def test_property_default_values(root: QQuickItem):
+    # assert default values for all properties exposed by the QML panel
+    assert root.property("active") is False
+    assert root.property("objectiveMode") == "objfunc"
+    assert root.property("objectiveValues") == ""
+    assert root.property("parameters") == ""
+    assert root.property("direct") is False
+    assert root.property("adjoint") is False
+    assert root.property("printEnabled") is False
+    assert root.property("replaceGround") is True
+    assert root.property("printSpecificVars") == ""
+    assert root.property("printFormatIndex") == 0
+    assert root.property("printFile") == ""
+    assert root.property("printFormatValue") == ""

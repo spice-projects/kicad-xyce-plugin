@@ -42,3 +42,29 @@ def test_loads_without_errors(view: QQuickView):
     errors = view.errors()
     # assert
     assert errors == [], [e.description() for e in errors]
+
+
+def test_property_default_values(root: QQuickItem):
+    # assert default values for all properties exposed by the QML panel
+    assert root.property("outputNode") == ""
+    assert root.property("refNode") == ""
+    assert root.property("sourceName") == ""
+    assert root.property("sweepModeIndex") == 0
+    assert root.property("points") == ""
+    assert root.property("start") == ""
+    assert root.property("end") == ""
+    assert root.property("dataTableName") == ""
+    assert root.property("measureParametersText") == ""
+    assert root.property("printEnabled") is False
+    assert root.property("printAllNodes") is False
+    assert root.property("printAllCurrents") is False
+    assert root.property("printInoise") is False
+    assert root.property("printOnoise") is False
+    assert root.property("replaceGround") is True
+    assert root.property("printSpecificVars") == ""
+    assert root.property("printFormatIndex") == 0
+    assert root.property("printFile") == ""
+    assert root.property("deviceOperators").toVariant() == []
+    assert root.property("sweepModeValue") == "LIN"
+    assert root.property("isDataMode") is False
+    assert root.property("printFormatValue") == ""

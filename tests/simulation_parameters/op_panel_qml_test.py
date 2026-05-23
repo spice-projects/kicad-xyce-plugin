@@ -42,3 +42,24 @@ def test_loads_without_errors(view: QQuickView):
     errors = view.errors()
     # assert
     assert errors == [], [e.description() for e in errors]
+
+
+def test_property_default_values(root: QQuickItem):
+    # assert default values for all properties exposed by the QML panel
+    assert root.property("printEnabled") is False
+    assert root.property("printAllNodes") is False
+    assert root.property("printAllCurrents") is False
+    assert root.property("printPower") is False
+    assert root.property("printBjtLeads") is False
+    assert root.property("printFetLeads") is False
+    assert root.property("hasBjtDevices") is False
+    assert root.property("hasFetDevices") is False
+    assert root.property("replaceGround") is True
+    assert root.property("printSpecificVars") == ""
+    assert root.property("printFormatIndex") == 0
+    assert root.property("printFile") == ""
+    assert root.property("saveEnabled") is False
+    assert root.property("saveType") == "NODESET"
+    assert root.property("saveFile") == ""
+    assert root.property("nodesetEntries") == ""
+    assert root.property("printFormatValue") == ""

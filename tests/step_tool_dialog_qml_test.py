@@ -42,3 +42,11 @@ def test_loads_without_errors(view: QQuickView):
     errors = view.errors()
     # assert
     assert errors == [], [e.description() for e in errors]
+
+
+def test_property_default_values(root: QQuickItem):
+    # assert default values for top-level properties
+    assert root.property("parameterNames").toVariant() == []
+    assert root.property("stepRows").toVariant() == []
+    assert root.property("initialSelectedSteps").toVariant() == []
+    assert root.property("selectedState").toVariant() == {}

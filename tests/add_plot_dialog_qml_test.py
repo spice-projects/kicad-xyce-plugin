@@ -42,3 +42,22 @@ def test_loads_without_errors(view: QQuickView):
     errors = view.errors()
     # assert
     assert errors == [], [e.description() for e in errors]
+
+
+def test_property_default_values(root: QQuickItem):
+    # assert default values for all properties exposed by the QML panel
+    assert root.property("expressions").toVariant() == []
+    assert root.property("selectedIndices").toVariant() == []
+    assert root.property("selectionState").toVariant() == {}
+    assert root.property("filterText") == ""
+    assert root.property("expressionError") == ""
+    assert root.property("allowCustomExpressions") is True
+    assert root.property("expressionColors").toVariant() == {
+        "voltage": "#5b9bd5",
+        "current": "#7cb342",
+        "frequency": "#e57373",
+        "time": "#ba68c8",
+        "power": "#ffb74d",
+        "misc": "#3a3d4a"
+    }
+    assert root.property("filteredExpressions").toVariant() == []

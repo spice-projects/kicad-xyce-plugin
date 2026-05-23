@@ -42,3 +42,42 @@ def test_loads_without_errors(view: QQuickView):
     errors = view.errors()
     # assert
     assert errors == [], [e.description() for e in errors]
+
+
+def test_property_default_values(root: QQuickItem):
+    # assert default values for all properties exposed by the QML panel
+    assert root.property("sweepModeIndex") == 0
+    assert root.property("primaryVariable") == ""
+    assert root.property("startValue") == ""
+    assert root.property("stopValue") == ""
+    assert root.property("stepValue") == ""
+    assert root.property("pointsValue") == ""
+    assert root.property("listValuesText") == ""
+    assert root.property("dataTableName") == ""
+    assert root.property("secondaryEnabled") is False
+    assert root.property("secondaryVariable") == ""
+    assert root.property("secondaryStart") == ""
+    assert root.property("secondaryStop") == ""
+    assert root.property("secondaryStep") == ""
+    assert root.property("secondaryPoints") == ""
+    assert root.property("measureParametersText") == ""
+    assert root.property("printEnabled") is False
+    assert root.property("printAllNodes") is False
+    assert root.property("printAllCurrents") is False
+    assert root.property("printPower") is False
+    assert root.property("printBjtLeads") is False
+    assert root.property("printFetLeads") is False
+    assert root.property("hasBjtDevices") is False
+    assert root.property("hasFetDevices") is False
+    assert root.property("printSpecificVars") == ""
+    assert root.property("replaceGround") is True
+    assert root.property("printFormatIndex") == 0
+    assert root.property("printFile") == ""
+    assert root.property("sweepModeValue") == "LIN"
+    assert root.property("isLogMode") is False
+    assert root.property("isLinMode") is True
+    assert root.property("isRangeMode") is True
+    assert root.property("isListMode") is False
+    assert root.property("isDataMode") is False
+    assert root.property("supportsSecondary") is True
+    assert root.property("printFormatValue") == ""

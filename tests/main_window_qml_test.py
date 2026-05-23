@@ -42,3 +42,14 @@ def test_loads_without_errors(view: QQuickView):
     errors = view.errors()
     # assert
     assert errors == [], [e.description() for e in errors]
+
+
+def test_property_default_values(root: QQuickItem):
+    # assert default values for top-level properties
+    assert root.property("_activeChartIndex") == -1
+    assert root.property("_activeChartSeriesCount") == 0
+    assert root.property("fftVisible") is False
+    assert root.property("stepToolVisible") is False
+    assert root.property("smithChartVisible") is False
+    assert root.property("logVisible") is False
+    assert root.property("statusText") == ""

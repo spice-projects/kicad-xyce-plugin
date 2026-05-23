@@ -42,3 +42,10 @@ def test_loads_without_errors(view: QQuickView):
     errors = view.errors()
     # assert
     assert errors == [], [e.description() for e in errors]
+
+
+def test_property_default_values(root: QQuickItem):
+    # assert default values for the QML component properties
+    assert root.property("title") == ""
+    assert root.property("badge") == ""
+    assert root.property("spacing") == 16

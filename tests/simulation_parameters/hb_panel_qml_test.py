@@ -42,3 +42,23 @@ def test_loads_without_errors(view: QQuickView):
     errors = view.errors()
     # assert
     assert errors == [], [e.description() for e in errors]
+
+
+def test_property_default_values(root: QQuickItem):
+    # assert default values for all properties exposed by the QML panel
+    assert root.property("frequenciesText") == ""
+    assert root.property("harmonicsText") == ""
+    assert root.property("tahbIndex") == 0
+    assert root.property("selectHarmsIndex") == 0
+    assert root.property("startupPeriodsText") == ""
+    assert root.property("printEnabled") is False
+    assert root.property("printAllNodes") is False
+    assert root.property("printAllCurrents") is False
+    assert root.property("replaceGround") is True
+    assert root.property("printTypeIndex") == 0
+    assert root.property("printSpecificVars") == ""
+    assert root.property("printFormatIndex") == 0
+    assert root.property("printFile") == ""
+    assert root.property("printTypeValue") == "HB"
+    assert root.property("selectHarmsValue") == "hybrid"
+    assert root.property("printFormatValue") == ""
