@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 import pytest
-from PySide6.QtQuick import QQuickView
+from PySide6.QtQuick import QQuickItem, QQuickView
 from PySide6.QtCore import QUrl
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QApplication
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
-QML_PATH = Path(__file__).parent.parent.parent / "src" / "simulation_parameters" / "SimulationCard.qml"
+QML_PATH = Path(__file__).parent.parent.parent / "src" / "simulation_parameters" / "simulation_card.qml"
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ def view(qapp: QApplication):
 
 
 @pytest.fixture
-def root(view):
+def root(view: QQuickView) -> QQuickItem:
     # extract root component
     r = view.rootObject()
     # ensure it is valid
@@ -37,7 +37,7 @@ def root(view):
     return r
 
 
-def test_loads_without_errors(view):
+def test_loads_without_errors(view: QQuickView):
     # act
     errors = view.errors()
     # assert

@@ -6,3 +6,4 @@ SensPanel 1.0 sens_panel.qml
 NoisePanel 1.0 noise_panel.qml
 HbPanel 1.0 hb_panel.qml
 LinPanel 1.0 lin_panel.qml
+SimulationCard 1.0 simulation_card.qml

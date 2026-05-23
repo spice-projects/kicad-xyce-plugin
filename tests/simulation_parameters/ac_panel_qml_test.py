@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 import pytest
-from PySide6.QtQuick import QQuickView
+from PySide6.QtQuick import QQuickItem, QQuickView
 from PySide6.QtCore import QUrl
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
@@ -28,7 +28,7 @@ def view(qapp: QApplication):
 
 
 @pytest.fixture
-def root(view):
+def root(view: QQuickView) -> QQuickItem:
     # extract root component
     r = view.rootObject()
     # ensure it is valid
@@ -37,14 +37,14 @@ def root(view):
     return r
 
 
-def test_loads_without_errors(view):
+def test_loads_without_errors(view: QQuickView):
     # act
     errors = view.errors()
     # assert
     assert errors == [], [e.description() for e in errors]
 
 
-def test_property_default_values(root):
+def test_property_default_values(root: QQuickItem):
     # assert default values for all properties exposed by the QML panel
     assert root.property("sweepModeIndex") == 0
     assert root.property("points") == ""
