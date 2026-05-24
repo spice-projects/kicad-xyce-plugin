@@ -66,7 +66,7 @@ class TransientSimulationParameters:
                 # parse the print statement from the directive
                 print_statement = PrintParameters.from_xyce_statement(directive)
                 # retain transient print parameters when found
-                if print_statement and print_statement.print_type == "TRAN":
+                if print_statement and print_statement.print_type in ("TRAN", "TRANADJOINT"):
                     # store the parsed print parameters
                     print_parameters = print_statement
                     # next
@@ -96,7 +96,7 @@ class TransientSimulationParameters:
                 # parse the measure statement from the directive
                 measure_statement = MeasureEntry.from_xyce_statement(directive)
                 # retain measure parameters when found and analysis type matches
-                if measure_statement and measure_statement.analysis_type == "TRAN":
+                if measure_statement and measure_statement.analysis_type in ("TRAN", "TRAN_CONT"):
                     # append the parsed measure parameters
                     measure_parameters.append(measure_statement)
                 # next
@@ -158,7 +158,7 @@ class TransientSimulationParameters:
         # start with the transient analysis directive
         lines = [self._to_xyce_directive()]
         # append transient print directive when configured
-        if self.print_parameters and self.print_parameters.print_type == "TRAN":
+        if self.print_parameters:
             # append print statement
             lines.append(self.print_parameters.to_xyce_statement())
         # append sensitivity directives when configured

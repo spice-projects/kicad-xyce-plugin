@@ -300,10 +300,10 @@ class SimulationParametersDialog(QDialog):
             return
         self.accept()
 
-    @Slot(str, str, str, str, str, str, bool, bool, bool, str, str, str, bool)
-    def _on_submit_ac(self, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+    @Slot(str, str, str, str, str, str, bool, str, bool, bool, str, str, str, bool)
+    def _on_submit_ac(self, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, measure_parameters_text: str, print_enabled: bool, print_type: str, print_all_nodes: bool, print_all_currents: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # delegate validation and construction to the ac panel
-        analysis = self._ac_panel.handle_submit(sweep_mode, points, start, end, data_table_name, measure_parameters_text, print_enabled, print_all_nodes, print_all_currents, print_specific_vars, print_format, print_file, replace_ground, self._get_current_sens_parameters())
+        analysis = self._ac_panel.handle_submit(sweep_mode, points, start, end, data_table_name, measure_parameters_text, print_enabled, print_type, print_all_nodes, print_all_currents, print_specific_vars, print_format, print_file, replace_ground, self._get_current_sens_parameters())
         # return without accepting when validation failed
         if analysis is None:
             return
@@ -315,10 +315,10 @@ class SimulationParametersDialog(QDialog):
             return
         self.accept()
 
-    @Slot(str, str, str, str, str, bool, str, str, str, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
-    def _on_submit_transient(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, fft_parameters_text: str, four_parameters_text: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+    @Slot(str, str, str, str, str, bool, str, str, str, str, bool, str, bool, bool, bool, bool, bool, str, str, str, bool)
+    def _on_submit_transient(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, fft_parameters_text: str, four_parameters_text: str, measure_parameters_text: str, print_enabled: bool, print_type: str, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # delegate validation and construction to the tran panel
-        analysis = self._tran_panel.handle_submit(initial_step, final_time, start_time, step_ceiling, op_keyword, schedule_enabled, schedule_pairs_text, fft_parameters_text, four_parameters_text, measure_parameters_text, print_enabled, print_all_nodes, print_all_currents, print_power, print_bjt_leads, print_fet_leads, print_specific_vars, print_format, print_file, replace_ground, self._get_current_sens_parameters())
+        analysis = self._tran_panel.handle_submit(initial_step, final_time, start_time, step_ceiling, op_keyword, schedule_enabled, schedule_pairs_text, fft_parameters_text, four_parameters_text, measure_parameters_text, print_enabled, print_type, print_all_nodes, print_all_currents, print_power, print_bjt_leads, print_fet_leads, print_specific_vars, print_format, print_file, replace_ground, self._get_current_sens_parameters())
         # return without accepting when validation failed
         if analysis is None:
             return
@@ -339,10 +339,10 @@ class SimulationParametersDialog(QDialog):
         # close the dialog and return acceptance to the caller
         self.accept()
 
-    @Slot(str, str, str, str, str, str, str, str, bool, str, str, str, str, str, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
-    def _on_submit_dc(self, sweep_mode: str, primary_variable: str, start: str, stop: str, step: str, points: str, list_values_text: str, data_table_name: str, secondary_enabled: bool, secondary_variable: str, secondary_start: str, secondary_stop: str, secondary_step: str, secondary_points: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+    @Slot(str, str, str, str, str, str, str, str, bool, str, str, str, str, str, str, bool, str, bool, bool, bool, bool, bool, str, str, str, bool)
+    def _on_submit_dc(self, sweep_mode: str, primary_variable: str, start: str, stop: str, step: str, points: str, list_values_text: str, data_table_name: str, secondary_enabled: bool, secondary_variable: str, secondary_start: str, secondary_stop: str, secondary_step: str, secondary_points: str, measure_parameters_text: str, print_enabled: bool, print_type: str, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # delegate validation and construction to the dc panel
-        analysis = self._dc_panel.handle_submit(sweep_mode, primary_variable, start, stop, step, points, list_values_text, data_table_name, secondary_enabled, secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, measure_parameters_text, print_enabled, print_all_nodes, print_all_currents, print_power, print_bjt_leads, print_fet_leads, print_specific_vars, print_format, print_file, replace_ground, self._get_current_sens_parameters())
+        analysis = self._dc_panel.handle_submit(sweep_mode, primary_variable, start, stop, step, points, list_values_text, data_table_name, secondary_enabled, secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, measure_parameters_text, print_enabled, print_type, print_all_nodes, print_all_currents, print_power, print_bjt_leads, print_fet_leads, print_specific_vars, print_format, print_file, replace_ground, self._get_current_sens_parameters())
         # return without accepting when validation failed
         if analysis is None:
             return

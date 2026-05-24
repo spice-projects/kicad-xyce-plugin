@@ -64,7 +64,7 @@ class DCSimulationParameters:
                 # parse the print statement from the directive
                 print_statement = PrintParameters.from_xyce_statement(directive)
                 # retain dc print parameters when found
-                if print_statement and print_statement.print_type == "DC":
+                if print_statement and print_statement.print_type in ("DC", "HOMOTOPY"):
                     # store the parsed print parameters
                     print_parameters = print_statement
                     # next
@@ -80,7 +80,7 @@ class DCSimulationParameters:
                 # parse the measure statement from the directive
                 measure_statement = MeasureEntry.from_xyce_statement(directive)
                 # retain measure parameters when found and analysis type matches
-                if measure_statement and measure_statement.analysis_type == "DC":
+                if measure_statement and measure_statement.analysis_type in ("DC", "DC_CONT"):
                     # append the parsed measure parameters
                     measure_parameters.append(measure_statement)
                 # next
@@ -171,7 +171,7 @@ class DCSimulationParameters:
         else:
             lines = [self._build_log_directive()]
         # append dc print directive when configured
-        if self.print_parameters and self.print_parameters.print_type == "DC":
+        if self.print_parameters:
             # append the print statement
             lines.append(self.print_parameters.to_xyce_statement())
         # append sensitivity directives when configured

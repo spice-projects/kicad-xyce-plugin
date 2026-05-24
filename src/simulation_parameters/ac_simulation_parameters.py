@@ -48,7 +48,7 @@ class AcSimulationParameters:
                 # parse the print statement from the directive
                 print_statement = PrintParameters.from_xyce_statement(directive)
                 # retain ac print parameters when found
-                if print_statement and print_statement.print_type == "AC":
+                if print_statement and print_statement.print_type in ("AC", "AC_IC"):
                     # store the parsed print parameters
                     print_parameters = print_statement
                     # next
@@ -64,7 +64,7 @@ class AcSimulationParameters:
                 # parse the measure statement from the directive
                 measure_statement = MeasureEntry.from_xyce_statement(directive)
                 # retain measure parameters when found and analysis type matches
-                if measure_statement and measure_statement.analysis_type == "AC":
+                if measure_statement and measure_statement.analysis_type in ("AC", "AC_CONT"):
                     # append the parsed measure parameters
                     measure_parameters.append(measure_statement)
                 # next
@@ -124,7 +124,7 @@ class AcSimulationParameters:
             # lin sweep (explicit)
             lines = [f".AC LIN {self.points} {self.start} {self.end}"]
         # append ac print directive when configured
-        if self.print_parameters and self.print_parameters.print_type == "AC":
+        if self.print_parameters:
             # append the print statement
             lines.append(self.print_parameters.to_xyce_statement())
         # append sensitivity directives when configured

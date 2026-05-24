@@ -10,6 +10,9 @@ from .transient_simulation_parameters import TransientSchedulePoint, TransientSi
 # print format values matching the combo model order (index 0 is the empty/default value)
 _PRINT_FORMATS = ["", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"]
 
+# print type values for transient analysis
+_PRINT_TYPES = ["TRAN", "TRANADJOINT"]
+
 # wildcard tokens that map to dedicated checkbox shortcuts in the print section
 _PRINT_WILDCARDS = {"V(*)", "I(*)", "P(*)", "W(*)", "IB(*)", "IC(*)", "ID(*)", "IE(*)", "IG(*)", "IS(*)"}
 
@@ -59,6 +62,7 @@ class TranPanel:
             # expose device family flags for conditional checkbox visibility
             self._root.setProperty("tranHasBjtDevices", has_bjt)
             self._root.setProperty("tranHasFetDevices", has_fet)
+            self._root.setProperty("tranPrintTypeIndex", 0)
             self._root.setProperty("tranPrintFormatIndex", _PRINT_FORMATS.index("RAW"))
             self._root.setProperty("tranPrintFile", "")
             self._root.setProperty("tranPrintSpecificVars", "")
@@ -77,6 +81,9 @@ class TranPanel:
             # expose device family flags for conditional checkbox visibility
             self._root.setProperty("tranHasBjtDevices", has_bjt)
             self._root.setProperty("tranHasFetDevices", has_fet)
+            # map print type string to combo index
+            type_str = pp.print_type.upper()
+            self._root.setProperty("tranPrintTypeIndex", _PRINT_TYPES.index(type_str) if type_str in _PRINT_TYPES else 0)
             # map format string to combo index (index 0 is the default/empty value)
             fmt_str = pp.print_format.upper() if pp.print_format else ""
             self._root.setProperty("tranPrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
@@ -85,7 +92,7 @@ class TranPanel:
             # specific vars: only saved non-wildcard vars (no automatic topology pre-fill)
             self._root.setProperty("tranPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
 
-    def handle_submit(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, fft_parameters_text: str, four_parameters_text: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, sensitivity: SensParameter | None = None) -> TransientSimulationParameters | None:
+    def handle_submit(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, fft_parameters_text: str, four_parameters_text: str, measure_parameters_text: str, print_enabled: bool, print_type: str, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, sensitivity: SensParameter | None = None) -> TransientSimulationParameters | None:
         # normalize user-entered values by trimming surrounding spaces
         normalized_initial_step = initial_step.strip()
         # normalize final time field
@@ -217,7 +224,7 @@ class TranPanel:
             # append any explicitly listed specific variables
             output_vars.extend(v for v in print_specific_vars.split() if v)
             # construct print parameters for the transient analysis type
-            print_parameters = PrintParameters(print_type="TRAN", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
+            print_parameters = PrintParameters(print_type=print_type.strip().upper() if print_type.strip() else "TRAN", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # construct parameters instance
         analysis = TransientSimulationParameters(normalized_initial_step, normalized_final_time, normalized_start_time, normalized_step_ceiling, normalized_op_keyword, schedule_points, print_parameters=print_parameters, fft_parameters=tuple(fft_parameters), four_parameters=tuple(four_parameters), measure_parameters=tuple(measure_parameters), replace_ground=replace_ground, sensitivity=sensitivity)
         # return parameters to caller for config assembly

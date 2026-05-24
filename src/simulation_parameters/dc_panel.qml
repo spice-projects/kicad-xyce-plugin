@@ -46,6 +46,7 @@ ColumnLayout {
     property string printSpecificVars: ""
     property bool replaceGround: true
     property alias printFormatIndex: printFormatCombo.currentIndex
+    property alias printTypeIndex: printTypeCombo.currentIndex
     property string printFile: ""
     readonly property string sweepModeValue: (["LIN", "DEC", "OCT", "LIST", "DATA"])[sweepModeComboBox.currentIndex] || "LIN"
     readonly property bool isLogMode: sweepModeComboBox.currentIndex === 1 || sweepModeComboBox.currentIndex === 2
@@ -55,6 +56,7 @@ ColumnLayout {
     readonly property bool isDataMode: sweepModeComboBox.currentIndex === 4
     readonly property bool supportsSecondary: sweepModeComboBox.currentIndex <= 2
     readonly property string printFormatValue: printFormatCombo.currentIndex > 0 ? printFormatCombo.model[printFormatCombo.currentIndex] : ""
+    readonly property string printTypeValue: printTypeCombo.model[printTypeCombo.currentIndex]
 
     // --- .DC section ---
     SimulationCard {
@@ -261,7 +263,7 @@ ColumnLayout {
 
             CheckBox {
                 id: dcPrintEnabledCheckBox
-                text: "Enable .PRINT DC output"
+                text: "Enable .PRINT output"
                 checked: panel.printEnabled
                 onCheckedChanged: panel.printEnabled = checked
                 font.weight: Font.Medium
@@ -272,6 +274,16 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: 28
                 spacing: 12
+
+                RowLayout {
+                    spacing: 12
+                    Label { text: "Print type"; color: "#6B6B66"; font.pixelSize: 12 }
+                    ComboBox {
+                        id: printTypeCombo
+                        Layout.preferredWidth: 150
+                        model: ["DC", "HOMOTOPY"]
+                    }
+                }
 
                 RowLayout {
                     spacing: 20

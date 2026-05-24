@@ -9,6 +9,9 @@ _AC_SWEEP_MODES = {"LIN", "DEC", "OCT", "DATA"}
 # print format values matching the combo model order (index 0 is the empty/default value)
 _PRINT_FORMATS = ["", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"]
 
+# print type values for ac analysis
+_PRINT_TYPES = ["AC", "AC_IC"]
+
 # wildcard tokens that map to dedicated checkbox shortcuts in the print section
 _PRINT_WILDCARDS = {"V(*)", "I(*)", "P(*)", "W(*)", "IB(*)", "IC(*)", "ID(*)", "IE(*)", "IG(*)", "IS(*)"}
 
@@ -43,6 +46,7 @@ class AcPanel:
             self._root.setProperty("acPrintEnabled", p is None)
             self._root.setProperty("acPrintAllNodes", True)
             self._root.setProperty("acPrintAllCurrents", True)
+            self._root.setProperty("acPrintTypeIndex", 0)
             self._root.setProperty("acPrintFormatIndex", _PRINT_FORMATS.index("RAW"))
             self._root.setProperty("acPrintFile", "")
             self._root.setProperty("acPrintSpecificVars", "")
@@ -54,6 +58,9 @@ class AcPanel:
             # check wildcard shortcuts based on saved output variables
             self._root.setProperty("acPrintAllNodes", "V(*)" in selected)
             self._root.setProperty("acPrintAllCurrents", "I(*)" in selected)
+            # map print type string to combo index
+            type_str = pp.print_type.upper()
+            self._root.setProperty("acPrintTypeIndex", _PRINT_TYPES.index(type_str) if type_str in _PRINT_TYPES else 0)
             # map format string to combo index (index 0 is the default/empty value)
             fmt_str = pp.print_format.upper() if pp.print_format else ""
             self._root.setProperty("acPrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
@@ -62,7 +69,7 @@ class AcPanel:
             # specific vars: only saved non-wildcard vars (no automatic topology pre-fill)
             self._root.setProperty("acPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
 
-    def handle_submit(self, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, sensitivity: SensParameter | None = None) -> AcSimulationParameters | None:
+    def handle_submit(self, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, measure_parameters_text: str, print_enabled: bool, print_type: str, print_all_nodes: bool, print_all_currents: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, sensitivity: SensParameter | None = None) -> AcSimulationParameters | None:
         # normalize the sweep mode to uppercase for comparison
         normalized_mode = sweep_mode.strip().upper()
         # normalize numeric sweep fields
@@ -123,7 +130,7 @@ class AcPanel:
             # append any explicitly listed specific variables (complex-domain vars like VR(), VM(), etc.)
             output_vars.extend(v for v in print_specific_vars.split() if v)
             # construct print parameters for the ac analysis type
-            print_parameters = PrintParameters(print_type="AC", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
+            print_parameters = PrintParameters(print_type=print_type.strip().upper() if print_type.strip() else "AC", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # construct parameters instance
         analysis = AcSimulationParameters(normalized_mode, normalized_points, normalized_start, normalized_end, normalized_data_table, replace_ground, print_parameters, measure_parameters=tuple(measure_parameters), sensitivity=sensitivity)
         # return parameters to caller for config assembly

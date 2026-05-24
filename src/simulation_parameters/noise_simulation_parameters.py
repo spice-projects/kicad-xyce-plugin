@@ -118,7 +118,7 @@ class NoiseSimulationParameters:
                 # parse the measure statement from the directive
                 measure_statement = MeasureEntry.from_xyce_statement(directive)
                 # retain measure parameters when found and analysis type matches
-                if measure_statement and measure_statement.analysis_type == "NOISE":
+                if measure_statement and measure_statement.analysis_type in ("NOISE", "NOISE_CONT"):
                     # append the parsed measure parameters
                     measure_parameters.append(measure_statement)
                 # next

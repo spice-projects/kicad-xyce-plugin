@@ -32,10 +32,12 @@ ColumnLayout {
     property alias sensPrintFile: sensSection.printFile
     property string printSpecificVars: ""
     property alias printFormatIndex: printFormatCombo.currentIndex
+    property alias printTypeIndex: printTypeCombo.currentIndex
     property string printFile: ""
     readonly property string sweepModeValue: (["LIN", "DEC", "OCT", "DATA"])[acSweepModeComboBox.currentIndex] || "LIN"
     readonly property bool isDataMode: acSweepModeComboBox.currentIndex === 3
     readonly property string printFormatValue: printFormatCombo.currentIndex > 0 ? printFormatCombo.model[printFormatCombo.currentIndex] : ""
+    readonly property string printTypeValue: printTypeCombo.model[printTypeCombo.currentIndex]
 
     // --- .AC section ---
     SimulationCard {
@@ -126,7 +128,7 @@ ColumnLayout {
 
             CheckBox {
                 id: acPrintEnabledCheckBox
-                text: "Enable .PRINT AC output"
+                text: "Enable .PRINT output"
                 checked: panel.printEnabled
                 onCheckedChanged: panel.printEnabled = checked
                 font.weight: Font.Medium
@@ -137,6 +139,16 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.leftMargin: 28
                 spacing: 12
+
+                RowLayout {
+                    spacing: 12
+                    Label { text: "Print type"; color: "#6B6B66"; font.pixelSize: 12 }
+                    ComboBox {
+                        id: printTypeCombo
+                        Layout.preferredWidth: 150
+                        model: ["AC", "AC_IC"]
+                    }
+                }
 
                 RowLayout {
                     spacing: 20

@@ -14,6 +14,9 @@ _DC_SECONDARY_MODES = {"LIN", "DEC", "OCT"}
 # print format values matching the combo model order (index 0 is the empty/default value)
 _PRINT_FORMATS = ["", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"]
 
+# print type values for dc analysis
+_PRINT_TYPES = ["DC", "HOMOTOPY"]
+
 # wildcard tokens that map to dedicated checkbox shortcuts in the print section
 _PRINT_WILDCARDS = {"V(*)", "I(*)", "P(*)", "W(*)", "IB(*)", "IC(*)", "ID(*)", "IE(*)", "IG(*)", "IS(*)"}
 
@@ -82,6 +85,7 @@ class DcPanel:
             # expose device family flags for conditional checkbox visibility
             self._root.setProperty("dcHasBjtDevices", has_bjt)
             self._root.setProperty("dcHasFetDevices", has_fet)
+            self._root.setProperty("dcPrintTypeIndex", 0)
             self._root.setProperty("dcPrintFormatIndex", _PRINT_FORMATS.index("RAW"))
             self._root.setProperty("dcPrintFile", "")
             self._root.setProperty("dcPrintSpecificVars", "")
@@ -100,6 +104,9 @@ class DcPanel:
             # expose device family flags for conditional checkbox visibility
             self._root.setProperty("dcHasBjtDevices", has_bjt)
             self._root.setProperty("dcHasFetDevices", has_fet)
+            # map print type string to combo index
+            type_str = pp.print_type.upper()
+            self._root.setProperty("dcPrintTypeIndex", _PRINT_TYPES.index(type_str) if type_str in _PRINT_TYPES else 0)
             # map format string to combo index (index 0 is the default/empty value)
             fmt_str = pp.print_format.upper() if pp.print_format else ""
             self._root.setProperty("dcPrintFormatIndex", _PRINT_FORMATS.index(fmt_str) if fmt_str in _PRINT_FORMATS else 0)
@@ -110,7 +117,7 @@ class DcPanel:
         # clear stale error message
         self._root.setProperty("errorText", "")
 
-    def handle_submit(self, sweep_mode: str, primary_variable: str, start: str, stop: str, step: str, points: str, list_values_text: str, data_table_name: str, secondary_enabled: bool, secondary_variable: str, secondary_start: str, secondary_stop: str, secondary_step: str, secondary_points: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, sensitivity: SensParameter | None = None) -> DCSimulationParameters | None:
+    def handle_submit(self, sweep_mode: str, primary_variable: str, start: str, stop: str, step: str, points: str, list_values_text: str, data_table_name: str, secondary_enabled: bool, secondary_variable: str, secondary_start: str, secondary_stop: str, secondary_step: str, secondary_points: str, measure_parameters_text: str, print_enabled: bool, print_type: str, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, sensitivity: SensParameter | None = None) -> DCSimulationParameters | None:
         # normalize the sweep mode to uppercase for comparison
         normalized_mode = sweep_mode.strip().upper()
         # normalize primary variable by trimming surrounding spaces
@@ -261,7 +268,7 @@ class DcPanel:
             # append any explicitly listed specific variables
             output_vars.extend(v for v in print_specific_vars.split() if v)
             # construct print parameters for the DC sweep analysis type
-            print_parameters = PrintParameters(print_type="DC", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
+            print_parameters = PrintParameters(print_type=print_type.strip().upper() if print_type.strip() else "DC", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # construct parameters instance
         analysis = DCSimulationParameters(normalized_mode, normalized_primary, normalized_start, normalized_stop, normalized_step, normalized_points, list_values, normalized_data_table, effective_sec_variable, normalized_sec_start, normalized_sec_stop, normalized_sec_step, normalized_sec_points, replace_ground, print_parameters, measure_parameters=tuple(measure_parameters), sensitivity=sensitivity)
         # return parameters to caller for config assembly
