@@ -132,7 +132,7 @@ class DcPanel:
         normalized_sec_points = secondary_points.strip()
         # reject unrecognized sweep modes before any further validation
         if normalized_mode not in _DC_SWEEP_MODES:
-                # report error
+            # report error
             self._root.setProperty("errorText", "Sweep mode must be one of LIN, DEC, OCT, LIST, or DATA")
             # signal validation failure to caller
             return None
@@ -195,7 +195,7 @@ class DcPanel:
                 return None
             if normalized_mode in ("DEC", "OCT"):
                 if not normalized_sec_points:
-                # report error
+                    # report error
                     self._root.setProperty("errorText", "Secondary sweep points are required for DEC/OCT mode")
                     # signal validation failure to caller
                     return None

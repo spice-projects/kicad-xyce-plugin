@@ -9,7 +9,7 @@ This document summarizes the current implementation coverage of the simulation p
 | AC | yes | no | 24–25, 128, 153 | 37 | fail | resolved |
 | DC | yes | no | 27–30, 128, 153 | 37 | fail | resolved |
 | TRAN | yes | no | 161–162, 128, 153 | 37 | fail | resolved |
-| OP | no | n/a | 95, 128 | — | fail | pending |
+| OP | yes | n/a | 95, 128 | 41 | pass | resolved |
 | NOISE | yes | n/a | 93–94, 128 | 38 | pass | resolved |
 | HB | no | n/a | 47, 116–117, 137 | — | fail | pending |
 | LIN | yes | n/a | 52–53, 128 | — | pass | resolved |
@@ -22,9 +22,8 @@ This document summarizes the current implementation coverage of the simulation p
 ## Fail Descriptions
 
 ### OP
-- The `OpSimulationParameters` model supports `.OP`, `.PRINT DC`, `.SAVE`, `.NODESET`, and initial-condition directives (`.IC` / `.DCVOLT`).
-- However, the UI panel only exposes print output options, save options, and nodeset entries.
-- There is no editor field for entering `.IC` or `.DCVOLT` initial-condition entries, which means users cannot edit all required OP directive parameters from the dialog.
+- Resolved: the `OpSimulationParameters` model and UI now support `.IC` / `.DCVOLT` initial-condition entries through the OP panel.
+- The dialog now exposes an editor field for `.IC` / `.DCVOLT`, supporting full operating-point directive coverage.
 
 ### HB
 - The `HbSimulationParameters` model correctly parses `.HB` and handles `.OPTIONS HBINT`, `.OPTIONS NONLIN-HB`, and `.OPTIONS LINSOL-HB`.
@@ -37,5 +36,6 @@ This document summarizes the current implementation coverage of the simulation p
 - `AC`, `DC`, `TRAN`, `NOISE`, `LIN`, `STEP`, `FFT`, and `FOUR` are implemented with both model support and UI exposure for the documented directive fields.
 - `.SENS` is an additive directive and should be treated as a companion to DC, AC, or TRAN analysis rather than a standalone simulation model.
 - Current implementation still exposes `.SENS` in a separate Sensitivity tab, which means AC/DC/TRAN are not properly integrated with sensitivity support.
-- `OP` and `HB` are additional areas with incomplete editor coverage relative to the documented syntax.
+- `HB` remains an additional area with incomplete editor coverage relative to the documented syntax.
+- Issue `#41` is closed with UI support added for `.IC` / `.DCVOLT`.
 - Issue `#38` remains open because the plugin still drops `.MEASURE ..._CONT` directives during restore, even though core `.MEASURE NOISE` and `.MEASURE FFT` parsing support exists.
