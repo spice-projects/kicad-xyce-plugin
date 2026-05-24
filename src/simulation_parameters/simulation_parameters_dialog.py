@@ -286,10 +286,10 @@ class SimulationParametersDialog(QDialog):
             return
         self.accept()
 
-    @Slot(str, str, int, str, int, bool, bool, bool, str, str, str, str, bool)
-    def _on_submit_hb(self, frequencies_text: str, harmonics_text: str, tahb: int, selectharms: str, startup_periods: int, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_type: str, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
+    @Slot(str, str, int, str, int, bool, bool, bool, str, str, str, str, str, str, bool)
+    def _on_submit_hb(self, frequencies_text: str, harmonics_text: str, tahb: int, selectharms: str, startup_periods: int, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_type: str, print_specific_vars: str, print_format: str, print_file: str, nonlin_options_text: str, linsol_options_text: str, replace_ground: bool) -> None:
         # delegate validation and construction to the hb panel
-        analysis = self._hb_panel.handle_submit(frequencies_text, harmonics_text, tahb, selectharms, startup_periods, print_enabled, print_all_nodes, print_all_currents, print_type, print_specific_vars, print_format, print_file, replace_ground)
+        analysis = self._hb_panel.handle_submit(frequencies_text, harmonics_text, tahb, selectharms, startup_periods, print_enabled, print_all_nodes, print_all_currents, print_type, print_specific_vars, print_format, print_file, nonlin_options_text, linsol_options_text, replace_ground)
         # return without accepting when validation failed
         if analysis is None:
             return

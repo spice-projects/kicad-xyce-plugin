@@ -14,6 +14,8 @@ ColumnLayout {
     property alias tahbIndex: hbTahbCombo.currentIndex
     property alias selectHarmsIndex: hbSelectHarmsCombo.currentIndex
     property alias startupPeriodsText: hbStartupPeriodsField.text
+    property alias nonlinOptionsText: hbNonlinOptionsField.text
+    property alias linsolOptionsText: hbLinsolOptionsField.text
     property bool printEnabled: false
     property bool printAllNodes: false
     property bool printAllCurrents: false
@@ -77,6 +79,20 @@ ColumnLayout {
                     Layout.fillWidth: true
                     validator: IntValidator { bottom: 0 }
                     selectByMouse: true
+                }
+
+                Label { text: "Nonlinear solver options (.OPTIONS NONLIN-HB)"; color: "#6B6B66"; font.pixelSize: 12 }
+                TextField {
+                    id: hbNonlinOptionsField
+                    placeholderText: "e.g. ABSTOL=1e-9 MAXIT=50"
+                    Layout.fillWidth: true
+                }
+
+                Label { text: "Linear solver options (.OPTIONS LINSOL-HB)"; color: "#6B6B66"; font.pixelSize: 12 }
+                TextField {
+                    id: hbLinsolOptionsField
+                    placeholderText: "e.g. TYPE=AZTECOO NPRE=1"
+                    Layout.fillWidth: true
                 }
             }
         }

@@ -25,6 +25,21 @@ def _parse_list_values(list_values_text: str) -> tuple[str, ...]:
     return tuple(tokens)
 
 
+def _parse_key_value_options(options_text: str) -> dict[str, str]:
+    # return an empty dictionary when no text was provided
+    if not options_text:
+        return {}
+    # split on whitespace and commas, preserving key=value pairs
+    raw_tokens = re.split(r"[\s,]+", options_text)
+    options: dict[str, str] = {}
+    for token in raw_tokens:
+        if not token or "=" not in token:
+            continue
+        key, value = token.split("=", 1)
+        options[key.upper()] = value
+    return options
+
+
 class HbPanel:
     def __init__(self, root):
         # retain root reference for property reads and writes
@@ -38,13 +53,16 @@ class HbPanel:
         # tahb option index: 0 = False, 1 = True
         self._root.setProperty("hbTahbIndex", 1 if p and p.tahb else 0)
         # select_harms option: map to combo index
-        select_harms_options = ["none", "all", "acknowledged"]
-        # resolve index for the saved select_harms option or default to none
+        select_harms_options = ["hybrid", "box", "diamond"]
+        # resolve index for the saved select_harms option or default to hybrid
         harms_index = select_harms_options.index(p.selectharms.lower()) if p and p.selectharms and p.selectharms.lower() in select_harms_options else 0
         # restore selection
         self._root.setProperty("hbSelectHarmsIndex", harms_index)
         # restore startup periods text
         self._root.setProperty("hbStartupPeriodsText", str(p.startup_periods) if p and p.startup_periods else "")
+        # restore solver option text fields
+        self._root.setProperty("hbNonlinOptionsText", " ".join(f"{k}={v}" for k, v in p.nonlin_options.items()) if p and p.nonlin_options else "")
+        self._root.setProperty("hbLinsolOptionsText", " ".join(f"{k}={v}" for k, v in p.linsol_options.items()) if p and p.linsol_options else "")
         # clear stale error message
         self._root.setProperty("errorText", "")
         # extract print parameters for pre-population
@@ -77,7 +95,7 @@ class HbPanel:
             # specific vars: only saved non-wildcard vars (no automatic topology pre-fill)
             self._root.setProperty("hbPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
 
-    def handle_submit(self, frequencies_text: str, harmonics_text: str, tahb_index: int, select_harms_value: str, startup_periods: int, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_type: str, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> HbSimulationParameters | None:
+    def handle_submit(self, frequencies_text: str, harmonics_text: str, tahb_index: int, select_harms_value: str, startup_periods: int, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_type: str, print_specific_vars: str, print_format: str, print_file: str, nonlin_options_text: str, linsol_options_text: str, replace_ground: bool) -> HbSimulationParameters | None:
         # parse frequencies list from text
         frequencies = _parse_list_values(frequencies_text)
         # require at least one fundamental frequency
@@ -117,7 +135,9 @@ class HbPanel:
             output_vars.extend(v for v in print_specific_vars.split() if v)
             # construct print parameters using the selected HB print type
             print_parameters = PrintParameters(print_type=print_type.strip().upper() if print_type.strip().upper() in ("HB", "HB_FD", "HB_TD") else "HB", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
+        nonlin_options = _parse_key_value_options(nonlin_options_text)
+        linsol_options = _parse_key_value_options(linsol_options_text)
         # construct parameters instance
-        analysis = HbSimulationParameters(frequencies, tuple(harmonics), tahb, normalized_select_harms, startup_periods, replace_ground, print_parameters)
+        analysis = HbSimulationParameters(frequencies, tuple(harmonics), tahb, normalized_select_harms, startup_periods, replace_ground, print_parameters, nonlin_options=nonlin_options, linsol_options=linsol_options)
         # return parameters to caller for config assembly
         return analysis

@@ -1023,6 +1023,21 @@ class TestApplyHBParameters:
         dialog._root.setProperty.assert_any_call("hbPrintTypeIndex", 2)
         dialog._root.setProperty.assert_any_call("hbPrintFile", "hb.csv")
 
+    def test_restores_saved_hb_solver_options(self):
+        # arrange
+        params = HbSimulationParameters(
+            frequencies=("1MEG",),
+            nonlin_options={"ABSTOL": "1e-9", "MAXIT": "50"},
+            linsol_options={"TYPE": "AZTECOO"},
+            replace_ground=False
+        )
+        dialog = _make_dialog()
+        # act
+        dialog._apply_hb_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("hbNonlinOptionsText", "ABSTOL=1e-9 MAXIT=50")
+        dialog._root.setProperty.assert_any_call("hbLinsolOptionsText", "TYPE=AZTECOO")
+
 
 class TestApplyLinParameters:
 
@@ -1250,7 +1265,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", False)
+        dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
         assert isinstance(dialog._result.analysis, HbSimulationParameters)
@@ -1259,7 +1274,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_hb("", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", False)
+        dialog._on_submit_hb("", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("errorText", "At least one fundamental frequency is required")
@@ -1268,7 +1283,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_hb("1MEG 2MEG 3MEG", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", False)
+        dialog._on_submit_hb("1MEG 2MEG 3MEG", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
         assert len(dialog._result.analysis.frequencies) == 3
@@ -1277,7 +1292,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, True, True, True, "HB_FD", "V(1)", "CSV", "hb.csv", False)
+        dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, True, True, True, "HB_FD", "V(1)", "CSV", "hb.csv", "", "", False)
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
@@ -1290,16 +1305,18 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, True, False, False, "INVALID", "", "", "", False)
+        dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, True, False, False, "INVALID", "", "", "", "ABSTOL=1e-9", "TYPE=AZTECOO", False)
         # assert
         dialog.accept.assert_called_once()
         assert dialog._result.analysis.print_parameters.print_type == "HB"
+        assert dialog._result.analysis.nonlin_options == {"ABSTOL": "1e-9"}
+        assert dialog._result.analysis.linsol_options == {"TYPE": "AZTECOO"}
 
     def test_clears_hb_error_on_success(self):
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", False)
+        dialog._on_submit_hb("1MEG", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", "", "", False)
         # assert
         dialog._root.setProperty.assert_any_call("errorText", "")
 
@@ -1307,7 +1324,7 @@ class TestSimulationParametersDialogOnSubmitHB:
         # arrange
         dialog = _make_dialog_with_accept()
         # act — whitespace-only text parses to no tokens
-        dialog._on_submit_hb("  ,  ", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", False)
+        dialog._on_submit_hb("  ,  ", "", 1, "hybrid", 0, False, False, False, "HB", "", "", "", "", "", False)
         # assert
         dialog.accept.assert_not_called()
         dialog._root.setProperty.assert_any_call("errorText", "At least one fundamental frequency is required")
