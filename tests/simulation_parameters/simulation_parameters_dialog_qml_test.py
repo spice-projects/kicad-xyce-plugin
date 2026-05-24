@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 from PySide6.QtQuick import QQuickItem, QQuickView
-from PySide6.QtCore import QUrl, qInstallMessageHandler
+from PySide6.QtCore import QUrl, qInstallMessageHandler, QtMsgType
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -100,16 +100,16 @@ def test_property_default_values(root: QQuickItem):
     assert root.property("dcPrintSpecificVars") == ""
     assert root.property("dcPrintFormatIndex") == 0
     assert root.property("dcPrintFile") == ""
-    assert root.property("sensEnabled") is False
-    assert root.property("sensObjectiveMode") == "objfunc"
-    assert root.property("sensObjectiveValues") == ""
-    assert root.property("sensParameters") == ""
-    assert root.property("sensDirect") is False
-    assert root.property("sensAdjoint") is False
-    assert root.property("sensPrintEnabled") is False
-    assert root.property("sensPrintSpecificVars") == ""
-    assert root.property("sensPrintFormatIndex") == 0
-    assert root.property("sensPrintFile") == ""
+    assert root.property("acSensEnabled") is False
+    assert root.property("acSensObjectiveMode") == "objfunc"
+    assert root.property("acSensObjectiveValues") == ""
+    assert root.property("acSensParameters") == ""
+    assert root.property("acSensDirect") is False
+    assert root.property("acSensAdjoint") is False
+    assert root.property("acSensPrintEnabled") is False
+    assert root.property("acSensPrintSpecificVars") == ""
+    assert root.property("acSensPrintFormatIndex") == 0
+    assert root.property("acSensPrintFile") == ""
     assert root.property("acSweepModeIndex") == 0
     assert root.property("acPoints") == ""
     assert root.property("acStart") == ""

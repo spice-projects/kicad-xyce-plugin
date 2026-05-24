@@ -4,6 +4,7 @@ from .fft_parameters import FftParameters
 from .four_parameters import FourParameters
 from .measure_parameters import MeasureEntry
 from .print_parameters import PrintParameters
+from .sens_parameter import SensParameter
 from .transient_simulation_parameters import TransientSchedulePoint, TransientSimulationParameters
 
 # print format values matching the combo model order (index 0 is the empty/default value)
@@ -84,7 +85,7 @@ class TranPanel:
             # specific vars: only saved non-wildcard vars (no automatic topology pre-fill)
             self._root.setProperty("tranPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
 
-    def handle_submit(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, fft_parameters_text: str, four_parameters_text: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> TransientSimulationParameters | None:
+    def handle_submit(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, fft_parameters_text: str, four_parameters_text: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, sensitivity: SensParameter | None = None) -> TransientSimulationParameters | None:
         # normalize user-entered values by trimming surrounding spaces
         normalized_initial_step = initial_step.strip()
         # normalize final time field
@@ -218,7 +219,7 @@ class TranPanel:
             # construct print parameters for the transient analysis type
             print_parameters = PrintParameters(print_type="TRAN", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # construct parameters instance
-        analysis = TransientSimulationParameters(normalized_initial_step, normalized_final_time, normalized_start_time, normalized_step_ceiling, normalized_op_keyword, schedule_points, print_parameters=print_parameters, fft_parameters=tuple(fft_parameters), four_parameters=tuple(four_parameters), measure_parameters=tuple(measure_parameters), replace_ground=replace_ground)
+        analysis = TransientSimulationParameters(normalized_initial_step, normalized_final_time, normalized_start_time, normalized_step_ceiling, normalized_op_keyword, schedule_points, print_parameters=print_parameters, fft_parameters=tuple(fft_parameters), four_parameters=tuple(four_parameters), measure_parameters=tuple(measure_parameters), replace_ground=replace_ground, sensitivity=sensitivity)
         # return parameters to caller for config assembly
         return analysis
 

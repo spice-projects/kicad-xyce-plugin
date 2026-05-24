@@ -8,6 +8,7 @@ from .fft_parameters import FftParameters
 from .four_parameters import FourParameters
 from .measure_parameters import MeasureEntry
 from .print_parameters import PrintParameters
+from .sens_parameter import SensParameter
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,7 @@ class TransientSimulationParameters:
     fft_parameters: tuple[FftParameters, ...] = ()
     four_parameters: tuple[FourParameters, ...] = ()
     measure_parameters: tuple[MeasureEntry, ...] = ()
+    sensitivity: SensParameter | None = None
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "TransientSimulationParameters" | None:
@@ -145,8 +147,10 @@ class TransientSimulationParameters:
             # assign optional step ceiling (position 4)
             if len(positional) >= 2:
                 step_ceiling_value = positional[1]
+        # parse sensitivity as a companion directive before analysis detection
+        sensitivity = SensParameter.from_xyce_directives(directives)
         # return instance if a valid directive was found
-        return cls(initial_step_value=initial_step_value, final_time_value=final_time_value, start_time_value=start_time_value, step_ceiling_value=step_ceiling_value, op_keyword=op_keyword, schedule_points=tuple(schedule_points), replace_ground=replace_ground, print_parameters=print_parameters, fft_parameters=tuple(fft_parameters), four_parameters=tuple(four_parameters), measure_parameters=tuple(measure_parameters)) if found else None
+        return cls(initial_step_value=initial_step_value, final_time_value=final_time_value, start_time_value=start_time_value, step_ceiling_value=step_ceiling_value, op_keyword=op_keyword, schedule_points=tuple(schedule_points), replace_ground=replace_ground, print_parameters=print_parameters, fft_parameters=tuple(fft_parameters), four_parameters=tuple(four_parameters), measure_parameters=tuple(measure_parameters), sensitivity=sensitivity) if found else None
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # prepend replaceground preprocessor directive when enabled
@@ -157,6 +161,9 @@ class TransientSimulationParameters:
         if self.print_parameters and self.print_parameters.print_type == "TRAN":
             # append print statement
             lines.append(self.print_parameters.to_xyce_statement())
+        # append sensitivity directives when configured
+        if self.sensitivity is not None:
+            lines.extend(self.sensitivity.to_xyce_directives(topology))
         # append fft directives
         for fft in self.fft_parameters:
             # append fft statement

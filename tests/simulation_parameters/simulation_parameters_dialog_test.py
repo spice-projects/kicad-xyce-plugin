@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtQuick import QQuickView
 
 from netlist_parser import Device, NetlistTopology
-from simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, PrintParameters, SensSimulationParameters, SimulationConfig, SimulationParametersDialog, StepParameters, TransientSchedulePoint, TransientSimulationParameters
+from simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, PrintParameters, SimulationConfig, SimulationParametersDialog, StepParameters, TransientSchedulePoint, TransientSimulationParameters
 
 from simulation_parameters.noise_panel import _validate_device_name
 
@@ -32,7 +32,7 @@ def _make_dialog(initial_parameters=None) -> SimulationParametersDialog:
     from simulation_parameters.tran_panel import TranPanel
     from simulation_parameters.dc_panel import DcPanel
     from simulation_parameters.ac_panel import AcPanel
-    from simulation_parameters.sens_panel import SensPanel
+    from simulation_parameters.sensitivity_section import SensitivitySection
     from simulation_parameters.noise_panel import NoisePanel
     from simulation_parameters.hb_panel import HbPanel
     from simulation_parameters.lin_panel import LinPanel
@@ -41,7 +41,7 @@ def _make_dialog(initial_parameters=None) -> SimulationParametersDialog:
     dialog._tran_panel = TranPanel(dialog._root)
     dialog._dc_panel = DcPanel(dialog._root)
     dialog._ac_panel = AcPanel(dialog._root)
-    dialog._sens_panel = SensPanel(dialog._root)
+    dialog._sensitivity_section = SensitivitySection(dialog._root)
     dialog._noise_panel = NoisePanel(dialog._root)
     dialog._hb_panel = HbPanel(dialog._root)
     dialog._lin_panel = LinPanel(dialog._root)
@@ -1453,55 +1453,45 @@ class TestSimulationParametersDialogOnSubmitDCWithPrint:
         assert "V(1)" in result.analysis.print_parameters.output_variables
 
 
-class TestSimulationParametersDialogOnSubmitSens:
+class TestSimulationParametersDialogSensitivityAttachment:
 
-    def test_accepts_valid_sens_params(self):
+    def test_attaches_sensitivity_to_dc_analysis_from_root_properties(self):
         # arrange
-        dialog = _make_dialog_with_accept()
+        initial_analysis = DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", "", tuple(), "", "", "", "", "", "")
+        dialog = _make_dialog_with_accept(initial_parameters=initial_analysis)
+
+        properties = {
+            "currentTabIndex": 2,
+            "dcSensEnabled": True,
+            "dcSensObjectiveMode": "objfunc",
+            "dcSensObjectiveValues": "V(2)",
+            "dcSensParameters": "R1:R",
+            "dcSensDirect": True,
+            "dcSensAdjoint": False,
+            "dcSensPrintEnabled": False,
+            "replaceGround": False,
+            "stepEnabled": False,
+            "stepSweepModeIndex": 0,
+            "stepVariable": "",
+            "stepStartValue": "",
+            "stepStopValue": "",
+            "stepStepValue": "",
+            "stepPointsValue": "",
+            "stepListValuesText": "",
+            "stepDataTableName": ""
+        }
+        dialog._root.property.side_effect = lambda name: properties.get(name)
+
         # act
-        dialog._on_submit_sens("objfunc", "V(2)", "R1:R", True, True, False, False, "", "", "")
+        dialog._on_submit_dc("LIN", "VIN", "0", "5", "0.1", "", "", "", False, "", "", "", "", "", "", False, False, False, False, False, False, "", "", "", False)
+
         # assert
         dialog.accept.assert_called_once()
-        assert isinstance(dialog._result.analysis, SensSimulationParameters)
-        assert dialog._result.analysis.objective_mode == "objfunc"
-        assert dialog._result.analysis.objective_values == ("V(2)",)
-        assert dialog._result.analysis.parameter_list == ("R1:R",)
-        assert dialog._result.analysis.direct is True
-        assert dialog._result.analysis.adjoint is True
-        assert dialog._result.analysis.replace_ground is False
-
-    def test_rejects_sens_missing_objective_mode(self):
-        # arrange
-        dialog = _make_dialog_with_accept()
-        # act
-        dialog._on_submit_sens("", "V(2)", "R1:R", True, True, False, False, "", "", "")
-        # assert
-        dialog.accept.assert_not_called()
-        dialog._root.setProperty.assert_any_call("errorText", "Objective mode is required")
-
-    def test_rejects_sens_missing_objective_values(self):
-        # arrange
-        dialog = _make_dialog_with_accept()
-        # act
-        dialog._on_submit_sens("objfunc", "", "R1:R", True, True, False, False, "", "", "")
-        # assert
-        dialog.accept.assert_not_called()
-        dialog._root.setProperty.assert_any_call("errorText", "Objective values are required")
-
-    def test_rejects_sens_missing_parameters(self):
-        # arrange
-        dialog = _make_dialog_with_accept()
-        # act
-        dialog._on_submit_sens("objfunc", "V(2)", "", True, True, False, False, "", "", "")
-        # assert
-        dialog.accept.assert_not_called()
-        dialog._root.setProperty.assert_any_call("errorText", "Parameters are required")
-
-    def test_accepts_sens_with_replace_ground_enabled(self):
-        # arrange
-        dialog = _make_dialog_with_accept()
-        # act
-        dialog._on_submit_sens("objfunc", "V(2)", "R1:R", True, True, True, False, "", "", "")
-        # assert
-        dialog.accept.assert_called_once()
-        assert dialog._result.analysis.replace_ground is True
+        assert isinstance(dialog._result.analysis, DCSimulationParameters)
+        assert dialog._result.analysis.sensitivity is not None
+        assert dialog._result.analysis.sensitivity.analysis_context == "DC"
+        assert dialog._result.analysis.sensitivity.objective_mode == "objfunc"
+        assert dialog._result.analysis.sensitivity.objective_values == ("V(2)",)
+        assert dialog._result.analysis.sensitivity.parameter_list == ("R1:R",)
+        assert dialog._result.analysis.sensitivity.direct is True
+        assert dialog._result.analysis.sensitivity.adjoint is False

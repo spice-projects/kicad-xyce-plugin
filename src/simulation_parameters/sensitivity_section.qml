@@ -6,10 +6,10 @@ import QtQuick.Layouts
 
 ColumnLayout {
 
-    id: panel
+    id: root
     spacing: 24
 
-    property bool active: false
+    readonly property bool active: objectiveValues.trim() !== "" && parameters.trim() !== ""
     property string objectiveMode: "objfunc"
     property string objectiveValues: ""
     property string parameters: ""
@@ -43,16 +43,16 @@ ColumnLayout {
                     id: sensObjectiveModeCombo
                     Layout.fillWidth: true
                     model: ["objfunc", "objvars", "acobjfunc"]
-                    currentIndex: ["objfunc", "objvars", "acobjfunc"].indexOf(panel.objectiveMode)
-                    onCurrentIndexChanged: panel.objectiveMode = model[currentIndex]
+                    currentIndex: ["objfunc", "objvars", "acobjfunc"].indexOf(root.objectiveMode)
+                    onCurrentIndexChanged: root.objectiveMode = model[currentIndex]
                 }
 
                 Label { text: "Objective Values *"; color: "#6B6B66"; font.pixelSize: 12 }
                 TextField {
                     id: sensObjectiveValuesField
                     placeholderText: "e.g. V(2)"
-                    text: panel.objectiveValues
-                    onTextChanged: panel.objectiveValues = text
+                    text: root.objectiveValues
+                    onTextChanged: root.objectiveValues = text
                     Layout.fillWidth: true
                     selectByMouse: true
                 }
@@ -61,8 +61,8 @@ ColumnLayout {
                 TextField {
                     id: sensParametersField
                     placeholderText: "e.g. R1:R,C1:C"
-                    text: panel.parameters
-                    onTextChanged: panel.parameters = text
+                    text: root.parameters
+                    onTextChanged: root.parameters = text
                     Layout.fillWidth: true
                     selectByMouse: true
                 }
@@ -74,14 +74,14 @@ ColumnLayout {
                 CheckBox {
                     id: sensDirectCheckBox
                     text: "Direct Method"
-                    checked: panel.direct
-                    onCheckedChanged: panel.direct = checked
+                    checked: root.direct
+                    onCheckedChanged: root.direct = checked
                 }
                 CheckBox {
                     id: sensAdjointCheckBox
                     text: "Adjoint Method"
-                    checked: panel.adjoint
-                    onCheckedChanged: panel.adjoint = checked
+                    checked: root.adjoint
+                    onCheckedChanged: root.adjoint = checked
                 }
             }
         }
@@ -99,8 +99,8 @@ ColumnLayout {
             CheckBox {
                 id: sensPrintEnabledCheckBox
                 text: "Enable .PRINT SENS output"
-                checked: panel.printEnabled
-                onCheckedChanged: panel.printEnabled = checked
+                checked: root.printEnabled
+                onCheckedChanged: root.printEnabled = checked
                 font.weight: Font.Medium
             }
 
@@ -120,8 +120,8 @@ ColumnLayout {
                     TextField {
                         id: sensPrintSpecificVarsField
                         placeholderText: "e.g. dSdP(V(2):R1:R)"
-                        text: panel.printSpecificVars
-                        onTextChanged: panel.printSpecificVars = text
+                        text: root.printSpecificVars
+                        onTextChanged: root.printSpecificVars = text
                         Layout.fillWidth: true
                     }
 
@@ -136,36 +136,11 @@ ColumnLayout {
                     TextField {
                         id: sensPrintFileField
                         placeholderText: "optional (e.g. output.raw)"
-                        text: panel.printFile
-                        onTextChanged: panel.printFile = text
+                        text: root.printFile
+                        onTextChanged: root.printFile = text
                         Layout.fillWidth: true
                     }
                 }
-            }
-        }
-    }
-
-    // --- Global Settings ---
-    SimulationCard {
-        title: "Global Settings"
-        Layout.fillWidth: true
-
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            CheckBox {
-                text: "Replace ground (GND) with 0"
-                checked: panel.replaceGround
-                onCheckedChanged: panel.replaceGround = checked
-                font.weight: Font.Medium
-            }
-
-            Label {
-                text: "Matches KiCad's ground symbol to Xyce's expected 0 net"
-                color: "#6B6B66"
-                font.pixelSize: 11
-                Layout.leftMargin: 28
             }
         }
     }

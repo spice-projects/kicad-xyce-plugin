@@ -1,6 +1,7 @@
 from .ac_simulation_parameters import AcSimulationParameters
 from .measure_parameters import MeasureEntry
 from .print_parameters import PrintParameters
+from .sens_parameter import SensParameter
 
 # valid sweep modes for the ac directive
 _AC_SWEEP_MODES = {"LIN", "DEC", "OCT", "DATA"}
@@ -61,7 +62,7 @@ class AcPanel:
             # specific vars: only saved non-wildcard vars (no automatic topology pre-fill)
             self._root.setProperty("acPrintSpecificVars", " ".join(v for v in pp.output_variables if v not in _PRINT_WILDCARDS))
 
-    def handle_submit(self, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> AcSimulationParameters | None:
+    def handle_submit(self, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, sensitivity: SensParameter | None = None) -> AcSimulationParameters | None:
         # normalize the sweep mode to uppercase for comparison
         normalized_mode = sweep_mode.strip().upper()
         # normalize numeric sweep fields
@@ -124,6 +125,6 @@ class AcPanel:
             # construct print parameters for the ac analysis type
             print_parameters = PrintParameters(print_type="AC", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # construct parameters instance
-        analysis = AcSimulationParameters(normalized_mode, normalized_points, normalized_start, normalized_end, normalized_data_table, replace_ground, print_parameters, measure_parameters=tuple(measure_parameters))
+        analysis = AcSimulationParameters(normalized_mode, normalized_points, normalized_start, normalized_end, normalized_data_table, replace_ground, print_parameters, measure_parameters=tuple(measure_parameters), sensitivity=sensitivity)
         # return parameters to caller for config assembly
         return analysis

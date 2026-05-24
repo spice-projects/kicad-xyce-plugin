@@ -34,6 +34,7 @@
     "/^source \\.venv/bin/activate && pytest tests/simulation_parameters/ -q -x 2>&1 \\| tail -40$/": {
       "approve": true,
       "matchCommandLine": true
-    }
+    },
+    "gh": true
   }
 }

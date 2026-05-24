@@ -9,7 +9,6 @@ from .hb_simulation_parameters import HbSimulationParameters
 from .lin_simulation_parameters import LinSimulationParameters
 from .noise_simulation_parameters import NoiseSimulationParameters
 from .op_simulation_parameters import OpSimulationParameters
-from .sens_simulation_parameters import SensSimulationParameters
 from .step_parameters import StepParameters
 from .transient_simulation_parameters import TransientSimulationParameters
 
@@ -19,7 +18,6 @@ class SimulationConfig:
 
     analysis: AcSimulationParameters | DCSimulationParameters | HbSimulationParameters | LinSimulationParameters | NoiseSimulationParameters | OpSimulationParameters | TransientSimulationParameters | None
     step: StepParameters
-    sensitivity: SensSimulationParameters | None = None
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "SimulationConfig":
@@ -39,10 +37,8 @@ class SimulationConfig:
                 break
         # parse the step parameters from the same directive list
         step = StepParameters.from_xyce_directives(directives)
-        # parse the sensitivity parameters independently as they are additive
-        sensitivity = SensSimulationParameters.from_xyce_directives(directives)
         # return the combined configuration container
-        return cls(analysis=analysis, step=step, sensitivity=sensitivity)
+        return cls(analysis=analysis, step=step)
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # init output directive list
@@ -53,9 +49,5 @@ class SimulationConfig:
             directives.extend(self.analysis.to_xyce_directives(topology))
         # extend with step-specific directives
         directives.extend(self.step.to_xyce_directives())
-        # check if sensitivity is configured
-        if self.sensitivity is not None:
-            # extend with sensitivity-specific directives
-            directives.extend(self.sensitivity.to_xyce_directives(topology))
         # return the full consolidated directive list
         return directives

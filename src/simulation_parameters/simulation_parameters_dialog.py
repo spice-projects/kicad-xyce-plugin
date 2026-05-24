@@ -21,8 +21,8 @@ from .noise_panel import NoisePanel
 from .op_simulation_parameters import OpSimulationParameters
 from .op_panel import OpPanel
 from .print_parameters import PrintParameters
-from .sens_simulation_parameters import SensSimulationParameters
-from .sens_panel import SensPanel
+from .sensitivity_section import SensitivitySection
+from .sens_parameter import SensParameter
 from .simulation_config import SimulationConfig
 from .step_parameters import StepParameters
 from .transient_simulation_parameters import TransientSimulationParameters, TransientSchedulePoint
@@ -97,7 +97,7 @@ class SimulationParametersDialog(QDialog):
         self._tran_panel = TranPanel(self._root)
         self._dc_panel = DcPanel(self._root)
         self._ac_panel = AcPanel(self._root)
-        self._sens_panel = SensPanel(self._root)
+        self._sensitivity_section = SensitivitySection(self._root)
         self._noise_panel = NoisePanel(self._root)
         self._hb_panel = HbPanel(self._root)
         self._lin_panel = LinPanel(self._root)
@@ -110,24 +110,11 @@ class SimulationParametersDialog(QDialog):
         self._root.submitTransient.connect(self._on_submit_transient)
         self._root.submitDC.connect(self._on_submit_dc)
         self._root.submitAC.connect(self._on_submit_ac)
-        self._root.submitSens.connect(self._on_submit_sens)
         self._root.submitNoise.connect(self._on_submit_noise)
         self._root.submitHB.connect(self._on_submit_hb)
         self._root.submitLIN.connect(self._on_submit_lin)
         # connect qml cancel signal to close without a result
         self._root.cancelRequested.connect(self.reject)
-
-    @Slot(str, str, str, bool, bool, bool, bool, str, str, str)
-    def _on_submit_sens(self, objective_mode: str, objective_values: str, parameters: str, direct: bool, adjoint: bool, replace_ground: bool, print_enabled: bool, print_specific_vars: str, print_format: str, print_file: str) -> None:
-        # delegate validation and construction to the sens panel
-        analysis = self._sens_panel.handle_submit(objective_mode, objective_values, parameters, direct, adjoint, replace_ground, print_enabled, print_specific_vars, print_format, print_file)
-        # return without accepting when validation failed
-        if analysis is None:
-            return
-        # assemble final config and close dialog
-        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
-        # close dialog with success
-        self.accept()
 
     def _build_variable_candidates(self) -> None:
         # return empty lists when no topology is available
@@ -159,9 +146,14 @@ class SimulationParametersDialog(QDialog):
 
         # initialize the shared step parameters
         self._apply_step_parameters(self._initial_parameters.step)
-        # initialize sens tab: use the active analysis when it is a SensSimulationParameters,
-        # otherwise fall back to the shared sensitivity parameters
-        self._sens_panel.apply(p if isinstance(p, SensSimulationParameters) else self._initial_parameters.sensitivity)
+        # initialize embedded sensitivity sections and apply the companion sensitivity parameters
+        self._sensitivity_section.apply(None, None)
+        if isinstance(p, TransientSimulationParameters):
+            self._sensitivity_section.apply(p.sensitivity, "TRAN")
+        elif isinstance(p, DCSimulationParameters):
+            self._sensitivity_section.apply(p.sensitivity, "DC")
+        elif isinstance(p, AcSimulationParameters):
+            self._sensitivity_section.apply(p.sensitivity, "AC")
         # initialize the shared replace ground checkbox
         self._root.setProperty("replaceGround", p.replace_ground if p else False)
         # select the appropriate tab based on the parameter type
@@ -179,8 +171,6 @@ class SimulationParametersDialog(QDialog):
             self._root.setProperty("initialTabIndex", 5)
         elif isinstance(p, LinSimulationParameters):
             self._root.setProperty("initialTabIndex", 6)
-        elif isinstance(p, SensSimulationParameters):
-            self._root.setProperty("initialTabIndex", 7)
         else:
             self._root.setProperty("initialTabIndex", 0)
 
@@ -245,33 +235,8 @@ class SimulationParametersDialog(QDialog):
         # return model
         return StepParameters(sweep_mode, variable, start, stop, step, points, list_values, data_table, enabled)
 
-    def _get_current_sens_parameters(self) -> SensSimulationParameters | None:
-        # check if sensitivity is enabled in the UI
-        if not self._root.property("sensEnabled"):
-            # return none when disabled
-            return None
-        # extract basic fields from qml properties
-        mode = self._root.property("sensObjectiveMode")
-        values_text = self._root.property("sensObjectiveValues")
-        params_text = self._root.property("sensParameters")
-        direct = self._root.property("sensDirect")
-        adjoint = self._root.property("sensAdjoint")
-        print_enabled = self._root.property("sensPrintEnabled")
-        print_vars = self._root.property("sensPrintSpecificVars")
-        print_format = self._root.property("sensPrintFormat")
-        print_file = self._root.property("sensPrintFile")
-        replace_ground = self._root.property("replaceGround")
-        # parse comma-separated lists
-        values = tuple(v.strip() for v in values_text.split(",") if v.strip())
-        params = tuple(p.strip() for p in params_text.split(",") if p.strip())
-        # build print parameters when enabled
-        print_parameters = None
-        # check enabled flag
-        if print_enabled:
-            # construct print parameters object
-            print_parameters = PrintParameters(print_type="SENS", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(v for v in print_vars.split() if v))
-        # return parameters model
-        return SensSimulationParameters("DC", mode, values, params, direct, adjoint, print_parameters, replace_ground)
+    def _get_current_sens_parameters(self) -> SensParameter | None:
+        return self._sensitivity_section.get_current()
 
     def _parse_schedule_points(self, schedule_pairs_text: str) -> tuple[TransientSchedulePoint, ...]:
         # return an empty schedule when no schedule text was provided
@@ -302,7 +267,7 @@ class SimulationParametersDialog(QDialog):
         if analysis is None:
             return
         # assemble final config and close dialog
-        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
         # close the dialog and return acceptance to the caller
         self.accept()
 
@@ -315,7 +280,7 @@ class SimulationParametersDialog(QDialog):
             return
         # assemble final config and close dialog
         try:
-            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
         except ValueError as e:
             self._root.setProperty("errorText", str(e))
             return
@@ -330,7 +295,7 @@ class SimulationParametersDialog(QDialog):
             return
         # assemble final config and close dialog
         try:
-            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
         except ValueError as e:
             self._root.setProperty("errorText", str(e))
             return
@@ -339,13 +304,13 @@ class SimulationParametersDialog(QDialog):
     @Slot(str, str, str, str, str, str, bool, bool, bool, str, str, str, bool)
     def _on_submit_ac(self, sweep_mode: str, points: str, start: str, end: str, data_table_name: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # delegate validation and construction to the ac panel
-        analysis = self._ac_panel.handle_submit(sweep_mode, points, start, end, data_table_name, measure_parameters_text, print_enabled, print_all_nodes, print_all_currents, print_specific_vars, print_format, print_file, replace_ground)
+        analysis = self._ac_panel.handle_submit(sweep_mode, points, start, end, data_table_name, measure_parameters_text, print_enabled, print_all_nodes, print_all_currents, print_specific_vars, print_format, print_file, replace_ground, self._get_current_sens_parameters())
         # return without accepting when validation failed
         if analysis is None:
             return
         # assemble final config and close dialog
         try:
-            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
         except ValueError as e:
             self._root.setProperty("errorText", str(e))
             return
@@ -354,13 +319,13 @@ class SimulationParametersDialog(QDialog):
     @Slot(str, str, str, str, str, bool, str, str, str, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
     def _on_submit_transient(self, initial_step: str, final_time: str, start_time: str, step_ceiling: str, op_keyword: str, schedule_enabled: bool, schedule_pairs_text: str, fft_parameters_text: str, four_parameters_text: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # delegate validation and construction to the tran panel
-        analysis = self._tran_panel.handle_submit(initial_step, final_time, start_time, step_ceiling, op_keyword, schedule_enabled, schedule_pairs_text, fft_parameters_text, four_parameters_text, measure_parameters_text, print_enabled, print_all_nodes, print_all_currents, print_power, print_bjt_leads, print_fet_leads, print_specific_vars, print_format, print_file, replace_ground)
+        analysis = self._tran_panel.handle_submit(initial_step, final_time, start_time, step_ceiling, op_keyword, schedule_enabled, schedule_pairs_text, fft_parameters_text, four_parameters_text, measure_parameters_text, print_enabled, print_all_nodes, print_all_currents, print_power, print_bjt_leads, print_fet_leads, print_specific_vars, print_format, print_file, replace_ground, self._get_current_sens_parameters())
         # return without accepting when validation failed
         if analysis is None:
             return
         # assemble final config and close dialog
         try:
-            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
         except ValueError as e:
             self._root.setProperty("errorText", str(e))
             return
@@ -371,20 +336,20 @@ class SimulationParametersDialog(QDialog):
         # delegate construction to the op panel (no validation failure path for OP)
         analysis = self._op_panel.handle_submit(print_enabled, print_all_nodes, print_all_currents, print_power, print_bjt_leads, print_fet_leads, print_specific_vars, print_format, print_file, save_enabled, save_type, nodeset_text, save_file, replace_ground)
         # assemble final config and close dialog
-        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
         # close the dialog and return acceptance to the caller
         self.accept()
 
     @Slot(str, str, str, str, str, str, str, str, bool, str, str, str, str, str, str, bool, bool, bool, bool, bool, bool, str, str, str, bool)
     def _on_submit_dc(self, sweep_mode: str, primary_variable: str, start: str, stop: str, step: str, points: str, list_values_text: str, data_table_name: str, secondary_enabled: bool, secondary_variable: str, secondary_start: str, secondary_stop: str, secondary_step: str, secondary_points: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> None:
         # delegate validation and construction to the dc panel
-        analysis = self._dc_panel.handle_submit(sweep_mode, primary_variable, start, stop, step, points, list_values_text, data_table_name, secondary_enabled, secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, measure_parameters_text, print_enabled, print_all_nodes, print_all_currents, print_power, print_bjt_leads, print_fet_leads, print_specific_vars, print_format, print_file, replace_ground)
+        analysis = self._dc_panel.handle_submit(sweep_mode, primary_variable, start, stop, step, points, list_values_text, data_table_name, secondary_enabled, secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, measure_parameters_text, print_enabled, print_all_nodes, print_all_currents, print_power, print_bjt_leads, print_fet_leads, print_specific_vars, print_format, print_file, replace_ground, self._get_current_sens_parameters())
         # return without accepting when validation failed
         if analysis is None:
             return
         # assemble final config and close dialog
         try:
-            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), sensitivity=self._get_current_sens_parameters())
+            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
         except ValueError as e:
             self._root.setProperty("errorText", str(e))
             return

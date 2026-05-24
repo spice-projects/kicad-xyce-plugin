@@ -88,17 +88,44 @@ Item {
     property alias dcPrintFormatIndex: dcPanel.printFormatIndex
     property alias dcPrintFile: dcPanel.printFile
 
-    // --- Sensitivity properties ---
-    property alias sensEnabled: sensPanel.active
-    property alias sensObjectiveMode: sensPanel.objectiveMode
-    property alias sensObjectiveValues: sensPanel.objectiveValues
-    property alias sensParameters: sensPanel.parameters
-    property alias sensDirect: sensPanel.direct
-    property alias sensAdjoint: sensPanel.adjoint
-    property alias sensPrintEnabled: sensPanel.printEnabled
-    property alias sensPrintSpecificVars: sensPanel.printSpecificVars
-    property alias sensPrintFormatIndex: sensPanel.printFormatIndex
-    property alias sensPrintFile: sensPanel.printFile
+    // --- AC sensitivity properties ---
+    property alias acSensEnabled: acPanel.sensEnabled
+    property alias acSensObjectiveMode: acPanel.sensObjectiveMode
+    property alias acSensObjectiveValues: acPanel.sensObjectiveValues
+    property alias acSensParameters: acPanel.sensParameters
+    property alias acSensDirect: acPanel.sensDirect
+    property alias acSensAdjoint: acPanel.sensAdjoint
+    property alias acSensPrintEnabled: acPanel.sensPrintEnabled
+    property alias acSensPrintSpecificVars: acPanel.sensPrintSpecificVars
+    property alias acSensPrintFormatIndex: acPanel.sensPrintFormatIndex
+    property alias acSensPrintFormatValue: acPanel.sensPrintFormatValue
+    property alias acSensPrintFile: acPanel.sensPrintFile
+
+    // --- DC sensitivity properties ---
+    property alias dcSensEnabled: dcPanel.sensEnabled
+    property alias dcSensObjectiveMode: dcPanel.sensObjectiveMode
+    property alias dcSensObjectiveValues: dcPanel.sensObjectiveValues
+    property alias dcSensParameters: dcPanel.sensParameters
+    property alias dcSensDirect: dcPanel.sensDirect
+    property alias dcSensAdjoint: dcPanel.sensAdjoint
+    property alias dcSensPrintEnabled: dcPanel.sensPrintEnabled
+    property alias dcSensPrintSpecificVars: dcPanel.sensPrintSpecificVars
+    property alias dcSensPrintFormatIndex: dcPanel.sensPrintFormatIndex
+    property alias dcSensPrintFormatValue: dcPanel.sensPrintFormatValue
+    property alias dcSensPrintFile: dcPanel.sensPrintFile
+
+    // --- TRAN sensitivity properties ---
+    property alias tranSensEnabled: tranPanel.sensEnabled
+    property alias tranSensObjectiveMode: tranPanel.sensObjectiveMode
+    property alias tranSensObjectiveValues: tranPanel.sensObjectiveValues
+    property alias tranSensParameters: tranPanel.sensParameters
+    property alias tranSensDirect: tranPanel.sensDirect
+    property alias tranSensAdjoint: tranPanel.sensAdjoint
+    property alias tranSensPrintEnabled: tranPanel.sensPrintEnabled
+    property alias tranSensPrintSpecificVars: tranPanel.sensPrintSpecificVars
+    property alias tranSensPrintFormatIndex: tranPanel.sensPrintFormatIndex
+    property alias tranSensPrintFormatValue: tranPanel.sensPrintFormatValue
+    property alias tranSensPrintFile: tranPanel.sensPrintFile
 
     // --- AC sweep properties ---
     property alias acSweepModeIndex: acPanel.sweepModeIndex
@@ -188,7 +215,6 @@ Item {
     signal submitNoise(string outputNode, string refNode, string sourceName, string sweepMode, string points, string start, string end, string dataTableName, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printInoise, bool printOnoise, string printSpecificVars, string printFormat, string printFile, bool replaceGround, var deviceOperatorsList)
     signal submitHB(string frequenciesText, string harmonicsText, int tahb, string selectharms, int startupPeriods, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printType, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitLIN(bool sparcalc, string format, string lintype, string dataformat, string file, string width, string precision, string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
-    signal submitSens(string objectiveMode, string objectiveValues, string parameters, bool direct, bool adjoint, bool replaceGround, bool printEnabled, string printSpecificVars, string printFormat, string printFile)
     signal cancelRequested()
 
     // --- Internal Logic ---
@@ -202,12 +228,10 @@ Item {
         else if (root.currentTabIndex === 3)
             root.submitAC(acPanel.sweepModeValue, acPanel.points, acPanel.start, acPanel.end, acPanel.dataTableName, acPanel.measureParametersText, acPanel.printEnabled, acPanel.printAllNodes, acPanel.printAllCurrents, acPanel.printSpecificVars, acPanel.printFormatValue, acPanel.printFile, root.replaceGround);
         else if (root.currentTabIndex === 4)
-            root.submitSens(sensPanel.objectiveMode, sensPanel.objectiveValues, sensPanel.parameters, sensPanel.direct, sensPanel.adjoint, root.replaceGround, sensPanel.printEnabled, sensPanel.printSpecificVars, sensPanel.printFormatValue, sensPanel.printFile);
-        else if (root.currentTabIndex === 5)
             root.submitNoise(noisePanel.outputNode, noisePanel.refNode, noisePanel.sourceName, noisePanel.sweepModeValue, noisePanel.points, noisePanel.start, noisePanel.end, noisePanel.dataTableName, noisePanel.measureParametersText, noisePanel.printEnabled, noisePanel.printAllNodes, noisePanel.printAllCurrents, noisePanel.printInoise, noisePanel.printOnoise, noisePanel.printSpecificVars, noisePanel.printFormatValue, noisePanel.printFile, root.replaceGround, noisePanel.deviceOperators);
-        else if (root.currentTabIndex === 6)
+        else if (root.currentTabIndex === 5)
             root.submitHB(hbPanel.frequenciesText, hbPanel.harmonicsText, hbPanel.tahbIndex, hbPanel.selectHarmsValue, parseInt(hbPanel.startupPeriodsText) || 0, hbPanel.printEnabled, hbPanel.printAllNodes, hbPanel.printAllCurrents, hbPanel.printTypeValue, hbPanel.printSpecificVars, hbPanel.printFormatValue, hbPanel.printFile, root.replaceGround);
-        else if (root.currentTabIndex === 7)
+        else if (root.currentTabIndex === 6)
             root.submitLIN(linPanel.sparcalc, linPanel.linFormat, linPanel.linType, linPanel.linDataFormat, linPanel.linFile, linPanel.linWidth, linPanel.linPrecision, linPanel.sweepModeValue, linPanel.points, linPanel.start, linPanel.end, linPanel.dataTableName, linPanel.printEnabled, linPanel.printAllNodes, linPanel.printAllCurrents, linPanel.printSpecificVars, linPanel.printFormatValue, linPanel.printFile, root.replaceGround);
     }
 
@@ -270,7 +294,6 @@ Item {
                             {directive: ".TRAN", name: "Transient"},
                             {directive: ".DC", name: "DC sweep"},
                             {directive: ".AC", name: "AC small-signal"},
-                            {directive: ".SENS", name: "Sensitivity"},
                             {directive: ".NOISE", name: "Noise"},
                             {directive: ".HB", name: "Harmonic balance"},
                             {directive: ".LIN", name: "Linear network"}
@@ -379,11 +402,6 @@ Item {
                                 replaceGround: root.replaceGround
                                 onReplaceGroundChanged: root.replaceGround = replaceGround
                             }
-                            SensPanel {
-                                id: sensPanel
-                                replaceGround: root.replaceGround
-                                onReplaceGroundChanged: root.replaceGround = replaceGround
-                            }
                             NoisePanel {
                                 id: noisePanel
                                 replaceGround: root.replaceGround
@@ -400,7 +418,7 @@ Item {
                                 onReplaceGroundChanged: root.replaceGround = replaceGround
                             }
                         }
-                        
+
                         // Spacer to ensure bottom margin if content is short
                         Item { Layout.fillHeight: true; Layout.preferredHeight: 24 }
                     }

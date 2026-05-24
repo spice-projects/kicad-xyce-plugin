@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 from PySide6.QtQuick import QQuickItem, QQuickView
-from PySide6.QtCore import QUrl, qInstallMessageHandler
+from PySide6.QtCore import QUrl, qInstallMessageHandler, QtMsgType
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 

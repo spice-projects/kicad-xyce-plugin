@@ -3,6 +3,7 @@ import re
 from .dc_simulation_parameters import DCSimulationParameters
 from .measure_parameters import MeasureEntry
 from .print_parameters import PrintParameters
+from .sens_parameter import SensParameter
 
 # valid primary sweep modes for the dc directive
 _DC_SWEEP_MODES = {"LIN", "DEC", "OCT", "LIST", "DATA"}
@@ -109,7 +110,7 @@ class DcPanel:
         # clear stale error message
         self._root.setProperty("errorText", "")
 
-    def handle_submit(self, sweep_mode: str, primary_variable: str, start: str, stop: str, step: str, points: str, list_values_text: str, data_table_name: str, secondary_enabled: bool, secondary_variable: str, secondary_start: str, secondary_stop: str, secondary_step: str, secondary_points: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool) -> DCSimulationParameters | None:
+    def handle_submit(self, sweep_mode: str, primary_variable: str, start: str, stop: str, step: str, points: str, list_values_text: str, data_table_name: str, secondary_enabled: bool, secondary_variable: str, secondary_start: str, secondary_stop: str, secondary_step: str, secondary_points: str, measure_parameters_text: str, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, replace_ground: bool, sensitivity: SensParameter | None = None) -> DCSimulationParameters | None:
         # normalize the sweep mode to uppercase for comparison
         normalized_mode = sweep_mode.strip().upper()
         # normalize primary variable by trimming surrounding spaces
@@ -131,59 +132,70 @@ class DcPanel:
         normalized_sec_points = secondary_points.strip()
         # reject unrecognized sweep modes before any further validation
         if normalized_mode not in _DC_SWEEP_MODES:
+                # report error
             self._root.setProperty("errorText", "Sweep mode must be one of LIN, DEC, OCT, LIST, or DATA")
             # signal validation failure to caller
             return None
         # require primary variable for all non-DATA modes
         if normalized_mode != "DATA" and not normalized_primary:
+            # report error
             self._root.setProperty("errorText", "Primary sweep variable is required")
             # signal validation failure to caller
             return None
         # validate LIN-specific required fields
         if normalized_mode == "LIN":
             if not normalized_start or not normalized_stop or not normalized_step:
+                # report error
                 self._root.setProperty("errorText", "Start, stop, and step values are required for LIN sweep")
                 # signal validation failure to caller
                 return None
         # validate DEC/OCT-specific required fields
         if normalized_mode in ("DEC", "OCT"):
             if not normalized_start or not normalized_stop or not normalized_points:
+                # report error
                 self._root.setProperty("errorText", "Start, stop, and points are required for DEC/OCT sweep")
                 # signal validation failure to caller
                 return None
             # enforce integer constraint on points value
             if not normalized_points.isdigit() or int(normalized_points) < 1:
+                # report error
                 self._root.setProperty("errorText", "Points must be an integer \u2265 1")
                 # signal validation failure to caller
                 return None
         # validate LIST-specific required fields
         if normalized_mode == "LIST":
             if not normalized_list_text:
+                # report error
                 self._root.setProperty("errorText", "At least one list value is required for LIST sweep")
                 # signal validation failure to caller
                 return None
         # validate DATA-specific required fields
         if normalized_mode == "DATA":
             if not normalized_data_table:
+                # report error
                 self._root.setProperty("errorText", "Data table name is required for DATA sweep")
                 # signal validation failure to caller
                 return None
         # validate secondary sweep completeness when it is enabled
         if secondary_enabled and normalized_mode in _DC_SECONDARY_MODES:
             if not normalized_sec_variable:
+                # report error
                 self._root.setProperty("errorText", "Secondary sweep variable is required when secondary sweep is enabled")
                 # signal validation failure to caller
                 return None
             if not normalized_sec_start or not normalized_sec_stop:
+                # report error
                 self._root.setProperty("errorText", "Secondary sweep start and stop are required")
                 # signal validation failure to caller
                 return None
             if normalized_mode == "LIN" and not normalized_sec_step:
+                # report error
                 self._root.setProperty("errorText", "Secondary sweep step is required for LIN mode")
                 # signal validation failure to caller
                 return None
             if normalized_mode in ("DEC", "OCT"):
                 if not normalized_sec_points:
+                # report error
                     self._root.setProperty("errorText", "Secondary sweep points are required for DEC/OCT mode")
                     # signal validation failure to caller
                     return None
@@ -198,6 +210,7 @@ class DcPanel:
             list_values = _parse_list_values(normalized_list_text) if normalized_mode == "LIST" else tuple()
         # surface list parse errors as form-level validation messages
         except ValueError as parse_error:
+            # report error
             self._root.setProperty("errorText", str(parse_error))
             # signal validation failure to caller
             return None
@@ -250,6 +263,6 @@ class DcPanel:
             # construct print parameters for the DC sweep analysis type
             print_parameters = PrintParameters(print_type="DC", print_format=print_format.strip().upper() if print_format.strip() else "", print_file=print_file.strip(), output_variables=tuple(output_vars))
         # construct parameters instance
-        analysis = DCSimulationParameters(normalized_mode, normalized_primary, normalized_start, normalized_stop, normalized_step, normalized_points, list_values, normalized_data_table, effective_sec_variable, normalized_sec_start, normalized_sec_stop, normalized_sec_step, normalized_sec_points, replace_ground=replace_ground, print_parameters=print_parameters, measure_parameters=tuple(measure_parameters))
+        analysis = DCSimulationParameters(normalized_mode, normalized_primary, normalized_start, normalized_stop, normalized_step, normalized_points, list_values, normalized_data_table, effective_sec_variable, normalized_sec_start, normalized_sec_stop, normalized_sec_step, normalized_sec_points, replace_ground, print_parameters, measure_parameters=tuple(measure_parameters), sensitivity=sensitivity)
         # return parameters to caller for config assembly
         return analysis

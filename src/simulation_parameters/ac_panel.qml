@@ -19,6 +19,17 @@ ColumnLayout {
     property bool printAllNodes: false
     property bool printAllCurrents: false
     property bool replaceGround: true
+    property alias sensEnabled: sensSection.active
+    property alias sensObjectiveMode: sensSection.objectiveMode
+    property alias sensObjectiveValues: sensSection.objectiveValues
+    property alias sensParameters: sensSection.parameters
+    property alias sensDirect: sensSection.direct
+    property alias sensAdjoint: sensSection.adjoint
+    property alias sensPrintEnabled: sensSection.printEnabled
+    property alias sensPrintSpecificVars: sensSection.printSpecificVars
+    property alias sensPrintFormatIndex: sensSection.printFormatIndex
+    property alias sensPrintFormatValue: sensSection.printFormatValue
+    property alias sensPrintFile: sensSection.printFile
     property string printSpecificVars: ""
     property alias printFormatIndex: printFormatCombo.currentIndex
     property string printFile: ""
@@ -197,6 +208,12 @@ ColumnLayout {
                 selectByMouse: true
             }
         }
+    }
+
+    SensitivitySection {
+        id: sensSection
+        replaceGround: panel.replaceGround
+        Layout.fillWidth: true
     }
 
     // --- Global Settings ---

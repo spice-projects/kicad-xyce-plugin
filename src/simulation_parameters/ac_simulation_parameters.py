@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from netlist_parser import NetlistTopology
 from .measure_parameters import MeasureEntry
 from .print_parameters import PrintParameters
+from .sens_parameter import SensParameter
 
 
 @dataclass(frozen=True)
@@ -18,6 +19,7 @@ class AcSimulationParameters:
     replace_ground: bool = True
     print_parameters: PrintParameters | None = None
     measure_parameters: tuple[MeasureEntry, ...] = ()
+    sensitivity: SensParameter | None = None
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "AcSimulationParameters" | None:
@@ -105,8 +107,10 @@ class AcSimulationParameters:
                     points = tokens[1]
                     start = tokens[2]
                     end = tokens[3]
+        # parse sensitivity as a companion directive before analysis detection
+        sensitivity = SensParameter.from_xyce_directives(directives)
         # return instance if a valid directive was found
-        return cls(sweep_mode=sweep_mode, points=points, start=start, end=end, data_table_name=data_table_name, replace_ground=replace_ground, print_parameters=print_parameters, measure_parameters=tuple(measure_parameters)) if found else None
+        return cls(sweep_mode=sweep_mode, points=points, start=start, end=end, data_table_name=data_table_name, replace_ground=replace_ground, print_parameters=print_parameters, measure_parameters=tuple(measure_parameters), sensitivity=sensitivity) if found else None
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # prepend replaceground preprocessing when enabled
@@ -123,6 +127,9 @@ class AcSimulationParameters:
         if self.print_parameters and self.print_parameters.print_type == "AC":
             # append the print statement
             lines.append(self.print_parameters.to_xyce_statement())
+        # append sensitivity directives when configured
+        if self.sensitivity is not None:
+            lines.extend(self.sensitivity.to_xyce_directives(topology))
         # append measure directives
         for measure in self.measure_parameters:
             # append measure statement

@@ -7,7 +7,7 @@ from .print_parameters import PrintParameters
 
 
 @dataclass(frozen=True)
-class SensSimulationParameters:
+class SensParameter:
     # analysis context for the sensitivity directive
     analysis_context: str
     # objective specification mode
@@ -22,11 +22,9 @@ class SensSimulationParameters:
     adjoint: bool = False
     # optional print parameters
     print_parameters: PrintParameters | None = None
-    # ground replacement flag
-    replace_ground: bool = False
 
     @classmethod
-    def from_xyce_directives(cls, directives: list[str]) -> SensSimulationParameters | None:
+    def from_xyce_directives(cls, directives: list[str]) -> SensParameter | None:
         # init directive found flag
         found = False
         # init parsed parameters
@@ -43,8 +41,6 @@ class SensSimulationParameters:
         adjoint = False
         # init print parameters
         print_parameters = None
-        # init replace ground
-        replace_ground = False
         # iterate provided directives
         for directive in directives:
             # tokenize directive
@@ -91,10 +87,6 @@ class SensSimulationParameters:
                     if token.lower().startswith("adjoint="):
                         # set adjoint flag
                         adjoint = token.split("=")[1] == "1"
-            # check for preprocess directive
-            if cmd == ".PREPROCESS" and len(tokens) > 2 and tokens[1].upper() == "REPLACEGROUND" and tokens[2].upper() == "TRUE":
-                # set replace ground flag
-                replace_ground = True
             # check for print directive
             if cmd == ".PRINT" and len(tokens) > 1 and tokens[1].upper() == "SENS":
                 # create print parameters
@@ -104,15 +96,11 @@ class SensSimulationParameters:
             # return none
             return None
         # return new instance
-        return cls(analysis_context, objective_mode, tuple(objective_values), tuple(parameter_list), direct, adjoint, print_parameters, replace_ground)
+        return cls(analysis_context, objective_mode, tuple(objective_values), tuple(parameter_list), direct, adjoint, print_parameters)
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # init line list
         lines: list[str] = []
-        # handle replace ground directive
-        if self.replace_ground:
-            # add preprocess directive
-            lines.append(".PREPROCESS REPLACEGROUND TRUE")
         # build objective directive string
         obj_str = ",".join(self.objective_values)
         # build parameter string
