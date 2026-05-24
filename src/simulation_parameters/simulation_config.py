@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import field
 
 from netlist_parser import NetlistTopology
 from .ac_simulation_parameters import AcSimulationParameters
@@ -9,6 +10,7 @@ from .hb_simulation_parameters import HbSimulationParameters
 from .lin_simulation_parameters import LinSimulationParameters
 from .noise_simulation_parameters import NoiseSimulationParameters
 from .op_simulation_parameters import OpSimulationParameters
+from .option_parameters import OptionParameters
 from .step_parameters import StepParameters
 from .transient_simulation_parameters import TransientSimulationParameters
 
@@ -18,6 +20,7 @@ class SimulationConfig:
 
     analysis: AcSimulationParameters | DCSimulationParameters | HbSimulationParameters | LinSimulationParameters | NoiseSimulationParameters | OpSimulationParameters | TransientSimulationParameters | None
     step: StepParameters
+    options: OptionParameters = field(default_factory=OptionParameters)
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "SimulationConfig":
@@ -37,12 +40,16 @@ class SimulationConfig:
                 break
         # parse the step parameters from the same directive list
         step = StepParameters.from_xyce_directives(directives)
+        # parse the structured option directives
+        options = OptionParameters.from_xyce_directives(directives)
         # return the combined configuration container
-        return cls(analysis=analysis, step=step)
+        return cls(analysis=analysis, step=step, options=options)
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # init output directive list
         directives: list[str] = []
+        # extend with option directives
+        directives.extend(self.options.to_xyce_directives(topology))
         # check if an analysis is configured
         if self.analysis is not None:
             # extend with analysis-specific directives

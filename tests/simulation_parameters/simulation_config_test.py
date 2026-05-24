@@ -1,4 +1,4 @@
-from simulation_parameters import SimulationConfig, SensParameter, TransientSimulationParameters, StepParameters
+from simulation_parameters import OptionParameters, SimulationConfig, SensParameter, TransientSimulationParameters, StepParameters
 
 
 class TestSimulationConfig:
@@ -45,6 +45,35 @@ class TestSimulationConfig:
         # assert
         assert ".TRAN 1u 1m" in directives
         assert ".STEP R1 1k 10k 1k" in directives
+
+    def test_parse_directives_with_options(self):
+        # arrange
+        directives = [
+            ".OPTIONS DEVICE TEMP=25",
+            ".TRAN 1u 1m",
+        ]
+        # act
+        config = SimulationConfig.from_xyce_directives(directives)
+        # assert
+        assert config.options.device == {"TEMP": "25"}
+        assert isinstance(config.analysis, TransientSimulationParameters)
+
+    def test_generate_directives_with_options(self):
+        # arrange
+        options = OptionParameters(device={"TEMP": "25"}, timeint={"RELTOL": "1e-3"})
+        sensitivity = SensParameter("DC", "objfunc", ("V(2)",), ("R1:R",), True, False, None)
+        analysis = TransientSimulationParameters("1u", "1m", "", "", "", tuple(), replace_ground=True, print_parameters=None, fft_parameters=tuple(), four_parameters=tuple(), measure_parameters=tuple(), sensitivity=sensitivity)
+        step = StepParameters(sweep_mode="LIN", variable="R1", start="1k", stop="10k", step="1k", enabled=True)
+        config = SimulationConfig(analysis=analysis, step=step, options=options)
+        # act
+        directives = config.to_xyce_directives()
+        # assert
+        assert ".OPTIONS DEVICE TEMP=25" in directives
+        assert ".OPTIONS TIMEINT RELTOL=1e-3" in directives
+        assert ".TRAN 1u 1m" in directives
+        assert ".STEP R1 1k 10k 1k" in directives
+        assert ".SENS objfunc={V(2)} param=R1:R" in directives
+        assert ".OPTIONS SENSITIVITY direct=1 adjoint=0" in directives
 
     def test_parse_transient_with_sensitivity(self):
         # arrange

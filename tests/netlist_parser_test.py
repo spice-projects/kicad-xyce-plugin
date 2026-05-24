@@ -592,11 +592,26 @@ class TestNetlistParser:
         sanitized, topology = parse_netlist(netlist)
         # assert
         assert ".OPTIONS HBINT NUMFREQ=10" in topology.directives
+        assert ".OPTIONS DEVICE TEMP=25" in topology.directives
         assert ".HB 1MEG" in topology.directives
-        # DEVICE option should remain in the sanitized netlist (not stripped)
-        assert ".OPTIONS DEVICE TEMP=25" in sanitized
-        # HBINT should be stripped
+        # all managed options should be stripped from the sanitized netlist
+        assert ".OPTIONS DEVICE TEMP=25" not in sanitized
         assert ".OPTIONS HBINT" not in sanitized
+
+    def test_structured_option_directives_are_stripped(self):
+        # arrange
+        netlist = "Title\n.OPTIONS DEVICE TEMP=25\n.OPTIONS TIMEINT RELTOL=1e-3\n.OPTIONS NONLIN MAXSTEP=10\n.OPTIONS LINSOL TYPE=AZTECOO\n.END\n"
+        # act
+        sanitized, topology = parse_netlist(netlist)
+        # assert
+        assert ".OPTIONS DEVICE TEMP=25" in topology.directives
+        assert ".OPTIONS TIMEINT RELTOL=1e-3" in topology.directives
+        assert ".OPTIONS NONLIN MAXSTEP=10" in topology.directives
+        assert ".OPTIONS LINSOL TYPE=AZTECOO" in topology.directives
+        assert ".OPTIONS DEVICE" not in sanitized
+        assert ".OPTIONS TIMEINT" not in sanitized
+        assert ".OPTIONS NONLIN" not in sanitized
+        assert ".OPTIONS LINSOL" not in sanitized
 
     def test_nonlin_hb_and_linsol_hb_are_stripped(self):
         # arrange
