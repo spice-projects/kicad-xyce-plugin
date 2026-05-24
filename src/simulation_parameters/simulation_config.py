@@ -13,6 +13,7 @@ from .op_simulation_parameters import OpSimulationParameters
 from .option_parameters import OptionParameters
 from .step_parameters import StepParameters
 from .transient_simulation_parameters import TransientSimulationParameters
+from .print_parameters import PrintParameters
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class SimulationConfig:
     analysis: AcSimulationParameters | DCSimulationParameters | HbSimulationParameters | LinSimulationParameters | NoiseSimulationParameters | OpSimulationParameters | TransientSimulationParameters | None
     step: StepParameters
     options: OptionParameters = field(default_factory=OptionParameters)
+    unassociated_prints: tuple[PrintParameters, ...] = field(default_factory=tuple)
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "SimulationConfig":
@@ -42,8 +44,27 @@ class SimulationConfig:
         step = StepParameters.from_xyce_directives(directives)
         # parse the structured option directives
         options = OptionParameters.from_xyce_directives(directives)
+        # init unassociated print list
+        unassociated_prints: list[PrintParameters] = []
+        # identify all handled print types for the current analysis to avoid duplicates
+        handled_print_types: set[str] = set()
+        if analysis is not None and hasattr(analysis, "print_parameters") and analysis.print_parameters is not None:
+            handled_print_types.add(analysis.print_parameters.print_type.upper())
+        # iterate all directives to find unassociated prints
+        for directive in directives:
+            # tokenize the directive
+            tokens = directive.split()
+            # skip non-print or empty directives
+            if not tokens or tokens[0].upper() != ".PRINT":
+                continue
+            # parse the print statement
+            pp = PrintParameters.from_xyce_statement(directive)
+            # check if print was successfully parsed and is not handled by the analysis
+            if pp is not None and pp.print_type.upper() not in handled_print_types:
+                # add to unassociated list
+                unassociated_prints.append(pp)
         # return the combined configuration container
-        return cls(analysis=analysis, step=step, options=options)
+        return cls(analysis=analysis, step=step, options=options, unassociated_prints=tuple(unassociated_prints))
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # init output directive list
@@ -56,5 +77,8 @@ class SimulationConfig:
             directives.extend(self.analysis.to_xyce_directives(topology))
         # extend with step-specific directives
         directives.extend(self.step.to_xyce_directives())
+        # extend with unassociated prints
+        for pp in self.unassociated_prints:
+            directives.append(pp.to_xyce_statement())
         # return the full consolidated directive list
         return directives

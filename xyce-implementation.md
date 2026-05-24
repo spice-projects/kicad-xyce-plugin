@@ -24,7 +24,7 @@ This document summarizes the current implementation coverage of the simulation p
 The following open GitHub issues represent the highest-priority work items aligned with the current XYCE implementation gaps:
 
 - `#38`: `.MEASURE ..._CONT` continuous results and missing measure subtypes. **RESOLVED**: Correctly identifies and retains `.TRAN_CONT`, `.DC_CONT`, `.AC_CONT`, and `.NOISE_CONT` directives during import/restore.
-- `#39`: Missing `.PRINT` subtypes such as `.PRINT ES`, `.PRINT PCE`, `.PRINT HOMOTOPY`, `.PRINT AC_IC`, and `.PRINT TRANADJOINT`. **PARTIALLY RESOLVED**: UI and models now support selecting `TRANADJOINT`, `AC_IC`, and `HOMOTOPY` print types in their respective analysis panels.
+- `#39`: Missing `.PRINT` subtypes such as `.PRINT ES`, `.PRINT PCE`, `.PRINT HOMOTOPY`, `.PRINT AC_IC`, and `.PRINT TRANADJOINT`. **RESOLVED**: Added UI and model support for common subtypes (`TRANADJOINT`, `AC_IC`, `HOMOTOPY`). Advanced UQ subtypes (`ES`, `PCE`, `SAMPLING`) are correctly identified and preserved during import/restore via a generic catch-all mechanism.
 - `#36`: Analysis directives missing from the parser and UI, including `.STEP`, `.DATA`, `.SAMPLING`, `.EMBEDDEDSAMPLING`, `.PCE`, and related companion directives.
 - `#7` / `#8`: `.STEP` parametric sweep and in-dialog `.DATA` table editor work remain open, indicating Step support is not yet fully complete.
 - `#32`, `#33`, `#34`: Advanced UQ analysis support for `.SAMPLING`, `.EMBEDDEDSAMPLING`, and `.PCE` is currently incomplete.
