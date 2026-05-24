@@ -61,6 +61,7 @@ Item {
     property alias saveType: opPanel.saveType
     property alias saveFile: opPanel.saveFile
     property alias nodesetEntries: opPanel.nodesetEntries
+    property alias opInitialConditionEntries: opPanel.initialConditionEntries
 
     // --- Transient print properties ---
     property alias tranPrintEnabled: tranPanel.printEnabled
@@ -210,7 +211,7 @@ Item {
     // --- Signals ---
     signal submitTransient(string initialStep, string finalTime, string startTime, string stepCeiling, string opKeyword, bool scheduleEnabled, string schedulePairsText, string fftParametersText, string fourParametersText, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitDC(string sweepMode, string primaryVariable, string startValue, string stopValue, string stepValue, string pointsValue, string listValuesText, string dataTableName, bool secondaryEnabled, string secondaryVariable, string secondaryStart, string secondaryStop, string secondaryStep, string secondaryPoints, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
-    signal submitOP(bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool saveEnabled, string saveType, string nodesetEntries, string saveFile, bool replaceGround)
+    signal submitOP(bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printPower, bool printBjtLeads, bool printFetLeads, string printSpecificVars, string printFormat, string printFile, bool saveEnabled, string saveType, string nodesetEntries, string initialConditionEntries, string saveFile, bool replaceGround)
     signal submitAC(string sweepMode, string points, string start, string end, string dataTableName, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
     signal submitNoise(string outputNode, string refNode, string sourceName, string sweepMode, string points, string start, string end, string dataTableName, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printInoise, bool printOnoise, string printSpecificVars, string printFormat, string printFile, bool replaceGround, var deviceOperatorsList)
     signal submitHB(string frequenciesText, string harmonicsText, int tahb, string selectharms, int startupPeriods, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printType, string printSpecificVars, string printFormat, string printFile, string nonlinOptionsText, string linsolOptionsText, bool replaceGround)
@@ -220,7 +221,7 @@ Item {
     // --- Internal Logic ---
     function handleApply() {
         if (root.currentTabIndex === 0)
-            root.submitOP(opPanel.printEnabled, opPanel.printAllNodes, opPanel.printAllCurrents, opPanel.printPower, opPanel.printBjtLeads, opPanel.printFetLeads, opPanel.printSpecificVars, opPanel.printFormatValue, opPanel.printFile, opPanel.saveEnabled, opPanel.saveType, opPanel.nodesetEntries, opPanel.saveFile, root.replaceGround);
+            root.submitOP(opPanel.printEnabled, opPanel.printAllNodes, opPanel.printAllCurrents, opPanel.printPower, opPanel.printBjtLeads, opPanel.printFetLeads, opPanel.printSpecificVars, opPanel.printFormatValue, opPanel.printFile, opPanel.saveEnabled, opPanel.saveType, opPanel.nodesetEntries, opPanel.initialConditionEntries, opPanel.saveFile, root.replaceGround);
         else if (root.currentTabIndex === 1)
             root.submitTransient(tranPanel.initialStep, tranPanel.finalTime, tranPanel.startTime, tranPanel.stepCeiling, tranPanel.opKeywordValue, tranPanel.scheduleEnabled, tranPanel.schedulePairsText, tranPanel.fftParametersText, tranPanel.fourParametersText, tranPanel.measureParametersText, tranPanel.printEnabled, tranPanel.printAllNodes, tranPanel.printAllCurrents, tranPanel.printPower, tranPanel.printBjtLeads, tranPanel.printFetLeads, tranPanel.printSpecificVars, tranPanel.printFormatValue, tranPanel.printFile, root.replaceGround);
         else if (root.currentTabIndex === 2)

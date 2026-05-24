@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtQuick import QQuickView
 
 from netlist_parser import Device, NetlistTopology
-from simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, PrintParameters, SimulationConfig, SimulationParametersDialog, StepParameters, TransientSchedulePoint, TransientSimulationParameters
+from simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, IcEntry, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, PrintParameters, SimulationConfig, SimulationParametersDialog, StepParameters, TransientSchedulePoint, TransientSimulationParameters
 
 from simulation_parameters.noise_panel import _validate_device_name
 
@@ -260,10 +260,31 @@ class TestSimulationParametersDialogOnSubmitOP:
         accepted = []
         dialog.accept = lambda: accepted.append(True)
         # act
-        dialog._on_submit_op(False, False, False, False, False, False, "", "", "", False, "NODESET", "", "", False)
+        dialog._on_submit_op(False, False, False, False, False, False, "", "", "", False, "NODESET", "", "", "", False)
         # assert
         assert isinstance(dialog._result.analysis, OpSimulationParameters)
         assert len(accepted) == 1
+
+    def test_on_submit_op_parses_initial_conditions(self):
+        # arrange
+        dialog = _make_dialog()
+        accepted = []
+        dialog.accept = lambda: accepted.append(True)
+        # act
+        dialog._on_submit_op(False, False, False, False, False, False, "", "", "", False, "NODESET", "", "V(out)=1.0 V(in)=0", "", False)
+        # assert
+        assert isinstance(dialog._result.analysis, OpSimulationParameters)
+        assert dialog._result.analysis.ic_entries == (IcEntry(node="out", voltage="1.0"), IcEntry(node="in", voltage="0"))
+        assert len(accepted) == 1
+
+    def test_apply_op_parameters_restores_initial_conditions(self):
+        # arrange
+        params = OpSimulationParameters(ic_entries=(IcEntry(node="out", voltage="1.0"),), replace_ground=False)
+        dialog = _make_dialog()
+        # act
+        dialog._apply_op_parameters(params)
+        # assert
+        dialog._root.setProperty.assert_any_call("opInitialConditionEntries", "V(out)=1.0")
 
 
 class TestSimulationParametersDialogOnSubmitTransient:
@@ -1426,7 +1447,7 @@ class TestSimulationParametersDialogOnSubmitOPWithPrint:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_op(True, True, True, True, True, True, "V(1)", "CSV", "op.csv", False, "NODESET", "", "", False)
+        dialog._on_submit_op(True, True, True, True, True, True, "V(1)", "CSV", "op.csv", False, "NODESET", "", "", "", False)
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result
@@ -1441,7 +1462,7 @@ class TestSimulationParametersDialogOnSubmitOPWithPrint:
         # arrange
         dialog = _make_dialog_with_accept()
         # act
-        dialog._on_submit_op(False, False, False, False, False, False, "", "", "", True, "NODESET", "V(out)=3.3 V(in)=5.0", "", False)
+        dialog._on_submit_op(False, False, False, False, False, False, "", "", "", True, "NODESET", "V(out)=3.3 V(in)=5.0", "", "", False)
         # assert
         dialog.accept.assert_called_once()
         result = dialog._result

@@ -25,6 +25,7 @@ ColumnLayout {
     property string saveType: "NODESET"
     property string saveFile: ""
     property string nodesetEntries: ""
+    property string initialConditionEntries: ""
 
     readonly property string printFormatValue: printFormatCombo.currentIndex > 0 ? printFormatCombo.model[printFormatCombo.currentIndex] : ""
 
@@ -194,6 +195,30 @@ ColumnLayout {
                 placeholderText: "e.g. V(1)=5.0 V(2)=3.3"
                 text: panel.nodesetEntries
                 onTextChanged: panel.nodesetEntries = text
+                Layout.fillWidth: true
+            }
+        }
+    }
+
+    // --- .IC / .DCVOLT section ---
+    SimulationCard {
+        title: "Initial Conditions (.IC / .DCVOLT)"
+        Layout.fillWidth: true
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Label {
+                text: "Initial conditions for operating-point analysis"
+                font.pixelSize: 11
+                color: "#6B6B66"
+            }
+
+            TextField {
+                placeholderText: "e.g. V(out)=1.0 V(in)=0"
+                text: panel.initialConditionEntries
+                onTextChanged: panel.initialConditionEntries = text
                 Layout.fillWidth: true
             }
         }

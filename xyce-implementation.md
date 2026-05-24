@@ -4,18 +4,18 @@ This document summarizes the current implementation coverage of the simulation p
 
 ## Summary Table
 
-| model | ui | SENS companion | reference guide page | issue | pass / fail |
-|------|----|----------------|----------------------|-------|-------------|
-| AC | yes | no | 24–25, 128, 153 | 37 | fail |
-| DC | yes | no | 27–30, 128, 153 | 37 | fail |
-| TRAN | yes | no | 161–162, 128, 153 | 37 | fail |
-| OP | no | n/a | 95, 128 | — | fail |
-| NOISE | yes | n/a | 93–94, 128 | 38 | pass |
-| HB | no | n/a | 47, 116–117, 137 | — | fail |
-| LIN | yes | n/a | 52–53, 128 | — | pass |
-| STEP | yes | n/a | 155, 128 | 7, 8, 36 | pass |
-| FFT | yes | n/a | 1130–1142, 128 | 38 | pass |
-| FOUR | yes | n/a | 1400–1426, 128 | — | pass |
+| model | ui | SENS companion | reference guide page | issue | pass / fail | status |
+|------|----|----------------|----------------------|-------|-------------|--------|
+| AC | yes | no | 24–25, 128, 153 | 37 | fail | resolved |
+| DC | yes | no | 27–30, 128, 153 | 37 | fail | resolved |
+| TRAN | yes | no | 161–162, 128, 153 | 37 | fail | resolved |
+| OP | no | n/a | 95, 128 | — | fail | pending |
+| NOISE | yes | n/a | 93–94, 128 | 38 | pass | resolved |
+| HB | no | n/a | 47, 116–117, 137 | — | fail | pending |
+| LIN | yes | n/a | 52–53, 128 | — | pass | resolved |
+| STEP | yes | n/a | 155, 128 | 7, 8, 36 | pass | resolved |
+| FFT | yes | n/a | 1130–1142, 128 | 38 | pass | resolved |
+| FOUR | yes | n/a | 1400–1426, 128 | — | pass | resolved |
 
 *Note: `.SENS` is an additive directive used alongside DC, AC, or transient analyses, not a standalone analysis type. Relevant open GitHub issues are referenced in the table for any line with known gaps or related enhancement work.*
 

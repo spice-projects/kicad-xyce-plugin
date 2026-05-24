@@ -20,7 +20,6 @@ from .noise_simulation_parameters import NoiseSimulationParameters
 from .noise_panel import NoisePanel
 from .op_simulation_parameters import OpSimulationParameters
 from .op_panel import OpPanel
-from .print_parameters import PrintParameters
 from .sensitivity_section import SensitivitySection
 from .sens_parameter import SensParameter
 from .simulation_config import SimulationConfig
@@ -331,10 +330,10 @@ class SimulationParametersDialog(QDialog):
             return
         self.accept()
 
-    @Slot(bool, bool, bool, bool, bool, bool, str, str, str, bool, str, str, str, bool)
-    def _on_submit_op(self, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, save_enabled: bool, save_type: str, nodeset_text: str, save_file: str, replace_ground: bool) -> None:
+    @Slot(bool, bool, bool, bool, bool, bool, str, str, str, bool, str, str, str, str, bool)
+    def _on_submit_op(self, print_enabled: bool, print_all_nodes: bool, print_all_currents: bool, print_power: bool, print_bjt_leads: bool, print_fet_leads: bool, print_specific_vars: str, print_format: str, print_file: str, save_enabled: bool, save_type: str, nodeset_text: str, initial_conditions_text: str, save_file: str, replace_ground: bool) -> None:
         # delegate construction to the op panel (no validation failure path for OP)
-        analysis = self._op_panel.handle_submit(print_enabled, print_all_nodes, print_all_currents, print_power, print_bjt_leads, print_fet_leads, print_specific_vars, print_format, print_file, save_enabled, save_type, nodeset_text, save_file, replace_ground)
+        analysis = self._op_panel.handle_submit(print_enabled, print_all_nodes, print_all_currents, print_power, print_bjt_leads, print_fet_leads, print_specific_vars, print_format, print_file, save_enabled, save_type, nodeset_text, initial_conditions_text, save_file, replace_ground)
         # assemble final config and close dialog
         self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
         # close the dialog and return acceptance to the caller
