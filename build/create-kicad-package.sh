@@ -22,10 +22,14 @@ cp dist/metadata.json "$temp_dir"/metadata.json
 cp plugin-icon-64x64.png "$temp_dir"/resources/icon.png
 
 # copy plugin source files
-cp -R src/* "$temp_dir"/plugins/
+# cp -R src/* "$temp_dir"/plugins/
+cp src/plugin.py "$temp_dir"/plugins/
+cp src/plugin.json "$temp_dir"/plugins/
+cp src/plugin-icon-24x24.png "$temp_dir"/plugins/
+cp src/requirements.txt "$temp_dir"/plugins/
 
 # rm cache files
-find "$temp_dir"/plugins/ -type d -name "__pycache__" -exec rm -r {} +
+# find "$temp_dir"/plugins/ -type d -name "__pycache__" -exec rm -r {} +
 
 # distribution file
 output_zip="$(pwd)/dist/kicad-xyce-plugin-$PROJECT_VERSION.zip"

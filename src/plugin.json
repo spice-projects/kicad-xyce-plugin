@@ -5,7 +5,7 @@
     "description": "Integrates the Xyce circuit simulator into KiCad, allowing users to run simulations directly from the KiCad interface.",
     "runtime": {
         "type": "python",
-        "min_version": "3.12"
+        "min_version": "3.9"
     },
     "actions": [
         {
@@ -16,7 +16,7 @@
             "scopes": [
                 "schematic"
             ],
-            "entrypoint": "run_simulator.py",
+            "entrypoint": "plugin.py",
             "icons-light": [
                 "plugin-icon-24x24.png"
             ]

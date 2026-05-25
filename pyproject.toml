@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "kicad-xyce-plugin"
 version = "0.1.0"
 description = "Xyce Simulation Plugin for KiCad"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 authors = [{ name = "SPICE Projects" }]
 license = { text = "Apache-2.0" }
 
@@ -14,9 +14,6 @@ license = { text = "Apache-2.0" }
 Homepage = "https://github.com/spice-projects/kicad-xyce-plugin"
 Repository = "https://github.com/spice-projects/kicad-xyce-plugin"
 Issues = "https://github.com/spice-projects/kicad-xyce-plugin/issues"
-
-[project.scripts]
-xyce-simulator = "xyce_simulator.run_simulator:main"
 
 [tool.hatch.build.targets.wheel]
 # xyce_simulator/ is a temporary directory created by the CI wheel build step.
