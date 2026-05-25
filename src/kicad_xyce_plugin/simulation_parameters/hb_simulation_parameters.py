@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from dataclasses import field
 
-from netlist_parser import NetlistTopology
+from ..netlist_parser import NetlistTopology
 from .print_parameters import PrintParameters
 
 

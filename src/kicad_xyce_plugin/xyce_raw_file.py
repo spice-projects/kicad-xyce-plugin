@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from expression import Expression, ExpressionManager
+from .expression import Expression, ExpressionManager
 
 logger = logging.getLogger(__name__)
 

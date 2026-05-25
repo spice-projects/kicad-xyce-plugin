@@ -5,10 +5,10 @@ from PySide6.QtCore import QTimer, Qt
 from PySide6.QtGraphs import QAbstractAxis, QLineSeries
 from PySide6.QtQuick import QQuickItem
 
-from color_palette import SERIES_COLOR_PALETTE
-from decimation_algorithm import DecimationAlgorithm, decimate_xy
-from expression import Expression, ExpressionManager
-from xyce_raw_file import StepInformation
+from .color_palette import SERIES_COLOR_PALETTE
+from .decimation_algorithm import DecimationAlgorithm, decimate_xy
+from .expression import Expression, ExpressionManager
+from .xyce_raw_file import StepInformation
 
 logger = logging.getLogger(__name__)
 

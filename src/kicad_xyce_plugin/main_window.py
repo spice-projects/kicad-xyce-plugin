@@ -7,19 +7,19 @@ from PySide6.QtGui import QAction, QColor, QGuiApplication, QKeySequence, QScree
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QVBoxLayout, QWidget
 
-from add_plot_dialog import AddPlotDialog
-from chart import Chart
-from config import PluginConfig, PluginConfigDialog
-from expression import Expression, ExpressionManager
-from kicad_icons import KiCadIcon, get_kicad_icon, load_kicad_icons
-from netlist_parser import NetlistTopology, parse_netlist
-from netlist_viewer_dialog import NetlistViewerDialog
-from run_xyce_simulation import run_xyce_simulation, XyceSimulationRunner
-from smith_chart_window import SmithChartWindow
-from simulation_parameters import from_xyce_directives, OpSimulationParameters, SimulationConfig, SimulationParametersDialog
-from step_tool_dialog import StepToolDialog
-from window import load_app_icon, log_screen_info, register_child_window
-from xyce_raw_file import AbscissaScale, StepInformation, XyceRawFile
+from .add_plot_dialog import AddPlotDialog
+from .chart import Chart
+from .config import PluginConfig, PluginConfigDialog
+from .expression import Expression, ExpressionManager
+from .kicad_icons import KiCadIcon, get_kicad_icon, load_kicad_icons
+from .netlist_parser import NetlistTopology, parse_netlist
+from .netlist_viewer_dialog import NetlistViewerDialog
+from .run_xyce_simulation import run_xyce_simulation, XyceSimulationRunner
+from .smith_chart_window import SmithChartWindow
+from .simulation_parameters import from_xyce_directives, OpSimulationParameters, SimulationConfig, SimulationParametersDialog
+from .step_tool_dialog import StepToolDialog
+from .window import load_app_icon, log_screen_info, register_child_window
+from .xyce_raw_file import AbscissaScale, StepInformation, XyceRawFile
 
 logger = logging.getLogger(__name__)
 

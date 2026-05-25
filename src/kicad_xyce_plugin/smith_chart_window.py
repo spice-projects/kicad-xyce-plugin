@@ -9,13 +9,13 @@ from PySide6.QtQml import QmlElement
 from PySide6.QtQuick import QQuickItem, QQuickView, QSGNode, QSGSimpleTextureNode, QSGTexture
 from PySide6.QtWidgets import QMainWindow, QWidget
 
-from add_plot_dialog import AddPlotDialog
-from color_palette import SERIES_COLOR_PALETTE
-from decimation_algorithm import decimate_xy, DecimationAlgorithm
-from expression import Expression
-from xyce_raw_file import XyceRawFile
-from step_tool_dialog import StepToolDialog
-from window import load_app_icon, log_screen_info, unregister_child_window
+from .add_plot_dialog import AddPlotDialog
+from .color_palette import SERIES_COLOR_PALETTE
+from .decimation_algorithm import decimate_xy, DecimationAlgorithm
+from .expression import Expression
+from .xyce_raw_file import XyceRawFile
+from .step_tool_dialog import StepToolDialog
+from .window import load_app_icon, log_screen_info, unregister_child_window
 
 logger = logging.getLogger(__name__)
 

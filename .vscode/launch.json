@@ -28,7 +28,7 @@
             "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/src",
-            "module": "run_simulator",
+            "module": "kicad_xyce_plugin",
             "console": "integratedTerminal",
             "args": ["--log-level=DEBUG"],
             "justMyCode": false

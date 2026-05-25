@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from dataclasses import field
 
-from netlist_parser import NetlistTopology
+from ..netlist_parser import NetlistTopology
 from .ac_simulation_parameters import AcSimulationParameters
 from .dc_simulation_parameters import DCSimulationParameters
 from .hb_simulation_parameters import HbSimulationParameters

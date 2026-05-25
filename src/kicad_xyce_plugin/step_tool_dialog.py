@@ -6,7 +6,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
 
-from xyce_raw_file import StepInformation
+from .xyce_raw_file import StepInformation
 
 logger = logging.getLogger(__name__)
 

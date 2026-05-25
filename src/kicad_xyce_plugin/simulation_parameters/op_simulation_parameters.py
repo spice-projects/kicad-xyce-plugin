@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from netlist_parser import NetlistTopology
+from ..netlist_parser import NetlistTopology
 
 from .print_parameters import PrintParameters
 

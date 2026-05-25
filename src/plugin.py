@@ -8,6 +8,8 @@ from typing import Optional
 
 from platformdirs import user_data_dir
 
+from __version__ import __version__
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 logger = logging.getLogger(__name__)
@@ -146,14 +148,47 @@ def _ensure_python_venv(python_path: Path, version: tuple[int, int]):
     subprocess.check_call([str(python_path), "-m", "venv", str(APP_DIR)], env={"PATH": os.defpath})
 
 
-def _ensure_application_installed(python_path: Path, version: tuple[int, int]) -> bool:
-    # log information
-    logger.info("Ensuring application is installed at: %s", APP_DIR)
-    # ensure the base directory exists
-    APP_DIR.mkdir(parents=True, exist_ok=True)
-    # create the virtual environment if it doesn't exist
-    _ensure_python_venv(python_path, version)
-    return True
+def _ensure_application_installed() -> Optional[Path]:
+    try:
+        # ensure the base directory exists
+        APP_DIR.mkdir(parents=True, exist_ok=True)
+        # log information
+        logger.info("Ensuring application with version [%s] is installed at: %s", __version__, APP_DIR)
+        # load version.txt from application install dir
+        if (APP_DIR / "version.txt").is_file():
+            # load file content
+            with (APP_DIR / "version.txt").open() as f:
+                installed_version = f.read().strip()
+            # compare version
+            if installed_version == __version__:
+                #  log information
+                logger.info("Application with version [%s] is already installed at: %s", __version__, APP_DIR)
+                # exit, nothing to do
+                return APP_DIR / "Scripts" / "python.exe" if os.name == "nt" else APP_DIR / "bin" / "python"
+        # find python installation to use
+        python_path, version = find_python_executable_path()
+        if python_path is None:
+            # log information
+            logger.error("Unable to locate a Python executable with version >= 3.10")
+            # exit
+            return None
+        # log information
+        logger.info("Found Python %d.%d executable at: %s", version[0], version[1], python_path)
+        # create the virtual environment if it doesn't exist
+        _ensure_python_venv(python_path, version)
+        # python exe within venv
+        pip_exe = APP_DIR / "Scripts" / "pip.exe" if os.name == "nt" else APP_DIR / "bin" / "pip"
+        # install wheel package
+        subprocess.check_call([str(pip_exe), "install", f"kicad_xyce_plugin-{__version__}-py3-none-any.whl"], env={"PATH": os.defpath})
+        # create version file in install dir
+        (APP_DIR / "version.txt").write_text(__version__)
+        # exit
+        return APP_DIR / "Scripts" / "python.exe" if os.name == "nt" else APP_DIR / "bin" / "python"
+    except subprocess.CalledProcessError:
+        # log information
+        logger.error("Failed to install application at: %s", APP_DIR)
+        # exit
+        return None
 
 
 def main():
@@ -165,17 +200,11 @@ def main():
         logger.error("Missing required environment variables: KICAD_API_SOCKET or KICAD_API_TOKEN")
         # exit
         return
-    python_path, version = find_python_executable_path()
-    if python_path is None:
-        # log information
-        logger.error("Unable to locate a Python executable with version >= 3.10")
-        # exit
-        return
-    # log information
-    logger.info("Found Python %d.%d executable at: %s", version[0], version[1], python_path)
     # ensure application is installed
-    if _ensure_application_installed(python_path, version):
-        ...
+    python_path = _ensure_application_installed()
+    if python_path:
+        # launch application
+        subprocess.check_call([str(python_path), "-m", "kicad_xyce_plugin"], env={"PATH": os.defpath, "KICAD_API_SOCKET": socket, "KICAD_API_TOKEN": token})
 
 
 if __name__ == "__main__":

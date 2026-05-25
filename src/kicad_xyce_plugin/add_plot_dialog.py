@@ -7,7 +7,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
 
-from expression import Expression, ExpressionManager
+from .expression import Expression, ExpressionManager
 
 logger = logging.getLogger(__name__)
 

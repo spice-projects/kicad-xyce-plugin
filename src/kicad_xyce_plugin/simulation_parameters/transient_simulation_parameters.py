@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from netlist_parser import NetlistTopology
+from ..netlist_parser import NetlistTopology
 from .fft_parameters import FftParameters
 from .four_parameters import FourParameters
 from .measure_parameters import MeasureEntry

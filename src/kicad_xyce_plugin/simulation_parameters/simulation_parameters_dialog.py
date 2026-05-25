@@ -7,7 +7,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
 
-from netlist_parser import NetlistTopology
+from ..netlist_parser import NetlistTopology
 from .ac_simulation_parameters import AcSimulationParameters
 from .ac_panel import AcPanel
 from .dc_simulation_parameters import DCSimulationParameters

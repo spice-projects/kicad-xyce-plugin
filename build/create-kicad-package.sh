@@ -7,6 +7,9 @@ PROJECT_VERSION=${1:-0.0.1}
 mkdir -p dist
 rm -rf dist/*
 
+# create wheel package
+PACKAGE_VERSION=$PROJECT_VERSION python -m hatch build --target wheel
+
 # create temporary folder
 temp_dir=$(mktemp -d)
 
@@ -22,14 +25,12 @@ cp dist/metadata.json "$temp_dir"/metadata.json
 cp plugin-icon-64x64.png "$temp_dir"/resources/icon.png
 
 # copy plugin source files
-# cp -R src/* "$temp_dir"/plugins/
 cp src/plugin.py "$temp_dir"/plugins/
 cp src/plugin.json "$temp_dir"/plugins/
 cp src/plugin-icon-24x24.png "$temp_dir"/plugins/
 cp src/requirements.txt "$temp_dir"/plugins/
-
-# rm cache files
-# find "$temp_dir"/plugins/ -type d -name "__pycache__" -exec rm -r {} +
+cp dist/*.whl "$temp_dir"/plugins/
+echo "__version__ = \"$PROJECT_VERSION\"" > "$temp_dir"/plugins/__version__.py
 
 # distribution file
 output_zip="$(pwd)/dist/kicad-xyce-plugin-$PROJECT_VERSION.zip"

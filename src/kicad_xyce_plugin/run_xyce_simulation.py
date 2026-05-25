@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, QProcess, QTimer, Signal
 
-from config.plugin_config import PluginConfig
+from .config.plugin_config import PluginConfig
 
 logger = logging.getLogger(__name__)
 
