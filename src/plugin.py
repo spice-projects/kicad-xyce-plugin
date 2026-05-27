@@ -3,328 +3,364 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 from typing import Optional
 
+import wx
+
 from __version__ import __version__
 
+
+# configure global logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
+# create logger for this module
 logger = logging.getLogger(__name__)
-
+# unique plugin identifier
 PLUGIN_ID = "com.github.spice-projects.kicad-xyce-plugin"
-
+# application author for data directories
 APP_AUTHOR = "Spice Projects"
+# application name for data directories
 APP_NAME = "com.github.spice-projects.kicad-xyce-plugin"
-
+# minimum required python version
 REQUIRED_PYTHON_VERSION = (3, 10)
+# candidate executables for windows launcher
 WINDOWS_PYTHON_CANDIDATES = ("py",)
-PYTHON_CANDIDATES = (
-    "python",
-    "python3",
-    "python3.14",
-    "python3.13",
-    "python3.12",
-    "python3.11",
-    "python3.10",
-)
+# common python executable names to search
+PYTHON_CANDIDATES = ("python", "python3", "python3.14", "python3.13", "python3.12", "python3.11", "python3.10")
 
 
 def _get_user_data_dir() -> Path:
-    # check if the current platform is windows
+    # check if platform is windows
     if sys.platform == "win32":
-        # use the appdata roaming directory on windows
-        base_path = Path(os.environ.get("APPDATA", "~")).expanduser()
-        # combine base path with author and application name
-        path = base_path / APP_AUTHOR / APP_NAME
-    # check if the current platform is macOS
+        # resolve windows appdata directory
+        path = Path(os.environ.get("APPDATA", "~")).expanduser() / APP_AUTHOR / APP_NAME
+    # check if platform is macos
     elif sys.platform == "darwin":
-        # use the standard application support directory on macOS
-        base_path = Path("~/Library/Application Support").expanduser()
-        # combine base path with application name
-        path = base_path / APP_NAME
-    # handle linux and other unix-like platforms
+        # resolve macos application support directory
+        path = Path("~/Library/Application Support").expanduser() / APP_NAME
+    # handle other platforms
     else:
-        # use the xdg data home directory or default local share
-        base_path = Path(os.environ.get("XDG_DATA_HOME", "~/.local/share")).expanduser()
-        # combine base path with application name
-        path = base_path / APP_NAME
-    # return the resolved absolute path object
+        # resolve xdg data home or local share directory
+        path = Path(os.environ.get("XDG_DATA_HOME", "~/.local/share")).expanduser() / APP_NAME
+    # return absolute resolved path
     return path.resolve()
 
 
-# persistent application data directory calculated once at module load
+# persistent application directory path
 APP_DIR = _get_user_data_dir()
 
 
 def _show_error_dialog(message: str):
-    # log error message to console/file for diagnostics
+    # log error message for diagnostics
     logger.error("FATAL ERROR: %s", message)
-    # define the title for the graphical error dialog
+    # dialog title string
     title = "Xyce Simulation Plugin Error"
-    # wrap system calls in a try block to handle environment differences
+    # attempt to use wxpython for native error dialog
     try:
-        # use applescript for a native alert on macOS
-        if sys.platform == "darwin":
-            # escape double quotes in the message for shell safety
-            escaped_msg = message.replace('"', '\\"')
-            # execute osascript to display a critical alert
-            subprocess.run(["osascript", "-e", f'display alert "{title}" message "{escaped_msg}" as critical'], check=False)
-        # use powershell for a native message box on windows
-        elif sys.platform == "win32":
-            # escape single quotes in the message for powershell safety
-            escaped_msg = message.replace("'", "''")
-            # build the powershell command to load winforms and show a message box
-            ps_cmd = f"[Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [Windows.Forms.MessageBox]::Show('{escaped_msg}', '{title}', [Windows.Forms.MessageBoxButtons]::OK, [Windows.Forms.MessageBoxIcon]::Error)"
-            # execute powershell in non-interactive mode
-            subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd], check=False)
-        # handle linux platforms using common desktop utilities
-        else:
-            # check if zenity utility is available in the path
-            if shutil.which("zenity"):
-                # show an error dialog using zenity
-                subprocess.run(["zenity", "--error", f"--title={title}", f"--text={message}"], check=False)
-            # fallback to notify-send if zenity is not present
-            elif shutil.which("notify-send"):
-                # show a critical desktop notification
-                subprocess.run(["notify-send", "-u", "critical", title, message], check=False)
+        # get active app or create a temporary one
+        app = wx.GetApp() or wx.App(False)
+        # show modal message box
+        wx.MessageBox(message, title, wx.OK | wx.ICON_ERROR)
+        # return after showing dialog
+        return
+    # catch exceptions during wx usage
     except Exception:
-        # log failure to display the graphical dialog
+        # log failure to use wx
+        logger.warning("Could not show wx error dialog, falling back to system tools.", exc_info=True)
+    # fall back to system-specific tools
+    try:
+        # handle macos platform
+        if sys.platform == "darwin":
+            # escape double quotes for applescript
+            msg_esc = message.replace('"', '\\"')
+            # run osascript alert
+            subprocess.run(["osascript", "-e", f'display alert "{title}" message "{msg_esc}" as critical'], check=False)
+        # handle windows platform
+        elif sys.platform == "win32":
+            # escape single quotes for powershell
+            msg_esc = message.replace("'", "''")
+            # build powershell messagebox command
+            ps_cmd = f"[Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [Windows.Forms.MessageBox]::Show('{msg_esc}', '{title}', [Windows.Forms.MessageBoxButtons]::OK, [Windows.Forms.MessageBoxIcon]::Error)"
+            # run powershell command
+            subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd], check=False)
+        # handle linux and others
+        else:
+            # check for zenity utility
+            if shutil.which("zenity"):
+                # show zenity error dialog
+                subprocess.run(["zenity", "--error", f"--title={title}", f"--text={message}"], check=False)
+            # check for notify-send utility
+            elif shutil.which("notify-send"):
+                # show critical notification
+                subprocess.run(["notify-send", "-u", "critical", title, message], check=False)
+    # catch failures in system tool execution
+    except Exception:
+        # log failure to display system dialog
         logger.warning("Could not show system error dialog.", exc_info=True)
 
 
 def _get_clean_env() -> dict[str, str]:
-    # copy the current environment variables to a new dictionary
+    # copy existing environment
     env = os.environ.copy()
-    # remove python related environment variables that may interfere with venv creation/usage
+    # remove pythonpath to prevent interference
     env.pop("PYTHONPATH", None)
-    # remove python home variable to prevent loading library from wrong location
+    # remove pythonhome to prevent interference
     env.pop("PYTHONHOME", None)
-    # return the filtered environment dictionary
+    # return filtered environment
     return env
 
+
+# base environment for subprocess calls
 ENV = _get_clean_env()
 
+
 def _extract_python_version(python_path: Path) -> Optional[tuple[int, int]]:
+    # try to query version from executable
     try:
-        # build the command to query the candidate's Python version
+        # check if using windows launcher
         if python_path.name.lower() in ("py", "py.exe"):
+            # build command with windows launcher flags
             args = ["-3", "-c", "import sys; print(sys.version_info.major, sys.version_info.minor)"]
         else:
+            # build version query command
             args = ["-c", "import sys; print(sys.version_info.major, sys.version_info.minor)"]
-        # execute command with a clean environment and capture output
+        # execute command and capture output
         output = subprocess.check_output([str(python_path)] + args, env=ENV, text=True, stderr=subprocess.STDOUT, timeout=5)
-        # parse the version numbers from the trimmed output
+        # split output into parts
         parts = output.strip().split()
-        # verify that output contains at least major and minor version parts
+        # verify at least two parts found
         if len(parts) < 2:
-            # log failure to parse the output string
+            # log failure to parse version
             logger.info("Failed to parse Python [%s] version from output: %s", python_path, output)
-            # return none when version cannot be determined
+            # return none on parse failure
             return None
-        # return tuple of major and minor version numbers
+        # return major and minor version tuple
         return (int(parts[0]), int(parts[1]))
+    # catch execution and timeout errors
     except (subprocess.CalledProcessError, FileNotFoundError, OSError, subprocess.TimeoutExpired, ValueError):
-        # log execution or parsing error for the candidate executable
+        # log error during analysis
         logger.error("Error while analyzing Python executable: %s", python_path, exc_info=True)
-        # return none on any failure
+        # return none on failure
         return None
 
 
 def _is_python_version_compatible(python_path: Path) -> tuple[bool, Optional[tuple[int, int]]]:
-    # verify the candidate exists and can be executed
+    # check if path exists and is executable
     if not python_path.exists() or not os.access(python_path, os.X_OK):
-        # log that candidate was skipped
+        # log missing or inaccessible file
         logger.info("Python executable not found or not executable: %s", python_path)
-        # return false with no version info
+        # return failure with no version
         return False, None
-    # extract version using the helper function
+    # extract version from path
     version = _extract_python_version(python_path)
-    # check if version extraction succeeded
     if not version:
-        # return false when version is unknown
+        # return false with no version
         return False, None
-    # extract version
-    major = int(version[0])
-    minor = int(version[1])
-    # log information
+    # assign major and minor versions
+    major, minor = int(version[0]), int(version[1])
+    # log candidate analysis results
     logger.info("Analyzing Python [%s], version: %d.%d", python_path, major, minor)
-    # validate version is supported against the project requirement
+    # return compatibility check and version tuple
     return (major, minor) >= REQUIRED_PYTHON_VERSION, (major, minor)
 
 
 def _candidate_python_executables() -> list[Path]:
-    # gather candidates from environment and runtime defaults
-    candidates: list[Path] = []
-    # check if a custom python path is defined in environment
+    # initialize candidates list
+    candidates = []
+    # get python path from environment
     env_path = os.environ.get("PYTHON_PATH", "").strip()
-    # add environment candidate if present
+    # add env path if present
     if env_path:
-        # append the custom path to the candidates list
+        # append environment candidate
         candidates.append(Path(env_path))
-    # add the current python executable running this script
+    # add current runtime executable
     if sys.executable:
-        # append the current runtime path
+        # append runtime candidate
         candidates.append(Path(sys.executable))
-    # select candidate names based on the operating system
-    if sys.platform.startswith("win"):
-        # combine windows-specific and generic names
-        candidate_names = WINDOWS_PYTHON_CANDIDATES + PYTHON_CANDIDATES
-    else:
-        # use generic python names on non-windows platforms
-        candidate_names = PYTHON_CANDIDATES
-    # loop through common executable names
+    # determine names to search based on platform
+    candidate_names = WINDOWS_PYTHON_CANDIDATES + PYTHON_CANDIDATES if sys.platform.startswith("win") else PYTHON_CANDIDATES
+    # iterate through candidate names
     for name in candidate_names:
-        # check if executable exists in system PATH
+        # search for executable in path
         resolved = shutil.which(name)
-        # add resolved path to candidates list
+        # add if found
         if resolved:
-            # append path object for the found executable
+            # append resolved path
             candidates.append(Path(resolved))
-    # remove duplicate paths while preserving the original order
-    unique_candidates: list[Path] = []
-    # set to track seen absolute paths
-    seen: set[str] = set()
-    # iterate through all collected candidates
+    # initialize unique list and tracking set
+    unique_candidates, seen = [], set()
+    # iterate through all candidates
     for candidate in candidates:
-        # resolve absolute path to handle symbolic links
+        # resolve absolute path for uniqueness check
         resolved = str(candidate.resolve())
-        # skip if this path was already processed
-        if resolved in seen:
-            # continue to next candidate
-            continue
-        # log the candidate being considered
-        logger.info("Considering Python executable at: %s", candidate)
-        # mark path as seen in the tracking set
-        seen.add(resolved)
-        # add to the final unique list
-        unique_candidates.append(candidate)
-    # return the list of unique candidate paths
+        # check if already seen
+        if resolved not in seen:
+            # log candidate being considered
+            logger.info("Considering Python executable at: %s", candidate)
+            # mark as seen
+            seen.add(resolved)
+            # add to unique list
+            unique_candidates.append(candidate)
+    # return list of unique paths
     return unique_candidates
 
 
 def find_python_executable_path() -> tuple[Optional[Path], Optional[tuple[int, int]]]:
-    # iterate through all available python candidates
+    # iterate through unique candidates
     for candidate in _candidate_python_executables():
-        # expand user paths like home directory tilde
-        candidate_path = candidate.expanduser()
-        # check if the candidate is compatible with requirements
-        is_compatible, version = _is_python_version_compatible(candidate_path)
-        # return the first match found
+        # check compatibility of expanded path
+        is_compatible, version = _is_python_version_compatible(candidate.expanduser())
+        # return first compatible match
         if is_compatible:
-            # return both path and version info
-            return candidate_path, version
-    # no compatible python was found across all candidates
+            # return path and version
+            return candidate.expanduser(), version
+    # return none if no compatible match found
     return None, None
 
 
 def _ensure_python_venv(python_path: Path, version: tuple[int, int]):
-    # check if the python virtual environment configuration already exists
+    # check if venv config exists
     if (APP_DIR / "pyvenv.cfg").is_file():
-        # determine the path to the python executable within the venv
+        # resolve venv python executable path
         python_exe = APP_DIR / "Scripts" / "python.exe" if os.name == "nt" else APP_DIR / "bin" / "python"
-        # verify that the existing venv version matches the requirement
+        # verify venv version matches requirement
         if _extract_python_version(python_exe) == version:
-            # log that the existing venv is reused
+            # log reuse of existing venv
             logger.info("Using existing Python virtual environment at: %s", APP_DIR)
-            # return early as no creation is needed
+            # exit without creating new venv
             return
-    # log that a new venv is being created
+    # log venv creation attempt
     logger.info("Creating Python virtual environment at: %s", APP_DIR)
-    # create the virtual environment using the selected python interpreter
+    # create new virtual environment
     subprocess.check_call([str(python_path), "-m", "venv", str(APP_DIR)], env=ENV)
 
 
 def _ensure_application_installed() -> Optional[Path]:
-    # wrap installation logic in a try block to handle failures
     try:
-        # ensure the base directory exists
+        # create application directory
         APP_DIR.mkdir(parents=True, exist_ok=True)
-        # log intent to check or install the application
+        # log installation intent
         logger.info("Ensuring application with version [%s] is installed at: %s", __version__, APP_DIR)
-        # check for the existence of the version marker file
+        # resolve internal python executable path
+        python_exe = APP_DIR / "Scripts" / "python.exe" if os.name == "nt" else APP_DIR / "bin" / "python"
+        # check for existing version marker
         if (APP_DIR / "version.txt").is_file():
-            # load file content to verify the installed version
-            with (APP_DIR / "version.txt").open() as f:
-                # read version string and strip whitespace
-                installed_version = f.read().strip()
-            # compare installed version with current project version
-            if installed_version == __version__:
-                # log that the application is already up to date
+            # check if installed version matches current version
+            if (APP_DIR / "version.txt").read_text().strip() == __version__:
+                # log that setup is already complete
                 logger.info("Application with version [%s] is already installed at: %s", __version__, APP_DIR)
-                # return path to the python executable within the venv
-                return APP_DIR / "Scripts" / "python.exe" if os.name == "nt" else APP_DIR / "bin" / "python"
-        # find a compatible system python installation to use for the venv
-        python_path, version = find_python_executable_path()
-        # check if a suitable python was found
-        if python_path is None:
-            # log failure to locate python
-            logger.error("Unable to locate a Python executable with version >= 3.10")
-            # show error dialog to the user for immediate feedback
-            _show_error_dialog("Unable to locate a compatible Python executable (version >= 3.10).\n\nPlease ensure Python is installed and available in your PATH.")
-            # return none to indicate failure
+                # return path to venv python
+                return python_exe
+        # get active app or create a temporary one
+        app = wx.GetApp() or wx.App(False)
+        # initialize progress dialog
+        progress = wx.ProgressDialog("Xyce Simulation Plugin Setup", "Initializing setup...", maximum=100, style=wx.PD_APP_MODAL | wx.PD_SMOOTH)
+        # initialize shared state for background worker
+        state = {"val": 0, "msg": "Initializing setup...", "done": False, "error": None, "result": None}
+        # background setup worker function
+        def worker():
+            # wrap worker logic in error handler
+            try:
+                # update state for python search
+                state["val"], state["msg"] = 10, "Searching for a compatible Python 3.10+ interpreter..."
+                # perform system-wide python search
+                python_path, version = find_python_executable_path()
+                # handle search failure
+                if python_path is None:
+                    # raise error when no compatible python found
+                    raise RuntimeError("Unable to locate a compatible Python executable (version >= 3.10).\n\nPlease ensure Python is installed and available in your PATH.")
+                # update state for venv creation
+                state["val"], state["msg"] = 30, f"Preparing dedicated virtual environment with Python {version[0]}.{version[1]}..."
+                # initialize virtual environment
+                _ensure_python_venv(python_path, version)
+                # resolve pip module path
+                pip_exe = APP_DIR / "Scripts" / "pip.exe" if os.name == "nt" else APP_DIR / "bin" / "python"
+                # find plugin wheel files
+                wheels = list(Path(__file__).resolve().parent.glob("kicad_xyce_plugin-*-py3-none-any.whl"))
+                # handle missing package files
+                if not wheels:
+                    # raise error when package not found
+                    raise RuntimeError(f"Failed to locate the plugin package (wheel file) in:\n{Path(__file__).resolve().parent}")
+                # update state for package installation
+                state["val"], state["msg"] = 60, "Installing Xyce Simulation Plugin and dependencies..."
+                # install plugin package via pip
+                subprocess.check_call([str(pip_exe), "-m", "pip", "install", str(wheels[0])], env=ENV)
+                # update state for finalization
+                state["val"], state["msg"] = 90, "Finalizing installation..."
+                # record installed version marker
+                (APP_DIR / "version.txt").write_text(__version__)
+                # update state for completion
+                state["val"], state["msg"], state["result"] = 100, "Setup complete!", python_exe
+            except Exception as e:
+                # record error in shared state
+                state["error"] = e
+            finally:
+                # mark state as done
+                state["done"] = True
+        # create setup thread
+        thread = threading.Thread(target=worker)
+        # mark as daemon to exit on main exit
+        thread.daemon = True
+        # start background execution
+        thread.start()
+        # monitor progress from main thread
+        while not state["done"]:
+            # update graphical progress dialog
+            progress.Update(state["val"], state["msg"])
+            # wait before next update
+            time.sleep(0.1)
+        # complete progress bar
+        progress.Update(100, "Setup complete!")
+        # hide dialog window
+        progress.Hide()
+        # destroy dialog resources
+        progress.Destroy()
+        # process remaining UI events
+        app.Yield()
+        # handle background errors
+        if state["error"]:
+            # report captured error
+            _show_error_dialog(str(state["error"]))
+            # return failure
             return None
-        # log the path of the selected python interpreter
-        logger.info("Found Python %d.%d executable at: %s", version[0], version[1], python_path)
-        # create the virtual environment if it doesn't exist or is outdated
-        _ensure_python_venv(python_path, version)
-        # determine the path to pip within the virtual environment
-        pip_exe = APP_DIR / "Scripts" / "pip.exe" if os.name == "nt" else APP_DIR / "bin" / "pip"
-        # resolve the absolute path to the directory containing this script
-        plugin_dir = Path(__file__).resolve().parent
-        # search for the plugin wheel package in the plugin directory
-        wheels = list(plugin_dir.glob("kicad_xyce_plugin-*-py3-none-any.whl"))
-        # check if at least one wheel file was found
-        if not wheels:
-            # log that the required package is missing
-            logger.error("Could not find plugin wheel file in %s", plugin_dir)
-            # notify user of the missing package file
-            _show_error_dialog(f"Failed to locate the plugin package (wheel file) in:\n{plugin_dir}")
-            # return none to indicate failure
-            return None
-        # select the first wheel file found in the list
-        wheel_path = wheels[0]
-        # install the plugin wheel package into the virtual environment
-        subprocess.check_call([str(pip_exe), "install", str(wheel_path)], env=ENV)
-        # create the version marker file only after a successful installation
-        (APP_DIR / "version.txt").write_text(__version__)
-        # return the path to the python executable for launching the plugin
-        return APP_DIR / "Scripts" / "python.exe" if os.name == "nt" else APP_DIR / "bin" / "python"
-    except subprocess.CalledProcessError as e:
-        # log detailed error information for the failed subprocess call
+        # return path to venv python
+        return state["result"]
+    # catch top-level setup errors
+    except Exception as e:
+        # log failure details
         logger.error("Failed to install application at: %s", APP_DIR, exc_info=True)
-        # show a detailed error message to the user
-        _show_error_dialog(f"Installation failed during setup of the virtual environment or package.\n\nError: {e}")
-        # return none to indicate failure
+        # report unexpected error
+        _show_error_dialog(f"An unexpected error occurred during setup.\n\nError: {e}")
+        # return failure
         return None
 
 
 def main():
-    # wrap the main execution flow in a catch-all block
+    # execute main logic in error handler
     try:
-        # extract the KiCad API socket path from environment
-        socket = os.environ.get("KICAD_API_SOCKET", "")
-        # extract the KiCad API token from environment
-        token = os.environ.get("KICAD_API_TOKEN", "")
-        # check if the required KiCad environment variables are present
+        # get kicad api identifiers
+        socket, token = os.environ.get("KICAD_API_SOCKET", ""), os.environ.get("KICAD_API_TOKEN", "")
+        # verify api environment
         if not socket or not token:
-            # log that the plugin was launched outside of KiCad
+            # log launch outside of kicad
             logger.error("Missing required environment variables: KICAD_API_SOCKET or KICAD_API_TOKEN")
-            # return early
+            # exit without error dialog
             return
-        # ensure the plugin is installed and get the venv python path
+        # ensure environment is ready
         python_path = _ensure_application_installed()
-        # check if installation and venv setup succeeded
+        # launch plugin if setup succeeded
         if python_path:
-            # launch the plugin application module using the venv python
+            # execute plugin module
             subprocess.check_call([str(python_path), "-m", "kicad_xyce_plugin"], env=ENV)
     except Exception as e:
-        # log any unexpected exception that occurred during startup
+        # log fatal bootstrapper error
         logger.error("An unexpected error occurred in the plugin bootstrapper", exc_info=True)
-        # show the unexpected error details to the user
+        # report fatal error
         _show_error_dialog(f"An unexpected error occurred while starting the Xyce Simulation Plugin:\n\n{e}")
 
 
 if __name__ == "__main__":
-    # execute the main entry point
+    # run main entry point
     main()
