@@ -1,1 +1,5 @@
+coverage
+flake8
+hatch
+pytest
 pytest-qt

@@ -36,6 +36,8 @@
       "matchCommandLine": true
     },
     "gh": true,
-    "/Users/rogelio/Projects/kicad-xyce-plugin/.venv/bin/python": true
-  }
+    "/Users/rogelio/Projects/kicad-xyce-plugin/.venv/bin/python": true,
+    ".": true
+  },
+  "python-envs.defaultEnvManager": "ms-python.python:venv"
 }

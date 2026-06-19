@@ -60,7 +60,7 @@ def _show_error_dialog(message: str):
     # attempt to use wxpython for native error dialog
     try:
         # get active app or create a temporary one
-        app = wx.GetApp() or wx.App(False)
+        _ = wx.GetApp() or wx.App(False)
         # show modal message box
         wx.MessageBox(message, title, wx.OK | wx.ICON_ERROR)
         # return after showing dialog
@@ -259,6 +259,7 @@ def _ensure_application_installed() -> Optional[Path]:
         progress = wx.ProgressDialog("Xyce Simulation Plugin Setup", "Initializing setup...", maximum=100, style=wx.PD_APP_MODAL | wx.PD_SMOOTH)
         # initialize shared state for background worker
         state = {"val": 0, "msg": "Initializing setup...", "done": False, "error": None, "result": None}
+
         # background setup worker function
         def worker():
             # wrap worker logic in error handler
@@ -299,6 +300,7 @@ def _ensure_application_installed() -> Optional[Path]:
             finally:
                 # mark state as done
                 state["done"] = True
+
         # create setup thread
         thread = threading.Thread(target=worker)
         # mark as daemon to exit on main exit
@@ -352,6 +354,8 @@ def main():
         python_path = _ensure_application_installed()
         # launch plugin if setup succeeded
         if python_path:
+            # log information
+            logger.info("Launching Xyce Simulation Plugin with Python executable at: %s, current working directory: %s", python_path, os.getcwd())
             # execute plugin module
             subprocess.check_call([str(python_path), "-m", "kicad_xyce_plugin"], env=ENV)
     except Exception as e:

@@ -1,22 +1,16 @@
 import os
 import subprocess
-import sys
-import threading
 from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import pytest
-
 # import the module to be tested
-import plugin
 from plugin import _candidate_python_executables
 from plugin import _ensure_application_installed
 from plugin import _ensure_python_venv
 from plugin import _extract_python_version
 from plugin import _get_clean_env
 from plugin import _is_python_version_compatible
-from plugin import find_python_executable_path
 from plugin import main
 
 

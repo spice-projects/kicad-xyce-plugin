@@ -14,11 +14,11 @@
             "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/src",
-            "module": "run_simulator",
+            "module": "kicad_xyce_plugin",
             "console": "integratedTerminal",
             "env": {
                 "KICAD_API_SOCKET": "ipc:///tmp/kicad/api.sock",
-                "KICAD_API_TOKEN": "2d07a6de-55f1-4ac7-acc0-bb49c6f05928"
+                "KICAD_API_TOKEN": "017a57c0-2ca2-4276-8dd7-83a63fc16f2d"
             },
             "args": ["--log-level=DEBUG"],
             "justMyCode": false

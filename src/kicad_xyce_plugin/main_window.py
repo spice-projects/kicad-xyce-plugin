@@ -1,7 +1,12 @@
+import json
 import logging
+import os
+import subprocess
+import tempfile
 from pathlib import Path
 
 from kipy import KiCad
+from kipy.proto.common.types import DocumentType
 from PySide6.QtCore import QSize, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QAction, QColor, QGuiApplication, QKeySequence, QScreen
 from PySide6.QtQuick import QQuickView
@@ -488,32 +493,322 @@ class MainWindow(QMainWindow):
         # render chart
         chart.render("", self._abscissa_scale.value, set(expressions))
 
+    def _find_schematic_in_project(self, project) -> Path:
+        if project is None or not getattr(project, "path", None):
+            raise RuntimeError("Unable to resolve schematic file path from KiCad project")
+
+        project_path = Path(project.path).resolve()
+        if project_path.is_dir():
+            project_dir = project_path
+        else:
+            project_dir = project_path.parent
+        project_name = getattr(project, "name", None)
+
+        candidates: list[Path] = []
+        if project_name:
+            candidates.append(project_dir / f"{project_name}.kicad_sch")
+        candidates.extend(sorted(project_dir.rglob("*.kicad_sch")))
+        candidates.extend(sorted(project_dir.rglob("*.sch")))
+
+        resolved: list[Path] = []
+        for candidate in candidates:
+            if candidate.exists() and candidate not in resolved:
+                resolved.append(candidate)
+
+        if len(resolved) == 1:
+            return resolved[0]
+        if len(resolved) > 1:
+            if project_name:
+                preferred = project_dir / f"{project_name}.kicad_sch"
+                if preferred in resolved:
+                    return preferred
+            return resolved[0]
+
+        raise RuntimeError("Unable to resolve schematic file path from KiCad project folder")
+
+    def _resolve_kicad_project(self, document=None):
+
+        # helper to validate a project object
+        def is_valid(p):
+            # check project exposes a path field
+            if p is None or not getattr(p, "path", None):
+                return False
+            # in tests, paths might be mocked and not exist on the real filesystem
+            return True
+
+        # 1. try from document if provided
+        if document is not None:
+            # use project attribute in document
+            project = getattr(document, "project", None)
+            if is_valid(project):
+                return project
+
+        # kicad client is required at this moment
+        if self._kicad_client is None:
+            return None
+
+        # 2. try to get project from the specific document via client
+        if document is not None:
+            try:
+                # use KiCad client to get project associated with document (works in kipy and is the most direct method when available)
+                project = self._kicad_client.get_project(document)
+                if is_valid(project):
+                    return project
+            except Exception:
+                pass
+
+        # 3. Aggressive discovery: parse KiCad config files for open projects (handles kipy limitations)
+        try:
+            settings_path = self._kicad_client.get_plugin_settings_path("kicad")
+            # settings_path is typically .../Preferences/kicad/X.Y/plugins/kicad
+            # config_dir should be .../Preferences/kicad/X.Y/
+            config_dir = Path(settings_path).parents[1]
+            kicad_json_path = config_dir / "kicad.json"
+
+            open_projects = []
+            if kicad_json_path.exists():
+                with open(kicad_json_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    # check system open_projects
+                    open_projects.extend(data.get("system", {}).get("open_projects", []))
+                    # check window mru_path
+                    mru_path = data.get("window", {}).get("mru_path")
+                    if mru_path:
+                        open_projects.extend([str(p) for p in Path(mru_path).glob("*.kicad_pro")])
+
+            # if no open projects found, check eeschema.json for recently opened schematics
+            eeschema_json_path = config_dir / "eeschema.json"
+            if not open_projects and eeschema_json_path.exists():
+                with open(eeschema_json_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    # extract directories from recent files
+                    recent_files = data.get("system", {}).get("file_history", [])
+                    for f_path in recent_files:
+                        p = Path(f_path)
+                        if p.exists():
+                            open_projects.extend([str(proj) for proj in p.parent.glob("*.kicad_pro")])
+
+            # match the project folder with the document filename if available
+            sch_name = getattr(document, "board_filename", None)
+            for proj_path_str in open_projects:
+                proj_path = Path(proj_path_str)
+                if proj_path.exists():
+                    # return a mock-like project object
+                    class MockProject:
+                        def __init__(self, path):
+                            self.path = str(path)
+                            self.name = path.stem
+
+                    if sch_name:
+                        if (proj_path.parent / sch_name).exists():
+                            return MockProject(proj_path)
+                    else:
+                        return MockProject(proj_path)
+        except Exception as e:
+            logger.debug(f"Aggressive project discovery failed: {e}")
+
+        # 4. Fallback: search ALL open documents for any absolute path to infer project directory
+        for dt in [DocumentType.DOCTYPE_PROJECT, DocumentType.DOCTYPE_PCB, DocumentType.DOCTYPE_SCHEMATIC]:
+            try:
+                docs = self._kicad_client.get_open_documents(dt)
+                for d in docs:
+                    for attr in ["board_filename", "path"]:
+                        val = getattr(d, attr, None)
+                        if val and isinstance(val, str) and os.path.isabs(val):
+                            p = Path(val)
+                            project_dir = p if p.is_dir() else p.parent
+                            pro_files = list(project_dir.glob("*.kicad_pro")) or list(project_dir.glob("*.pro"))
+                            if pro_files:
+                                class MockProject:
+                                    def __init__(self, path):
+                                        self.path = str(path)
+                                        self.name = path.stem
+                                return MockProject(pro_files[0])
+
+                    # try kipy get_project for this document too
+                    project = self._kicad_client.get_project(d)
+                    if is_valid(project):
+                        return project
+            except Exception:
+                continue
+
+        # 5. Final fallback: search for project file in CWD or its parents
+        try:
+            curr = Path.cwd().resolve()
+            for _ in range(4):  # search up a few levels
+                pro_files = list(curr.glob("*.kicad_pro")) or list(curr.glob("*.pro"))
+                if pro_files:
+                    class MockProject:
+                        def __init__(self, path):
+                            self.path = str(path)
+                            self.name = path.stem
+                    return MockProject(pro_files[0])
+                if curr.parent == curr:
+                    break
+                curr = curr.parent
+        except Exception:
+            pass
+
+        return None
+
+    def _resolve_schematic_path_and_cwd(self, document) -> tuple[Path, Path | None]:
+        sheet_path = getattr(document, "sheet_path", None)
+        board_filename = getattr(document, "board_filename", None)
+        project = self._resolve_kicad_project(document)
+
+        if sheet_path is not None:
+            human_readable_path = getattr(sheet_path, "path_human_readable", "")
+            if human_readable_path in ("", ".", "./"):
+                if isinstance(board_filename, str) and board_filename.strip():
+                    return self._resolve_relative_schematic_path(board_filename, project), None
+                if project is None:
+                    raise RuntimeError("Unable to resolve schematic file path from KiCad document")
+                schematic_path = self._find_schematic_in_project(project)
+                return schematic_path, None
+
+            schematic_path = Path(human_readable_path)
+            if schematic_path.is_absolute():
+                return schematic_path, None
+            if project is not None and getattr(project, "path", None):
+                project_path = Path(project.path)
+                project_dir = project_path if project_path.is_dir() else project_path.parent
+                return project_dir / schematic_path, None
+            return schematic_path, None
+
+        if isinstance(board_filename, str) and board_filename.strip():
+            return self._resolve_relative_schematic_path(board_filename, project), None
+
+        schematic_path = self._find_schematic_in_project(project)
+        return schematic_path, None
+
+    def _resolve_relative_schematic_path(self, schematic_name: str, project) -> Path:
+        schematic_path = Path(schematic_name)
+        if schematic_path.is_absolute():
+            return schematic_path
+        if project is not None and getattr(project, "path", None):
+            project_path = Path(project.path)
+            project_dir = project_path if project_path.is_dir() else project_path.parent
+            return project_dir / schematic_path
+        return schematic_path
+
+    def _resolve_schematic_document_path(self, document) -> Path:
+        # prefer the explicit sheet path returned by the KiCad client
+        sheet_path = getattr(document, "sheet_path", None)
+        project = None
+
+        if sheet_path is not None:
+            human_readable_path = getattr(sheet_path, "path_human_readable", "")
+            if human_readable_path in ("", ".", "./"):
+                project = self._resolve_kicad_project(document)
+                return self._find_schematic_in_project(project)
+
+            schematic_path = Path(human_readable_path)
+            if schematic_path.is_absolute():
+                return schematic_path
+
+            project = self._resolve_kicad_project(document)
+            if project is not None and getattr(project, "path", None):
+                return Path(project.path).parent / schematic_path
+            return schematic_path
+
+        project = self._resolve_kicad_project(document)
+        return self._find_schematic_in_project(project), None
+
     def _extract_schematic_netlist(self) -> tuple[str, Path, NetlistTopology]:
-        # plugin mode: extract from KiCad schematic (placeholder for future implementation)
-        # line1
-        l1 = "* Xyce Complex Test Circuit\n"
-        # line2
-        l2 = "V1 1 0 5V\n"
-        # line3
-        l3 = "R1 1 2 1k\n"
-        # line4
-        l4 = "R2 2 0 2k\n"
-        # line5
-        l5 = "R3 2 3 500\n"
-        # line6
-        l6 = "R4 3 0 1k\n"
-        # line7
-        l7 = ".OP\n"
-        # line8
-        l8 = ".PRINT DC V(2) I(R1)\n"
-        # line9
-        l9 = ".END"
-        # netlist
-        netlist = l1 + l2 + l3 + l4 + l5 + l6 + l7 + l8 + l9
-        # parse
-        netlist, topology = parse_netlist(netlist)
-        # exit
-        return netlist, Path("/test.cir"), topology
+        # require a connected KiCad client for plugin mode
+        if self._kicad_client is None:
+            raise RuntimeError("KiCad client is not available for schematic extraction")
+
+        # 1. Resolve the KiCad project folder reliably
+        project = self._resolve_kicad_project()
+        schematic_path = None
+        command_cwd = None
+
+        if project is not None and getattr(project, "path", None):
+            try:
+                schematic_path = self._find_schematic_in_project(project)
+                project_path = Path(project.path)
+                command_cwd = project_path if project_path.is_dir() else project_path.parent
+            except RuntimeError:
+                pass
+
+        # 2. Fallback: try to resolve from open schematic documents if project-based resolution failed
+        if schematic_path is None or not schematic_path.exists():
+            documents = self._kicad_client.get_open_documents(DocumentType.DOCTYPE_SCHEMATIC)
+            if not documents:
+                raise RuntimeError("No open schematic documents found in KiCad and could not resolve project folder")
+            document = documents[0]
+            schematic_path, command_cwd = self._resolve_schematic_path_and_cwd(document)
+
+        # ensure a valid command CWD is available for relative asset resolution
+        if command_cwd is None:
+            raise RuntimeError("Unable to resolve KiCad project folder for schematic extraction")
+
+        # ensure we have an absolute path if possible, or at least one that exists relative to CWD
+        if not schematic_path.is_absolute():
+            if (command_cwd / schematic_path).exists():
+                schematic_path = (command_cwd / schematic_path).resolve()
+            elif schematic_path.exists():
+                schematic_path = schematic_path.resolve()
+
+        if schematic_path != Path(".") and not schematic_path.exists():
+            raise RuntimeError(f"Unable to resolve schematic file path: {schematic_path}")
+
+        # resolve the installed kicad-cli binary path from the KiCad client
+        kicad_cli_path = self._kicad_client.get_kicad_binary_path("kicad-cli")
+        if not kicad_cli_path:
+            raise RuntimeError("KiCad CLI binary path could not be resolved")
+
+        # create a temporary output file for the exported netlist with explicit UTF-8 encoding
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cir", prefix="kicad_xyce_", delete=False, encoding="utf-8") as output_file:
+            output_path = Path(output_file.name)
+
+        try:
+            command = [
+                kicad_cli_path,
+                "sch",
+                "export",
+                "netlist",
+                "--format",
+                "spice",
+                "--output",
+                str(output_path),
+                str(schematic_path),
+            ]
+
+            # log the command for transparency and easier troubleshooting
+            logger.info("Executing kicad-cli: %s (CWD: %s)", " ".join(command), command_cwd)
+
+            # run the CLI command and fail with diagnostics on error
+            run_kwargs = {
+                "check": True,
+                "capture_output": True,
+                "text": True,
+                "cwd": command_cwd,
+            }
+
+            try:
+                subprocess.run(command, **run_kwargs)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(
+                    f"Failed to export schematic netlist with kicad-cli: {e.stderr or e.stdout or e}"
+                ) from e
+
+            # read the resulting netlist and parse it into topology
+            netlist_text = output_path.read_text(encoding="utf-8")
+            netlist, topology = parse_netlist(netlist_text)
+
+            # update state to avoid redundant extractions
+            self._netlist = netlist
+            self._netlist_file_path = schematic_path
+            self._topology = topology
+
+            return netlist, schematic_path, topology
+
+        finally:
+            # cleanup the temporary export file now that it's been read into memory
+            if output_path.exists():
+                os.unlink(output_path)
 
     def _on_menu_view_simulation_output(self) -> None:
         # check root
