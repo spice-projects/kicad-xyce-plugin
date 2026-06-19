@@ -29,6 +29,13 @@ REQUIRED_PYTHON_VERSION = (3, 10)
 WINDOWS_PYTHON_CANDIDATES = ("py",)
 # common python executable names to search
 PYTHON_CANDIDATES = ("python", "python3", "python3.14", "python3.13", "python3.12", "python3.11", "python3.10")
+# common python install directories on macos not always present in kicad's restricted path
+# (kicad launched via finder/dock does not inherit the user's shell PATH)
+MACOS_PYTHON_SEARCH_DIRS = (
+    "/opt/homebrew/bin",   # apple silicon homebrew
+    "/usr/local/bin",      # intel homebrew and standard installs
+    "/usr/bin",            # system python
+)
 
 
 def _get_user_data_dir() -> Path:
@@ -189,6 +196,19 @@ def _candidate_python_executables() -> list[Path]:
         if resolved:
             # append resolved path
             candidates.append(Path(resolved))
+    # on macos, kicad may be launched with a restricted PATH (via finder/dock) that
+    # excludes homebrew and other common install locations; probe them directly
+    if sys.platform == "darwin":
+        # iterate through known python install directories
+        for search_dir in MACOS_PYTHON_SEARCH_DIRS:
+            # iterate through candidate names
+            for name in PYTHON_CANDIDATES:
+                # build full path to candidate
+                path = Path(search_dir) / name
+                # add if the file exists
+                if path.is_file():
+                    # append discovered path
+                    candidates.append(path)
     # initialize unique list and tracking set
     unique_candidates, seen = [], set()
     # iterate through all candidates
@@ -253,12 +273,16 @@ def _ensure_application_installed() -> Optional[Path]:
                 logger.info("Application with version [%s] is already installed at: %s", __version__, APP_DIR)
                 # return path to venv python
                 return python_exe
-        # ui application
-        app = wx.App(False)
-        # initialize progress dialog
-        progress = wx.ProgressDialog("Xyce Simulation Plugin Setup", "Initializing setup...", maximum=100, style=wx.PD_APP_MODAL | wx.PD_SMOOTH)
-        # initialize shared state for background worker
-        state = {"val": 0, "msg": "Initializing setup...", "done": False, "error": None, "result": None}
+        # get the existing wx application instance from kicad or create a temporary one
+        _ = wx.GetApp() or wx.App(False)
+        # initialize progress dialog; PD_AUTO_HIDE dismisses the dialog automatically
+        # when Update(maximum) is called, avoiding the "waiting for dismiss" state
+        # that occurs without this flag and prevents the dialog from closing
+        progress = wx.ProgressDialog("Xyce Simulation Plugin Setup", "Initializing setup...", maximum=100, style=wx.PD_APP_MODAL | wx.PD_SMOOTH | wx.PD_AUTO_HIDE)
+        # signals worker completion to the main thread
+        done_event = threading.Event()
+        # shared state between main thread and worker
+        state = {"val": 0, "msg": "Initializing setup...", "error": None, "result": None}
 
         # background setup worker function
         def worker():
@@ -292,39 +316,48 @@ def _ensure_application_installed() -> Optional[Path]:
                 state["val"], state["msg"] = 90, "Finalizing installation..."
                 # record installed version marker
                 (APP_DIR / "version.txt").write_text(__version__)
-                # update state for completion
-                state["val"], state["msg"], state["result"] = 100, "Setup complete!", python_exe
+                # store successful result
+                state["result"] = python_exe
             except Exception as e:
+                # log information
+                logger.error("Installation worker failed", exc_info=True)
                 # record error in shared state
                 state["error"] = e
             finally:
-                # mark state as done
-                state["done"] = True
+                # signal main thread that worker is done
+                done_event.set()
 
         # create and start setup thread, daemonized to exit with main thread
-        thread = threading.Thread(target=worker)
-        thread.daemon = True
+        thread = threading.Thread(target=worker, daemon=True)
         thread.start()
-        # monitor progress from main thread
-        while not state["done"]:
+        # poll worker state while keeping the wx event loop alive.
+        # done_event.wait releases the GIL so the worker runs freely during each interval.
+        # wx.YieldIfNeeded has a re-entrancy guard and does not re-enable disabled windows,
+        # making it safe to call inside a wx.PD_APP_MODAL dialog without disturbing the
+        # modal loop or triggering spurious completion events (unlike wx.SafeYield).
+        while not done_event.wait(timeout=0.05):
             # update graphical progress dialog
             progress.Update(state["val"], state["msg"])
-            # wait before next update
-            time.sleep(0.1)
-        # complete progress bar
-        progress.Update(100, "Setup complete!")
-        # hide dialog window
-        progress.Hide()
-        # destroy dialog resources
-        progress.Destroy()
-        # process remaining UI events
-        app.Yield()
-        # handle background errors
+            # process pending wx events so the dialog can repaint
+            wx.YieldIfNeeded()
+        # handle worker error: close dialog first, then show error so there is no
         if state["error"]:
+            # hide dialog window
+            progress.Hide()
+            # destroy dialog resources
+            progress.Destroy()
+            # flush pending wx events so the dialog is actually removed from screen
+            wx.Yield()
             # report captured error
             _show_error_dialog(str(state["error"]))
             # return failure
             return None
+        # update to maximum triggers PD_AUTO_HIDE which dismisses the dialog
+        progress.Update(100, "Setup complete!")
+        # destroy dialog resources
+        progress.Destroy()
+        # flush pending wx events to finalize destruction
+        wx.Yield()
         # return path to venv python
         return state["result"]
     # catch top-level setup errors

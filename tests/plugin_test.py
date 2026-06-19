@@ -96,6 +96,7 @@ class TestPlugin:
                                     result = _ensure_application_installed()
                                     # assert
                                     assert result is not None
+                                    mock_wx.GetApp.assert_called()
                                     mock_wx.ProgressDialog.assert_called_once()
 
     def test_main_success(self):
