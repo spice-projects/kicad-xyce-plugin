@@ -633,7 +633,10 @@ class MainWindow(QMainWindow):
             self._simulation_parameters = from_xyce_directives(topology.directives)
         # apply simulation parameters if present
         if self._simulation_parameters is not None:
-            netlist = netlist.replace(".END\n", f"\n{'\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))}\n\n.END\n")
+            # directives
+            directives = '\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))
+            # final netlist
+            netlist = netlist.replace(".END\n", f"\n{directives}\n\n.END\n")
         # dialog
         dialog = NetlistViewerDialog(parent=self, netlist=netlist)
         # exec
