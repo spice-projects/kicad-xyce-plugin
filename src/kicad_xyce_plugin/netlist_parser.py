@@ -352,4 +352,4 @@ def parse_netlist(text: str) -> tuple[str, NetlistTopology]:
                 # add to globals
                 global_nodes.add(node)
     # return result
-    return f"{'\n'.join(netlist)}\n", NetlistTopology(title=title, devices=top_level_devices, nodes=top_level_nodes, subcircuit_definitions=subcircuit_definitions, global_nodes=global_nodes, directives=directives)
+    return '\n'.join(netlist) + '\n', NetlistTopology(title=title, devices=top_level_devices, nodes=top_level_nodes, subcircuit_definitions=subcircuit_definitions, global_nodes=global_nodes, directives=directives)

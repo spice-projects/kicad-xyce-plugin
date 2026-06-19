@@ -601,7 +601,9 @@ class MainWindow(QMainWindow):
             if self._simulation_parameters.analysis is None:
                 return
         # generate simulation directives
-        netlist = netlist.replace(".END\n", f"\n{'\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))}\n\n.END\n")
+        directives = '\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))
+        # final netlist
+        netlist = netlist.replace(".END\n", f"\n{directives}\n\n.END\n")
         # log information
         logger.info("Running simulation with netlist:\n%s", netlist)
         # try
