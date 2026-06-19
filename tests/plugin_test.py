@@ -103,12 +103,17 @@ class TestPlugin:
         env_vars = {"KICAD_API_SOCKET": "sock", "KICAD_API_TOKEN": "tok", "KIPRJMOD": "proj"}
         with patch.dict(os.environ, env_vars):
             with patch("plugin._ensure_application_installed", return_value=Path("python")):
-                with patch("subprocess.check_call") as mock_call:
+                with patch("subprocess.Popen") as mock_popen:
                     # act
                     main()
                     # assert
-                    mock_call.assert_called_once()
-                    assert "python" in str(mock_call.call_args[0][0])
+                    mock_popen.assert_called_once()
+                    assert "python" in str(mock_popen.call_args[0][0])
+                    args = mock_popen.call_args[1]
+                    assert args["stdin"] == subprocess.DEVNULL
+                    assert args["stdout"] == subprocess.DEVNULL
+                    assert args["stderr"] == subprocess.DEVNULL
+                    assert args["start_new_session"] is True
 
     def test_show_error_dialog_macos(self):
         # arrange

@@ -352,8 +352,8 @@ def main():
         python_path = _ensure_application_installed()
         # launch plugin if setup succeeded
         if python_path:
-            # execute plugin module
-            subprocess.check_call([str(python_path), "-m", "kicad_xyce_plugin"], env=ENV)
+            # start plugin module asynchronously and detach IO from this process
+            subprocess.Popen([str(python_path), "-m", "kicad_xyce_plugin"], env=ENV, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)
     except Exception as e:
         # log fatal bootstrapper error
         logger.error("An unexpected error occurred in the plugin bootstrapper", exc_info=True)

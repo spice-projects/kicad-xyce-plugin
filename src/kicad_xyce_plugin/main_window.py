@@ -141,11 +141,13 @@ class MainWindow(QMainWindow):
         # file menu
         file_menu = menu_bar.addMenu("&File")
 
-        # open action
-        open_action = QAction("Open...", self)
-        open_action.setShortcut(QKeySequence.Open)
-        open_action.triggered.connect(self._on_menu_open_file)
-        file_menu.addAction(open_action)
+        # no file operations on plugin mode, rely on KiCad's file management instead
+        if self._kicad_client is None:
+            # open action
+            open_action = QAction("Open...", self)
+            open_action.setShortcut(QKeySequence.Open)
+            open_action.triggered.connect(self._on_menu_open_file)
+            file_menu.addAction(open_action)
 
         # quit action
         quit_action = QAction("Quit", self)
@@ -194,25 +196,25 @@ class MainWindow(QMainWindow):
 
     def _create_toolbar(self):
         # toolbar
-        toolbar = self.addToolBar("File")
+        toolbar = self.addToolBar("")
         toolbar.setMovable(False)
         toolbar.setIconSize(QSize(24, 24))
 
-        # open action
-        open_action = QAction(get_kicad_icon(KiCadIcon.FILE_OPEN, dark=False), "Open", self)
-        open_action.setShortcut(QKeySequence.StandardKey.Open)
-        open_action.setToolTip("Open simulation file (Cmd+O)")
-        open_action.triggered.connect(self._on_menu_open_file)
-        toolbar.addAction(open_action)
-
-        # save action
-        save_action = QAction(get_kicad_icon(KiCadIcon.FILE_SAVE, dark=False), "Save", self)
-        save_action.setShortcut(QKeySequence.StandardKey.Save)
-        save_action.setToolTip("Save simulation file (Cmd+S)")
-        toolbar.addAction(save_action)
-
-        # separator
-        toolbar.addSeparator()
+        # no file operations on plugin mode, rely on KiCad's file management instead
+        if self._kicad_client is None:
+            # open action
+            open_action = QAction(get_kicad_icon(KiCadIcon.FILE_OPEN, dark=False), "Open", self)
+            open_action.setShortcut(QKeySequence.StandardKey.Open)
+            open_action.setToolTip("Open simulation file (Cmd+O)")
+            open_action.triggered.connect(self._on_menu_open_file)
+            toolbar.addAction(open_action)
+            # save action
+            save_action = QAction(get_kicad_icon(KiCadIcon.FILE_SAVE, dark=False), "Save", self)
+            save_action.setShortcut(QKeySequence.StandardKey.Save)
+            save_action.setToolTip("Save simulation file (Cmd+S)")
+            toolbar.addAction(save_action)
+            # separator
+            toolbar.addSeparator()
 
         # show netlist
         self._show_netlist_action = QAction(get_kicad_icon(KiCadIcon.SHOW_NETLIST, dark=False), "Show Netlist", self)
