@@ -4,14 +4,14 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from kipy.proto.common.types import DocumentType
+import pytest
+
 from PySide6.QtCore import QSize
 from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QApplication, QMainWindow
 
 from kicad_xyce_plugin.kicad_icons import load_kicad_icons
 from kicad_xyce_plugin.main_window import MainWindow
-from kicad_xyce_plugin.netlist_parser import NetlistTopology
 from kicad_xyce_plugin.config.plugin_config import PluginConfig
 
 _app = QApplication.instance() or QApplication(sys.argv)
@@ -27,6 +27,7 @@ def _make_window() -> MainWindow:
     window._status_timer = MagicMock()
     window._kicad_client = MagicMock()
     window._plugin_config = PluginConfig.default()
+    window._schematic_last_modified = None
     window._runner = None
     window._netlist = None
     window._netlist_file_path = None
@@ -60,263 +61,92 @@ class TestMainWindowSizeHint:
 
 class TestMainWindowSetupNetlist:
 
-    def test_extract_schematic_netlist_returns_topology_in_plugin_mode(self, tmp_path):
+    def test_extract_schematic_netlist_exports_and_parses_topology_when_valid(self, tmp_path):
         # arrange
         window = _make_window()
-        document = MagicMock()
-        sheet_path = MagicMock()
-        sheet_path.path_human_readable = "test.sch"
-        document.sheet_path = sheet_path
-        document.project.path = str(tmp_path / "project.pro")
-        window._kicad_client.get_open_documents.return_value = [document]
-        window._kicad_client.get_project.return_value.path = str(tmp_path / "project.pro")
         window._kicad_client.get_kicad_binary_path.return_value = "/usr/bin/kicad-cli"
-
-        schematic_file = tmp_path / "test.sch"
+        schematic_file = tmp_path / "test.kicad_sch"
         schematic_file.write_text("EESchema Schematic File Version 4\n", encoding="utf-8")
         output_file = tmp_path / "output.cir"
-        netlist_text = "* Test schematic\nV1 1 0 5V\nR1 1 0 1k\n.OP\n.END\n"
-        output_file.write_text(netlist_text, encoding="utf-8")
+        output_file.write_text("* Test schematic\nV1 1 0 5V\nR1 1 0 1k\n.OP\n.END\n", encoding="utf-8")
         mock_tempfile = MagicMock()
         mock_tempfile.__enter__.return_value.name = str(output_file)
-        with patch("kicad_xyce_plugin.main_window.tempfile.NamedTemporaryFile", return_value=mock_tempfile):
-            with patch("kicad_xyce_plugin.main_window.subprocess.run") as mock_run:
-                mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
-                # act
-                netlist, netlist_path, topology = window._extract_schematic_netlist()
+        topology = MagicMock(directives=[MagicMock()])
+        with patch("kicad_xyce_plugin.main_window.get_active_schematic_path", return_value=(schematic_file.resolve(), schematic_file.stat().st_mtime)):
+            with patch("kicad_xyce_plugin.main_window.tempfile.NamedTemporaryFile", return_value=mock_tempfile):
+                with patch("kicad_xyce_plugin.main_window.subprocess.run") as mock_run:
+                    with patch("kicad_xyce_plugin.main_window.parse_netlist", return_value=("netlist text", topology)):
+                        # act
+                        netlist, netlist_path, parsed_topology = window._extract_schematic_netlist()
 
         # assert
-        assert isinstance(netlist, str)
+        assert netlist == "netlist text"
         assert netlist_path == schematic_file.resolve()
-        assert isinstance(topology, NetlistTopology)
-        assert len(topology.devices) > 0
+        assert parsed_topology is topology
         assert window._netlist == netlist
-        assert window._netlist_file_path == netlist_path
-        assert window._topology == topology
+        assert window._topology is topology
+        assert window._schematic_last_modified == schematic_file.stat().st_mtime
         mock_run.assert_called_once()
+        assert str(output_file) in mock_run.call_args[0][0]
+        assert str(schematic_file.resolve()) in mock_run.call_args[0][0]
 
-    def test_extract_schematic_netlist_resolves_project_from_project_documents(self, tmp_path):
+    def test_extract_schematic_netlist_uses_cached_result_when_schematic_has_not_changed(self):
         # arrange
         window = _make_window()
-        # mock no schematic open initially, but a project document is open
-        window._kicad_client.get_open_documents.side_effect = lambda doc_type: (
-            [] if doc_type == DocumentType.DOCTYPE_SCHEMATIC else
-            [MagicMock(name="project_doc")] if doc_type == DocumentType.DOCTYPE_PROJECT else
-            []
-        )
-
-        project = MagicMock(name="project")
-        project.path = str(tmp_path / "project.pro")
-        project.name = "project"
-        window._kicad_client.get_project.return_value = project
         window._kicad_client.get_kicad_binary_path.return_value = "/usr/bin/kicad-cli"
-
-        schematic_file = tmp_path / "project.kicad_sch"
-        schematic_file.write_text("EESchema Schematic File Version 4\n", encoding="utf-8")
-        output_file = tmp_path / "output.cir"
-        netlist_text = "* Test schematic\nV1 1 0 5V\nR1 1 0 1k\n.OP\n.END\n"
-        output_file.write_text(netlist_text, encoding="utf-8")
-
-        mock_tempfile = MagicMock()
-        mock_tempfile.__enter__.return_value.name = str(output_file)
-
-        with patch("kicad_xyce_plugin.main_window.tempfile.NamedTemporaryFile", return_value=mock_tempfile):
+        window._netlist = "cached netlist"
+        cached_topology = MagicMock(directives=[MagicMock()])
+        window._topology = cached_topology
+        window._schematic_last_modified = 1.0
+        schematic_path = Path("/tmp/test.kicad_sch")
+        with patch("kicad_xyce_plugin.main_window.get_active_schematic_path", return_value=(schematic_path, 1.0)):
             with patch("kicad_xyce_plugin.main_window.subprocess.run") as mock_run:
-                mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
                 # act
-                netlist, netlist_path, topology = window._extract_schematic_netlist()
+                netlist, netlist_path, parsed_topology = window._extract_schematic_netlist()
 
         # assert
-        assert isinstance(netlist, str)
-        assert netlist_path == schematic_file.resolve()
-        assert isinstance(topology, NetlistTopology)
-        assert len(topology.devices) > 0
-        assert window._netlist == netlist
-        assert window._netlist_file_path == netlist_path
-        assert window._topology == topology
-        mock_run.assert_called_once()
-        called_args = mock_run.call_args.args[0]
-        assert called_args[-1] == str(schematic_file)
+        assert netlist == "cached netlist"
+        assert netlist_path == schematic_path
+        assert parsed_topology is cached_topology
+        mock_run.assert_not_called()
 
-    def test_extract_schematic_netlist_resolves_top_level_document_path(self, tmp_path):
+    def test_extract_schematic_netlist_raises_error_when_client_missing(self):
         # arrange
         window = _make_window()
-        document = MagicMock()
-        sheet_path = MagicMock()
-        sheet_path.path_human_readable = "."
-        document.sheet_path = sheet_path
-        document.project.path = str(tmp_path / "project.pro")
-        document.project.name = "project"
-        window._kicad_client.get_open_documents.return_value = [document]
-        window._kicad_client.get_project.return_value.path = str(tmp_path / "project.pro")
-        window._kicad_client.get_kicad_binary_path.return_value = "/usr/bin/kicad-cli"
+        window._kicad_client = None
+        schematic_path = Path("/tmp/test.kicad_sch")
+        with patch("kicad_xyce_plugin.main_window.get_active_schematic_path", return_value=(schematic_path, 1.0)):
+            # act/assert
+            with pytest.raises(AttributeError, match="get_kicad_binary_path"):
+                window._extract_schematic_netlist()
 
-        schematic_file = tmp_path / "project.kicad_sch"
-        schematic_file.write_text("EESchema Schematic File Version 4\n", encoding="utf-8")
-        output_file = tmp_path / "output.cir"
-        netlist_text = "* Test schematic\nV1 1 0 5V\nR1 1 0 1k\n.OP\n.END\n"
-        output_file.write_text(netlist_text, encoding="utf-8")
-        mock_tempfile = MagicMock()
-        mock_tempfile.__enter__.return_value.name = str(output_file)
-        with patch("kicad_xyce_plugin.main_window.tempfile.NamedTemporaryFile", return_value=mock_tempfile):
-            with patch("kicad_xyce_plugin.main_window.subprocess.run") as mock_run:
-                mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
-                # act
-                netlist, netlist_path, topology = window._extract_schematic_netlist()
-
-        # assert
-        assert isinstance(netlist, str)
-        assert netlist_path == schematic_file.resolve()
-        assert isinstance(topology, NetlistTopology)
-        assert len(topology.devices) > 0
-        mock_run.assert_called_once()
-
-    def test_extract_schematic_netlist_resolves_top_level_document_path_from_project_folder(self, tmp_path):
+    def test_extract_schematic_netlist_raises_error_when_kicad_cli_missing(self):
         # arrange
         window = _make_window()
-        document = MagicMock()
-        sheet_path = MagicMock()
-        sheet_path.path_human_readable = "."
-        document.sheet_path = sheet_path
-        document.project = None
-        fallback_project = MagicMock()
-        fallback_project.path = str(tmp_path / "project.pro")
-        fallback_project.name = "project"
-        window._kicad_client.get_open_documents.return_value = [document]
-        window._kicad_client.get_project.return_value = fallback_project
-        window._kicad_client.get_kicad_binary_path.return_value = "/usr/bin/kicad-cli"
+        window._kicad_client.get_kicad_binary_path.return_value = None
+        schematic_path = Path("/tmp/test.kicad_sch")
+        with patch("kicad_xyce_plugin.main_window.get_active_schematic_path", return_value=(schematic_path, 1.0)):
+            # act/assert
+            with pytest.raises(RuntimeError, match="KiCad CLI binary path could not be resolved"):
+                window._extract_schematic_netlist()
 
-        schematic_file = tmp_path / "project.kicad_sch"
-        schematic_file.write_text("EESchema Schematic File Version 4\n", encoding="utf-8")
-        output_file = tmp_path / "output.cir"
-        netlist_text = "* Test schematic\nV1 1 0 5V\nR1 1 0 1k\n.OP\n.END\n"
-        output_file.write_text(netlist_text, encoding="utf-8")
-        mock_tempfile = MagicMock()
-        mock_tempfile.__enter__.return_value.name = str(output_file)
-        with patch("kicad_xyce_plugin.main_window.tempfile.NamedTemporaryFile", return_value=mock_tempfile):
-            with patch("kicad_xyce_plugin.main_window.subprocess.run") as mock_run:
-                mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
-                # act
-                netlist, netlist_path, topology = window._extract_schematic_netlist()
-
-        # assert
-        assert isinstance(netlist, str)
-        assert netlist_path == schematic_file.resolve()
-        assert isinstance(topology, NetlistTopology)
-        assert len(topology.devices) > 0
-        mock_run.assert_called_once()
-        called_args = mock_run.call_args.args[0]
-        assert called_args[-1] == str(schematic_file)
-
-    def test_extract_schematic_netlist_uses_board_filename_when_sheet_path_is_empty(self, tmp_path):
+    def test_extract_schematic_netlist_raises_error_when_cli_fails(self, tmp_path):
         # arrange
         window = _make_window()
-        document = MagicMock()
-        sheet_path = MagicMock()
-        sheet_path.path_human_readable = ""
-        document.sheet_path = sheet_path
-        document.board_filename = "SE Power Amplifier.kicad_sch"
-        document.project = None
-        fallback_project = MagicMock()
-        fallback_project.path = str(tmp_path / "project.pro")
-        fallback_project.name = "project"
-        window._kicad_client.get_open_documents.return_value = [document]
-        window._kicad_client.get_project.return_value = fallback_project
         window._kicad_client.get_kicad_binary_path.return_value = "/usr/bin/kicad-cli"
-
-        schematic_file = tmp_path / "SE Power Amplifier.kicad_sch"
+        schematic_file = tmp_path / "test.kicad_sch"
         schematic_file.write_text("EESchema Schematic File Version 4\n", encoding="utf-8")
         output_file = tmp_path / "output.cir"
-        netlist_text = "* Test schematic\nV1 1 0 5V\nR1 1 0 1k\n.OP\n.END\n"
-        output_file.write_text(netlist_text, encoding="utf-8")
         mock_tempfile = MagicMock()
         mock_tempfile.__enter__.return_value.name = str(output_file)
-        with patch("kicad_xyce_plugin.main_window.tempfile.NamedTemporaryFile", return_value=mock_tempfile):
-            with patch("kicad_xyce_plugin.main_window.subprocess.run") as mock_run:
-                mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
-                # act
-                netlist, netlist_path, topology = window._extract_schematic_netlist()
+        with patch("kicad_xyce_plugin.main_window.get_active_schematic_path", return_value=(schematic_file.resolve(), schematic_file.stat().st_mtime)):
+            with patch("kicad_xyce_plugin.main_window.tempfile.NamedTemporaryFile", return_value=mock_tempfile):
+                with patch("kicad_xyce_plugin.main_window.subprocess.run") as mock_run:
+                    mock_run.side_effect = subprocess.CalledProcessError(returncode=1, cmd="cli", stderr="some error")
 
-        # assert
-        assert isinstance(netlist, str)
-        assert netlist_path == schematic_file.resolve()
-        assert isinstance(topology, NetlistTopology)
-        assert len(topology.devices) > 0
-        mock_run.assert_called_once()
-        called_args = mock_run.call_args.args[0]
-        assert called_args[-1] == str(schematic_file)
-
-    def test_extract_schematic_netlist_falls_back_to_get_project_when_document_project_missing(self, tmp_path):
-        # arrange
-        window = _make_window()
-        document = MagicMock()
-        sheet_path = MagicMock()
-        sheet_path.path_human_readable = "."
-        document.sheet_path = sheet_path
-        document.project = None
-        fallback_project = MagicMock()
-        fallback_project.path = str(tmp_path / "project.pro")
-        fallback_project.name = "project"
-        window._kicad_client.get_open_documents.side_effect = lambda doc_type: [document] if doc_type == DocumentType.DOCTYPE_SCHEMATIC else RuntimeError("unexpected project query")
-        window._kicad_client.get_project.return_value = fallback_project
-        window._kicad_client.get_kicad_binary_path.return_value = "/usr/bin/kicad-cli"
-
-        schematic_file = tmp_path / "project.kicad_sch"
-        schematic_file.write_text("EESchema Schematic File Version 4\n", encoding="utf-8")
-        output_file = tmp_path / "output.cir"
-        netlist_text = "* Test schematic\nV1 1 0 5V\nR1 1 0 1k\n.OP\n.END\n"
-        output_file.write_text(netlist_text, encoding="utf-8")
-        mock_tempfile = MagicMock()
-        mock_tempfile.__enter__.return_value.name = str(output_file)
-        with patch("kicad_xyce_plugin.main_window.tempfile.NamedTemporaryFile", return_value=mock_tempfile):
-            with patch("kicad_xyce_plugin.main_window.subprocess.run") as mock_run:
-                mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
-                # act
-                netlist, netlist_path, topology = window._extract_schematic_netlist()
-
-        # assert
-        assert isinstance(netlist, str)
-        assert netlist_path == schematic_file.resolve()
-        assert isinstance(topology, NetlistTopology)
-        assert len(topology.devices) > 0
-        mock_run.assert_called_once()
-
-    def test_extract_schematic_netlist_finds_named_schematic_in_nested_project_folder(self, tmp_path):
-        # arrange
-        window = _make_window()
-        document = MagicMock()
-        sheet_path = MagicMock()
-        sheet_path.path_human_readable = "."
-        document.sheet_path = sheet_path
-        document.project = None
-        fallback_project = MagicMock()
-        fallback_project.path = str(tmp_path / "project.pro")
-        fallback_project.name = "project"
-        window._kicad_client.get_open_documents.return_value = [document]
-        window._kicad_client.get_project.return_value = fallback_project
-        window._kicad_client.get_kicad_binary_path.return_value = "/usr/bin/kicad-cli"
-
-        nested_dir = tmp_path / "subfolder"
-        nested_dir.mkdir()
-        schematic_file = nested_dir / "project.kicad_sch"
-        schematic_file.write_text("EESchema Schematic File Version 4\n", encoding="utf-8")
-        output_file = tmp_path / "output.cir"
-        netlist_text = "* Test schematic\nV1 1 0 5V\nR1 1 0 1k\n.OP\n.END\n"
-        output_file.write_text(netlist_text, encoding="utf-8")
-        mock_tempfile = MagicMock()
-        mock_tempfile.__enter__.return_value.name = str(output_file)
-        with patch("kicad_xyce_plugin.main_window.tempfile.NamedTemporaryFile", return_value=mock_tempfile):
-            with patch("kicad_xyce_plugin.main_window.subprocess.run") as mock_run:
-                mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
-                # act
-                netlist, netlist_path, topology = window._extract_schematic_netlist()
-
-        # assert
-        assert isinstance(netlist, str)
-        assert netlist_path == schematic_file.resolve()
-        assert isinstance(topology, NetlistTopology)
-        assert len(topology.devices) > 0
-        mock_run.assert_called_once()
+                    # act/assert
+                    with pytest.raises(RuntimeError, match="Failed to export schematic netlist with kicad-cli"):
+                        window._extract_schematic_netlist()
 
 
 class TestMainWindowShowStatus:

@@ -17,10 +17,10 @@ from __version__ import __version__
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # create logger for this module
 logger = logging.getLogger(__name__)
-# unique plugin identifier
-PLUGIN_ID = "com.github.spice-projects.kicad-xyce-plugin"
 # application author for data directories
 APP_AUTHOR = "Spice Projects"
+# unique plugin identifier
+PLUGIN_ID = "com_github_spice-projects_kicad-xyce-plugin"
 # application name for data directories
 APP_NAME = "com.github.spice-projects.kicad-xyce-plugin"
 # minimum required python version
@@ -253,8 +253,8 @@ def _ensure_application_installed() -> Optional[Path]:
                 logger.info("Application with version [%s] is already installed at: %s", __version__, APP_DIR)
                 # return path to venv python
                 return python_exe
-        # get active app or create a temporary one
-        app = wx.GetApp() or wx.App(False)
+        # ui application
+        app = wx.App(False)
         # initialize progress dialog
         progress = wx.ProgressDialog("Xyce Simulation Plugin Setup", "Initializing setup...", maximum=100, style=wx.PD_APP_MODAL | wx.PD_SMOOTH)
         # initialize shared state for background worker
@@ -301,11 +301,9 @@ def _ensure_application_installed() -> Optional[Path]:
                 # mark state as done
                 state["done"] = True
 
-        # create setup thread
+        # create and start setup thread, daemonized to exit with main thread
         thread = threading.Thread(target=worker)
-        # mark as daemon to exit on main exit
         thread.daemon = True
-        # start background execution
         thread.start()
         # monitor progress from main thread
         while not state["done"]:
@@ -342,20 +340,18 @@ def _ensure_application_installed() -> Optional[Path]:
 def main():
     # execute main logic in error handler
     try:
-        # get kicad api identifiers
-        socket, token = os.environ.get("KICAD_API_SOCKET", ""), os.environ.get("KICAD_API_TOKEN", "")
+        # get kicad api env vaariables
+        socket, token, project_path = os.environ.get("KICAD_API_SOCKET", ""), os.environ.get("KICAD_API_TOKEN", ""), os.environ.get("KIPRJMOD", "")
         # verify api environment
-        if not socket or not token:
+        if not socket or not token or not project_path:
             # log launch outside of kicad
-            logger.error("Missing required environment variables: KICAD_API_SOCKET or KICAD_API_TOKEN")
+            logger.error("Missing required environment variables: KICAD_API_SOCKET or KICAD_API_TOKEN or KIPRJMOD")
             # exit without error dialog
             return
         # ensure environment is ready
         python_path = _ensure_application_installed()
         # launch plugin if setup succeeded
         if python_path:
-            # log information
-            logger.info("Launching Xyce Simulation Plugin with Python executable at: %s, current working directory: %s", python_path, os.getcwd())
             # execute plugin module
             subprocess.check_call([str(python_path), "-m", "kicad_xyce_plugin"], env=ENV)
     except Exception as e:

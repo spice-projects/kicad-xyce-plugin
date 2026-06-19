@@ -18,7 +18,8 @@
             "console": "integratedTerminal",
             "env": {
                 "KICAD_API_SOCKET": "ipc:///tmp/kicad/api.sock",
-                "KICAD_API_TOKEN": "017a57c0-2ca2-4276-8dd7-83a63fc16f2d"
+                "KICAD_API_TOKEN": "7f6b7f24-3bed-4636-95ce-11bd301921eb",
+                "KIPRJMOD": "/Users/rogelio/Projects/SE Power Amplifier"
             },
             "args": ["--log-level=DEBUG"],
             "justMyCode": false

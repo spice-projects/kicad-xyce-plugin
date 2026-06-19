@@ -24,6 +24,7 @@ def _connect_kicad(logger: logging.Logger) -> KiCad | None:
     # log connection details
     logger.info("KICAD_API_SOCKET: %s", os.environ.get("KICAD_API_SOCKET"))
     logger.info("KICAD_API_TOKEN: %s", os.environ.get("KICAD_API_TOKEN"))
+    logger.info("KIPRJMOD: %s", os.environ.get("KIPRJMOD"))
     # create KiCad instance and connect to the API
     kicad_client = KiCad(client_name="Xyce Simulator Plugin")
     # log some information about the KiCad instance
@@ -70,7 +71,7 @@ def main():
     window = MainWindow(kicad_client, PluginConfig.load())
     # show and focus the main window
     window.show()
-    # enter the Qt application main loop only if we created a new application
+    # enter the Qt application main loop
     sys.exit(app.exec())
 
 
