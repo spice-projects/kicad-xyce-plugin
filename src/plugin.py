@@ -387,7 +387,7 @@ def main():
         # ensure environment is ready
         python_path = _ensure_application_installed()
         # launch plugin if setup succeeded
-        if python_path:           
+        if python_path:
             # start plugin module asynchronously and detach IO from this process
             subprocess.Popen([str(python_path), "-m", "kicad_xyce_plugin"], env=ENV, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)
     except Exception as e:
