@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from ..netlist_parser import NetlistTopology
 from .measure_parameters import MeasureEntry
@@ -183,6 +184,16 @@ class DCSimulationParameters:
             lines.append(measure.to_xyce_statement())
         # return the full directive list
         return preprocess + lines
+
+    def raw_output_file_path(self, working_directory: Path, netlist_file_path: Path) -> Path | None:
+        # check raw format is selected in print parameters and a print file is specified
+        if self.print_parameters is None or self.print_parameters.print_format != "RAW":
+            return None
+        # return the output file path specified in the print parameters if available
+        if self.print_parameters.print_file:
+            return working_directory / self.print_parameters.print_file
+        # otherwise, create raw file from netlist file, adding the ".raw" suffix
+        return netlist_file_path.with_suffix(netlist_file_path.suffix + ".raw")
 
     def _build_data_directive(self) -> str:
         # data-driven sweep references an existing .DATA table by name

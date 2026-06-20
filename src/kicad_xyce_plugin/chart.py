@@ -64,18 +64,20 @@ def _find_abscissa_index_for_value(data: np.ndarray, value: float, ascending: bo
 
 class Chart:
 
-    def __init__(self, component: QQuickItem, expression_manager: ExpressionManager, abscissa: Expression, step_information: StepInformation, decimate_target: int):
+    def __init__(self, component: QQuickItem, expression_manager: ExpressionManager, step_information: StepInformation, abscissa: Expression, abscissa_label: str, abscissa_scale: str, decimate_target: int):
         # store component
         self._component = component
         # store expression manager
         self._expression_manager = expression_manager
-        # store variables
+        # abscissa
         self._abscissa = abscissa
+        self._abscissa_label = abscissa_label
+        self._abscissa_scale = abscissa_scale
         # current zoom window (x: in abscissa percentages, y: in ordinate percentages)
         self._zoom_window = (None, None, None, None)
         # steps
         self._step_information = step_information
-        self._selected_steps: set[int] = set(range(self._step_information.length))
+        self._selected_steps = set(range(self._step_information.length))
         # store decimation target for later use when adding series
         self._decimate_target = decimate_target
         # track active series
@@ -92,6 +94,8 @@ class Chart:
         self._right_y_axis_2: QAbstractAxis | None = None
         # next color index for new series
         self._next_color_index = 0
+        # initialize chart component
+        self._component.initialize(abscissa_label, self._abscissa.unit, abscissa_scale, self._step_information.abscissa_left_value, self._step_information.abscissa_right_value)
 
     @property
     def expressions(self) -> list[Expression]:
@@ -118,14 +122,6 @@ class Chart:
         self._selected_steps = selected_steps
         # force step processing, adding/removing series as needed based on the new step selection and the current expressions plotted in the chart
         self.plot_series(self.expressions)
-
-    def render(self, abscissa_label: str, abscissa_scale: str, initial_expressions: set[Expression]):
-        # initialize chart component
-        self._component.initialize(abscissa_label, self._abscissa.unit, abscissa_scale, self._step_information.abscissa_left_value, self._step_information.abscissa_right_value)
-        # render all expressions as series
-        self.plot_series(initial_expressions)
-        # auto range axes based on the added series
-        self.auto_range()
 
     def plot_series(self, expressions: set[Expression]):
         # series to render and remove from the chart
@@ -198,55 +194,16 @@ class Chart:
                     # check step is already rendered
                     if step in rendered_series:
                         continue
-                    # step slice
-                    step_slice = self._step_information.abscissa_indices[step]
-                    # step abscissa & ordinate values
-                    abscissa_values = self._abscissa.data[step_slice]
-                    ordinate_values_at_abscissa_value = ordinate_variant.data[step_slice]
-                    # check we have a zoom window to apply
-                    if x_left_ratio is not None and x_right_ratio is not None:
-                        # find indexes for the new zoom window
-                        indexes = self._find_abscissa_indexes(abscissa_values, abscissa_left_value, abscissa_right_value)
-                        # abscissa values
-                        abscissa_values = abscissa_values[indexes]
-                        # ordinate variant values for this step & zoom window
-                        ordinate_values_at_abscissa_value = ordinate_values_at_abscissa_value[indexes]
-                    # skip inconsistent slices to protect decimation input contracts
-                    if abscissa_values.size == 0:
+                    # plot step
+                    result = self._plot_step(ordinate_variant, y_axis, color, step, abscissa_left_value, abscissa_right_value, min_value, max_value, x_right_ratio, x_left_ratio)
+                    if result is None:
                         continue
-                    # decimate x and y jointly so every plotted (x, y) pair maps to the same original sample
-                    x_np, y_np = decimate_xy(abscissa_values, ordinate_values_at_abscissa_value, self._decimate_target, _DECIMATION_ALGORITHM)
-                    # remove Inf values
-                    inf_mask = np.isinf(y_np)
-                    if inf_mask.any():
-                        # mask for finite values
-                        keep_mask = ~inf_mask
-                        # update x and y with finite values only
-                        x_np = x_np[keep_mask]
-                        y_np = y_np[keep_mask]
-                    # check all values were non-finite after filtering
-                    if x_np.size == 0 or y_np.size == 0:
-                        continue
-                    # log information
-                    logger.debug("Adding series for expression [%s], step: %d, original size: %d, decimated size: %d", ordinate_variant.name, step, abscissa_values.size, x_np.size)
-                    # create series and hand buffers directly to Qt — no Python loop
-                    series = QLineSeries()
-                    series.setColor(color)
-                    series.setWidth(2)
-                    series.replaceNp(x_np, y_np)
-                    series.setAxisY(y_axis)
-                    # stroke style for stepped variants
-                    if step > 0:
-                        # change stroke style
-                        series.setStrokeStyle(QLineSeries.StrokeStyle.DashLine)
-                        series.setDashPattern([3, step + 1])
+                    # extract rendered step information
+                    series, min_value, max_value = result
                     # append to lists
                     rendered_series[step] = series
                     # append to list for later addition to chart
                     ordinate_series_to_render.append(series)
-                    # update min and max values
-                    min_value = min(min_value, float(np.min(y_np)))
-                    max_value = max(max_value, float(np.max(y_np)))
                 # render new series
                 series_to_render.append([ordinate_variant.name if ordinate_variant not in ordinate_series else None, color, ordinate_series_to_render])
                 # store series with min and max values for later use when auto-ranging axes
@@ -259,6 +216,143 @@ class Chart:
             self._component.updateGraphsView(series_to_render, series_to_remove)
             # release stash after Qt finishes its async processing
             QTimer.singleShot(2000, lambda: (series_to_remove.clear(), axes_to_remove.clear()))
+
+    def redraw_series(self, expression_manager: ExpressionManager, step_information: StepInformation, abscissa: Expression, abscissa_label: str, abscissa_scale: str) -> None:
+        # check abscissa has changed
+        if (self._abscissa_label != abscissa_label or self._abscissa.unit != abscissa.unit or self._abscissa_scale != abscissa_scale or self._step_information.abscissa_left_value != step_information.abscissa_left_value or self._step_information.abscissa_right_value != step_information.abscissa_right_value):
+            # reset zoom window to fit new abscissa range
+            self._zoom_window = (None, self._zoom_window[1], None, self._zoom_window[3])
+            # initialize chart component with new abscissa information
+            self._component.initialize(abscissa_label, abscissa.unit, abscissa_scale, step_information.abscissa_left_value, step_information.abscissa_right_value)
+        # update references
+        self._expression_manager = expression_manager
+        self._step_information = step_information
+        self._abscissa = abscissa
+        self._abscissa_label = abscissa_label
+        self._abscissa_scale = abscissa_scale
+        # recalculate selected steps (TODO: this should be based on the old values instead)
+        self._selected_steps = [step for step in self._selected_steps if step < self._step_information.length]
+        # series to render and remove from the chart
+        series_to_render: list[tuple[str, str, list[QLineSeries]]] = []
+        series_to_remove: list[tuple[str | None, list[QLineSeries]]] = []
+        # axis to remove, prevent GC until Qt finishes its async processing of the series removals that triggered these axis removals
+        axes_to_remove: list[QAbstractAxis] = []
+        # current zoom window in abscissa values, None if not set
+        x_left_ratio, _, x_right_ratio, _ = self._zoom_window
+        # x0 and x1
+        abscissa_left_value = self._ratio_to_abscissa_value(x_left_ratio) if x_left_ratio is not None else self._step_information.abscissa_left_value
+        abscissa_right_value = self._ratio_to_abscissa_value(x_right_ratio) if x_right_ratio is not None else self._step_information.abscissa_right_value
+        # create a copy of the current series dictionary to iterate over while creating a new one with updated expressions
+        old_series = self._series
+        self._series = {}
+        # loop existing series
+        for label, (old_expression, old_ordinate_series) in old_series.items():
+            # check expression exists in new expression manager
+            expression = self._expression_manager.evaluate(old_expression.name)
+            if expression is None:
+                # enqueue series for removal
+                for old_ordinate_variant, (axis, old_rendered_series, _, _, _) in old_ordinate_series.items():
+                    # release axis if no longer in use
+                    if self._release_y_axis(axis):
+                        axes_to_remove.append(axis)
+                    # log information
+                    logger.debug("Removing series for expression [%s] from chart, steps: %s", old_ordinate_variant.name, list(old_rendered_series.keys()))
+                    # append to list for later removal from chart
+                    series_to_remove.append([old_ordinate_variant.name, list(old_rendered_series.values())])
+                # next
+                continue
+            # new dictionary to replace existing one after loop
+            ordinate_series: dict[Expression, tuple[QAbstractAxis, dict[int, QLineSeries], float, float, str]] = {}
+            # loop oridinate series
+            for old_ordinate_variant, (axis, old_rendered_series, _, _, color) in old_ordinate_series.items():
+                # append to list for later removal from chart
+                series_to_remove.append([old_ordinate_variant.name, list(old_rendered_series.values())])
+                # evaluate ordinate variant expression
+                ordinate_variant = self._expression_manager.evaluate(old_ordinate_variant.name)
+                if ordinate_variant is None:
+                    # release axis if no longer in use
+                    if self._release_y_axis(axis):
+                        axes_to_remove.append(axis)
+                    # log information
+                    logger.debug("Removing series for expression [%s] from chart, steps: %s", old_ordinate_variant.name, list(old_rendered_series.keys()))
+                    # next
+                    continue
+                # step series
+                rendered_series: dict[int, QLineSeries] = {}
+                # ordinate series to render
+                ordinate_series_to_render: list[QLineSeries] = []
+                # min and max values
+                min_value, max_value = float("inf"), float("-inf")
+                # loop steps
+                for step in self._selected_steps:
+                    # plot step
+                    result = self._plot_step(ordinate_variant, axis, color, step, abscissa_left_value, abscissa_right_value, min_value, max_value, x_right_ratio, x_left_ratio)
+                    if result is None:
+                        continue
+                    # extract rendered step information
+                    series, min_value, max_value = result
+                    # append to lists
+                    rendered_series[step] = series
+                    # append to list for later addition to chart
+                    ordinate_series_to_render.append(series)
+                # render new series
+                series_to_render.append([ordinate_variant.name if ordinate_variant not in ordinate_series else None, color, ordinate_series_to_render])
+                # store series with min and max values for later use when auto-ranging axes
+                ordinate_series[ordinate_variant] = (axis, rendered_series, min_value, max_value, color)
+            # store reference to allow removal later
+            self._series[label] = (expression, ordinate_series)
+        # check changes are required in qml
+        if len(series_to_render) > 0 or len(series_to_remove) > 0:
+            # add/remove series from chart
+            self._component.updateGraphsView(series_to_render, series_to_remove)
+            # release stash after Qt finishes its async processing
+            QTimer.singleShot(2000, lambda: (series_to_remove.clear(), axes_to_remove.clear(), old_series.clear()))
+
+    def _plot_step(self, ordinate_variant: Expression, y_axis: QAbstractAxis, color: str, step: int, abscissa_left_value: float, abscissa_right_value: float, min_value: float, max_value: float, x_right_ratio: float | None, x_left_ratio: float | None) -> tuple[QLineSeries, float, float] | None:
+        # step slice
+        step_slice = self._step_information.abscissa_indices[step]
+        # step abscissa & ordinate values
+        abscissa_values = self._abscissa.data[step_slice]
+        ordinate_values_at_abscissa_value = ordinate_variant.data[step_slice]
+        # check we have a zoom window to apply
+        if x_left_ratio is not None and x_right_ratio is not None:
+            # find indexes for the new zoom window
+            indexes = self._find_abscissa_indexes(abscissa_values, abscissa_left_value, abscissa_right_value)
+            # abscissa values
+            abscissa_values = abscissa_values[indexes]
+            # ordinate variant values for this step & zoom window
+            ordinate_values_at_abscissa_value = ordinate_values_at_abscissa_value[indexes]
+        # skip inconsistent slices to protect decimation input contracts
+        if abscissa_values.size == 0:
+            return None
+        # decimate x and y jointly so every plotted (x, y) pair maps to the same original sample
+        x_np, y_np = decimate_xy(abscissa_values, ordinate_values_at_abscissa_value, self._decimate_target, _DECIMATION_ALGORITHM)
+        # remove Inf values
+        inf_mask = np.isinf(y_np)
+        if inf_mask.any():
+            # mask for finite values
+            keep_mask = ~inf_mask
+            # update x and y with finite values only
+            x_np = x_np[keep_mask]
+            y_np = y_np[keep_mask]
+        # check all values were non-finite after filtering
+        if x_np.size == 0 or y_np.size == 0:
+            return None
+        # log information
+        logger.debug("Adding series for expression [%s], step: %d, original size: %d, decimated size: %d", ordinate_variant.name, step, abscissa_values.size, x_np.size)
+        # create series and hand buffers directly to Qt — no Python loop
+        series = QLineSeries()
+        series.setColor(color)
+        series.setWidth(2)
+        series.replaceNp(x_np, y_np)
+        series.setAxisY(y_axis)
+        # stroke style for stepped variants
+        if step > 0:
+            # change stroke style
+            series.setStrokeStyle(QLineSeries.StrokeStyle.DashLine)
+            series.setDashPattern([3, step + 1])
+        # exit with series and recalculated min and max values
+        return series, min(min_value, float(np.min(y_np))), max(max_value, float(np.max(y_np)))
 
     def auto_range(self):
         # skip if no series are currently plotted

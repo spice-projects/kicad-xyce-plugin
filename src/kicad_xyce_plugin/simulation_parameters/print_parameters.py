@@ -4,8 +4,6 @@ import logging
 
 from dataclasses import dataclass
 
-
-# init module logger
 logger = logging.getLogger(__name__)
 
 # init allowed generic print option keys

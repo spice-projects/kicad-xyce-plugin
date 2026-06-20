@@ -52,6 +52,10 @@ def _make_component_with_y_axis() -> MagicMock:
     return component
 
 
+def _make_chart(component: MagicMock, expression_manager: MagicMock, step_information: StepInformation, abscissa: Expression, abscissa_label: str = "Time", abscissa_scale: str = "linear", decimate_target: int = 500) -> Chart:
+    return Chart(component, expression_manager, step_information, abscissa, abscissa_label, abscissa_scale, decimate_target)
+
+
 class TestChart:
 
     def test_binary_search_descending_and_out_of_bounds(self):
@@ -71,7 +75,7 @@ class TestChart:
         # arrange
         component = MagicMock()
         abscissa = Expression("Time", np.linspace(0.0, 1.0, 10), "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
         # patch _get_y_axis to return None to simulate axis creation failure
         chart._get_y_axis = MagicMock(return_value=None)
@@ -84,7 +88,7 @@ class TestChart:
         # arrange
         component = _make_component_with_y_axis()
         abscissa = Expression("Time", np.linspace(0.0, 1.0, 10), "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.full(10, np.inf), "V")
         # patch decimate_xy to return all non-finite values
         with patch("kicad_xyce_plugin.chart.decimate_xy", return_value=(np.arange(10), np.full(10, np.inf))):
@@ -98,7 +102,7 @@ class TestChart:
         # arrange
         component = _make_component_with_y_axis()
         abscissa = Expression("Time", np.linspace(0.0, 1.0, 10), "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         # patch decimate_xy to always return valid data
         with patch("kicad_xyce_plugin.chart.decimate_xy", return_value=(np.arange(10), np.arange(10))):
             for i in range(20):
@@ -111,7 +115,7 @@ class TestChart:
         # arrange
         component = MagicMock()
         abscissa = Expression("Time", np.array([10, 8, 6, 4, 2, 0]), "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 6, ascending=False), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 6, ascending=False), abscissa)
         # act — window outside data range (should return empty slice)
         result = chart._find_abscissa_indexes(abscissa.data, 20, 30)
         # assert
@@ -121,7 +125,7 @@ class TestChart:
         # arrange
         component = MagicMock()
         abscissa = Expression("Time", np.linspace(0.0, 1.0, 10), "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
         y_axis = MagicMock()
         # inject a series with a real QLineSeries
@@ -140,7 +144,7 @@ class TestChart:
         abscissa = Expression("Time", values, "s")
         step_information = _make_step_information(1, 100)
         # act
-        chart = Chart(component, MagicMock(), abscissa, step_information, 500)
+        chart = _make_chart(component, MagicMock(), step_information, abscissa)
         # assert
         assert chart._zoom_window == (None, None, None, None)
 
@@ -150,7 +154,7 @@ class TestChart:
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
         step_information = _make_step_information(1, 100)
-        chart = Chart(component, MagicMock(), abscissa, step_information, 500)
+        chart = _make_chart(component, MagicMock(), step_information, abscissa)
         # act
         result = chart.expressions
         # assert
@@ -161,7 +165,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # act
         result = chart.expressions
         result.append(MagicMock())
@@ -173,7 +177,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # act
         chart.auto_range()
         # assert — no axis interaction when there are no series
@@ -184,7 +188,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         chart.plot_series = MagicMock()
         # act
         chart.selected_steps = {0}
@@ -196,7 +200,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         # act
         selected_steps = chart.selected_steps
         # assert
@@ -207,7 +211,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         chart.plot_series = MagicMock()
         # act
         chart.selected_steps = set()
@@ -219,7 +223,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         mock_y_axis = MagicMock()
         vout = Expression("Vout", np.array([1.0, 2.0]), "V")
         # manually inject a series entry with known min/max so auto_range is predictable
@@ -234,7 +238,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         mock_y_axis = MagicMock()
         vout = Expression("Vout", np.array([1.0, 2.0]), "V")
         # inject a series with min=-1.0 and max=5.0 (range of 6.0)
@@ -251,7 +255,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # act — None x signals "no horizontal change"
         chart.update_zoom_window(None, None, 0.25, 0.75)
         # assert — only vertical slice of zoom window changed, horizontal remains None
@@ -265,7 +269,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # act — None signals "no vertical change"
         chart.update_zoom_window(0.1, 0.8, None, None)
         # assert — only horizontal slice of zoom window changed, vertical remains None
@@ -279,7 +283,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # act — apply two consecutive vertical zooms, each selecting the lower half
         chart.update_zoom_window(None, None, 0.0, 0.5)
         chart.update_zoom_window(None, None, 0.0, 0.5)
@@ -292,7 +296,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # act
         chart.update_zoom_window(None, None, 0.1, 0.9)
         # assert — zoom window reflects the provided ratios directly (no composition)
@@ -304,7 +308,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # act — reset to the default values that are already in place
         chart.update_zoom_window(None, None, 0.0, 1.0)
         # assert — zoom window unchanged since new values match existing ones
@@ -316,7 +320,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # first zoom in horizontally
         chart.update_zoom_window(0.2, 0.7, None, None)
         # act — reset horizontal zoom only
@@ -332,7 +336,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # act
         axis = chart._get_y_axis("V")
         # assert
@@ -344,7 +348,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         axis_first = chart._get_y_axis("V")
         # act — request the same expression type a second time
         axis_second = chart._get_y_axis("V")
@@ -357,7 +361,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # fill up all four allowed Y axes with distinct expression types
         chart._get_y_axis("V")
         chart._get_y_axis("A")
@@ -373,7 +377,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         vout = Expression("Vout", np.array([1.0, 2.0]), "V")
         # inject state that clear() must wipe
         chart._y_axes["V"] = MagicMock()
@@ -390,7 +394,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # zoom in horizontally and vertically before clearing
         chart.update_zoom_window(0.2, 0.8, None, None)
         chart.update_zoom_window(None, None, 0.2, 0.8)
@@ -407,7 +411,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # act
         result = chart.ordinate_values_at_abscissa_value(0.5)
         # assert
@@ -417,7 +421,7 @@ class TestChart:
         # arrange
         component = MagicMock()
         abscissa = Expression("Time", np.linspace(0.0, 1.0, 11), "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 11), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 11), abscissa)
         # ordinate: 11 linearly-spaced values from 0 to 100
         vout = Expression("Vout", np.linspace(0.0, 100.0, 11), "V")
         mock_y_axis = MagicMock()
@@ -435,7 +439,7 @@ class TestChart:
         # arrange
         component = MagicMock()
         abscissa = Expression("Time", np.linspace(0.0, 10.0, 11), "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 11), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 11), abscissa)
         # ordinate: index-valued array so we can easily verify which index was sampled
         vout = Expression("Vout", np.arange(11, dtype=float), "V")
         mock_y_axis = MagicMock()
@@ -450,7 +454,7 @@ class TestChart:
         # arrange
         component = MagicMock()
         abscissa = Expression("Time", np.linspace(0.0, 10.0, 11), "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 11), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 11), abscissa)
         vout = Expression("Vout", np.arange(11, dtype=float), "V")
         mock_y_axis = MagicMock()
         chart._series["Vout"] = (vout, {vout: (mock_y_axis, {0: MagicMock()}, 0.0, 10.0, "#f77f00")})
@@ -468,7 +472,7 @@ class TestChart:
         # arrange
         component = MagicMock()
         abscissa = Expression("Time", np.linspace(0.0, 1.0, 5), "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 5), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 5), abscissa)
         vout = Expression("Vout", np.array([10.0, 20.0, 30.0, 40.0, 50.0]), "V")
         iout = Expression("Iout", np.array([1.0, 2.0, 3.0, 4.0, 5.0]), "A")
         mock_axis = MagicMock()
@@ -487,7 +491,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         axis = MagicMock()
         axis.property.return_value = "V"
         chart._right_y_axis_1 = axis
@@ -504,7 +508,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         axis = MagicMock()
         axis.property.return_value = "A"
         chart._left_y_axis_2 = axis
@@ -521,7 +525,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         axis = MagicMock()
         axis.property.return_value = "W"
         chart._right_y_axis_2 = axis
@@ -538,42 +542,51 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # act
         result = chart.abscissa
         # assert
         assert result is abscissa
 
-    def test_render_initializes_component_with_abscissa_range(self):
+    def test_redraw_series_initializes_component_with_abscissa_range(self):
         # arrange
         component = MagicMock()
         values = np.linspace(0.0, 10.0, 100)
         abscissa = Expression("Time", values, "s")
         step_information = StepInformation(["step"], [(0,)], [slice(0, 100)], [(0.0, 10.0)])
-        chart = Chart(component, MagicMock(), abscissa, step_information, 500)
+        chart = _make_chart(component, MagicMock(), step_information, abscissa)
         # act
-        chart.render("Time", "linear", set())
+        chart.redraw_series(MagicMock(), step_information, abscissa, "Time", "linear")
         # assert — initialize must receive label, unit, scale, and exact boundary values
         component.initialize.assert_called_once_with("Time", "s", "linear", 0.0, 10.0)
 
-    def test_render_calls_auto_range_after_plot_series(self):
+    def test_redraw_series_removes_expression_when_expression_manager_returns_none(self):
         # arrange
         component = MagicMock()
-        values = np.linspace(0.0, 10.0, 100)
+        values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        expression = Expression("Vout", np.linspace(0.0, 1.0, 10), "V")
+        expression_manager = MagicMock()
+        expression_manager.evaluate.return_value = None
+        chart = _make_chart(component, expression_manager, _make_step_information(1, 10), abscissa)
+        y_axis = MagicMock()
+        y_axis.property.return_value = "V"
+        chart._series = {"Vout": (expression, {expression: (y_axis, {0: MagicMock()}, 0.0, 1.0, "#fff")})}
+        chart._y_axes = {"V": y_axis}
+        chart._y_axes_ref_counts = {y_axis: 1}
+        chart._left_y_axis_1 = y_axis
         # act
-        with patch.object(chart, "auto_range") as mock_auto_range:
-            chart.render("Time", "linear", set())
-        # assert
-        mock_auto_range.assert_called_once()
+        chart.redraw_series(expression_manager, _make_step_information(1, 10), abscissa, "Time", "linear")
+        # assert — expression removed and updateGraphsView called with removal
+        assert chart._series == {}
+        component.updateGraphsView.assert_called_once()
 
     def test_plot_series_adds_expression_to_series_dict(self):
         # arrange
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
         decimated_x = np.linspace(0.0, 1.0, 10)
         decimated_y = np.linspace(0.0, 5.0, 10)
@@ -588,7 +601,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
         decimated_x = np.linspace(0.0, 1.0, 10)
         decimated_y = np.linspace(0.0, 5.0, 10)
@@ -603,7 +616,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
         decimated_x = np.linspace(0.0, 1.0, 10)
         decimated_y = np.linspace(0.0, 5.0, 10)
@@ -618,7 +631,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
         # inject existing series entry so chart believes Vout is already plotted
         chart._series["Vout"] = (vout, {vout: (MagicMock(), {0: MagicMock()}, 0.0, 5.0, "#f77f00")})
@@ -632,7 +645,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
         y_axis = MagicMock()
         y_axis.property.return_value = "V"
@@ -656,7 +669,7 @@ class TestChart:
         abscissa = Expression("Time", values, "s")
         # two steps: 20 ordinate points total (10 per step)
         ordinate_data = np.linspace(0.0, 5.0, 2 * n)
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(2, n), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(2, n), abscissa)
         vout = Expression("Vout", ordinate_data, "V")
         decimated_y = np.linspace(0.0, 5.0, n)
         # act
@@ -672,7 +685,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
         # act
         result = chart._get_expressions_to_plot(vout)
@@ -688,7 +701,7 @@ class TestChart:
         magnitude_expr = Expression("db(Vout)", np.ones(10), "dB")
         phase_expr = Expression("phase(Vout)", np.zeros(10), "deg")
         mock_manager.evaluate.side_effect = lambda expr: magnitude_expr if expr == "db(Vout)" else phase_expr
-        chart = Chart(component, mock_manager, abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, mock_manager, _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.ones(10, dtype=np.complex128), "V")
         # act
         result = chart._get_expressions_to_plot(vout)
@@ -707,7 +720,7 @@ class TestChart:
         mock_manager = MagicMock()
         # evaluate always returns None — magnitude lookup fails immediately
         mock_manager.evaluate.return_value = None
-        chart = Chart(component, mock_manager, abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, mock_manager, _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.ones(10, dtype=np.complex128), "V")
         # act
         result = chart._get_expressions_to_plot(vout)
@@ -723,7 +736,7 @@ class TestChart:
         magnitude_expr = Expression("db(Vout)", np.ones(10), "dB")
         # magnitude succeeds but phase lookup fails
         mock_manager.evaluate.side_effect = lambda expr: magnitude_expr if expr == "db(Vout)" else None
-        chart = Chart(component, mock_manager, abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, mock_manager, _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.ones(10, dtype=np.complex128), "V")
         # act
         result = chart._get_expressions_to_plot(vout)
@@ -738,7 +751,7 @@ class TestChart:
         magnitude_expr = Expression("db(Vout)", np.ones(10), "dB")
         phase_expr = Expression("phase(Vout)", np.zeros(10), "deg")
         mock_manager.evaluate.side_effect = lambda expr: magnitude_expr if expr == "db(Vout)" else phase_expr
-        chart = Chart(component, mock_manager, abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, mock_manager, _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.ones(10, dtype=np.complex128), "V")
         # act
         result = chart._get_expressions_to_plot(vout)
@@ -753,7 +766,7 @@ class TestChart:
         magnitude_expr = Expression("db(Vout)", np.ones(10), "dB")
         phase_expr = Expression("phase(Vout)", np.zeros(10), "deg")
         mock_manager.evaluate.side_effect = lambda expr: magnitude_expr if expr == "db(Vout)" else phase_expr
-        chart = Chart(component, mock_manager, abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, mock_manager, _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.ones(10, dtype=np.complex128), "V")
         # act
         result = chart._get_expressions_to_plot(vout)
@@ -765,7 +778,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         chart._left_y_axis_1 = MagicMock()
         chart._right_y_axis_1 = MagicMock()
         chart._left_y_axis_2 = MagicMock()
@@ -783,7 +796,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         axis = MagicMock()
         axis.property.return_value = "V"
         chart._left_y_axis_1 = axis
@@ -801,7 +814,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         axis = MagicMock()
         axis.property.return_value = "V"
         chart._left_y_axis_1 = axis
@@ -820,7 +833,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
         decimated_x = np.linspace(0.0, 1.0, 10)
         decimated_y = np.linspace(0.0, 5.0, 10)
@@ -838,7 +851,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
         decimated_x = np.linspace(0.0, 1.0, 10)
         decimated_y = np.linspace(0.0, 5.0, 10)
@@ -855,7 +868,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 10.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
         mock_series = MagicMock()
         chart._series["Vout"] = (vout, {vout: (MagicMock(), {0: mock_series}, 0.0, 5.0, "#f77f00")})
@@ -871,7 +884,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 10.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
         mock_series = MagicMock()
         chart._series["Vout"] = (vout, {vout: (MagicMock(), {0: mock_series}, 0.0, 5.0, "#f77f00")})
@@ -888,7 +901,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         # act
         with patch.object(chart, "_redraw_all_series") as mock_redraw:
             chart.update_zoom_window(10, 80, None, None)
@@ -900,7 +913,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         mock_y_axis = MagicMock()
         chart._axis_ranges = {mock_y_axis: (0.0, 10.0)}
         # act — both horizontal and vertical changes supplied simultaneously
@@ -915,7 +928,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         mock_y_axis = MagicMock()
         # inject known axis range so the zoom calculation is predictable
         chart._axis_ranges = {mock_y_axis: (0.0, 10.0)}
@@ -931,7 +944,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         mock_y_axis = MagicMock()
         chart._axis_ranges = {mock_y_axis: (0.0, 10.0)}
         # first zoom in vertically so that reset changes the state
@@ -947,7 +960,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 100), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 100), abscissa)
         mock_y_axis = MagicMock()
         chart._axis_ranges = {mock_y_axis: (0.0, 10.0)}
         # act — reset horizontal only, no vertical change
@@ -960,7 +973,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.full(10, 3.0), "V")
         decimated_y = np.full(10, 3.0)
         # act
@@ -978,7 +991,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.zeros(10), "V")
         decimated_y = np.zeros(10)
         # act
@@ -996,7 +1009,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 10.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         vout = Expression("Vout", np.full(10, 7.0), "V")
         mock_series = MagicMock()
         chart._series["Vout"] = (vout, {vout: (MagicMock(), {0: mock_series}, 7.0, 7.0, "#f77f00")})
@@ -1013,7 +1026,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 10)
         abscissa = Expression("Time", values, "s")
-        chart = Chart(component, MagicMock(), abscissa, _make_step_information(1, 10), 500)
+        chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
         # occupy all four axis slots so the fifth unit returns None from _get_y_axis
         chart._get_y_axis("V")
         chart._get_y_axis("A")

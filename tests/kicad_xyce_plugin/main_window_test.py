@@ -2,7 +2,7 @@ import logging
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -43,6 +43,8 @@ def _make_window() -> MainWindow:
     window._step_information = None
     window._expression_manager = None
     window._abscissa_scale = MagicMock()
+    window._raw_file = None
+    window._raw_file_path = None
     window._decimate_target = 9600
     window._initial_selected_steps = None
     return window
@@ -275,7 +277,7 @@ class TestMainWindowOnSimulationFinished:
         # act
         window._on_simulation_finished(0, 0, False)
         # assert
-        window._root.setProperty.assert_any_call("statusText", "Simulation finished successfully")
+        window._root.setProperty.assert_any_call("statusText", "Simulation finished but output raw file could not be found")
         assert window._runner is None
 
     def test_shows_failure_status_with_exit_code_when_nonzero(self):
@@ -531,6 +533,133 @@ class TestMainWindowOnMenuOpenFile:
         window._simulation_run_action.setEnabled.assert_not_called()
         window._show_netlist_action.setEnabled.assert_not_called()
 
+    def test_loads_raw_file_and_disables_simulation_actions(self):
+        # arrange
+        window = _make_window()
+        window._simulation_config_action = MagicMock()
+        window._simulation_run_action = MagicMock()
+        window._show_netlist_action = MagicMock()
+        raw_file = MagicMock()
+        with patch("kicad_xyce_plugin.main_window.QFileDialog.getOpenFileName", return_value=("/tmp/test.raw", "")):
+            with patch("kicad_xyce_plugin.main_window.XyceRawFile.load", return_value=raw_file):
+                with patch.object(window, "_delete_all_charts") as mock_delete:
+                    with patch.object(window, "_add_chart") as mock_add_chart:
+                        # act
+                        window._on_menu_open_file()
+        # assert
+        window._simulation_config_action.setEnabled.assert_called_once_with(False)
+        window._simulation_run_action.setEnabled.assert_called_once_with(False)
+        window._show_netlist_action.setEnabled.assert_called_once_with(False)
+        mock_delete.assert_called_once()
+        mock_add_chart.assert_called_once()
+
+    def test_loads_netlist_file_and_stores_content(self):
+        # arrange
+        window = _make_window()
+        window._simulation_config_action = MagicMock()
+        window._simulation_run_action = MagicMock()
+        window._show_netlist_action = MagicMock()
+        netlist_text = "* test\n.END\n"
+        topology = MagicMock(directives=[])
+        with patch("kicad_xyce_plugin.main_window.QFileDialog.getOpenFileName", return_value=("/tmp/test.cir", "")):
+            with patch("kicad_xyce_plugin.main_window.Path.read_text", return_value=netlist_text):
+                with patch("kicad_xyce_plugin.main_window.parse_netlist", return_value=(netlist_text, topology)):
+                    # act
+                    window._on_menu_open_file()
+        # assert
+        assert window._netlist == netlist_text
+        assert window._topology is topology
+        window._simulation_config_action.setEnabled.assert_called_once_with(True)
+        window._simulation_run_action.setEnabled.assert_called_once_with(True)
+        window._show_netlist_action.setEnabled.assert_called_once_with(True)
+
+    def test_load_netlist_file_shows_status_when_parse_fails(self):
+        # arrange
+        window = _make_window()
+        window._simulation_config_action = MagicMock()
+        window._simulation_run_action = MagicMock()
+        window._show_netlist_action = MagicMock()
+        window._show_status = MagicMock()
+        netlist_text = "* test\n.END\n"
+        with patch("kicad_xyce_plugin.main_window.Path.read_text", return_value=netlist_text):
+            with patch("kicad_xyce_plugin.main_window.parse_netlist", side_effect=ValueError("parse error")):
+                # act
+                window._load_netlist_file(Path("/tmp/test.cir"))
+        # assert
+        window._show_status.assert_called_once()
+        assert "Failed to load netlist file" in window._show_status.call_args[0][0]
+        window._simulation_config_action.setEnabled.assert_not_called()
+        window._simulation_run_action.setEnabled.assert_not_called()
+        window._show_netlist_action.setEnabled.assert_not_called()
+
+
+class TestMainWindowChartActions:
+
+    def test_auto_range_all_charts_calls_each_chart(self):
+        # arrange
+        window = _make_window()
+        chart_one = MagicMock()
+        chart_two = MagicMock()
+        window._charts = [chart_one, chart_two]
+        # act
+        window._auto_range_all_charts()
+        # assert
+        chart_one.auto_range.assert_called_once()
+        chart_two.auto_range.assert_called_once()
+
+    def test_update_all_charts_redraws_series_and_schedules_auto_range(self):
+        # arrange
+        window = _make_window()
+        chart = MagicMock()
+        window._charts = [chart]
+        window._expression_manager = MagicMock()
+        window._step_information = MagicMock()
+        window._abscissa = MagicMock()
+        window._abscissa_scale = MagicMock(value=42)
+        with patch("kicad_xyce_plugin.main_window.QTimer.singleShot") as mock_single_shot:
+            # act
+            window._update_all_charts()
+        # assert
+        chart.redraw_series.assert_called_once_with(window._expression_manager, window._step_information, window._abscissa, "", 42)
+        mock_single_shot.assert_called_once()
+
+    def test_delete_all_charts_removes_charts_in_reverse_order(self):
+        # arrange
+        window = _make_window()
+        window._root.removeChart = MagicMock()
+        window._charts = [MagicMock(), MagicMock(), MagicMock()]
+        # act
+        window._delete_all_charts()
+        # assert
+        assert window._charts == []
+        window._root.removeChart.assert_has_calls([call(2), call(1), call(0)])
+
+    def test_on_menu_step_tool_does_nothing_for_invalid_index(self):
+        # arrange
+        window = _make_window()
+        window._charts = []
+        # act
+        window._on_menu_step_tool(0)
+        # assert
+        assert window._charts == []
+
+    def test_on_menu_step_tool_updates_selected_steps_when_accepted(self):
+        # arrange
+        window = _make_window()
+        chart = MagicMock(selected_steps={1, 2})
+        window._charts = [chart]
+        window._step_information = MagicMock()
+        with patch("kicad_xyce_plugin.main_window.StepToolDialog") as mock_dialog_cls:
+            mock_dialog = mock_dialog_cls.return_value
+            mock_dialog_cls.DialogCode.Accepted = "accepted"
+            mock_dialog.exec.return_value = "accepted"
+            mock_dialog.selected_steps = {3, 4}
+            # act
+            window._on_menu_step_tool(0)
+        # assert
+        assert chart.selected_steps == {3, 4}
+        chart.auto_range.assert_called_once()
+
 
 class TestMainWindowViewSimulationOutput:
 
@@ -562,6 +691,6 @@ class TestMainWindowAddChart:
         window = _make_window()
         # act
         with patch("kicad_xyce_plugin.main_window.Chart"):
-            window._add_chart([])
+            window._add_chart()
         # assert
         window._root.addChart.assert_called_once()

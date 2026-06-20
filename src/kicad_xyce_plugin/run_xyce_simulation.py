@@ -50,6 +50,10 @@ class XyceSimulationRunner(QObject):
         self._process.finished.connect(self._on_finished)
 
     @property
+    def working_directory(self) -> Path:
+        return Path(self._process.workingDirectory())
+
+    @property
     def netlist_file_path(self) -> str:
         return self._netlist_file_path
 

@@ -380,10 +380,14 @@ def main():
             logger.error("Missing required environment variables: KICAD_API_SOCKET or KICAD_API_TOKEN or KIPRJMOD")
             # exit without error dialog
             return
+        # log connection details
+        logger.info("KICAD_API_SOCKET: %s", socket)
+        logger.info("KICAD_API_TOKEN: %s", token)
+        logger.info("KIPRJMOD: %s", project_path)
         # ensure environment is ready
         python_path = _ensure_application_installed()
         # launch plugin if setup succeeded
-        if python_path:
+        if python_path:           
             # start plugin module asynchronously and detach IO from this process
             subprocess.Popen([str(python_path), "-m", "kicad_xyce_plugin"], env=ENV, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True, start_new_session=True)
     except Exception as e:

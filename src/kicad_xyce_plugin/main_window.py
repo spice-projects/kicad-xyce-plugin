@@ -355,7 +355,7 @@ class MainWindow(QMainWindow):
         # log information
         logger.debug("User requested adding a new chart at index: %d", chart_index)
         # add a new chart with no pre-populated expressions
-        self._add_chart([])
+        self._add_chart()
 
     @Slot(int)
     def _on_menu_delete_chart(self, chart_index: int):
@@ -363,6 +363,7 @@ class MainWindow(QMainWindow):
         logger.debug("User requested deleting chart at index: %d", chart_index)
         # delete chart at index (do ot swap these two statements, C++ objects get deleted immediately when their Python reference is deleted, so we need to remove the chart from the UI before deleting the Python object)
         self._root.removeChart(chart_index)
+        # delete it from the list
         del self._charts[chart_index]
 
     @Slot()
@@ -391,16 +392,26 @@ class MainWindow(QMainWindow):
         # check extension
         if selected_file_path.suffix.lower() == ".raw":
             # load raw file
-            return self._load_raw_file(selected_file_path)
+            if self._load_raw_file(selected_file_path):
+                # disable simulation actions
+                self._simulation_config_action.setEnabled(False)
+                self._simulation_run_action.setEnabled(False)
+                self._show_netlist_action.setEnabled(False)
+                # update title
+                self.setWindowTitle(f"Xyce Simulation - {selected_file_path.name}")
+                # delete all charts
+                self._delete_all_charts()
+                # create new chart
+                return self._add_chart()
         # load netlist file
         return self._load_netlist_file(selected_file_path)
 
-    def _load_raw_file(self, raw_file_path: Path) -> None:
+    def _load_raw_file(self, raw_file_path: Path) -> bool:
         # load and parse raw file
         raw_file = XyceRawFile.load(raw_file_path)
         if raw_file is None:
             # exit
-            return
+            return False
         # update state
         self._raw_file = raw_file
         self._expression_manager = raw_file.expression_manager
@@ -408,15 +419,8 @@ class MainWindow(QMainWindow):
         self._abscissa_scale = raw_file.abscissa_scale
         self._step_information = raw_file.step_information
         self._raw_file_path = raw_file_path
-        # disable simulation actions
-        self._simulation_config_action.setEnabled(False)
-        self._simulation_run_action.setEnabled(False)
-        self._show_netlist_action.setEnabled(False)
-        # update title
-        self.setWindowTitle(f"Xyce Simulation - {raw_file_path.name}")
-        # check we need to create a new chart
-        if not self._charts:
-            self._add_chart([])
+        # successfully loaded
+        return True
 
     def _load_netlist_file(self, netlist_file_path: Path) -> None:
         try:
@@ -478,7 +482,7 @@ class MainWindow(QMainWindow):
         # show the Smith chart window
         smith_window.show()
 
-    def _add_chart(self, expressions: list[Expression]):
+    def _add_chart(self):
         # chart index
         chart_index = len(self._charts)
         # create chart ui component in QML
@@ -486,14 +490,33 @@ class MainWindow(QMainWindow):
         # get a reference to the chart's QML object so we can manipulate it
         chart_root = self._root.getChart(chart_index)
         # create chart instance
-        chart = Chart(chart_root, self._expression_manager, self._abscissa, self._step_information, self._decimate_target)
+        chart = Chart(chart_root, self._expression_manager, self._step_information, self._abscissa, "", self._abscissa_scale.value, self._decimate_target)
         # apply initial step selection when provided (e.g. FFT window inheriting source chart visibility)
         if self._initial_selected_steps is not None:
             chart.selected_steps = self._initial_selected_steps
         # add it to the list of charts so we can keep track of it
         self._charts.append(chart)
-        # render chart
-        chart.render("", self._abscissa_scale.value, set(expressions))
+
+    def _auto_range_all_charts(self):
+        # loop existing charts
+        for chart in self._charts:
+            # auto range each chart
+            chart.auto_range()
+
+    def _update_all_charts(self):
+        # loop existing charts
+        for chart in self._charts:
+            # redraw all expressions in chart
+            chart.redraw_series(self._expression_manager, self._step_information, self._abscissa, "", self._abscissa_scale.value)
+        # wait for QT event loop, adjust axes to fit the new data (do this after all charts are updated to avoid multiple redundant autorange calls while we're still updating charts)
+        QTimer.singleShot(250, self._auto_range_all_charts)
+
+    def _delete_all_charts(self):
+        # remove all chart ui components from QML, in reverse order to avoid messing up indices when removing
+        for index in reversed(range(len(self._charts))):
+            self._root.removeChart(index)
+        # clear list
+        self._charts.clear()
 
     def _extract_schematic_netlist(self) -> tuple[str, Path, NetlistTopology]:
         # find schematic path and modification time
@@ -580,6 +603,20 @@ class MainWindow(QMainWindow):
         elif exit_code == 0:
             # status
             self._show_status("Simulation finished successfully")
+            # check raw file path is available
+            if self._raw_file_path and self._raw_file_path.exists():
+                # load raw file
+                if self._load_raw_file(self._raw_file_path):
+                    # check we need to create/update charts
+                    if not self._charts:
+                        # create new chart
+                        self._add_chart()
+                    else:
+                        # update all charts with the new simulation data
+                        self._update_all_charts()
+            else:
+                # error
+                self._show_status("Simulation finished but output raw file could not be found", 5000)
         else:
             # status
             err_msg = f"Simulation failed (exit code: {exit_code})"
@@ -615,6 +652,8 @@ class MainWindow(QMainWindow):
             self._runner.stdout_received.connect(self._on_stdout_received)
             self._runner.stderr_received.connect(self._on_stderr_received)
             self._runner.finished.connect(self._on_simulation_finished)
+            # determine the output raw file path based on the simulation configuration and netlist file path
+            self._raw_file_path = self._simulation_parameters.analysis.raw_output_file_path(self._runner.working_directory, Path(self._runner.netlist_file_path))
             # start simulation
             self._runner.start()
         # except
