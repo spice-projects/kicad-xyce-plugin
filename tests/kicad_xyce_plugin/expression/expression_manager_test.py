@@ -102,6 +102,18 @@ class TestExpressionManagerEvaluate:
         np.testing.assert_allclose(result.data, [0.9, 1.8, 2.7])
         assert result.unit == "V"
 
+    def test_evaluate_node_name_with_colon(self):
+        # arrange
+        i1 = _expr("I(XL201:L1)", [0.5, 0.6, 0.7], "A")
+        i2 = _expr("I(C207)", [0.1, 0.2, 0.3], "A")
+        manager = _make_manager([i1, i2])
+        # act
+        result = manager.evaluate("I(XL201:L1)-I(C207)")
+        # assert
+        assert result is not None
+        np.testing.assert_allclose(result.data, [0.4, 0.4, 0.4])
+        assert result.unit == "A"
+
     def test_evaluate_arithmetic_expression_computes_data(self):
         # arrange
         v = _expr("v(a)", [2.0, 4.0], "V")

@@ -328,9 +328,10 @@ class XyceParser:
         # - MINUS: hyphens in KiCad auto-generated names like "net-_u304a-g2_"
         # - PLUS: plus signs in node names like "/POWER_SUPPLY/HB+"
         # - SLASH: hierarchy separators in Xyce subcircuit paths like "x1:y"
+        # - COLON: component pin references like "XL201:L1"
         _NODE_NAME_TOKENS = frozenset({
             TokenKind.IDENTIFIER, TokenKind.NUMBER,
-            TokenKind.MINUS, TokenKind.PLUS, TokenKind.SLASH,
+            TokenKind.MINUS, TokenKind.PLUS, TokenKind.SLASH, TokenKind.COLON,
         })
         # collect raw text fragments that form the node name
         parts: list[str] = []
