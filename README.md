@@ -11,7 +11,7 @@ KiCad plugin that integrates the Xyce circuit simulator into the KiCad UI, so yo
 ## What this plugin provides
 
 - Native KiCad plugin action to launch the simulator UI
-- Simulation command dialog for transient setup
+- Simulation command dialog supporting Transient, AC, DC, Harmonic Balance, Noise, Operating Point, and Linear analyses
 - Xyce process runner with streamed stdout and stderr handling
 - Persistent plugin configuration for the Xyce executable path
 - Qt/PySide6 desktop UI integrated with KiCad
