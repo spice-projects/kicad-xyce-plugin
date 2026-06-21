@@ -18,10 +18,14 @@ KiCad plugin that integrates the Xyce circuit simulator into the KiCad UI, so yo
 
 ## Repository layout
 
-- plugin/: KiCad plugin runtime files
+- src/: main source directory containing the plugin logic and files
+  - src/plugin.py: KiCad plugin entrypoint/bootstrapper
+  - src/plugin.json: KiCad Plugin and Content Manager (PCM) metadata
+  - src/kicad_xyce_plugin/: core Python package containing the UI (Qt/PySide6), netlist parsing, and simulation logic
 - tests/: unit tests
-- docs/: project documentation
 - kicad-icons/: source icon asset bundle used to populate plugin icons
+- xyce-docs/: vendor-provided Xyce documentation PDFs
+- xyce-implementation.md / STYLE-GUIDE.md: project documentation and style guidelines
 
 ## Requirements
 
@@ -51,13 +55,12 @@ pip install .
 
 ## Running the plugin locally
 
-The plugin entrypoint used by KiCad is plugin/run_simulator.py.
+The plugin entrypoint used by KiCad is `src/plugin.py`.
 
-For direct local execution during development:
+For direct local execution of the simulation UI during development:
 
 ```bash
-cd plugin
-python run_simulator.py --log-level=DEBUG
+python -m kicad_xyce_plugin --log-level=DEBUG
 ```
 
 ## Building the KiCad package
