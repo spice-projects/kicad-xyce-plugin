@@ -70,6 +70,12 @@ python -m kicad_xyce_plugin --log-level=DEBUG
 python -m pytest
 ```
 
+## Linter
+
+```bash
+flake8 .
+```
+
 ## Configuration
 
 At runtime, the plugin expects a valid path to the Xyce executable. Configure it in the plugin UI via the Configuration dialog. The value is persisted using Qt settings.
