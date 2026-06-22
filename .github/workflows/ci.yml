@@ -2,16 +2,47 @@ name: CI
 
 on:
   push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
   pull_request:
-    branches: [ main ]
+
+permissions:
+  contents: write
+  pull-requests: read
 
 jobs:
+  pre-check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Check if PR exists for this branch
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" != "main" ] && [ "${{ github.ref_type }}" != "tag" ]; then
+            pr_count=$(gh pr list --head "${{ github.ref_name }}" --json number --jq '. | length')
+            if [ "$pr_count" -gt 0 ]; then
+              echo "PR already exists for ${{ github.ref_name }}. Skipping duplicate push run."
+              echo "should_run=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+          echo "should_run=true" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   test-and-build:
+    needs: pre-check
+    if: needs.pre-check.outputs.should_run == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -38,14 +69,35 @@ jobs:
           coverage report -m
           coverage xml -o coverage.xml || true
 
-      - name: Build
+      - name: Build and Package
+        if: github.ref_type == 'tag'
         run: |
-          # git information
-          export GIT_TAG_NAME=$(git tag --points-at HEAD 2>/dev/null | head -1)
-          # release build only when version is available
-          if [ -n "$GIT_TAG_NAME" ]; then
-            # project version
-            PROJECT_VERSION=$(echo "$GIT_TAG_NAME" | sed 's/^v//')
-            # create package
-            ./build/create-kicad-package.sh "$PROJECT_VERSION"
+          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          echo "Building package for version $VERSION..."
+          ./build/create-kicad-package.sh "$VERSION"
+          
+          # Pass paths and version to subsequent steps
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "ARTIFACT_PATH=dist/kicad-xyce-plugin-$VERSION.zip" >> $GITHUB_ENV
+
+      - name: Upload Actions Artifact
+        if: github.ref_type == 'tag' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kicad-xyce-plugin-${{ env.VERSION }}
+          path: ${{ env.ARTIFACT_PATH }}
+
+      - name: Associate with GitHub Release
+        if: github.ref_type == 'tag' && success()
+        run: |
+          if ! gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            echo "Release doesn't exist yet. Creating release..."
+            gh release create "${{ github.ref_name }}" "${{ env.ARTIFACT_PATH }}" \
+              --title "${{ github.ref_name }}" \
+              --notes "Release of version ${{ env.VERSION }}"
+          else
+            echo "Release exists. Uploading package asset..."
+            gh release upload "${{ github.ref_name }}" "${{ env.ARTIFACT_PATH }}" --clobber
           fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
