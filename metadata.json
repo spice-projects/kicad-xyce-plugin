@@ -22,8 +22,7 @@
         {
             "version": "0.0.0",
             "status": "stable",
-            "kicad_version": "10.0",
-            "download_url": "https://github.com/spice-projects/kicad-xyce-plugin/releases/download/v0.0.0/kicad-xyce-plugin-0.0.0.zip"
+            "kicad_version": "10.0"
         }
     ]
 }
