@@ -18,6 +18,19 @@
         "repository": "https://github.com/spice-projects/kicad-xyce-plugin",
         "issues": "https://github.com/spice-projects/kicad-xyce-plugin/issues"
     },
+    "tags": [
+        "simulation",
+        "spice",
+        "xyce",
+        "schematic",
+        "circuit",
+        "analysis",
+        "transient",
+        "ac",
+        "op",
+        "noise",
+        "fft"
+    ],
     "versions": [
         {
             "version": "0.0.0",
