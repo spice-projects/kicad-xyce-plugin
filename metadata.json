@@ -2,7 +2,7 @@
     "$schema": "https://go.kicad.org/pcm/schemas/v2",
     "name": "Xyce Simulation Plugin for KiCad",
     "description": "Xyce Simulation Plugin for KiCad",
-    "description_full": "Xyce Simulation Plugin for KiCad - TODO: change this to a more detailed description",
+    "description_full": "Xyce Simulation Plugin for KiCad integrates the Sandia National Laboratories Xyce circuit simulator directly into the KiCad schematic editor. This plugin allows you to configure simulation parameters and run simulations seamlessly from your schematic.\n\nFeatures:\n- Native KiCad plugin action to launch the simulator interface\n- Simulation command dialog supporting Transient, AC, DC, Harmonic Balance, Noise, Operating Point, and Linear analyses\n- Interactive simulator process runner with streamed stdout and stderr logging\n- Persistent plugin configuration for the Xyce executable path\n- Custom Qt/PySide6 desktop UI integrated with KiCad\n\nRequirements:\n- Python 3.12 or newer\n- KiCad environment with plugin runtime support\n- Xyce circuit simulator executable installed on the system",
     "identifier": "com.github.spice-projects.kicad-xyce-plugin",
     "type": "plugin",
     "author": {
@@ -12,6 +12,7 @@
         }
     },
     "license": "Apache-2.0",
+    "runtime": "ipc",
     "resources": {
         "homepage": "https://github.com/spice-projects/kicad-xyce-plugin",
         "repository": "https://github.com/spice-projects/kicad-xyce-plugin",
@@ -20,9 +21,9 @@
     "versions": [
         {
             "version": "0.0.0",
-            "status": "development",
+            "status": "stable",
             "kicad_version": "10.0",
-            "download_url": "https://spice-projects.github.io/kicad-xyce-plugin/kicad_xyce_plugin-0.0.0.zip"
+            "download_url": "https://github.com/spice-projects/kicad-xyce-plugin/releases/download/v0.0.0/kicad-xyce-plugin-0.0.0.zip"
         }
     ]
 }
