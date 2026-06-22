@@ -11,17 +11,20 @@ KiCad plugin that integrates the Xyce circuit simulator into the KiCad UI, so yo
 ## What this plugin provides
 
 - Native KiCad plugin action to launch the simulator UI
-- Simulation command dialog for transient setup
+- Simulation command dialog supporting Transient, AC, DC, Harmonic Balance, Noise, Operating Point, and Linear analyses
 - Xyce process runner with streamed stdout and stderr handling
 - Persistent plugin configuration for the Xyce executable path
 - Qt/PySide6 desktop UI integrated with KiCad
 
 ## Repository layout
 
-- plugin/: KiCad plugin runtime files
+- src/: main source directory containing the plugin logic and files
+  - src/plugin.py: KiCad plugin entrypoint/bootstrapper
+  - src/plugin.json: KiCad Plugin and Content Manager (PCM) metadata
+  - src/kicad_xyce_plugin/: core Python package containing the UI (Qt/PySide6), netlist parsing, and simulation logic
 - tests/: unit tests
-- docs/: project documentation
-- kicad-icons/: source icon asset bundle used to populate plugin icons
+- xyce-docs/: vendor-provided Xyce documentation PDFs
+- xyce-implementation.md / STYLE-GUIDE.md: project documentation and style guidelines
 
 ## Requirements
 
@@ -39,37 +42,38 @@ Python dependencies are declared in pyproject.toml.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -U pip
-pip install -e .
-```
 
-If you prefer non-editable install:
-
-```bash
-pip install .
+pip install -r requirements.txt
+pip install -r src/requirements.txt
+pip install -r src/kicad_xyce_plugin/requirements.txt
 ```
 
 ## Running the plugin locally
 
-The plugin entrypoint used by KiCad is plugin/run_simulator.py.
+The plugin entrypoint used by KiCad is `src/plugin.py`.
 
-For direct local execution during development:
+For direct local execution of the simulation UI during development:
 
 ```bash
-cd plugin
-python run_simulator.py --log-level=DEBUG
+python -m kicad_xyce_plugin --log-level=DEBUG
 ```
 
 ## Building the KiCad package
 
 ```bash
-hatch build --target kicad-package
+./build/create-kicad-package.sh <version>
 ```
 
 ## Testing
 
 ```bash
 python -m pytest
+```
+
+## Linter
+
+```bash
+flake8 .
 ```
 
 ## Configuration
