@@ -544,7 +544,7 @@ class TestMainWindowOnMenuOpenFile:
         raw_file = MagicMock()
         raw_file.step_information.length = 1
         with patch("kicad_xyce_plugin.main_window.QFileDialog.getOpenFileName", return_value=("/tmp/test.raw", "")):
-            with patch("kicad_xyce_plugin.main_window.XyceRawFile.load", return_value=raw_file):
+            with patch("kicad_xyce_plugin.main_window.xyce_raw_file_parser", return_value=raw_file):
                 with patch.object(window, "_delete_all_charts") as mock_delete:
                     with patch.object(window, "_add_chart") as mock_add_chart:
                         # act
@@ -821,7 +821,7 @@ class TestMainWindowLoadRawFileReturnsNone:
     def test_load_raw_file_returns_false_when_file_cannot_be_loaded(self):
         # arrange
         window = _make_window()
-        with patch("kicad_xyce_plugin.main_window.XyceRawFile.load", return_value=None):
+        with patch("kicad_xyce_plugin.main_window.xyce_raw_file_parser", return_value=None):
             # act
             result = window._load_raw_file(Path("/tmp/missing.raw"))
         # assert

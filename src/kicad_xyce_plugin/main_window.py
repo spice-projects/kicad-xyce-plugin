@@ -26,7 +26,7 @@ from .smith_chart_window import SmithChartWindow
 from .simulation_parameters import from_xyce_directives, OpSimulationParameters, SimulationConfig, SimulationParametersDialog
 from .step_tool_dialog import StepToolDialog
 from .window import load_app_icon, log_screen_info, register_child_window
-from .xyce_raw_file import AbscissaScale, StepInformation, XyceRawFile
+from .xyce_raw_file import AbscissaScale, StepInformation, XyceOutputFile, xyce_raw_file_parser
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +99,7 @@ class MainWindow(QMainWindow):
     log_append_requested = Signal(str)
     log_clear_requested = Signal()
 
-    def __init__(self, kicad_client: KiCad | None, plugin_config: PluginConfig, raw_file: XyceRawFile | None = None, raw_file_path: Path | None = None, plot_suggestion: list[tuple[str, list[Expression]]] | None = None):
+    def __init__(self, kicad_client: KiCad | None, plugin_config: PluginConfig, raw_file: XyceOutputFile | None = None, raw_file_path: Path | None = None, plot_suggestion: list[tuple[str, list[Expression]]] | None = None):
         super().__init__()
         # load icons
         load_kicad_icons()
@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
         self._netlist_file_path: Path | None = None
         self._topology: NetlistTopology | None = None
         # simulation result state
-        self._raw_file: XyceRawFile | None = raw_file
+        self._raw_file: XyceOutputFile | None = raw_file
         self._expression_manager: ExpressionManager | None = raw_file.expression_manager if raw_file else None
         self._abscissa: Expression | None = raw_file.abscissa if raw_file else None
         self._abscissa_scale: AbscissaScale | None = raw_file.abscissa_scale if raw_file else None
@@ -466,7 +466,7 @@ class MainWindow(QMainWindow):
 
     def _load_raw_file(self, raw_file_path: Path) -> bool:
         # load and parse raw file
-        raw_file = XyceRawFile.load(raw_file_path)
+        raw_file = xyce_raw_file_parser(raw_file_path)
         if raw_file is None:
             # exit
             return False
@@ -536,7 +536,7 @@ class MainWindow(QMainWindow):
         # create expression manager
         expression_manager = ExpressionManager([self._raw_file.abscissa] + expressions, self._expression_manager.function_definitions, self._expression_manager.step_slices)
         # create raw file
-        qraw_file = XyceRawFile(filename=self._qraw_path, title=self._raw_file.title, date=self._raw_file.date, plotname=self._raw_file.plotname, complex=self._raw_file.complex, step_information=self._raw_file.step_information, abscissa=self._raw_file.abscissa, abscissa_scale=self._raw_file.abscissa_scale, command=self._raw_file.command, expression_manager=expression_manager, chart_type=self._raw_file.chart_type)
+        qraw_file = XyceOutputFile(filename=self._qraw_path, title=self._raw_file.title, date=self._raw_file.date, plotname=self._raw_file.plotname, complex=self._raw_file.complex, step_information=self._raw_file.step_information, abscissa=self._raw_file.abscissa, abscissa_scale=self._raw_file.abscissa_scale, command=self._raw_file.command, expression_manager=expression_manager, chart_type=self._raw_file.chart_type)
         # create a new SmithChart Window
         smith_window = SmithChartWindow(qraw_file)
         # keep reference alive independently of the source main window
@@ -673,7 +673,7 @@ class MainWindow(QMainWindow):
         # create step information for FFT output
         fft_step_information = StepInformation(self._step_information.keys, fft_values, fft_abscissa_indices, fft_abscissa_value_ranges)
         # create raw file with fft calculation results
-        fft_raw = XyceRawFile(filename=self._raw_file_path, title=f"FFT – {', '.join(e.name for e in result_expressions)}", date="", plotname="FFT", complex=False, step_information=fft_step_information, abscissa=freq_expression, abscissa_scale=AbscissaScale.LINEAR, command="", expression_manager=expression_manager)
+        fft_raw = XyceOutputFile(filename=self._raw_file_path, title=f"FFT – {', '.join(e.name for e in result_expressions)}", date="", plotname="FFT", complex=False, step_information=fft_step_information, abscissa=freq_expression, abscissa_scale=AbscissaScale.LINEAR, command="", expression_manager=expression_manager)
         # create a new MainWindow to render the FFT result
         fft_window = MainWindow(None, self._plugin_config, fft_raw, self._raw_file_path, plot_suggestion)
         # pre-focus the FFT window on the same steps the user was viewing in the source chart

@@ -5,7 +5,8 @@ from pathlib import Path
 import numpy as np
 
 from kicad_xyce_plugin.expression import Expression
-from kicad_xyce_plugin.xyce_raw_file import AbscissaScale, PlotSuggestion, StepInformation, VariableType, VariableTypeInformation, XyceRawFile, _parse_ascii_variables, _parse_binary_variables, _process_scale, _process_steps, _steps_have_consistent_abscissa_direction
+from kicad_xyce_plugin.xyce_output_file import AbscissaScale, PlotSuggestion, StepInformation, VariableType, VariableTypeInformation
+from kicad_xyce_plugin.xyce_raw_file import xyce_raw_file_parser, _parse_ascii_variables, _parse_binary_variables, _process_scale, _process_steps, _steps_have_consistent_abscissa_direction
 
 
 def _make_raw_bytes(title: str = "Test Circuit", date: str = "Mon Jan  1 00:00:00 2024", plotname: str = "Transient Analysis", flags: str = "real", variable_defs: list[tuple[int, str, str]] | None = None, data_matrix: np.ndarray | None = None, is_ascii: bool = False, num_points_override: int | None = None) -> bytes:
@@ -741,7 +742,7 @@ class TestXyceRawFile:
         # arrange
         path = "/tmp/nonexistent_xyce_raw_file_abc123.raw"
         # act
-        result = XyceRawFile.load(path)
+        result = xyce_raw_file_parser(path)
         # assert
         assert result is None
 
@@ -751,7 +752,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(title="RC Circuit", data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert raw.title == "RC Circuit"
@@ -764,7 +765,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(date="Tue Feb  6 12:00:00 2024", data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert raw.date == "Tue Feb  6 12:00:00 2024"
@@ -777,7 +778,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(plotname="Transient Analysis", data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert raw.plotname == "Transient Analysis"
@@ -790,7 +791,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert — filename stored as Path
         assert raw is not None
         assert raw.filename == Path(path)
@@ -803,7 +804,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(flags="real", data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert raw.complex is False
@@ -817,7 +818,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(plotname="AC Analysis", flags="complex", variable_defs=vdefs, data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert raw.complex is True
@@ -831,7 +832,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         np.testing.assert_array_almost_equal(raw.abscissa.data, time_values)
@@ -844,7 +845,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert — xyce always uses linear abscissa scale
         assert raw is not None
         assert raw.abscissa_scale == AbscissaScale.LINEAR
@@ -857,7 +858,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert raw.steps == 1
@@ -870,7 +871,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(plotname="Transient Analysis", flags="real", variable_defs=[(0, "time", "time"), (1, "V(1)", "voltage")], data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert raw.chart_type == "TRANSIENT"
@@ -884,7 +885,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(plotname="AC Analysis", flags="complex", variable_defs=vdefs, data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert raw.chart_type == "AC"
@@ -900,7 +901,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(plotname="DC transfer characteristic", flags="real", variable_defs=vdefs, data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert raw.chart_type == "DC"
@@ -915,7 +916,7 @@ class TestXyceRawFile:
         content = content.replace(b"Title:", b"Command: Xyce Release 7.9.0\nTitle:", 1)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert "Xyce" in raw.command
@@ -929,7 +930,7 @@ class TestXyceRawFile:
         content = content.replace(b"Title:", b"Version: Xyce Release 7.9.0\nTitle:", 1)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert "Xyce" in raw.command
@@ -942,7 +943,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert raw.command == ""
@@ -956,7 +957,7 @@ class TestXyceRawFile:
         content = content + b"\nSome extra CSV junk\n1,2,3\n4,5,6\n"
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert — three points loaded correctly; trailing content ignored
         assert raw is not None
         assert len(raw.abscissa.data) == 3
@@ -969,7 +970,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(data_matrix=data_matrix, num_points_override=0)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert — three points inferred even though header says 0
         assert raw is not None
         assert len(raw.abscissa.data) == 3
@@ -983,7 +984,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(variable_defs=vdefs, data_matrix=data_matrix, is_ascii=True)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert len(raw.abscissa.data) == 3
@@ -999,7 +1000,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(variable_defs=vdefs, data_matrix=data_matrix, is_ascii=True)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         em = raw.expression_manager
@@ -1014,7 +1015,7 @@ class TestXyceRawFile:
         content = b"Title: Test\nDate: Mon Jan 1 00:00:00 2024\nPlotname: Transient Analysis\nFlags: real\nNo. Variables: 2\nNo. Points: 1\nVariables:\n\t0\ttime\ttime\n\t1\tV(1)\tvoltage\n"
         path = _write_temp_raw(content)
         # act
-        result = XyceRawFile.load(path)
+        result = xyce_raw_file_parser(path)
         # assert
         assert result is None
         # cleanup
@@ -1027,7 +1028,7 @@ class TestXyceRawFile:
         content = content + data_row.tobytes()
         path = _write_temp_raw(content)
         # act
-        result = XyceRawFile.load(path)
+        result = xyce_raw_file_parser(path)
         # assert — file still loads; malformed line was silently skipped
         assert result is not None
         # cleanup
@@ -1038,7 +1039,7 @@ class TestXyceRawFile:
         content = b"Title: Test\nDate: Mon Jan 1 00:00:00 2024\nPlotname: Transient Analysis\nFlags: real\nNo. Variables: 2\nNo. Points: 0\nVariables:\n\t0\ttime\ttime\n\t1\tV(1)\tvoltage\nValues:\nNO_NUMERIC_DATA\n"
         path = _write_temp_raw(content)
         # act
-        result = XyceRawFile.load(path)
+        result = xyce_raw_file_parser(path)
         # assert — ascii parse returned None; load returns None
         assert result is None
         # cleanup
@@ -1049,7 +1050,7 @@ class TestXyceRawFile:
         content = b"Title: Test\nDate: Mon Jan 1 00:00:00 2024"
         path = _write_temp_raw(content)
         # act
-        result = XyceRawFile.load(path)
+        result = xyce_raw_file_parser(path)
         # assert — no data section: returns None
         assert result is None
         # cleanup
@@ -1062,7 +1063,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(variable_defs=vdefs, data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         em = raw.expression_manager
@@ -1079,7 +1080,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(variable_defs=vdefs, data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert — file loads successfully; unknown-typed variable is accessible
         assert raw is not None
         em = raw.expression_manager
@@ -1096,7 +1097,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(flags="real stepped", data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert — two steps inferred from abscissa resets
         assert raw is not None
         assert raw.steps == 2
@@ -1109,7 +1110,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         info = raw.step_information
@@ -1124,7 +1125,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(title="RC Schéma", data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert "Sch" in raw.title
@@ -1140,7 +1141,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(plotname="AC Analysis", flags="complex", variable_defs=vdefs, data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert — abscissa is real frequency values
         assert raw is not None
         np.testing.assert_array_almost_equal(raw.abscissa.data, [1e3, 1e4, 1e5])
@@ -1157,7 +1158,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(plotname="AC Analysis", flags="complex", variable_defs=vdefs, data_matrix=data_matrix)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert — V(out) expression is complex
         assert raw is not None
         v_out = raw.expression_manager.evaluate("V(out)")
@@ -1176,7 +1177,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(plotname="AC Analysis", flags="complex", variable_defs=vdefs, data_matrix=data_matrix, is_ascii=True)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert
         assert raw is not None
         assert raw.complex is True
@@ -1191,7 +1192,7 @@ class TestXyceRawFile:
         content = _make_raw_bytes(data_matrix=data_matrix, is_ascii=True, num_points_override=0)
         path = _write_temp_raw(content)
         # act
-        raw = XyceRawFile.load(path)
+        raw = xyce_raw_file_parser(path)
         # assert — all three points read
         assert raw is not None
         assert len(raw.abscissa.data) == 3
