@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtQuick import QQuickView
 
 from kicad_xyce_plugin.netlist_parser import Device, NetlistTopology
-from kicad_xyce_plugin.simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, IcEntry, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, PrintParameters, SimulationConfig, SimulationParametersDialog, StepParameters, TransientSchedulePoint, TransientSimulationParameters
+from kicad_xyce_plugin.simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, IcEntry, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, OptionParameters, PrintParameters, SimulationConfig, SimulationParametersDialog, StepParameters, TransientSchedulePoint, TransientSimulationParameters
 
 from kicad_xyce_plugin.simulation_parameters.noise_panel import _validate_device_name
 
@@ -285,6 +285,45 @@ class TestSimulationParametersDialogOnSubmitOP:
         dialog._apply_op_parameters(params)
         # assert
         dialog._root.setProperty.assert_any_call("opInitialConditionEntries", "V(out)=1.0")
+
+
+class TestSimulationParametersDialogOnSubmitOP:
+
+    def test_on_submit_op_sets_result_and_accepts(self):
+        # arrange
+        dialog = _make_dialog()
+        # replace accept with a tracker
+        accepted = []
+        dialog.accept = lambda: accepted.append(True)
+        # act
+        dialog._on_submit_op(False, False, False, False, False, False, "", "", "", False, "NODESET", "", "", "", False)
+        # assert
+        assert isinstance(dialog._result.analysis, OpSimulationParameters)
+        assert len(accepted) == 1
+
+    def test_on_submit_op_parses_initial_conditions(self):
+        # arrange
+        dialog = _make_dialog()
+        accepted = []
+        dialog.accept = lambda: accepted.append(True)
+        # act
+        dialog._on_submit_op(False, False, False, False, False, False, "", "", "", False, "NODESET", "", "V(out)=1.0 V(in)=0", "", False)
+        # assert
+        assert isinstance(dialog._result.analysis, OpSimulationParameters)
+        assert dialog._result.analysis.ic_entries == (IcEntry(node="out", voltage="1.0"), IcEntry(node="in", voltage="0"))
+        assert len(accepted) == 1
+
+    def test_on_submit_op_preserves_options_and_unassociated_prints(self):
+        # arrange
+        options = OptionParameters(device={"TEMP": "25"}, timeint={"RELTOL": "1e-3"})
+        unassociated_prints = (PrintParameters(print_type="DC", output_variables=("V(1)",), print_format="RAW", print_file=""),)
+        initial_parameters = SimulationConfig(analysis=OpSimulationParameters(), step=StepParameters(), options=options, unassociated_prints=unassociated_prints)
+        dialog = _make_dialog_with_accept(initial_parameters=initial_parameters)
+        # act
+        dialog._on_submit_op(False, False, False, False, False, False, "", "", "", False, "NODESET", "", "", "", False)
+        # assert
+        assert dialog._result.options == options
+        assert dialog._result.unassociated_prints == unassociated_prints
 
 
 class TestSimulationParametersDialogOnSubmitTransient:
@@ -776,6 +815,18 @@ class TestSimulationParametersDialogGetParameters:
             result = dialog.get_parameters()
         # assert
         assert isinstance(result, OpSimulationParameters)
+
+    def test_on_submit_op_preserves_options_and_unassociated_prints(self):
+        # arrange
+        options = OptionParameters(device={"TEMP": "25"}, timeint={"RELTOL": "1e-3"})
+        unassociated_prints = (PrintParameters(print_type="DC", output_variables=("V(1)",), print_format="RAW", print_file=""),)
+        initial_parameters = SimulationConfig(analysis=OpSimulationParameters(), step=StepParameters(), options=options, unassociated_prints=unassociated_prints)
+        dialog = _make_dialog_with_accept(initial_parameters=initial_parameters)
+        # act
+        dialog._on_submit_op(False, False, False, False, False, False, "", "", "", False, "NODESET", "", "", "", False)
+        # assert
+        assert dialog._result.options == options
+        assert dialog._result.unassociated_prints == unassociated_prints
 
 
 class TestParseListValues:
