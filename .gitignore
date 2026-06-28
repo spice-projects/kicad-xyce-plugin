@@ -99,3 +99,4 @@ coverage.xml
 /test-2.qraw
 /test.qraw
 /kicad-icons
+*.fft0

@@ -6,16 +6,13 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from PySide6.QtCore import QSize
-from PySide6.QtQuick import QQuickView
-from PySide6.QtWidgets import QApplication, QMainWindow
-
-from PySide6.QtCore import QTimer
-
 from kicad_xyce_plugin.kicad_icons import load_kicad_icons
 from kicad_xyce_plugin.main_window import MainWindow, _format_value, _format_values, _compute_decimate_target
 from kicad_xyce_plugin.config.plugin_config import PluginConfig
 from kicad_xyce_plugin.xyce_raw_file import AbscissaScale
+from PySide6.QtCore import QSize
+from PySide6.QtQuick import QQuickView
+from PySide6.QtWidgets import QApplication, QMainWindow
 
 _app = QApplication.instance() or QApplication(sys.argv)
 

@@ -12,6 +12,86 @@ from kicad_xyce_plugin.fft import FftOutput, WindowFunction, ZeroPadding
 _fft_dialog_module = None
 
 
+class QUrl:
+
+    @staticmethod
+    def fromLocalFile(path):
+        return path
+
+
+class MockSignal:
+    def __init__(self):
+        self._slots = []
+
+    def connect(self, slot):
+        self._slots.append(slot)
+
+
+class MockQQuickView:
+    class Status:
+        Ready = 1
+
+    class ResizeMode:
+        SizeRootObjectToView = 1
+
+    def __init__(self):
+        self.statusChanged = MockSignal()
+
+    def setResizeMode(self, mode):
+        pass
+
+    def setColor(self, color):
+        pass
+
+    def setSource(self, source):
+        pass
+
+    def rootObject(self):
+        return None
+
+
+class MockQDialog:
+    def __init__(self, parent=None):
+        pass
+
+    def accept(self):
+        pass
+
+    def reject(self):
+        pass
+
+    def setWindowTitle(self, title):
+        pass
+
+    def setWindowModality(self, modality):
+        pass
+
+    def resize(self, width, height):
+        pass
+
+    def setMinimumHeight(self, height):
+        pass
+# QVBoxLayout stub
+
+
+class MockQVBoxLayout:
+    def __init__(self, parent=None):
+        pass
+
+    def setContentsMargins(self, left, top, right, bottom):
+        pass
+
+    def addWidget(self, widget):
+        pass
+# QWidget stub
+
+
+class MockQWidget:
+    @staticmethod
+    def createWindowContainer(view, parent=None):
+        return MagicMock()
+
+
 def _create_mock_qt_modules():
     # build the QtCore mock module
     qtcore = types.ModuleType("PySide6.QtCore")
@@ -19,11 +99,6 @@ def _create_mock_qt_modules():
     qtcore.Qt = types.SimpleNamespace(WindowModality=types.SimpleNamespace(WindowModal=0))
     # slot decorator passes through unchanged
     qtcore.Slot = lambda *args, **kwargs: (lambda f: f)
-    # QUrl stub that returns the file path directly
-    class QUrl:
-        @staticmethod
-        def fromLocalFile(path):
-            return path
     # attach QUrl to qtcore
     qtcore.QUrl = QUrl
     # build the QtGui mock module
@@ -32,76 +107,10 @@ def _create_mock_qt_modules():
     qtgui.QColor = lambda value: value
     # build the QtQuick mock module
     qtquick = types.ModuleType("PySide6.QtQuick")
-    # signal stub used by QQuickView.statusChanged
-    class MockSignal:
-        def __init__(self):
-            self._slots = []
-
-        def connect(self, slot):
-            self._slots.append(slot)
-    # QQuickView stub
-    class MockQQuickView:
-        class Status:
-            Ready = 1
-
-        class ResizeMode:
-            SizeRootObjectToView = 1
-
-        def __init__(self):
-            self.statusChanged = MockSignal()
-
-        def setResizeMode(self, mode):
-            pass
-
-        def setColor(self, color):
-            pass
-
-        def setSource(self, source):
-            pass
-
-        def rootObject(self):
-            return None
     # attach QQuickView stub to qtquick
     qtquick.QQuickView = MockQQuickView
     # build the QtWidgets mock module
     qtwidgets = types.ModuleType("PySide6.QtWidgets")
-    # QDialog stub
-    class MockQDialog:
-        def __init__(self, parent=None):
-            pass
-
-        def accept(self):
-            pass
-
-        def reject(self):
-            pass
-
-        def setWindowTitle(self, title):
-            pass
-
-        def setWindowModality(self, modality):
-            pass
-
-        def resize(self, width, height):
-            pass
-
-        def setMinimumHeight(self, height):
-            pass
-    # QVBoxLayout stub
-    class MockQVBoxLayout:
-        def __init__(self, parent=None):
-            pass
-
-        def setContentsMargins(self, left, top, right, bottom):
-            pass
-
-        def addWidget(self, widget):
-            pass
-    # QWidget stub
-    class MockQWidget:
-        @staticmethod
-        def createWindowContainer(view, parent=None):
-            return MagicMock()
     # attach widget stubs to qtwidgets
     qtwidgets.QDialog = MockQDialog
     qtwidgets.QVBoxLayout = MockQVBoxLayout

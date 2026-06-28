@@ -286,33 +286,6 @@ class TestSimulationParametersDialogOnSubmitOP:
         # assert
         dialog._root.setProperty.assert_any_call("opInitialConditionEntries", "V(out)=1.0")
 
-
-class TestSimulationParametersDialogOnSubmitOP:
-
-    def test_on_submit_op_sets_result_and_accepts(self):
-        # arrange
-        dialog = _make_dialog()
-        # replace accept with a tracker
-        accepted = []
-        dialog.accept = lambda: accepted.append(True)
-        # act
-        dialog._on_submit_op(False, False, False, False, False, False, "", "", "", False, "NODESET", "", "", "", False)
-        # assert
-        assert isinstance(dialog._result.analysis, OpSimulationParameters)
-        assert len(accepted) == 1
-
-    def test_on_submit_op_parses_initial_conditions(self):
-        # arrange
-        dialog = _make_dialog()
-        accepted = []
-        dialog.accept = lambda: accepted.append(True)
-        # act
-        dialog._on_submit_op(False, False, False, False, False, False, "", "", "", False, "NODESET", "", "V(out)=1.0 V(in)=0", "", False)
-        # assert
-        assert isinstance(dialog._result.analysis, OpSimulationParameters)
-        assert dialog._result.analysis.ic_entries == (IcEntry(node="out", voltage="1.0"), IcEntry(node="in", voltage="0"))
-        assert len(accepted) == 1
-
     def test_on_submit_op_preserves_options_and_unassociated_prints(self):
         # arrange
         options = OptionParameters(device={"TEMP": "25"}, timeint={"RELTOL": "1e-3"})
