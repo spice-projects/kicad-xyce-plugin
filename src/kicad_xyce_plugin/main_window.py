@@ -20,6 +20,7 @@ from .fft import FftOutput, compute_fft_many
 from .kicad_icons import KiCadIcon, get_kicad_icon, load_kicad_icons
 from .kicad import get_active_schematic_path
 from .netlist_parser import NetlistTopology, parse_netlist
+from .netlist_assembly import build_final_netlist
 from .netlist_viewer_dialog import NetlistViewerDialog
 from .run_xyce_simulation import run_xyce_simulation, XyceSimulationRunner
 from .smith_chart_window import SmithChartWindow
@@ -592,10 +593,8 @@ class MainWindow(QMainWindow):
         fft_offset = 0
         # loop steps
         for step in range(self._step_information.length):
-            # step data slice
-            step_slice = self._step_information.abscissa_indices[step]
-            # abscissa values for this step
-            step_abscissa = self._abscissa.data[step_slice]
+            # abscissa values for this step — zero copy per-step view
+            step_abscissa = self._abscissa.step_data(step)
             # find indices in this step corresponding to the selected abscissa range
             from_index = np.searchsorted(step_abscissa, from_abscissa_value, side="left")
             to_index = np.searchsorted(step_abscissa, to_abscissa_value, side="right")
@@ -613,8 +612,8 @@ class MainWindow(QMainWindow):
             y_matrix = np.empty((signal_count, to_index - from_index))
             # fill matrix row-by-row using contiguous slices
             for expr_index, expression in enumerate(result_expressions):
-                # expression data for this step
-                expression_step_data = expression.data[step_slice]
+                # expression data for this step — zero copy per-step view
+                expression_step_data = expression.step_data(step)
                 # slice out the selected abscissa range for this expression and store it in the matrix
                 y_matrix[expr_index] = expression_step_data[from_index:to_index]
             try:
@@ -654,18 +653,16 @@ class MainWindow(QMainWindow):
         fft_expressions: list[Expression] = []
         # loop processed expressions
         for expr_index, expression in enumerate(result_expressions):
-            # flatten all per-step chunks for this expression into one step-major vector
-            expression_data = np.concatenate(fft_chunks[expr_index])
             # unit
             expression_unit = "°" if output == FftOutput.PHASE else ("dB" if output == FftOutput.MAGNITUDE_DB else expression.unit)
-            # create expression for this FFT result
-            fft_expressions.append(Expression(f"FFT({expression.name.replace(' ', '')})", expression_data, expression_unit))
-        # flatten per-step frequency bins into one step-major vector
-        frequency_data = np.concatenate(frequency_chunks)
-        # create frequency expression with per-step variable lengths
-        freq_expression = Expression("Frequency", frequency_data, "Hz")
+            # create expression for this FFT result using per-step chunks directly (no concatenation needed)
+            fft_expressions.append(Expression(f"FFT({expression.name.replace(' ', '')})", fft_chunks[expr_index], expression_unit))
+        # create frequency expression using per-step frequency arrays directly (no concatenation needed)
+        freq_expression = Expression("Frequency", frequency_chunks, "Hz")
+        # step slices for the fft expression manager @N selector support
+        fft_step_slices: tuple[slice, ...] | None = tuple(fft_abscissa_indices) if len(fft_abscissa_indices) > 1 else None
         # build expression manager with frequency abscissa and all FFT results
-        expression_manager = ExpressionManager([freq_expression] + fft_expressions)
+        expression_manager = ExpressionManager([freq_expression] + fft_expressions, fft_step_slices)
         # build one «name» group per FFT expression so each gets its own chart
         plot_suggestion = [(e.name, [e]) for e in fft_expressions]
         # map source parameter values onto FFT steps (only available when there are multiple steps, otherwise leave empty)
@@ -877,9 +874,9 @@ class MainWindow(QMainWindow):
             if self._simulation_parameters.analysis is None:
                 return
         # generate simulation directives
-        directives = '\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))
+        directives = self._simulation_parameters.to_xyce_directives(topology=topology)
         # final netlist
-        netlist = netlist.replace(".END\n", f"\n{directives}\n\n.END\n")
+        netlist = build_final_netlist(netlist, directives, topology.passthrough_directives)
         # log information
         logger.info("Running simulation with netlist:\n%s", netlist)
         # try
@@ -912,9 +909,9 @@ class MainWindow(QMainWindow):
         # apply simulation parameters if present
         if self._simulation_parameters is not None:
             # directives
-            directives = '\n'.join(self._simulation_parameters.to_xyce_directives(topology=topology))
+            directives = self._simulation_parameters.to_xyce_directives(topology=topology)
             # final netlist
-            netlist = netlist.replace(".END\n", f"\n{directives}\n\n.END\n")
+            netlist = build_final_netlist(netlist, directives, topology.passthrough_directives)
         # dialog
         dialog = NetlistViewerDialog(parent=self, netlist=netlist)
         # exec

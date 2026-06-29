@@ -33,7 +33,7 @@ class ExpressionManager:
 
     def __init__(self, expressions: list[Expression], step_slices: tuple[slice, ...] | None = None):
         # create expression context; keys are lowercased so that evaluate() lookups always match
-        self._context: dict[str, Expression] = {expression.name.lower(): expression for expression in expressions}
+        self._context: dict[str, Expression] = {expression.name.casefold(): expression for expression in expressions}
         # initialize the qspice language parser and evaluator for expression data
         self._parser = XyceParser()
         self._evaluator = XyceEvaluator()
@@ -51,17 +51,15 @@ class ExpressionManager:
 
     def evaluate(self, expression: str, name: str | None = None) -> Expression | None:
         # context key
-        key = (name or expression).lower()
+        key = (name or expression).casefold()
         # check expression has been evaluated before
         result = self._context.get(key, None)
         if result is None:
             try:
                 # parse the expression string into a qspice AST
                 ast = self._parser.parse_expression(expression)
-                # build qspice variable context from cached expressions
-                data_context = {context_key: context_expression.data for context_key, context_expression in self._context.items()}
                 # evaluate qspice AST to get computed numeric data; pass step slice metadata for @N support
-                evaluated_data = self._evaluator.evaluate(ast, data_context, step_slices=self._step_slices)
+                evaluated_data = self._evaluator.evaluate(ast, self._context, step_slices=self._step_slices)
                 # re-materialize step-selector results to full stepped layout when necessary
                 evaluated_data = self._rematerialize(evaluated_data, ast)
                 # build unit lookup context from cached expressions
@@ -70,8 +68,17 @@ class ExpressionManager:
                 inferred_unit = self._infer_unit(ast, unit_context)
                 # normalize expression name
                 result_name = name if name is not None else self._format_expression(ast)
-                # build the final expression using qspice data and qspice-based unit propagation
-                result = Expression(result_name, np.asarray(evaluated_data), inferred_unit, source="expression manager")
+                # flatten to a numpy array once to avoid repeated conversion
+                evaluated_array = np.asarray(evaluated_data)
+                # split into per-step views when multiple step slices are available; views into evaluated_array incur no additional copy
+                if self._step_slices is not None and len(self._step_slices) > 1:
+                    # views
+                    step_views = [evaluated_array[s] for s in self._step_slices]
+                    # expression
+                    result = Expression(result_name, step_views, inferred_unit, source="expression manager", data=evaluated_array)
+                else:
+                    # build a single-step expression; evaluated_array is already the full data
+                    result = Expression(result_name, [evaluated_array], inferred_unit, source="expression manager", data=evaluated_array)
                 # update context with the evaluated expression for future reference
                 self._context[key] = result
             except ValueError as e:

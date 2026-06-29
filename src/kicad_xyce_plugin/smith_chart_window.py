@@ -354,10 +354,8 @@ class SmithChartWindow(QMainWindow):
                 # check step is not already rendered
                 if step in rendered_traces:
                     continue
-                # step slice
-                step_slice = self._step_information.abscissa_indices[step]
-                # complex reflection coefficient data
-                data = expression.data[step_slice]
+                # complex reflection coefficient data \u2014 zero copy per-step view
+                data = expression.step_data(step)
                 # filter non-finite values (Inf/NaN) to prevent rendering issues
                 finite_mask = np.isfinite(data)
                 if not np.all(finite_mask):

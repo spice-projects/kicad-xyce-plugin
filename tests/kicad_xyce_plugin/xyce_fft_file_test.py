@@ -627,7 +627,7 @@ class TestXyceFftFileLoad:
 
 
 class TestXyceFftFileRawFileInterface:
-    """Verify XyceFftFile exposes the same interface as XyceRawFile so MainWindow can consume it directly."""
+    """Verify XyceFftFile exposes the same interface as XyceOutputFile so MainWindow can consume it directly."""
 
     def test_abscissa_is_frequency_expression(self):
         # arrange

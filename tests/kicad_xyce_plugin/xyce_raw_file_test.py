@@ -73,7 +73,7 @@ def _write_temp_raw(content: bytes) -> str:
     fh.write(content)
     # close the file handle so the path is accessible on all platforms
     fh.close()
-    # return the path string for use by XyceRawFile.load
+    # return the path string for use by XyceOutputFile.load
     return fh.name
 
 
@@ -736,7 +736,7 @@ class TestParseAsciiVariables:
         assert variables[1].unit == ""
 
 
-class TestXyceRawFile:
+class TestXyceOutputFile:
 
     def test_load_returns_none_when_file_not_found(self):
         # arrange
@@ -1196,5 +1196,198 @@ class TestXyceRawFile:
         # assert — all three points read
         assert raw is not None
         assert len(raw.abscissa.data) == 3
+        # cleanup
+        os.unlink(path)
+
+
+def _make_multi_block_raw_bytes(title: str = "Stepped Circuit", date: str = "Mon Jan  1 00:00:00 2024", variable_defs: list[tuple[int, str, str]] | None = None, step_matrices: list[np.ndarray] | None = None, param_name: str = "R1", param_values: list[float] | None = None) -> bytes:
+    # default to two-variable DC sweep with a single voltage node
+    if variable_defs is None:
+        variable_defs = [(0, "sweep", "voltage"), (1, "V(2)", "voltage")]
+    # default to three steps with four points each
+    if step_matrices is None:
+        step_matrices = [np.array([[0.0, v * 0.5], [1.0, v * 0.5 + 0.5], [2.0, v * 0.5 + 1.0], [3.0, v * 0.5 + 1.5]], dtype=np.float64) for v in [1.0, 2.0, 3.0]]
+    # default parameter values: one per step matrix
+    if param_values is None:
+        param_values = [float(i + 1) * 1000 for i in range(len(step_matrices))]
+    # total number of steps
+    num_steps = len(step_matrices)
+    # number of variables
+    num_variables = len(variable_defs)
+    # accumulate raw bytes for all blocks
+    result = b""
+    # build one header+binary block per step
+    for step_index, (data_matrix, param_value) in enumerate(zip(step_matrices, param_values)):
+        # number of points for this block
+        num_points = data_matrix.shape[0]
+        # build the step plotname
+        plotname = f"Step Analysis: Step {step_index + 1} of {num_steps} params:  name = {param_name} value = {param_value:.0f}  DC transfer characteristic"
+        # build header lines
+        lines = [f"Title: {title}", f"Date: {date}", f"Plotname: {plotname}", "Flags: real", f"No. Variables: {num_variables}", f"No. Points: {num_points}", "Variables:"]
+        # append variable definitions
+        for idx, name, type_str in variable_defs:
+            lines.append(f"\t{idx}\t{name}\t{type_str}")
+        # binary data section marker
+        lines.append("Binary:")
+        # encode header as utf-8 bytes
+        header = ("\n".join(lines) + "\n").encode("utf-8")
+        # append binary data for this block
+        result += header + data_matrix.astype("<f8").tobytes()
+    return result
+
+
+class TestXyceOutputFileMultiBlock:
+
+    def test_multi_block_step_count(self):
+        # arrange — two-step file with two blocks
+        content = _make_multi_block_raw_bytes(param_values=[1000.0, 2000.0], step_matrices=[np.array([[0.0, 1.0], [1.0, 2.0]], dtype=np.float64), np.array([[0.0, 1.5], [1.0, 2.5]], dtype=np.float64)])
+        path = _write_temp_raw(content)
+        # act
+        raw = xyce_raw_file_parser(path)
+        # assert — two steps parsed
+        assert raw is not None
+        assert raw.steps == 2
+        # cleanup
+        os.unlink(path)
+
+    def test_multi_block_three_steps(self):
+        # arrange — three-step file
+        content = _make_multi_block_raw_bytes(param_values=[1000.0, 2000.0, 3000.0])
+        path = _write_temp_raw(content)
+        # act
+        raw = xyce_raw_file_parser(path)
+        # assert
+        assert raw is not None
+        assert raw.steps == 3
+        # cleanup
+        os.unlink(path)
+
+    def test_multi_block_step_parameter_keys(self):
+        # arrange
+        content = _make_multi_block_raw_bytes(param_name="R1_VAL", param_values=[1000.0, 2000.0])
+        path = _write_temp_raw(content)
+        # act
+        raw = xyce_raw_file_parser(path)
+        # assert — parameter name extracted from Plotname
+        assert raw is not None
+        assert raw.step_information.keys == ["R1_VAL"]
+        # cleanup
+        os.unlink(path)
+
+    def test_multi_block_step_parameter_values(self):
+        # arrange
+        content = _make_multi_block_raw_bytes(param_name="R1", param_values=[1000.0, 2000.0])
+        path = _write_temp_raw(content)
+        # act
+        raw = xyce_raw_file_parser(path)
+        # assert — parameter values extracted from each block's Plotname
+        assert raw is not None
+        assert raw.step_information.values == [(1000.0,), (2000.0,)]
+        # cleanup
+        os.unlink(path)
+
+    def test_multi_block_expression_step_count(self):
+        # arrange — two steps of 3 points each
+        m = np.array([[0.0, 1.0], [1.0, 2.0], [2.0, 3.0]], dtype=np.float64)
+        content = _make_multi_block_raw_bytes(param_values=[1000.0, 2000.0], step_matrices=[m, m])
+        path = _write_temp_raw(content)
+        # act
+        raw = xyce_raw_file_parser(path)
+        # assert — the abscissa expression has two per-step arrays
+        assert raw is not None
+        assert raw.abscissa.step_count == 2
+        # cleanup
+        os.unlink(path)
+
+    def test_multi_block_step_data_correct_values(self):
+        # arrange — two steps with distinct data
+        m0 = np.array([[0.0, 1.0], [1.0, 2.0], [2.0, 3.0]], dtype=np.float64)
+        m1 = np.array([[0.0, 4.0], [1.0, 5.0], [2.0, 6.0]], dtype=np.float64)
+        content = _make_multi_block_raw_bytes(param_values=[1000.0, 2000.0], step_matrices=[m0, m1])
+        path = _write_temp_raw(content)
+        # act
+        raw = xyce_raw_file_parser(path)
+        # assert — step_data(0) and step_data(1) return correct per-step values
+        assert raw is not None
+        v2_expr = raw.expression_manager.evaluate("V(2)")
+        assert v2_expr is not None
+        np.testing.assert_array_almost_equal(v2_expr.step_data(0), [1.0, 2.0, 3.0])
+        np.testing.assert_array_almost_equal(v2_expr.step_data(1), [4.0, 5.0, 6.0])
+        # cleanup
+        os.unlink(path)
+
+    def test_multi_block_abscissa_step_data_zero_copy(self):
+        # arrange — verify step_data returns a numpy view (not a copy) by checking base array
+        m0 = np.array([[0.0, 1.0], [1.0, 2.0]], dtype=np.float64)
+        m1 = np.array([[0.0, 3.0], [1.0, 4.0]], dtype=np.float64)
+        content = _make_multi_block_raw_bytes(param_values=[1000.0, 2000.0], step_matrices=[m0, m1])
+        path = _write_temp_raw(content)
+        # act
+        raw = xyce_raw_file_parser(path)
+        # assert — step_data arrays are views into the mmap (have a non-None base)
+        assert raw is not None
+        step0 = raw.abscissa.step_data(0)
+        step1 = raw.abscissa.step_data(1)
+        assert step0.base is not None
+        assert step1.base is not None
+        # cleanup
+        os.unlink(path)
+
+    def test_multi_block_abscissa_indices_flat_layout(self):
+        # arrange — two steps of 4 points each
+        m = np.array([[0.0, 1.0], [1.0, 2.0], [2.0, 3.0], [3.0, 4.0]], dtype=np.float64)
+        content = _make_multi_block_raw_bytes(param_values=[1000.0, 2000.0], step_matrices=[m, m])
+        path = _write_temp_raw(content)
+        # act
+        raw = xyce_raw_file_parser(path)
+        # assert — flat-layout slices: step 0 covers [0, 4), step 1 covers [4, 8)
+        assert raw is not None
+        indices = raw.step_information.abscissa_indices
+        assert indices[0] == slice(0, 4)
+        assert indices[1] == slice(4, 8)
+        # cleanup
+        os.unlink(path)
+
+    def test_multi_block_data_property_concatenates(self):
+        # arrange — two steps with distinct ordinate values
+        m0 = np.array([[0.0, 1.0], [1.0, 2.0]], dtype=np.float64)
+        m1 = np.array([[0.0, 3.0], [1.0, 4.0]], dtype=np.float64)
+        content = _make_multi_block_raw_bytes(param_values=[1000.0, 2000.0], step_matrices=[m0, m1])
+        path = _write_temp_raw(content)
+        # act
+        raw = xyce_raw_file_parser(path)
+        # assert — .data returns all steps concatenated
+        assert raw is not None
+        v2_expr = raw.expression_manager.evaluate("V(2)")
+        assert v2_expr is not None
+        np.testing.assert_array_almost_equal(v2_expr.data, [1.0, 2.0, 3.0, 4.0])
+        # cleanup
+        os.unlink(path)
+
+    def test_multi_block_title_from_first_block(self):
+        # arrange
+        content = _make_multi_block_raw_bytes(title="DC Stepped Test")
+        path = _write_temp_raw(content)
+        # act
+        raw = xyce_raw_file_parser(path)
+        # assert
+        assert raw is not None
+        assert raw.title == "DC Stepped Test"
+        # cleanup
+        os.unlink(path)
+
+    def test_multi_block_abscissa_value_ranges(self):
+        # arrange
+        m = np.array([[0.0, 1.0], [1.0, 2.0], [2.0, 3.0]], dtype=np.float64)
+        content = _make_multi_block_raw_bytes(param_values=[1000.0, 2000.0], step_matrices=[m, m])
+        path = _write_temp_raw(content)
+        # act
+        raw = xyce_raw_file_parser(path)
+        # assert — both steps share the same sweep range [0.0, 2.0]
+        assert raw is not None
+        assert raw.step_information.step_abscissa_left_value(0) == 0.0
+        assert raw.step_information.step_abscissa_right_value(0) == 2.0
+        assert raw.step_information.step_abscissa_left_value(1) == 0.0
+        assert raw.step_information.step_abscissa_right_value(1) == 2.0
         # cleanup
         os.unlink(path)

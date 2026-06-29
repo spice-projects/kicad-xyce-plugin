@@ -1,22 +1,30 @@
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 import pytest
 
 from kicad_xyce_plugin.expression.builtins import BUILTIN_CONSTANTS, BUILTIN_FUNCTIONS
 from kicad_xyce_plugin.expression.evaluator import EvaluationContext, _NUMBER_SUFFIXES, XyceEvaluator
+from kicad_xyce_plugin.expression.expression import Expression
 from kicad_xyce_plugin.expression.lexer import tokenize, XyceLexer
 from kicad_xyce_plugin.expression.nodes import BinaryOperationNode, BinaryOperator, FunctionCallNode, FunctionDefinitionNode, IdentifierNode, NumberNode, StepSelectorNode, TernaryOperationNode, UnaryOperationNode, UnaryOperator
 from kicad_xyce_plugin.expression.parser import parse_function_definition, parse_expression
 from kicad_xyce_plugin.expression.tokens import TokenKind
 
 
-def _evaluate(text, variables=None, functions=None, constants=None, step_slices=None):
+def _evaluate(text, expressions=None, functions=None, constants=None, step_slices=None):
     # parse the expression text and evaluate it with the given context
     tree = parse_expression(text)
-    return XyceEvaluator().evaluate(tree, variables, functions, constants, step_slices)
+    # evaluate expression
+    return XyceEvaluator().evaluate(tree, expressions, functions, constants, step_slices)
+
+
+def _expression(name: str, value: Any, unit: str = "") -> Expression:
+    # create a simple Expression object with a single step containing the given value
+    return Expression(name, [np.asarray(value)], unit=unit)
 
 
 def _wrap(x):
@@ -32,11 +40,6 @@ def _wrap2(x, y):
 def _wrap3(x, y, z):
     # wrap three scalars in a list for three-argument builtins
     return [np.asarray(x), np.asarray(y), np.asarray(z)]
-
-
-# ---------------------------------------------------------------------------
-# TestXyceLexer
-# ---------------------------------------------------------------------------
 
 
 class TestXyceLexer:
@@ -421,11 +424,6 @@ class TestXyceLexer:
         # act / assert
         with pytest.raises(ValueError):
             tokenize(text)
-
-
-# ---------------------------------------------------------------------------
-# TestXyceParser
-# ---------------------------------------------------------------------------
 
 
 class TestXyceParser:
@@ -870,11 +868,6 @@ class TestXyceParser:
         # assert — id(x) is treated as a regular function call, not a probe
         assert isinstance(tree, FunctionCallNode)
         assert isinstance(tree.args[0], IdentifierNode)
-
-
-# ---------------------------------------------------------------------------
-# TestXyceBuiltins
-# ---------------------------------------------------------------------------
 
 
 class TestXyceBuiltins:
@@ -1481,11 +1474,6 @@ class TestXyceBuiltins:
             BUILTIN_FUNCTIONS["sdt"](args)
 
 
-# ---------------------------------------------------------------------------
-# TestXyceBuiltinConstants
-# ---------------------------------------------------------------------------
-
-
 class TestXyceBuiltinConstants:
 
     def test_pi(self):
@@ -1571,11 +1559,6 @@ class TestXyceBuiltinConstants:
         value = BUILTIN_CONSTANTS["mho"]
         # assert
         assert float(value) == 1.0
-
-
-# ---------------------------------------------------------------------------
-# TestXyceEvaluatorArithmetic
-# ---------------------------------------------------------------------------
 
 
 class TestXyceEvaluatorArithmetic:
@@ -1667,11 +1650,6 @@ class TestXyceEvaluatorArithmetic:
         result = _evaluate(text)
         # assert
         assert result == pytest.approx(10.0)
-
-
-# ---------------------------------------------------------------------------
-# TestXyceEvaluatorLogical
-# ---------------------------------------------------------------------------
 
 
 class TestXyceEvaluatorLogical:
@@ -1773,11 +1751,6 @@ class TestXyceEvaluatorLogical:
         assert result == pytest.approx(0.0)
 
 
-# ---------------------------------------------------------------------------
-# TestXyceEvaluatorRelational
-# ---------------------------------------------------------------------------
-
-
 class TestXyceEvaluatorRelational:
 
     def test_equal_true(self):
@@ -1845,11 +1818,6 @@ class TestXyceEvaluatorRelational:
         assert result == pytest.approx(1.0)
 
 
-# ---------------------------------------------------------------------------
-# TestXyceEvaluatorTernary
-# ---------------------------------------------------------------------------
-
-
 class TestXyceEvaluatorTernary:
 
     def test_true_condition_selects_first_branch(self):
@@ -1871,25 +1839,20 @@ class TestXyceEvaluatorTernary:
     def test_ternary_with_variable_condition(self):
         # arrange — acts as abs(x) for negative x
         text = "x > 0 ? x : -x"
-        variables = {"x": -5.0}
+        expressions = {"x": _expression("x", -5.0)}
         # act
-        result = _evaluate(text, variables=variables)
+        result = _evaluate(text, expressions=expressions)
         # assert
         assert result == pytest.approx(5.0)
 
     def test_ternary_with_array_condition(self):
         # arrange
         text = "x > 0 ? 1 : -1"
-        variables = {"x": np.array([-1.0, 0.5, 2.0])}
+        expressions = {"x": _expression("x", [-1.0, 0.5, 2.0])}
         # act
-        result = _evaluate(text, variables=variables)
+        result = _evaluate(text, expressions=expressions)
         # assert — element-wise selection via np.where
         np.testing.assert_allclose(result, [-1.0, 1.0, 1.0])
-
-
-# ---------------------------------------------------------------------------
-# TestXyceEvaluatorVariables
-# ---------------------------------------------------------------------------
 
 
 class TestXyceEvaluatorVariables:
@@ -1897,18 +1860,18 @@ class TestXyceEvaluatorVariables:
     def test_variable_lookup(self):
         # arrange
         text = "x"
-        variables = {"x": 7.0}
+        expressions = {"x": _expression("x", 7.0)}
         # act
-        result = _evaluate(text, variables=variables)
+        result = _evaluate(text, expressions=expressions)
         # assert
         assert result == pytest.approx(7.0)
 
     def test_variable_lookup_is_case_insensitive(self):
         # arrange
         text = "X"
-        variables = {"x": 5.0}
+        expressions = {"x": _expression("x", 5.0)}
         # act
-        result = _evaluate(text, variables=variables)
+        result = _evaluate(text, expressions=expressions)
         # assert
         assert result == pytest.approx(5.0)
 
@@ -1962,9 +1925,9 @@ class TestXyceEvaluatorVariables:
     def test_variable_overrides_builtin_constant(self):
         # arrange — user-supplied variables take precedence over builtin constants
         text = "pi"
-        variables = {"pi": 3.0}
+        expressions = {"pi": _expression("pi", 3.0)}
         # act
-        result = _evaluate(text, variables=variables)
+        result = _evaluate(text, expressions=expressions)
         # assert
         assert result == pytest.approx(3.0)
 
@@ -1976,11 +1939,6 @@ class TestXyceEvaluatorVariables:
         result = _evaluate(text, constants=constants)
         # assert
         assert result == pytest.approx(3e8)
-
-
-# ---------------------------------------------------------------------------
-# TestXyceEvaluatorNumberSuffixes
-# ---------------------------------------------------------------------------
 
 
 class TestXyceEvaluatorNumberSuffixes:
@@ -2071,11 +2029,6 @@ class TestXyceEvaluatorNumberSuffixes:
         # assert — MIL must be present with the correct scale factor
         assert value is not None
         assert abs(value - 25.4e-6) < 1e-20
-
-
-# ---------------------------------------------------------------------------
-# TestXyceEvaluatorBuiltinCalls
-# ---------------------------------------------------------------------------
 
 
 class TestXyceEvaluatorBuiltinCalls:
@@ -2223,11 +2176,6 @@ class TestXyceEvaluatorBuiltinCalls:
             _evaluate(text)
 
 
-# ---------------------------------------------------------------------------
-# TestXyceEvaluatorUserFunctions
-# ---------------------------------------------------------------------------
-
-
 class TestXyceEvaluatorUserFunctions:
 
     def test_simple_user_function(self):
@@ -2292,54 +2240,49 @@ class TestXyceEvaluatorProbes:
 
     def test_v_probe_direct(self):
         # arrange
-        variables = {"v(out)": np.asarray(3.3)}
+        expressions = {"v(out)": _expression("v(out)", np.asarray(3.3))}
         # act
-        result = _evaluate("V(out)", variables=variables)
+        result = _evaluate("V(out)", expressions=expressions)
         # assert
         assert result == pytest.approx(3.3)
 
     def test_v_probe_differential(self):
         # arrange — V(a, b) = V(a) - V(b) from individual node variables
-        variables = {"v(a)": np.asarray(5.0), "v(b)": np.asarray(2.0)}
+        expressions = {"v(a)": _expression("v(a)", np.asarray(5.0)), "v(b)": _expression("v(b)", np.asarray(2.0))}
         # act
-        result = _evaluate("V(a, b)", variables=variables)
+        result = _evaluate("V(a, b)", expressions=expressions)
         # assert
         assert result == pytest.approx(3.0)
 
     def test_v_probe_differential_with_ground(self):
         # arrange — V(out, 0) collapses to V(out) when ground is zero
-        variables = {"v(out)": np.asarray(1.8)}
+        expressions = {"v(out)": _expression("v(out)", np.asarray(1.8))}
         # act
-        result = _evaluate("V(out, 0)", variables=variables)
+        result = _evaluate("V(out, 0)", expressions=expressions)
         # assert
         assert result == pytest.approx(1.8)
 
     def test_i_probe(self):
         # arrange
-        variables = {"i(r1)": np.asarray(0.01)}
+        expressions = {"i(r1)": _expression("i(r1)", np.asarray(0.01))}
         # act
-        result = _evaluate("I(r1)", variables=variables)
+        result = _evaluate("I(r1)", expressions=expressions)
         # assert
         assert result == pytest.approx(0.01)
 
     def test_probe_not_found_raises(self):
         # arrange — no variable for the requested node
-        variables = {}
+        expressions = {}
         # act / assert
         with pytest.raises(ValueError, match="Unknown probe"):
-            _evaluate("V(missing_node)", variables=variables)
+            _evaluate("V(missing_node)", expressions=expressions)
 
     def test_id_is_not_a_probe_family(self):
         # arrange — 'id' was removed from Xyce probe families
-        variables = {}
+        expressions = {}
         # act / assert
         with pytest.raises((ValueError, TypeError)):
-            _evaluate("id(x)", variables=variables)
-
-
-# ---------------------------------------------------------------------------
-# TestXyceEvaluatorStepSelectors
-# ---------------------------------------------------------------------------
+            _evaluate("id(x)", expressions=expressions)
 
 
 class TestXyceEvaluatorStepSelectors:
@@ -2348,9 +2291,9 @@ class TestXyceEvaluatorStepSelectors:
         # arrange
         data = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
         slices = (slice(0, 3), slice(3, 6))
-        variables = {"v(out)": data}
+        expressions = {"v(out)": _expression("v(out)", data)}
         # act
-        result = _evaluate("V(out)@1", variables=variables, step_slices=slices)
+        result = _evaluate("V(out)@1", expressions=expressions, step_slices=slices)
         # assert
         np.testing.assert_allclose(result, [1.0, 2.0, 3.0])
 
@@ -2358,9 +2301,9 @@ class TestXyceEvaluatorStepSelectors:
         # arrange
         data = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
         slices = (slice(0, 3), slice(3, 6))
-        variables = {"v(out)": data}
+        expressions = {"v(out)": _expression("v(out)", data)}
         # act
-        result = _evaluate("V(out)@2", variables=variables, step_slices=slices)
+        result = _evaluate("V(out)@2", expressions=expressions, step_slices=slices)
         # assert
         np.testing.assert_allclose(result, [4.0, 5.0, 6.0])
 
@@ -2368,70 +2311,60 @@ class TestXyceEvaluatorStepSelectors:
         # arrange — only one step available; @5 is out of range
         data = np.array([1.0, 2.0])
         slices = (slice(0, 2),)
-        variables = {"v(out)": data}
+        expressions = {"v(out)": _expression("v(out)", data)}
         # act / assert
         with pytest.raises(ValueError, match="out of range"):
-            _evaluate("V(out)@5", variables=variables, step_slices=slices)
+            _evaluate("V(out)@5", expressions=expressions, step_slices=slices)
 
     def test_step_selector_without_slices_raises(self):
         # arrange — step metadata is required for the @n syntax
-        variables = {"v(out)": np.array([1.0, 2.0])}
+        expressions = {"v(out)": _expression("v(out)", np.array([1.0, 2.0]))}
         # act / assert
         with pytest.raises(ValueError, match="metadata"):
-            _evaluate("V(out)@1", variables=variables)
-
-
-# ---------------------------------------------------------------------------
-# TestXyceEvaluatorArrays
-# ---------------------------------------------------------------------------
+            _evaluate("V(out)@1", expressions=expressions)
 
 
 class TestXyceEvaluatorArrays:
 
     def test_array_addition(self):
         # arrange
-        variables = {"x": np.array([1.0, 2.0, 3.0])}
+        expressions = {"x": _expression("x", np.array([1.0, 2.0, 3.0]))}
         # act
-        result = _evaluate("x + 1", variables=variables)
+        result = _evaluate("x + 1", expressions=expressions)
         # assert
         np.testing.assert_allclose(result, [2.0, 3.0, 4.0])
 
     def test_array_multiplication(self):
         # arrange
-        variables = {"x": np.array([1.0, 2.0, 3.0])}
+        expressions = {"x": _expression("x", np.array([1.0, 2.0, 3.0]))}
         # act
-        result = _evaluate("x * 2", variables=variables)
+        result = _evaluate("x * 2", expressions=expressions)
         # assert
         np.testing.assert_allclose(result, [2.0, 4.0, 6.0])
 
     def test_array_modulo(self):
         # arrange
-        variables = {"x": np.array([7.0, 8.0, 9.0])}
+        expressions = {"x": _expression("x", np.array([7.0, 8.0, 9.0]))}
         # act
-        result = _evaluate("x % 3", variables=variables)
+        result = _evaluate("x % 3", expressions=expressions)
         # assert
         np.testing.assert_allclose(result, [1.0, 2.0, 0.0])
 
     def test_array_ternary(self):
         # arrange
-        variables = {"x": np.array([-1.0, 0.0, 1.0])}
+        expressions = {"x": _expression("x", np.array([-1.0, 0.0, 1.0]))}
         # act
-        result = _evaluate("x > 0 ? 1 : 0", variables=variables)
+        result = _evaluate("x > 0 ? 1 : 0", expressions=expressions)
         # assert
         np.testing.assert_allclose(result, [0.0, 0.0, 1.0])
 
     def test_array_logical_xor(self):
         # arrange
-        variables = {"a": np.array([0.0, 0.0, 1.0, 1.0]), "b": np.array([0.0, 1.0, 0.0, 1.0])}
+        expressions = {"a": _expression("a", np.array([0.0, 0.0, 1.0, 1.0])), "b": _expression("b", np.array([0.0, 1.0, 0.0, 1.0]))}
         # act
-        result = _evaluate("a ^ b", variables=variables)
+        result = _evaluate("a ^ b", expressions=expressions)
         # assert
         np.testing.assert_allclose(result, [0.0, 1.0, 1.0, 0.0])
-
-
-# ---------------------------------------------------------------------------
-# TestXyceNodes
-# ---------------------------------------------------------------------------
 
 
 class TestXyceNodes:
@@ -2512,7 +2445,7 @@ class TestXyceEvaluationContext:
 
     def test_context_stores_variables(self):
         # arrange / act
-        ctx = EvaluationContext({"x": np.asarray(1.0)}, {}, {})
+        ctx = EvaluationContext({}, {"x": np.asarray(1.0)}, {}, {})
         # assert
         assert "x" in ctx.variables
 
@@ -2520,13 +2453,13 @@ class TestXyceEvaluationContext:
         # arrange
         slices = (slice(0, 3),)
         # act
-        ctx = EvaluationContext({}, {}, {}, step_slices=slices)
+        ctx = EvaluationContext({}, {}, {}, {}, step_slices=slices)
         # assert
         assert ctx.step_slices == slices
 
     def test_context_step_slices_none_by_default(self):
         # arrange / act
-        ctx = EvaluationContext({}, {}, {})
+        ctx = EvaluationContext({}, {}, {}, {})
         # assert
         assert ctx.step_slices is None
 
@@ -2557,9 +2490,9 @@ class TestXyceEvaluatorEdgeCases:
     def test_complex_expression_with_variable(self):
         # arrange
         text = "2 * sqrt(x) + 1"
-        variables = {"x": 4.0}
+        expressions = {"x": _expression("x", 4.0)}
         # act
-        result = _evaluate(text, variables=variables)
+        result = _evaluate(text, expressions=expressions)
         # assert
         assert result == pytest.approx(5.0)
 
@@ -2582,17 +2515,17 @@ class TestXyceEvaluatorEdgeCases:
     def test_chained_comparisons_with_and(self):
         # arrange — (x > 0) & (x < 10) as a boolean expression
         text = "(x > 0) & (x < 10)"
-        variables = {"x": 5.0}
+        expressions = {"x": _expression("x", 5.0)}
         # act
-        result = _evaluate(text, variables=variables)
+        result = _evaluate(text, expressions=expressions)
         # assert
         assert result == pytest.approx(1.0)
 
     def test_if_with_array_arguments(self):
         # arrange
         text = "if(x, x, 0)"
-        variables = {"x": np.array([0.0, 1.0, 2.0])}
+        expressions = {"x": _expression("x", np.array([0.0, 1.0, 2.0]))}
         # act
-        result = _evaluate(text, variables=variables)
+        result = _evaluate(text, expressions=expressions)
         # assert
         np.testing.assert_allclose(result, [0.0, 1.0, 2.0])

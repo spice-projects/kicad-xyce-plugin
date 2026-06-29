@@ -1,5 +1,6 @@
 import logging
 import mmap
+import re
 import time
 from pathlib import Path
 
@@ -7,6 +8,9 @@ import numpy as np
 
 from .expression import Expression, ExpressionManager
 from .xyce_output_file import AbscissaScale, StepInformation, VariableType, XyceOutputFile
+
+# regex to extract step parameter name and value from a Xyce step-analysis Plotname header
+_STEP_PLOTNAME_RE = re.compile(r"^Step Analysis: Step \d+ of \d+ params:\s+name\s*=\s*(\S+)\s+value\s*=\s*(\S+)")
 
 logger = logging.getLogger(__name__)
 
@@ -116,12 +120,12 @@ def _process_steps(stepped: bool, expressions: list[Expression], abscissa: Expre
 
 
 def _process_scale(abscissa: Expression, scale: AbscissaScale) -> Expression:
-    # log10
+    # log10: apply per-step to preserve multi-step structure
     if scale == AbscissaScale.DECADE:
-        return Expression(abscissa.name, np.log10(abscissa.data), abscissa.unit, abscissa.source, abscissa.variable_type)
-    # log2
+        return Expression(abscissa.name, [np.log10(step) for step in abscissa.steps], abscissa.unit, abscissa.source, abscissa.variable_type)
+    # log2: apply per-step to preserve multi-step structure
     if scale == AbscissaScale.OCTAVE:
-        return Expression(abscissa.name, np.log2(abscissa.data), abscissa.unit, abscissa.source, abscissa.variable_type)
+        return Expression(abscissa.name, [np.log2(step) for step in abscissa.steps], abscissa.unit, abscissa.source, abscissa.variable_type)
     # linear scale doesn't modify the abscissa
     return abscissa
 
@@ -253,6 +257,67 @@ def _detect_encoding(data: bytes) -> tuple[str, bytes]:
     return "utf-8", b'\n'
 
 
+def _scan_block_header(data: mmap.mmap, start_pos: int, encoding: str, delimiter: bytes) -> tuple[dict[str, str], list[tuple[int, str, VariableType | None]], int, bool] | None:
+    # scan one header+variables block starting at start_pos; returns (header_dict, variable_defs, data_offset, is_ascii) or None when no data section is found
+    header: dict[str, str] = {}
+    variable_definitions: list[tuple[int, str, VariableType | None]] = []
+    data_offset = -1
+    is_ascii = False
+    in_variables = False
+    pos = start_pos
+    # scan line by line until the Binary: or Values: marker is reached
+    while pos < len(data):
+        # find next newline
+        newline = data.find(delimiter, pos)
+        if newline == -1:
+            break
+        # decode the line; replace unrecognised bytes rather than raising
+        line = data[pos:newline].decode(encoding, errors="replace").strip()
+        # log header line
+        logger.debug(">> %s", line)
+        # advance position to the next line
+        pos = newline + len(delimiter)
+        # parse the variables section
+        if in_variables:
+            # check for the data section marker
+            if line in ("Binary:", "Values:"):
+                # log transition
+                logger.debug(">> ...")
+                # record the byte offset at which data begins
+                data_offset = pos
+                # record whether the data is in ascii text format
+                is_ascii = line == "Values:"
+                # exit the scan loop
+                break
+            # parse variable definition line: expected format is "index\tname\ttype"
+            parts = line.split("\t")
+            # only accept lines with exactly 3 tab-separated parts; skip malformed lines
+            if len(parts) == 3:
+                # match variable type by name; accept None for unknown types so variable count stays consistent
+                variable_type = next((vt for vt in VariableType if vt.value.name == parts[2]), None)
+                if variable_type is None:
+                    # log warning for unknown type
+                    logger.warning("Unknown variable type '%s' for variable '%s'; treating as untyped", parts[2], parts[1])
+                # append variable definition
+                variable_definitions.append((int(parts[0]), parts[1], variable_type))
+            continue
+        # detect start of the variables section
+        if line == "Variables:":
+            # switch state to variables parsing
+            in_variables = True
+            continue
+        # parse header key: value line
+        if ":" in line:
+            # split at first colon to separate key from value
+            key, _, value = line.partition(":")
+            # store in the header dictionary
+            header[key.strip()] = value.strip()
+    # return None when no data section was found (e.g. truncated file or end of file)
+    if data_offset < 0:
+        return None
+    return header, variable_definitions, data_offset, is_ascii
+
+
 def xyce_raw_file_parser(filename: Path) -> XyceOutputFile | None:
     # load file
     path = Path(filename)
@@ -269,105 +334,131 @@ def xyce_raw_file_parser(filename: Path) -> XyceOutputFile | None:
         # memory-map the file — the OS pages in only the regions that are actually read, so for a 300-variable file where only a few are displayed, the remaining columns are never loaded into physical RAM
         with open(path, "rb") as _file:
             data = mmap.mmap(_file.fileno(), 0, access=mmap.ACCESS_READ)
-        # on POSIX (macOS/Linux) closing the fd after mmap() is safe — the OS keeps the mapping alive independently; the mmap object itself is stored in XyceRawFile to prevent GC
-        # single-pass progressive parser: scan line by line until the data section marker is reached
-        header: dict[str, str] = {}
-        variable_definitions: list[tuple[int, str, VariableType | None]] = []
-        data_offset = -1
-        is_ascii = False
-        in_variables = False
-        pos = 0
+        # on POSIX (macOS/Linux) closing the fd after mmap() is safe — the OS keeps the mapping alive independently; the mmap object itself is stored in XyceOutputFile to prevent GC
         # detect encoding from the first few bytes of the file
-        encoding, delimeter = _detect_encoding(data[:4])
-        # process file bytes
-        while pos < len(data):
-            # find newline
-            newline = data.find(delimeter, pos)
-            if newline == -1:
+        encoding, delimiter = _detect_encoding(data[:4])
+        # collect all parsed blocks: each entry is (header_dict, expressions, actual_num_points)
+        blocks: list[tuple[dict[str, str], list[Expression], int, bool]] = []
+        # start scanning from the beginning of the file
+        pos = 0
+        # multi-block scan loop: each iteration parses one header+data block
+        while True:
+            # scan the next block header starting at the current position
+            block_result = _scan_block_header(data, pos, encoding, delimiter)
+            # stop when no more blocks are found (end of file or truncated header)
+            if block_result is None:
                 break
-            # line: decode header text using detected encoding; replace unrecognised bytes rather than raising
-            line = data[pos:newline].decode(encoding, errors="replace").strip()
-            # log information
-            logger.debug(">> %s", line)
-            # advance position to next line
-            pos = newline + len(delimeter)
-            # state machine to parse header and variables until the data section is reached
-            if in_variables:
-                # check for end of variables section — either binary or ascii data marker
-                if line in ("Binary:", "Values:"):
-                    # log information
-                    logger.debug(">> ...")
-                    # data section starts at the current position in the file
-                    data_offset = pos
-                    # record whether the data is in ascii text format
-                    is_ascii = line == "Values:"
-                    # exit loop
-                    break
-                # parse variable line: expected format is "index\tname\ttype"
-                parts = line.split("\t")
-                # only parse lines with exactly 3 tab-separated parts; skip malformed lines
-                if len(parts) == 3:
-                    # find variable type from string by matching name; unknown types are accepted as None rather than skipped, so variable count stays consistent with num_variables
-                    variable_type = next((vt for vt in VariableType if vt.value.name == parts[2]), None)
-                    if variable_type is None:
-                        # log information
-                        logger.warning("Unknown variable type '%s' for variable '%s'; treating as untyped", parts[2], parts[1])
-                    # append variable to list
-                    variable_definitions.append((int(parts[0]), parts[1], variable_type))
-                    # next
-                    continue
-                # next
-                continue
-            # check this is the start of the variables section
-            if line == "Variables:":
-                # state machine: next lines will contain variable definitions until "Binary:" or "Values:" is reached
-                in_variables = True
-                # next
-                continue
-            # parse header line: expected format is "key: value"
-            if ":" in line:
-                # split at the first colon to separate key and value; strip whitespace
-                key, _, value = line.partition(":")
-                # store in header dictionary
-                header[key.strip()] = value.strip()
-        # validate that we found the data section
-        if data_offset < 0:
+            # unpack block header scan result
+            block_header, block_var_defs, data_offset, is_ascii = block_result
+            # parse header fields needed to interpret this block's data
+            is_complex = "complex" in block_header.get("Flags", "").lower()
+            num_variables = int(block_header.get("No. Variables", 0))
+            num_points = int(block_header.get("No. Points", "0").strip())
+            # parse the data section — ascii (Values:) or binary (Binary:)
+            if is_ascii:
+                block_exprs = _parse_ascii_variables(data, data_offset, block_var_defs, is_complex, num_variables, num_points)
+            else:
+                block_exprs = _parse_binary_variables(data, data_offset, block_var_defs, is_complex, num_variables, num_points)
+            # stop accumulating blocks when parsing fails
+            if block_exprs is None or len(block_exprs) == 0:
+                break
+            # actual number of points after parsing (may differ from header when No. Points was 0)
+            actual_num_points = len(block_exprs[0].data)
+            # store block result
+            blocks.append((block_header, block_exprs, actual_num_points, is_complex))
+            # advance past the binary data to the start of the next block; ascii data end is not computable so stop after ascii
+            if is_ascii:
+                break
+            # bytes per data value: float64 for real, complex128 for complex
+            bytes_per_value = 16 if is_complex else 8
+            # compute the byte position immediately after this block's binary data
+            pos = data_offset + actual_num_points * num_variables * bytes_per_value
+            # stop when the end of the file has been reached
+            if pos >= len(data):
+                break
+        # validate that at least one block was successfully parsed
+        if not blocks:
             # log error
             logger.error("invalid Xyce RAW file: data section not found")
             # exit
             return None
-        # parse header values needed to interpret the data
-        is_complex = "complex" in header.get("Flags", "").lower()
-        is_stepped = "stepped" in header.get("Flags", "").lower()
-        num_variables = int(header.get("No. Variables", 0))
-        num_points = int(header.get("No. Points", "0").strip())
+        # extract metadata from the first block
+        first_header, first_exprs, first_num_points, first_is_complex = blocks[0]
         # xyce raw files always use linear scale on the abscissa; the file format does not encode a scale keyword
         abscissa_scale = AbscissaScale.LINEAR
-        # parse the data section — ascii (Values:) or binary (Binary:)
-        if is_ascii:
-            variables = _parse_ascii_variables(data, data_offset, variable_definitions, is_complex, num_variables, num_points)
+        # derive is_stepped from the Flags header (legacy single-block stepped flag)
+        is_stepped = "stepped" in first_header.get("Flags", "").lower()
+        # single-block file: use existing step detection logic
+        if len(blocks) == 1:
+            # variables from the single parsed block
+            variables = first_exprs
+            # apply scale transformation to the abscissa (no-op for linear)
+            abscissa = _process_scale(variables[0], abscissa_scale)
+            # detect steps from the stepped flag or abscissa resets
+            step_information = _process_steps(is_stepped, variables, abscissa, first_num_points)
         else:
-            variables = _parse_binary_variables(data, data_offset, variable_definitions, is_complex, num_variables, num_points)
-        # validate that variable parsing succeeded
-        if variables is None or len(variables) == 0:
-            # log error
-            logger.error("invalid Xyce RAW file: failed to parse variable data")
-            # exit
-            return None
-        # actual point count after parsing (may differ from header when No. Points was 0)
-        actual_num_points = len(variables[0].data)
-        # process scale (no-op for linear) before step detection so abscissa values are correct
-        abscissa = _process_scale(variables[0], abscissa_scale)
-        # process steps using the abscissa values — slices are needed by the expression manager for @N
-        step_information = _process_steps(is_stepped, variables, abscissa, actual_num_points)
-        # build step slices tuple for @N selector support in expressions
+            # multi-block file: build per-variable multi-step expressions from accumulated block data
+            num_variables = len(first_exprs)
+            # per-variable accumulator: each inner list collects one strided view per block
+            per_var_steps: list[list[np.ndarray]] = [[] for _ in range(num_variables)]
+            # step parameter name extracted from Plotname (shared across all blocks)
+            step_param_name: str | None = None
+            # parameter value tuple per block (one element per parameter)
+            step_param_values: list[tuple] = []
+            # flat-layout abscissa slice boundaries for ExpressionManager @N support
+            abscissa_indices: list[slice] = []
+            # per-step abscissa value ranges for StepInformation
+            abscissa_value_ranges: list[tuple[float, float]] = []
+            # running byte cursor for flat slice construction
+            cursor = 0
+            # iterate over all parsed blocks to accumulate per-variable step views
+            for block_header, block_exprs, block_num_points, _ in blocks:
+                # collect per-variable step views for this block (zero copy: step_data(0) is the strided mmap view)
+                for i in range(num_variables):
+                    per_var_steps[i].append(block_exprs[i].step_data(0))
+                # extract step parameter from Plotname when present
+                block_plotname = block_header.get("Plotname", "")
+                match = _STEP_PLOTNAME_RE.match(block_plotname)
+                if match:
+                    # record the parameter name from the first matching block
+                    if step_param_name is None:
+                        step_param_name = match.group(1)
+                    # parse the parameter value as float; fall back to 0.0 on parse error
+                    try:
+                        param_value: float = float(match.group(2))
+                    except ValueError:
+                        param_value = 0.0
+                    step_param_values.append((param_value,))
+                else:
+                    # no step metadata available for this block
+                    step_param_values.append(())
+                # build the flat-layout abscissa slice for this block
+                abscissa_indices.append(slice(cursor, cursor + block_num_points))
+                # advance the cursor by this block's point count
+                cursor += block_num_points
+                # record the abscissa value range for this block
+                block_abscissa = per_var_steps[0][-1]
+                abscissa_value_ranges.append((float(block_abscissa[0]), float(block_abscissa[-1])))
+            # build multi-step Expression objects: each variable holds a list of per-block views
+            variables = []
+            for i in range(num_variables):
+                first_expr = first_exprs[i]
+                variables.append(Expression(first_expr.name, per_var_steps[i], first_expr.unit, source=None, variable_type=first_expr.variable_type))
+            # apply scale transformation to the multi-step abscissa
+            abscissa = _process_scale(variables[0], abscissa_scale)
+            # determine step keys and values from extracted parameter metadata
+            step_keys = [step_param_name] if step_param_name is not None else []
+            step_values = step_param_values if step_param_name is not None else [() for _ in blocks]
+            # build step information directly from block metadata
+            step_information = StepInformation(keys=step_keys, values=step_values, abscissa_indices=abscissa_indices, abscissa_value_ranges=abscissa_value_ranges)
+        # build step slices tuple for @N selector support in the expression manager
         step_slices: tuple[slice, ...] | None = tuple(step_information.abscissa_indices) if step_information.length > 1 else None
         # create expression manager with all parsed variables
         expression_manager = ExpressionManager(variables, step_slices)
         # command comes from the Command: header; fall back to the Version: line if present (Xyce optionally writes a Version: line)
-        command = header.get("Command", header.get("Version", ""))
-        # create XyceRawFile instance with parsed header, variables, and data; pass the mmap so it stays alive for the lifetime of the XyceRawFile — Variable arrays are views into it
-        return XyceOutputFile(filename=path, title=header.get("Title", ""), date=header.get("Date", ""), plotname=header.get("Plotname", ""), complex=is_complex, step_information=step_information, abscissa=abscissa, abscissa_scale=abscissa_scale, command=command, expression_manager=expression_manager, _mmap=data)
+        command = first_header.get("Command", first_header.get("Version", ""))
+        # create XyceOutputFile instance with parsed header, variables, and data; pass the mmap so it stays alive for the lifetime of the object — variable arrays are views into it
+        return XyceOutputFile(filename=path, title=first_header.get("Title", ""), date=first_header.get("Date", ""), plotname=first_header.get("Plotname", ""), complex=first_is_complex, step_information=step_information, abscissa=abscissa, abscissa_scale=abscissa_scale, command=command, expression_manager=expression_manager, _mmap=data)
     finally:
         # log information
         logger.info("Finished loading Xyce RAW file: %s, latency: %f seconds", path, time.perf_counter() - start_time)

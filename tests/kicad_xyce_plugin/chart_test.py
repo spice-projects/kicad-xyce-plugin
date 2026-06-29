@@ -666,11 +666,13 @@ class TestChart:
         component = MagicMock()
         n = 10
         values = np.linspace(0.0, 1.0, n)
-        abscissa = Expression("Time", values, "s")
-        # two steps: 20 ordinate points total (10 per step)
-        ordinate_data = np.linspace(0.0, 5.0, 2 * n)
+        # abscissa and ordinate must be multi-step so step_data(step) works for each step
+        abscissa = Expression("Time", [values, values], "s")
+        # two steps: one ordinate array per step
+        ordinate_step0 = np.linspace(0.0, 2.5, n)
+        ordinate_step1 = np.linspace(2.5, 5.0, n)
         chart = _make_chart(component, MagicMock(), _make_step_information(2, n), abscissa)
-        vout = Expression("Vout", ordinate_data, "V")
+        vout = Expression("Vout", [ordinate_step0, ordinate_step1], "V")
         decimated_y = np.linspace(0.0, 5.0, n)
         # act
         with patch("kicad_xyce_plugin.chart.decimate_xy", return_value=(values, decimated_y)):
