@@ -537,7 +537,7 @@ class MainWindow(QMainWindow):
         # create expression manager
         expression_manager = ExpressionManager([self._raw_file.abscissa] + expressions, self._expression_manager.function_definitions, self._expression_manager.step_slices)
         # create raw file
-        qraw_file = XyceOutputFile(filename=self._qraw_path, title=self._raw_file.title, date=self._raw_file.date, plotname=self._raw_file.plotname, complex=self._raw_file.complex, step_information=self._raw_file.step_information, abscissa=self._raw_file.abscissa, abscissa_scale=self._raw_file.abscissa_scale, command=self._raw_file.command, expression_manager=expression_manager, chart_type=self._raw_file.chart_type)
+        qraw_file = XyceOutputFile(filename=self._qraw_path, title=self._raw_file.title, date=self._raw_file.date, complex=self._raw_file.complex, step_information=self._raw_file.step_information, abscissa=self._raw_file.abscissa, abscissa_scale=self._raw_file.abscissa_scale, expression_manager=expression_manager, chart_type=self._raw_file.chart_type)
         # create a new SmithChart Window
         smith_window = SmithChartWindow(qraw_file)
         # keep reference alive independently of the source main window

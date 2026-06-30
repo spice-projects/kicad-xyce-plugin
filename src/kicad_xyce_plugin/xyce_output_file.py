@@ -111,22 +111,17 @@ class PlotSuggestion:
 
 class XyceOutputFile:
 
-    def __init__(self, filename: Path, title: str, date: str, plotname: str, complex: bool, step_information: StepInformation, abscissa: Expression, abscissa_scale: AbscissaScale, command: str, expression_manager: ExpressionManager, _mmap: mmap.mmap | None = None):
+    def __init__(self, filename: Path, title: str, complex: bool, step_information: StepInformation, abscissa: Expression, abscissa_scale: AbscissaScale, expression_manager: ExpressionManager, _mmap: mmap.mmap | None = None):
         # fields
         self._filename = filename
         self._title = title
-        self._date = date
-        self._plotname = plotname
         self._complex = complex
         self._step_information = step_information
         self._abscissa = abscissa
         self._abscissa_scale = abscissa_scale
-        self._command = command
         self._expression_manager = expression_manager
         # keep the mmap alive for as long as this object exists — Variable._values arrays are zero-copy views into the mmap buffer; closing the mmap would invalidate all of them
         self._mmap = _mmap
-        # calculated
-        self._abscissa_points = len(abscissa.data)
 
     @property
     def filename(self) -> Path:
@@ -135,14 +130,6 @@ class XyceOutputFile:
     @property
     def title(self) -> str:
         return self._title
-
-    @property
-    def date(self) -> str:
-        return self._date
-
-    @property
-    def plotname(self) -> str:
-        return self._plotname
 
     @property
     def complex(self) -> bool:
@@ -173,10 +160,6 @@ class XyceOutputFile:
             return "TRANSIENT"
         # VOLTAGE (DC transfer sweep) and PARAMETER (operating point sweep) both use the DC layout
         return "DC"
-
-    @property
-    def command(self) -> str:
-        return self._command
 
     @property
     def expression_manager(self) -> ExpressionManager:
