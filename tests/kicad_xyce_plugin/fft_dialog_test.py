@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from kicad_xyce_plugin.expression import Expression
-from kicad_xyce_plugin.fft import FftOutput, WindowFunction, ZeroPadding
+from kicad_xyce_plugin.fft import FftOutput, WindowFunction
 
 _fft_dialog_module = None
 
@@ -184,8 +184,8 @@ def _make_dialog(abscissa_values=None, zoom_from=0, zoom_to=10):
     dialog._result_from_index = float(abscissa_values[0])
     dialog._result_to_index = float(abscissa_values[-1])
     dialog._result_window = WindowFunction.RECTANGULAR
-    dialog._result_zero_pad = ZeroPadding.NONE
-    dialog._result_normalize = False
+    dialog._result_np_points = 1024
+    dialog._result_normalize = True
     dialog._result_keep_dc = False
     dialog._result_output = FftOutput.MAGNITUDE
     dialog._accepted_calls = []
@@ -202,7 +202,7 @@ class TestFftDialogOnDialogAccepted:
         dialog, _e1, _e2 = _make_dialog()
         dialog._selected_expressions = set()
         # act
-        dialog._on_dialog_accepted("Rectangular", "None", "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert len(dialog._rejected_calls) == 1
         assert dialog._result_expressions == []
@@ -234,7 +234,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange — both expressions are pre-selected by default
         dialog, e1, e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", "None", "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert e1 in dialog._result_expressions
         assert e2 in dialog._result_expressions
@@ -244,7 +244,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Hamming", "None", "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Hamming", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_window == WindowFunction.HAMMING
 
@@ -252,31 +252,39 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("???", "None", "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("???", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_window == WindowFunction.RECTANGULAR
 
-    def test_zero_pad_next_power_stored(self):
-        # arrange
-        dialog, _e1, _e2 = _make_dialog()
-        # act — value string must match the enum definition exactly (capital P and T)
-        dialog._on_dialog_accepted("Rectangular", "Next Power of Two", "Magnitude", False, "full", 0.0, 1.0, False)
-        # assert
-        assert dialog._result_zero_pad == ZeroPadding.NEXT_POWER_OF_TWO
-
-    def test_zero_pad_unknown_falls_back_to_none(self):
+    def test_np_points_stored(self):
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", "???", "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 2048, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
-        assert dialog._result_zero_pad == ZeroPadding.NONE
+        assert dialog._result_np_points == 2048
+
+    def test_np_points_not_power_of_two_falls_back_to_default(self):
+        # arrange
+        dialog, _e1, _e2 = _make_dialog()
+        # act
+        dialog._on_dialog_accepted("Rectangular", 300, "Magnitude", False, "full", 0.0, 1.0, False)
+        # assert
+        assert dialog._result_np_points == 1024
+
+    def test_np_points_less_than_four_falls_back_to_default(self):
+        # arrange
+        dialog, _e1, _e2 = _make_dialog()
+        # act
+        dialog._on_dialog_accepted("Rectangular", 2, "Magnitude", False, "full", 0.0, 1.0, False)
+        # assert
+        assert dialog._result_np_points == 1024
 
     def test_output_type_magnitude_db_stored(self):
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", "None", "Magnitude (dB)", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude (dB)", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_output == FftOutput.MAGNITUDE_DB
 
@@ -284,7 +292,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", "None", "Phase", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1024, "Phase", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_output == FftOutput.PHASE
 
@@ -292,7 +300,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", "None", "???", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1024, "???", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_output == FftOutput.MAGNITUDE
 
@@ -300,7 +308,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", "None", "Magnitude", True, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", True, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_normalize is True
 
@@ -308,7 +316,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", "None", "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_normalize is False
 
@@ -316,7 +324,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange — 11-point abscissa
         dialog, _e1, _e2 = _make_dialog(np.linspace(0.0, 1.0, 11))
         # act
-        dialog._on_dialog_accepted("Rectangular", "None", "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_from_index == 0.0
         assert dialog._result_to_index == 1.0
@@ -325,7 +333,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog(np.linspace(0.0, 1.0, 11))
         # act — unrecognised range_mode triggers full-range fallback
-        dialog._on_dialog_accepted("Rectangular", "None", "Magnitude", False, "unknown_mode", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "unknown_mode", 0.0, 1.0, False)
         # assert
         assert dialog._result_from_index == 0.0
         assert dialog._result_to_index == 1.0
@@ -334,7 +342,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", "None", "Magnitude", False, "full", 0.0, 1.0, True)
+        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, True)
         # assert
         assert dialog._result_keep_dc is True
 
@@ -342,7 +350,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", "None", "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_keep_dc is False
 
@@ -365,13 +373,13 @@ class TestFftDialogInitAndQml:
         assert dialog._result_from_index == min_val
         assert dialog._result_to_index == max_val
         assert dialog._result_window == WindowFunction.HANNING
-        assert dialog._result_zero_pad == ZeroPadding.NONE
-        assert dialog._result_normalize is False
+        assert dialog._result_np_points == 1024
+        assert dialog._result_normalize is True
         assert dialog._result_keep_dc is False
         assert dialog._result_output == FftOutput.MAGNITUDE
         assert "windowFunctions" in dialog._ctx_properties
         assert "outputTypes" in dialog._ctx_properties
-        assert "zeroPaddingOptions" in dialog._ctx_properties
+        assert "fftPointOptions" in dialog._ctx_properties
         assert dialog._ctx_properties["abscissaMin"] == min_val
         assert dialog._ctx_properties["abscissaMax"] == max_val
         assert dialog._ctx_properties["zoomFromTime"] == min_zoom
@@ -403,7 +411,7 @@ class TestFftDialogInitAndQml:
     def test_result_expressions_property_after_accept(self):
         # arrange — both expressions are pre-selected; verify both appear in result
         dialog, e1, e2 = _make_dialog()
-        dialog._on_dialog_accepted("Rectangular", "None", "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
         # act / assert
         assert dialog.result_expressions == [e1, e2]
 
@@ -428,12 +436,12 @@ class TestFftDialogInitAndQml:
         # act / assert
         assert dialog.result_window == WindowFunction.BLACKMAN
 
-    def test_result_zero_pad_property(self):
+    def test_result_np_points_property(self):
         # arrange
         dialog, _e1, _e2 = _make_dialog()
-        dialog._result_zero_pad = ZeroPadding.NEXT_POWER_OF_TWO
+        dialog._result_np_points = 2048
         # act / assert
-        assert dialog.result_zero_pad == ZeroPadding.NEXT_POWER_OF_TWO
+        assert dialog.result_np_points == 2048
 
     def test_result_normalize_property(self):
         # arrange

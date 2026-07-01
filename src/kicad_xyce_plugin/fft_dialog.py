@@ -7,7 +7,7 @@ from PySide6.QtQuick import QQuickView
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
 
 from .expression import Expression
-from .fft import FftOutput, WindowFunction, ZeroPadding
+from .fft import FftOutput, WindowFunction
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ _BG = "#1a1b1e"
 class FftDialog(QDialog):
     """Dialog for configuring and launching an FFT computation.
 
-    Presents a QML UI for selecting FFT parameters: expressions, data range, window, zero-padding, normalization, output type, and DC option. After acceptance, result properties reflect the user's selections.
+    Presents a QML UI for selecting FFT parameters: expressions, data range, window, FFT point count, normalization, output type, and DC option. After acceptance, result properties reflect the user's selections.
 
     Parameters:
         parent: QWidget — parent widget
@@ -41,8 +41,8 @@ class FftDialog(QDialog):
         self._result_from_index: float = float(min_abscissa_value)
         self._result_to_index: float = float(max_abscissa_value)
         self._result_window: WindowFunction = WindowFunction.HANNING
-        self._result_zero_pad: ZeroPadding = ZeroPadding.NONE
-        self._result_normalize: bool = False
+        self._result_np_points: int = 1024
+        self._result_normalize: bool = True
         self._result_keep_dc: bool = False
         self._result_output: FftOutput = FftOutput.MAGNITUDE
         # window setup
@@ -54,12 +54,13 @@ class FftDialog(QDialog):
         self._ctx_properties = {
             "windowFunctions": [w.value for w in WindowFunction],
             "outputTypes": [o.value for o in FftOutput],
-            "zeroPaddingOptions": [z.value for z in ZeroPadding],
+            "fftPointOptions": [128, 256, 512, 1024, 2048, 4096, 8192],
             "abscissaMin": min_abscissa_value,
             "abscissaMax": max_abscissa_value,
             "zoomFromTime": min_abscissa_value_zoomed,
             "zoomToTime": max_abscissa_value_zoomed,
             "defaultWindowIndex": [w.value for w in WindowFunction].index(WindowFunction.HANNING.value),
+            "defaultFftPointIndex": 3,
         }
         # create QML view
         self._qml_view = QQuickView()
@@ -102,8 +103,8 @@ class FftDialog(QDialog):
         else:
             self._selected_expressions.discard(expression)
 
-    @Slot(str, str, str, bool, str, float, float, bool)
-    def _on_dialog_accepted(self, window_fn: str, zero_pad: str, output: str, normalize: bool, range_mode: str, custom_from: float, custom_to: float, keep_dc: bool):
+    @Slot(str, int, str, bool, str, float, float, bool)
+    def _on_dialog_accepted(self, window_fn: str, np_points: int, output: str, normalize: bool, range_mode: str, custom_from: float, custom_to: float, keep_dc: bool):
         """Validate selection, store result properties, and close the dialog when accepted from QML UI."""
         # reject if no expressions are selected
         if not self._selected_expressions:
@@ -122,11 +123,19 @@ class FftDialog(QDialog):
             # fall back to rectangular when the value is unrecognised
             self._result_window = WindowFunction.RECTANGULAR
         try:
-            # zero-padding
-            self._result_zero_pad = ZeroPadding(zero_pad)
-        except ValueError:
-            # fall back to no padding when the value is unrecognised
-            self._result_zero_pad = ZeroPadding.NONE
+            # FFT point count
+            self._result_np_points = int(np_points)
+        except (TypeError, ValueError):
+            # fall back to default when the value is unrecognised
+            self._result_np_points = 1024
+        # validate minimum FFT point count
+        if self._result_np_points < 4:
+            # fall back to default when too small
+            self._result_np_points = 1024
+        # validate power-of-two FFT point count
+        if self._result_np_points & (self._result_np_points - 1):
+            # fall back to default when not a power of two
+            self._result_np_points = 1024
         try:
             # output type
             self._result_output = FftOutput(output)
@@ -161,9 +170,9 @@ class FftDialog(QDialog):
         return self._result_window
 
     @property
-    def result_zero_pad(self) -> ZeroPadding:
-        """Selected zero-padding option for FFT."""
-        return self._result_zero_pad
+    def result_np_points(self) -> int:
+        """Selected FFT point count for interpolation/FFT."""
+        return self._result_np_points
 
     @property
     def result_normalize(self) -> bool:

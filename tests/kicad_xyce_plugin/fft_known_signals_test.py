@@ -1,12 +1,30 @@
 import numpy as np
 import pytest
 
-from kicad_xyce_plugin.fft import compute_fft_many, FftOutput, WindowFunction, ZeroPadding
+from kicad_xyce_plugin.fft import compute_fft_many, FftOutput, WindowFunction
 
 
-def _compute_fft(x, y, window=WindowFunction.RECTANGULAR, zero_pad=ZeroPadding.NONE, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False):
+def _next_power_of_two(value):
+    # convert to plain int
+    integer_value = int(value)
+    # return the minimum supported FFT point count
+    if integer_value <= 4:
+        return 4
+    # compute the next power-of-two value
+    return 1 << int(np.ceil(np.log2(integer_value)))
+
+
+def _compute_fft(x, y, window=WindowFunction.RECTANGULAR, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False, np_points=None, x_left_index=0, x_right_index=None):
+    # default right interval index to the end of x
+    if x_right_index is None:
+        x_right_index = len(x)
+    # compute number of selected samples
+    selected_sample_count = int(x_right_index) - int(x_left_index)
+    # infer FFT point count from the selected interval when omitted
+    if np_points is None:
+        np_points = _next_power_of_two(selected_sample_count)
     # use the batch API for a single signal
-    freqs, mat = compute_fft_many(x, np.asarray([y]), window, zero_pad, normalize, output, keep_dc)
+    freqs, mat = compute_fft_many(x, np.asarray([y]), np_points=np_points, window=window, normalize=normalize, x_left_index=x_left_index, x_right_index=x_right_index, output=output, keep_dc=keep_dc)
     # unwrap row 0
     return freqs, mat[0]
 

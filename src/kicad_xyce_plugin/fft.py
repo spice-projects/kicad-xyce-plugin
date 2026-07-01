@@ -10,14 +10,11 @@ requires only a single entry in that dict.
 
 Public API
 ----------
-compute_fft_many(x, y_matrix, window, zero_pad, normalize, output, keep_dc)
+compute_fft_many(x, y_matrix, np_points, window, normalize, x_left_index, x_right_index, output, keep_dc)
     Batch computation for multiple signals sharing the same *x* axis.
 
 is_uniform(x, rtol, atol)
     Returns *True* when *x* is sampled on a uniform grid.
-
-resample_uniform(x, y, num_points)
-    Re-samples *(x, y)* onto a uniform grid via linear interpolation.
 
 fft_frequency_range(x)
     Returns *(bin_width_hz, nyquist_hz)* for a preview before running the FFT.
@@ -40,11 +37,6 @@ class FftOutput(enum.Enum):
     MAGNITUDE = "Magnitude"
     MAGNITUDE_DB = "Magnitude (dB)"
     PHASE = "Phase"
-
-
-class ZeroPadding(enum.Enum):
-    NONE = "None"
-    NEXT_POWER_OF_TWO = "Next Power of Two"
 
 
 # ---------------------------------------------------------------------------
@@ -93,40 +85,18 @@ def is_uniform(x: np.ndarray, rtol: float = 1e-3, atol: float | None = None) -> 
     return bool(np.all(np.isclose(diffs, diffs[0], rtol=rtol, atol=atol)))
 
 
-def resample_uniform(x: np.ndarray, y: np.ndarray, num_points: int | None = None) -> tuple[np.ndarray, np.ndarray]:
-    """Re-sample *(x, y)* onto a uniform time grid using linear interpolation.
-
-    Parameters
-    ----------
-    x          : original (possibly non-uniform) time array.
-    y          : corresponding signal array.
-    num_points : desired number of output points; defaults to ``len(x)``.
-
-    Returns
-    -------
-    Tuple *(x_uniform, y_uniform)* on an evenly-spaced grid spanning ``[x[0], x[-1]]``.
-    """
-    # default to same number of points as the input
-    if num_points is None:
-        num_points = len(x)
-    # build an evenly-spaced time grid spanning the same interval as the input
-    x_uniform = np.linspace(float(x[0]), float(x[-1]), num_points)
-    # interpolate signal values onto the new uniform grid
-    y_uniform = np.interp(x_uniform, x, y)
-    # return new axis data
-    return x_uniform, y_uniform
-
-
-def compute_fft_many(x: np.ndarray, y_matrix: np.ndarray, window: WindowFunction = WindowFunction.RECTANGULAR, zero_pad: ZeroPadding = ZeroPadding.NONE, normalize: bool = False, output: FftOutput = FftOutput.MAGNITUDE, keep_dc: bool = False) -> tuple[np.ndarray, np.ndarray]:
+def compute_fft_many(x: np.ndarray, y_matrix: np.ndarray, np_points: int, window: WindowFunction = WindowFunction.RECTANGULAR, normalize: bool = False, x_left_index: int = 0, x_right_index: int | None = None, output: FftOutput = FftOutput.MAGNITUDE, keep_dc: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """Compute FFT for many real-valued signals that share the same *x* axis.
 
     Parameters
     ----------
     x         : time values in seconds (1-D, real, at least 2 elements).
     y_matrix  : signal matrix with shape *(signals, samples)*.
+    np_points : number of points used by FFT/interpolation; must be a power of 2 and >= 4.
     window    : window function applied to each signal before the FFT.
-    zero_pad  : zero-padding strategy (``NONE`` or ``NEXT_POWER_OF_TWO``).
     normalize : when *True*, each signal is scaled so its peak magnitude equals 1.
+    x_left_index  : inclusive left index for the selected abscissa interval.
+    x_right_index : exclusive right index for the selected abscissa interval; defaults to ``len(x)``.
     output    : which quantity to return (magnitude, dB or phase).
     keep_dc   : when *False* (default), per-signal mean is subtracted before windowing.
 
@@ -138,8 +108,9 @@ def compute_fft_many(x: np.ndarray, y_matrix: np.ndarray, window: WindowFunction
     Raises
     ------
     ValueError
-        If dimensions are invalid, sample counts do not match *x*, fewer than
-        2 samples are provided, or an unrecognised enum value is passed.
+        If dimensions are invalid, sample counts do not match *x*, interval
+        indices are invalid, fewer than 2 interval samples are provided,
+        ``np_points`` is invalid, or an unrecognised enum value is passed.
     """
     # ensure x is a 1-D float array
     x_arr = np.asarray(x, dtype=np.float64)
@@ -151,48 +122,67 @@ def compute_fft_many(x: np.ndarray, y_matrix: np.ndarray, window: WindowFunction
         y_arr = y_arr.reshape(1, -1)
     if y_arr.ndim != 2:
         raise ValueError("y_matrix must be a 1-D or 2-D array")
+    # validate FFT point count type
+    if not isinstance(np_points, (int, np.integer)):
+        raise ValueError("np_points must be an integer")
+    # convert FFT point count to plain int
+    n_fft = int(np_points)
+    # validate minimum FFT point count
+    if n_fft < 4:
+        raise ValueError("np_points must be at least 4")
+    # validate power-of-two FFT point count
+    if n_fft & (n_fft - 1):
+        raise ValueError("np_points must be a power of 2")
     # validate sample count compatibility between x and each signal
     if y_arr.shape[1] != len(x_arr):
         raise ValueError("x and y_matrix sample counts must match")
-    # validate minimum number of samples required for FFT
-    if y_arr.shape[1] < 2:
-        raise ValueError("at least 2 samples are required for FFT")
+    # default the right interval index to the end of x
+    if x_right_index is None:
+        x_right_index = len(x_arr)
+    # validate interval index types
+    if not isinstance(x_left_index, (int, np.integer)) or not isinstance(x_right_index, (int, np.integer)):
+        raise ValueError("x_left_index and x_right_index must be integers")
+    # convert interval indices to plain ints
+    left_index = int(x_left_index)
+    right_index = int(x_right_index)
+    # validate interval bounds and ordering
+    if left_index < 0 or right_index > len(x_arr) or left_index >= right_index:
+        raise ValueError("invalid interval indices")
+    # validate minimum number of interval samples required for interpolation
+    if right_index - left_index < 2:
+        raise ValueError("selected interval must contain at least 2 samples")
     # ensure real-valued matrix input
     y_arr = np.real(y_arr) if np.iscomplexobj(y_arr) else np.asarray(y_arr, dtype=np.float64)
-    # resample all signals to a shared uniform grid when necessary
-    if not is_uniform(x_arr):
-        # create a uniform grid spanning the same interval as the input
-        x_uniform = np.linspace(float(x_arr[0]), float(x_arr[-1]), len(x_arr))
-        # interpolate each signal onto the new uniform grid
-        y_resampled = np.empty_like(y_arr, dtype=np.float64)
-        for row_index in range(y_arr.shape[0]):
-            y_resampled[row_index] = np.interp(x_uniform, x_arr, y_arr[row_index])
-        # switch to the new uniform grid and resampled signals for the rest of the computation
-        x_arr = x_uniform
-        y_arr = y_resampled
+    # select the abscissa interval used for the FFT
+    x_interval = x_arr[left_index:right_index]
+    # validate strict monotonic increase required by interpolation/FFT sampling interval
+    if np.any(np.diff(x_interval) <= 0):
+        raise ValueError("x values in selected interval must be strictly increasing")
+    # select signal samples for the same abscissa interval
+    y_interval = y_arr[:, left_index:right_index]
+    # interpolate to a uniform grid with the requested FFT point count
+    x_uniform = np.linspace(float(x_interval[0]), float(x_interval[-1]), n_fft)
+    # allocate matrix for interpolated signals
+    y_resampled = np.empty((y_interval.shape[0], n_fft), dtype=np.float64)
+    # interpolate each signal row onto the uniform grid
+    for row_index in range(y_interval.shape[0]):
+        y_resampled[row_index] = np.interp(x_uniform, x_interval, y_interval[row_index])
     # sampling interval and rate
-    dt = float(x_arr[1] - x_arr[0])
+    dt = float(x_uniform[1] - x_uniform[0])
     # validate that the time step is positive
     if dt <= 0:
         raise ValueError("time step dt must be positive")
-    # number of input samples
-    n = y_arr.shape[1]
     # subtract per-signal mean to remove DC component when keep_dc is False
     if not keep_dc:
-        y_arr = y_arr - np.mean(y_arr, axis=1, keepdims=True)
+        y_resampled = y_resampled - np.mean(y_resampled, axis=1, keepdims=True)
     # apply window function
-    win = WINDOW_REGISTRY[window](n)
+    win = WINDOW_REGISTRY[window](n_fft)
     # defensive guard: ensure the coherent gain denominator is non-zero
     win_sum = float(np.sum(win))
     if win_sum == 0.0:
         raise ValueError("sum of window weights is zero")
     # apply window to all signals via broadcasting
-    y_windowed = y_arr * win
-    # zero-padding
-    if zero_pad == ZeroPadding.NEXT_POWER_OF_TWO:
-        n_fft = int(2 ** np.ceil(np.log2(n)))
-    else:
-        n_fft = n
+    y_windowed = y_resampled * win
     # compute one-sided FFT for all rows at once
     spectrum = np.fft.rfft(y_windowed, n=n_fft, axis=1)
     # frequency axis in Hz

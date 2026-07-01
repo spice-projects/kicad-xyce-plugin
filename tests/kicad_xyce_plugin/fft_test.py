@@ -1,11 +1,29 @@
 import numpy as np
 
-from kicad_xyce_plugin.fft import WINDOW_REGISTRY, FftOutput, WindowFunction, ZeroPadding, compute_fft_many, fft_frequency_range, is_uniform, resample_uniform
+from kicad_xyce_plugin.fft import WINDOW_REGISTRY, FftOutput, WindowFunction, compute_fft_many, fft_frequency_range, is_uniform
 
 
-def _compute_fft(x, y, window=WindowFunction.RECTANGULAR, zero_pad=ZeroPadding.NONE, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False):
+def _next_power_of_two(value):
+    # convert to plain int
+    integer_value = int(value)
+    # return the minimum supported FFT point count
+    if integer_value <= 4:
+        return 4
+    # compute the next power-of-two value
+    return 1 << int(np.ceil(np.log2(integer_value)))
+
+
+def _compute_fft(x, y, window=WindowFunction.RECTANGULAR, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False, np_points=None, x_left_index=0, x_right_index=None):
+    # default right interval index to the end of x
+    if x_right_index is None:
+        x_right_index = len(x)
+    # compute number of selected samples
+    selected_sample_count = int(x_right_index) - int(x_left_index)
+    # infer FFT point count from the selected interval when omitted
+    if np_points is None:
+        np_points = _next_power_of_two(selected_sample_count)
     # use the batch API for a single signal and unwrap row 0
-    frequencies, values_matrix = compute_fft_many(x, np.asarray([y]), window, zero_pad, normalize, output, keep_dc)
+    frequencies, values_matrix = compute_fft_many(x, np.asarray([y]), np_points=np_points, window=window, normalize=normalize, x_left_index=x_left_index, x_right_index=x_right_index, output=output, keep_dc=keep_dc)
     return frequencies, values_matrix[0]
 
 
@@ -75,46 +93,6 @@ class TestFft:
         result = is_uniform(x)
         # assert — must be treated as uniform
         assert result
-
-    def test_resample_uniform_output_length_matches_requested(self):
-        # arrange
-        x = np.array([0.0, 0.1, 0.3, 0.7, 1.0])
-        y = np.sin(x)
-        # act
-        x_u, y_u = resample_uniform(x, y, num_points=50)
-        # assert
-        assert len(x_u) == 50
-        assert len(y_u) == 50
-
-    def test_resample_uniform_output_is_uniform(self):
-        # arrange
-        x = np.logspace(-3, 0, 200)
-        y = np.cos(x)
-        # act
-        x_u, _ = resample_uniform(x, y)
-        # assert
-        assert is_uniform(x_u)
-
-    def test_resample_uniform_endpoints_preserved(self):
-        # arrange
-        x = np.array([0.0, 0.5, 1.0])
-        y = np.array([1.0, 2.0, 3.0])
-        # act
-        x_u, y_u = resample_uniform(x, y, num_points=5)
-        # assert
-        assert abs(float(x_u[0]) - 0.0) < 1e-7
-        assert abs(float(x_u[-1]) - 1.0) < 1e-7
-        assert abs(float(y_u[0]) - 1.0) < 0.5 * 10**(-10)
-        assert abs(float(y_u[-1]) - 3.0) < 0.5 * 10**(-10)
-
-    def test_resample_uniform_default_num_points_equals_input_length(self):
-        # arrange
-        x = np.linspace(0.0, 1.0, 37)
-        y = np.ones(37)
-        # act
-        _, y_u = resample_uniform(x, y)
-        # assert
-        assert len(y_u) == 37
 
     def test_window_registry_all_windows_registered(self):
         # arrange
@@ -241,17 +219,72 @@ class TestFft:
         # assert
         assert abs(float(np.max(magnitude)) - 1.0) < 0.5 * 10**(-5)
 
-    def test_compute_fft_zero_padding_increases_bin_count(self):
-        # arrange — deliberately non-power-of-two length
-        n = 100
+    def test_compute_fft_larger_np_points_increases_bin_count(self):
+        # arrange
+        n = 128
         fs = 1000.0
         x = np.linspace(0.0, n / fs, n, endpoint=False)
         y = np.sin(2 * np.pi * 100.0 * x)
         # act
-        freq_no_pad, _ = _compute_fft(x, y, zero_pad=ZeroPadding.NONE)
-        freq_padded, _ = _compute_fft(x, y, zero_pad=ZeroPadding.NEXT_POWER_OF_TWO)
-        # assert — padded FFT must have more frequency bins
-        assert len(freq_padded) > len(freq_no_pad)
+        freq_128, _ = _compute_fft(x, y, np_points=128)
+        freq_512, _ = _compute_fft(x, y, np_points=512)
+        # assert
+        assert len(freq_512) > len(freq_128)
+
+    def test_compute_fft_raises_when_np_points_not_power_of_two(self):
+        # arrange
+        n = 128
+        x = np.linspace(0.0, 1.0, n, endpoint=False)
+        y = np.sin(2 * np.pi * 20.0 * x)
+        # act / assert
+        try:
+            _compute_fft(x, y, np_points=300)
+        except ValueError:
+            pass
+        else:
+            assert False, "Expected ValueError"
+
+    def test_compute_fft_raises_when_np_points_is_too_small(self):
+        # arrange
+        n = 128
+        x = np.linspace(0.0, 1.0, n, endpoint=False)
+        y = np.sin(2 * np.pi * 20.0 * x)
+        # act / assert
+        try:
+            _compute_fft(x, y, np_points=2)
+        except ValueError:
+            pass
+        else:
+            assert False, "Expected ValueError"
+
+    def test_compute_fft_raises_when_interval_indices_are_invalid(self):
+        # arrange
+        n = 128
+        x = np.linspace(0.0, 1.0, n, endpoint=False)
+        y = np.sin(2 * np.pi * 10.0 * x)
+        # act / assert
+        try:
+            _compute_fft(x, y, np_points=128, x_left_index=90, x_right_index=20)
+        except ValueError:
+            pass
+        else:
+            assert False, "Expected ValueError"
+
+    def test_compute_fft_interpolates_selected_interval_to_requested_point_count(self):
+        # arrange
+        n = 1000
+        fs = 1000.0
+        f_tone = 50.0
+        x = np.linspace(0.0, n / fs, n, endpoint=False)
+        y = np.sin(2 * np.pi * f_tone * x)
+        x_left_index = 100
+        x_right_index = 600
+        np_points = 512
+        # act
+        frequencies, magnitude = _compute_fft(x, y, np_points=np_points, x_left_index=x_left_index, x_right_index=x_right_index)
+        # assert
+        assert len(frequencies) == (np_points // 2) + 1
+        assert len(magnitude) == len(frequencies)
 
     def test_compute_fft_non_uniform_input_is_resampled_without_error(self):
         # arrange — exponentially spaced time axis, definitely non-uniform
@@ -430,7 +463,7 @@ class TestFft:
         x = np.linspace(0.0, n / fs, n, endpoint=False)
         y = 1.0 * np.sin(2 * np.pi * f1 * x) + 0.1 * np.sin(2 * np.pi * 2.0 * f1 * x)
         # act — compute FFT and then THD
-        freqs, magnitude = _compute_fft(x, y, window=WindowFunction.RECTANGULAR, zero_pad=ZeroPadding.NEXT_POWER_OF_TWO, output=FftOutput.MAGNITUDE)
+        freqs, magnitude = _compute_fft(x, y, window=WindowFunction.RECTANGULAR, np_points=2048, output=FftOutput.MAGNITUDE)
         # assert — expected THD = 0.1 (linear)
         # compute_thd is tested in tests/thd_test.py
 
@@ -442,7 +475,7 @@ class TestFft:
         x = np.linspace(0.0, n / fs, n, endpoint=False)
         y = 1.0 * np.sin(2 * np.pi * f1 * x) + 0.2 * np.sin(2 * np.pi * 2.0 * f1 * x) + 0.05 * np.sin(2 * np.pi * 3.0 * f1 * x)
         # act
-        freqs, magnitude = _compute_fft(x, y, window=WindowFunction.HANNING, zero_pad=ZeroPadding.NEXT_POWER_OF_TWO, output=FftOutput.MAGNITUDE)
+        freqs, magnitude = _compute_fft(x, y, window=WindowFunction.HANNING, np_points=2048, output=FftOutput.MAGNITUDE)
         # compute_thd is tested in tests/thd_test.py
 
     def test_compute_thd_raises_on_zero_fundamental(self):
@@ -484,9 +517,9 @@ class TestFft:
         y2 = 0.5 * np.sin(2 * np.pi * 1200.0 * x)
         y_matrix = np.vstack([y1, y2])
         # act
-        frequencies_many, values_many = compute_fft_many(x, y_matrix, window=WindowFunction.HANNING, zero_pad=ZeroPadding.NEXT_POWER_OF_TWO, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False)
-        frequencies_1, values_1 = _compute_fft(x, y1, window=WindowFunction.HANNING, zero_pad=ZeroPadding.NEXT_POWER_OF_TWO, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False)
-        frequencies_2, values_2 = _compute_fft(x, y2, window=WindowFunction.HANNING, zero_pad=ZeroPadding.NEXT_POWER_OF_TWO, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False)
+        frequencies_many, values_many = compute_fft_many(x, y_matrix, np_points=2048, window=WindowFunction.HANNING, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False)
+        frequencies_1, values_1 = _compute_fft(x, y1, window=WindowFunction.HANNING, np_points=2048, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False)
+        frequencies_2, values_2 = _compute_fft(x, y2, window=WindowFunction.HANNING, np_points=2048, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False)
         # assert
         np.testing.assert_allclose(frequencies_many, frequencies_1)
         np.testing.assert_allclose(frequencies_many, frequencies_2)
@@ -500,9 +533,9 @@ class TestFft:
         y2 = np.cos(2 * np.pi * 120.0 * x)
         y_matrix = np.vstack([y1, y2])
         # act
-        frequencies_many, values_many = compute_fft_many(x, y_matrix, window=WindowFunction.RECTANGULAR, zero_pad=ZeroPadding.NONE, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False)
-        frequencies_1, values_1 = _compute_fft(x, y1, window=WindowFunction.RECTANGULAR, zero_pad=ZeroPadding.NONE, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False)
-        frequencies_2, values_2 = _compute_fft(x, y2, window=WindowFunction.RECTANGULAR, zero_pad=ZeroPadding.NONE, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False)
+        frequencies_many, values_many = compute_fft_many(x, y_matrix, np_points=512, window=WindowFunction.RECTANGULAR, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False)
+        frequencies_1, values_1 = _compute_fft(x, y1, window=WindowFunction.RECTANGULAR, np_points=512, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False)
+        frequencies_2, values_2 = _compute_fft(x, y2, window=WindowFunction.RECTANGULAR, np_points=512, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False)
         # assert
         np.testing.assert_allclose(frequencies_many, frequencies_1)
         np.testing.assert_allclose(frequencies_many, frequencies_2)

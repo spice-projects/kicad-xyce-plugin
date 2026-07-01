@@ -575,8 +575,8 @@ class MainWindow(QMainWindow):
         result_expressions = dialog.result_expressions
         from_abscissa_value = dialog.result_from_index
         to_abscissa_value = dialog.result_to_index
+        np_points = dialog.result_np_points
         window = dialog.result_window
-        zero_pad = dialog.result_zero_pad
         normalize = dialog.result_normalize
         keep_dc = dialog.result_keep_dc
         output = dialog.result_output
@@ -604,21 +604,19 @@ class MainWindow(QMainWindow):
                 logger.warning("Skipping FFT for chart %d step %d: selected range has fewer than 2 samples", chart_index, step)
                 # next step
                 continue
-            # abscissa data for the interval
-            step_abscissa_data = step_abscissa[from_index:to_index]
             # rows are [expr0, expr1, ..., exprN] for one step per FFT call
             signal_count = len(result_expressions)
             # build a dense matrix for all selected expressions for this step
-            y_matrix = np.empty((signal_count, to_index - from_index))
+            y_matrix = np.empty((signal_count, len(step_abscissa)))
             # fill matrix row-by-row using contiguous slices
             for expr_index, expression in enumerate(result_expressions):
                 # expression data for this step — zero copy per-step view
                 expression_step_data = expression.step_data(step)
-                # slice out the selected abscissa range for this expression and store it in the matrix
-                y_matrix[expr_index] = expression_step_data[from_index:to_index]
+                # store this full-step expression data in the matrix
+                y_matrix[expr_index] = expression_step_data
             try:
                 # fft internals allocate output arrays (spectrum/frequency/value matrices)
-                frequencies, fft_matrix = compute_fft_many(step_abscissa_data, y_matrix, window, zero_pad, normalize, output, keep_dc)
+                frequencies, fft_matrix = compute_fft_many(step_abscissa, y_matrix, np_points=np_points, window=window, normalize=normalize, x_left_index=from_index, x_right_index=to_index, output=output, keep_dc=keep_dc)
                 # guard against an unexpectedly empty frequency axis
                 if len(frequencies) == 0:
                     # log error and abort when no frequencies are returned

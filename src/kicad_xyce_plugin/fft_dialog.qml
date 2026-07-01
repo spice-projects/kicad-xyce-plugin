@@ -10,12 +10,13 @@ Item {
     // context properties injected by Python
     property var windowFunctions: []
     property var outputTypes: []
-    property var zeroPaddingOptions: []
+    property var fftPointOptions: []
     property real abscissaMin: 0
     property real abscissaMax: 0
     property real zoomFromTime: 0
     property real zoomToTime: 0
     property int defaultWindowIndex: 2
+    property int defaultFftPointIndex: 3
 
     // expression multi-select state
     property var expressionItems: []
@@ -38,7 +39,7 @@ Item {
         root.selectionState = state
     }
 
-    signal dialogAccepted(string windowFn, string zeroPad, string output, bool normalize, string rangeMode, real customFrom, real customTo, bool keepDc)
+    signal dialogAccepted(string windowFn, int npPoints, string output, bool normalize, string rangeMode, real customFrom, real customTo, bool keepDc)
     signal dialogRejected()
     signal selectionChanged(string expressionName, bool selected)
 
@@ -347,10 +348,10 @@ Item {
             }
 
             // ---------------------------------------------------------------
-            // Section: Zero Padding
+            // Section: FFT Points
             // ---------------------------------------------------------------
             Text {
-                text: "Zero Padding"
+                text: "FFT Points"
                 color: "#7a8599"
                 font.pixelSize: 11
                 font.capitalization: Font.AllUppercase
@@ -366,29 +367,31 @@ Item {
                 border.width: 1
 
                 ComboBox {
-                    id: zeroPadCombo
+                    id: fftPointCombo
                     anchors { fill: parent; margins: 2 }
-                    model: root.zeroPaddingOptions
+                    model: root.fftPointOptions
+                    currentIndex: root.defaultFftPointIndex
+                    onModelChanged: currentIndex = root.defaultFftPointIndex
                     background: Rectangle { color: "transparent" }
                     contentItem: Text {
                         leftPadding: 8
-                        text: zeroPadCombo.displayText
+                        text: fftPointCombo.displayText
                         color: "#dce8f8"
                         font.pixelSize: 12
                         verticalAlignment: Text.AlignVCenter
                     }
                     delegate: ItemDelegate {
-                        id: zeroPadDelegate
-                        required property string modelData
+                        id: fftPointDelegate
+                        required property var modelData
                         required property int index
-                        width: zeroPadCombo.width
+                        width: fftPointCombo.width
                         contentItem: Text {
-                            text: zeroPadDelegate.modelData
+                            text: String(fftPointDelegate.modelData)
                             color: "#b0b8c8"
                             font.pixelSize: 12
                         }
                         background: Rectangle {
-                            color: zeroPadCombo.highlightedIndex === zeroPadDelegate.index ? "#3a3d4a" : "#252730"
+                            color: fftPointCombo.highlightedIndex === fftPointDelegate.index ? "#3a3d4a" : "#252730"
                         }
                     }
                     popup.background: Rectangle {
@@ -481,7 +484,7 @@ Item {
                     CheckBox {
                         id: normalizeCheck
                         anchors.verticalCenter: parent.verticalCenter
-                        checked: false
+                        checked: true
                         indicator: Rectangle {
                             width: 16; height: 16
                             radius: 3
@@ -623,13 +626,13 @@ Item {
                     hoverEnabled: true
                     onClicked: {
                         var winFn = windowCombo.currentText
-                        var zp = zeroPadCombo.currentText
+                        var fftPts = parseInt(fftPointCombo.currentText)
                         var out = outputCombo.currentText
                         var norm = normalizeCheck.checked
                         var from = parseFloat(fromField.text)
                         var to = parseFloat(toField.text)
                         var keepDc = keepDcCheck.checked
-                        root.dialogAccepted(winFn, zp, out, norm, root.rangeMode, from, to, keepDc)
+                        root.dialogAccepted(winFn, fftPts, out, norm, root.rangeMode, from, to, keepDc)
                     }
                 }
             }
