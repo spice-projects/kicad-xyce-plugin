@@ -4,7 +4,7 @@ from typing import Any
 
 class Expression:
 
-    def __init__(self, name: str, steps: list[np.ndarray], unit: str, source: str | None = None, variable_type: str | None = None, data: np.ndarray | None = None, metadata: list[dict[str, Any]] = []):
+    def __init__(self, name: str, steps: list[np.ndarray], unit: str, source: str | None = None, variable_type: str | None = None, data: np.ndarray | None = None, metadata: list[dict[str, Any]] | None = None):
         # name field
         self._name = name
         # step data
@@ -20,7 +20,7 @@ class Expression:
         # combined steps in a single array, cached on first access if not provided
         self._data = data
         # metadata field
-        self._metadata = metadata
+        self._metadata = metadata if metadata is not None else []
 
     @property
     def name(self) -> str:

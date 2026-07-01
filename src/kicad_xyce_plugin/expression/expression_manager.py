@@ -46,6 +46,11 @@ class ExpressionManager:
         return list(self._context.values())
 
     @property
+    def expression_names(self) -> list[str]:
+        # return the names of all expressions in the context
+        return [e.name for e in self._context.values()]
+
+    @property
     def step_slices(self) -> tuple[slice, ...] | None:
         return self._step_slices
 
