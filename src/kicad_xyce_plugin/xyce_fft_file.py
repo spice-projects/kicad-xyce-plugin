@@ -239,6 +239,7 @@ def xyce_fft_file_parser(filename: Path) -> tuple[list[XyceOutputFile], list[Fft
     if not path.exists():
         # log error
         logger.error("Xyce FFT file not found: %s", path)
+        # exit
         return None
     # measure time taken to load file
     start_time = time.perf_counter()

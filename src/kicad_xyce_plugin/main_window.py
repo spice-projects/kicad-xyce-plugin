@@ -670,7 +670,7 @@ class MainWindow(QMainWindow):
         # create step information for FFT output
         fft_step_information = StepInformation(self._step_information.keys, fft_values, fft_abscissa_indices, fft_abscissa_value_ranges)
         # create raw file with fft calculation results
-        fft_raw = XyceOutputFile(filename=self._raw_file_path, title=f"FFT – {', '.join(e.name for e in result_expressions)}", date="", plotname="FFT", complex=False, step_information=fft_step_information, abscissa=freq_expression, abscissa_scale=AbscissaScale.LINEAR, command="", expression_manager=expression_manager)
+        fft_raw = XyceOutputFile(filename=self._raw_file_path, title=f"FFT – {', '.join(e.name for e in result_expressions)}", complex=False, step_information=fft_step_information, abscissa=freq_expression, abscissa_scale=AbscissaScale.LINEAR, expression_manager=expression_manager)
         # create a new MainWindow to render the FFT result
         fft_window = MainWindow(None, self._plugin_config, fft_raw, self._raw_file_path, plot_suggestion)
         # pre-focus the FFT window on the same steps the user was viewing in the source chart

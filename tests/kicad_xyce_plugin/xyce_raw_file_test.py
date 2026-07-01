@@ -1143,3 +1143,73 @@ class TestXyceOutputFileMultiBlock:
         assert raw.step_information.step_abscissa_right_value(1) == 2.0
         # cleanup
         os.unlink(path)
+
+
+class TestXyceRawFileParserEdgeCases:
+
+    def test_ascii_values_with_blank_lines(self):
+        # Blank line in ASCII values should be skipped (handled by `continue`)
+        content = _make_raw_bytes(is_ascii=True)
+        # Introduce blank lines in the middle of Values: data
+        parts = content.split(b"\n")
+        idx = parts.index(b"Values:")
+        parts.insert(idx + 2, b"")
+        parts.insert(idx + 4, b"   ")
+        content = b"\n".join(parts)
+
+        path = _write_temp_raw(content)
+        raw = xyce_raw_file_parser(Path(path))
+        assert raw is not None
+        assert len(raw.abscissa.data) == 2
+        os.unlink(path)
+
+    def test_ascii_values_unexpected_index(self):
+        # Unexpected point index (e.g. index 2 instead of index 1)
+        content = _make_raw_bytes(is_ascii=True)
+        content = content.replace(b"\n 1 ", b"\n 2 ")
+        path = _write_temp_raw(content)
+        raw = xyce_raw_file_parser(Path(path))
+        assert raw is None
+        os.unlink(path)
+
+    def test_ascii_values_invalid_token_count(self):
+        # Modify line to have unexpected number of tokens
+        content = _make_raw_bytes(is_ascii=True)
+        content = content.replace(b"\n 1 ", b"\n 1 0.000000e+00")
+        path = _write_temp_raw(content)
+        raw = xyce_raw_file_parser(Path(path))
+        assert raw is None
+        os.unlink(path)
+
+    def test_ascii_values_parsing_exception(self):
+        # Non-numeric token causes a float conversion exception
+        content = _make_raw_bytes(is_ascii=True)
+        content = content.replace(b" 1  0.000000e+00", b" 1  abc")
+        path = _write_temp_raw(content)
+        raw = xyce_raw_file_parser(Path(path))
+        assert raw is None
+        os.unlink(path)
+
+    def test_ascii_values_point_count_mismatch(self):
+        # No. Points specifies 3 but only 2 points are provided
+        content = _make_raw_bytes(is_ascii=True, num_points_override=3)
+        path = _write_temp_raw(content)
+        raw = xyce_raw_file_parser(Path(path))
+        assert raw is None
+        os.unlink(path)
+
+    def test_multi_block_variables_mismatch(self):
+        # Second step has different variables than first step
+        m0 = np.array([[0.0, 1.0], [1.0, 2.0]], dtype=np.float64)
+        m1 = np.array([[0.0, 3.0], [1.0, 4.0]], dtype=np.float64)
+        content0 = _make_multi_block_raw_bytes(param_values=[1000.0], step_matrices=[m0])
+        content1 = _make_multi_block_raw_bytes(param_values=[2000.0], step_matrices=[m1], variable_defs=[(0, "sweep", "voltage"), (1, "V(3)", "voltage")])
+        header_marker = b"Title: Stepped Circuit"
+        idx = content1.find(header_marker)
+        content = content0 + content1[idx:]
+
+        path = _write_temp_raw(content)
+        raw = xyce_raw_file_parser(Path(path))
+        assert raw is None
+        os.unlink(path)
+

@@ -114,7 +114,7 @@ class TestChart:
     def test_find_abscissa_indexes_outside_window_and_descending(self):
         # arrange
         component = MagicMock()
-        abscissa = Expression("Time", np.array([10, 8, 6, 4, 2, 0]), "s")
+        abscissa = Expression("Time", [np.array([10, 8, 6, 4, 2, 0])], "s")
         chart = _make_chart(component, MagicMock(), _make_step_information(1, 6, ascending=False), abscissa)
         # act — window outside data range (should return empty slice)
         result = chart._find_abscissa_indexes(abscissa.data, 20, 30)
@@ -124,9 +124,9 @@ class TestChart:
     def test_redraw_all_series_skips_empty_decimation(self):
         # arrange
         component = MagicMock()
-        abscissa = Expression("Time", np.linspace(0.0, 1.0, 10), "s")
+        abscissa = Expression("Time", [np.linspace(0.0, 1.0, 10)], "s")
         chart = _make_chart(component, MagicMock(), _make_step_information(1, 10), abscissa)
-        vout = Expression("Vout", np.linspace(0.0, 5.0, 10), "V")
+        vout = Expression("Vout", [np.linspace(0.0, 5.0, 10)], "V")
         y_axis = MagicMock()
         # inject a series with a real QLineSeries
         chart._series = {"Vout": (vout, {vout: (y_axis, {0: MagicMock()}, 0.0, 5.0, "#f77f00")})}
@@ -141,7 +141,7 @@ class TestChart:
         # arrange
         component = MagicMock()
         values = np.linspace(0.0, 1.0, 100)
-        abscissa = Expression("Time", values, "s")
+        abscissa = Expression("Time", [values], "s")
         step_information = _make_step_information(1, 100)
         # act
         chart = _make_chart(component, MagicMock(), step_information, abscissa)
@@ -420,10 +420,10 @@ class TestChart:
     def test_ordinate_values_at_abscissa_value_returns_name_unit_value_for_plotted_series(self):
         # arrange
         component = MagicMock()
-        abscissa = Expression("Time", np.linspace(0.0, 1.0, 11), "s")
+        abscissa = Expression("Time", [np.linspace(0.0, 1.0, 11)], "s")
         chart = _make_chart(component, MagicMock(), _make_step_information(1, 11), abscissa)
         # ordinate: 11 linearly-spaced values from 0 to 100
-        vout = Expression("Vout", np.linspace(0.0, 100.0, 11), "V")
+        vout = Expression("Vout", [np.linspace(0.0, 100.0, 11)], "V")
         mock_y_axis = MagicMock()
         chart._series["Vout"] = (vout, {vout: (mock_y_axis, {0: MagicMock()}, 0.0, 100.0, "#f77f00")})
         # act — sample at the rightmost abscissa value (1.0) should return the last ordinate
@@ -438,10 +438,10 @@ class TestChart:
     def test_ordinate_values_at_abscissa_value_nearest_ordinate_values_at_abscissa_value_midpoint(self):
         # arrange
         component = MagicMock()
-        abscissa = Expression("Time", np.linspace(0.0, 10.0, 11), "s")
+        abscissa = Expression("Time", [np.linspace(0.0, 10.0, 11)], "s")
         chart = _make_chart(component, MagicMock(), _make_step_information(1, 11), abscissa)
         # ordinate: index-valued array so we can easily verify which index was sampled
-        vout = Expression("Vout", np.arange(11, dtype=float), "V")
+        vout = Expression("Vout", [np.arange(11, dtype=float)], "V")
         mock_y_axis = MagicMock()
         chart._series["Vout"] = (vout, {vout: (mock_y_axis, {0: MagicMock()}, 0.0, 10.0, "#f77f00")})
         # act — x_value=5.0 is the midpoint of abscissa [0, 10]
@@ -453,9 +453,9 @@ class TestChart:
     def test_ordinate_values_at_abscissa_value_finds_nearest_sample(self):
         # arrange
         component = MagicMock()
-        abscissa = Expression("Time", np.linspace(0.0, 10.0, 11), "s")
+        abscissa = Expression("Time", [np.linspace(0.0, 10.0, 11)], "s")
         chart = _make_chart(component, MagicMock(), _make_step_information(1, 11), abscissa)
-        vout = Expression("Vout", np.arange(11, dtype=float), "V")
+        vout = Expression("Vout", [np.arange(11, dtype=float)], "V")
         mock_y_axis = MagicMock()
         chart._series["Vout"] = (vout, {vout: (mock_y_axis, {0: MagicMock()}, 0.0, 10.0, "#f77f00")})
         # act — x_value=0.0 is the leftmost point
@@ -471,10 +471,10 @@ class TestChart:
     def test_ordinate_values_at_abscissa_value_multiple_series(self):
         # arrange
         component = MagicMock()
-        abscissa = Expression("Time", np.linspace(0.0, 1.0, 5), "s")
+        abscissa = Expression("Time", [np.linspace(0.0, 1.0, 5)], "s")
         chart = _make_chart(component, MagicMock(), _make_step_information(1, 5), abscissa)
-        vout = Expression("Vout", np.array([10.0, 20.0, 30.0, 40.0, 50.0]), "V")
-        iout = Expression("Iout", np.array([1.0, 2.0, 3.0, 4.0, 5.0]), "A")
+        vout = Expression("Vout", [np.array([10.0, 20.0, 30.0, 40.0, 50.0])], "V")
+        iout = Expression("Iout", [np.array([1.0, 2.0, 3.0, 4.0, 5.0])], "A")
         mock_axis = MagicMock()
         chart._series["Vout"] = (vout, {vout: (mock_axis, {0: MagicMock()}, 10.0, 50.0, "#f77f00")})
         chart._series["Iout"] = (iout, {iout: (mock_axis, {0: MagicMock()}, 1.0, 5.0, "#00b4d8")})
