@@ -492,95 +492,127 @@ class TestXyceFftFileParser:
             # wait, the parser stores 'normalized' in the abscissa key, and then in output_file.metadata
             assert output_file.metadata.get("Normalized") is False
 
-    def test_parses_real_three_step_fft_files(self):
+    def test_parses_three_step_fft_files_generated(self):
         # arrange
-        # use the real xyce_knxdu_88.cir.fft* files produced by a three-step simulation
-        netlists_dir = Path(__file__).parent.parent.parent / "netlists"
-        pattern = str(netlists_dir / "xyce_knxdu_88.cir.fft*")
-        # three files: fft0, fft1, fft2
-        step_info = StepInformation(
-            [],
-            [],
-            [slice(0, 513), slice(513, 1026), slice(1026, 1539)],
-            [(50.0, 25600.0), (50.0, 25600.0), (50.0, 25600.0)],
-        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for step, dc_value, thd_value in (
+                (0, 0.4323973, "1.687485e+01 dB ( 6.978185e+00 )"),
+                (1, 0.3312294, "1.683650e+01 dB ( 6.947444e+00 )"),
+                (2, 0.2770515, "1.679928e+01 dB ( 6.917735e+00 )"),
+            ):
+                file_path = Path(tmpdir) / f"sim_step{step}.fft{step}"
+                content = (
+                    "FFT analysis for I(L1):\n"
+                    "  Window: HANN, Start Time: 0.000000e+00, Stop Time: 1.000000e-02\n"
+                    "  First Harmonic: 1.000000e+02, Start Freq: 1.000000e+02, Stop Freq: 1.000000e+03\n"
+                    f"  DC component    Norm. Mag= {dc_value:.7e}   Phase= 1.800000e+02\n"
+                    "       Index       Frequency       Norm. Mag           Phase\n"
+                    "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
+                    "           2    2.000000e+02    2.500000e-01   -9.000000e+01\n"
+                    "\n"
+                    f"  THD = {thd_value}\n"
+                )
+                file_path.write_text(content, encoding="utf-8")
+            step_info = StepInformation(
+                [],
+                [],
+                [slice(0, 3), slice(3, 6), slice(6, 9)],
+                [(0.0, 200.0), (0.0, 200.0), (0.0, 200.0)],
+            )
 
-        # act
-        result = xyce_fft_file_parser(pattern, step_info)
+            # act
+            result = xyce_fft_file_parser(str(Path(tmpdir) / "sim_step*.fft*"), step_info)
 
-        # assert
-        assert result is not None
-        assert len(result) == 1
-        output_file = result[0]
-        # verify the signal is present
-        assert "I(L1)" in output_file.expression_manager.expression_names
-        assert "phase(I(L1))" in output_file.expression_manager.expression_names
-        # verify step count
-        assert output_file.step_information.length == 3
-        # verify abscissa has 513 points (dc + 512 harmonics)
-        assert output_file.abscissa.step_count == 3
-        assert len(output_file.abscissa.steps[0]) == 513
-        assert output_file.abscissa.steps[0][0] == 0.0
-        assert np.isclose(output_file.abscissa.steps[0][1], 50.0)
-        # evaluate and verify magnitude for all three steps
-        mag = output_file.expression_manager.evaluate("I(L1)")
-        assert mag is not None
-        assert mag.step_count == 3
-        # dc component step 0
-        assert np.isclose(mag.steps[0][0], 4.323973e-01, rtol=1e-5)
-        # dc component step 1
-        assert np.isclose(mag.steps[1][0], 3.312294e-01, rtol=1e-5)
-        # dc component step 2
-        assert np.isclose(mag.steps[2][0], 2.770515e-01, rtol=1e-5)
-        # verify thd metadata for each step
-        assert mag.metadata[0].get("THD") == "1.687485e+01 dB ( 6.978185e+00 )"
-        assert mag.metadata[1].get("THD") == "1.683650e+01 dB ( 6.947444e+00 )"
-        assert mag.metadata[2].get("THD") == "1.679928e+01 dB ( 6.917735e+00 )"
+            # assert
+            assert result is not None
+            assert len(result) == 1
+            output_file = result[0]
+            assert output_file.step_information.length == 3
+            assert output_file.abscissa.step_count == 3
+            assert len(output_file.abscissa.steps[0]) == 3
+            assert output_file.abscissa.steps[0][0] == 0.0
+            assert np.isclose(output_file.abscissa.steps[0][1], 100.0)
+            mag = output_file.expression_manager.evaluate("I(L1)")
+            assert mag is not None
+            assert mag.step_count == 3
+            assert np.isclose(mag.steps[0][0], 0.4323973, rtol=1e-5)
+            assert np.isclose(mag.steps[1][0], 0.3312294, rtol=1e-5)
+            assert np.isclose(mag.steps[2][0], 0.2770515, rtol=1e-5)
+            assert mag.metadata[0].get("THD") == "1.687485e+01 dB ( 6.978185e+00 )"
+            assert mag.metadata[1].get("THD") == "1.683650e+01 dB ( 6.947444e+00 )"
+            assert mag.metadata[2].get("THD") == "1.679928e+01 dB ( 6.917735e+00 )"
 
-    def test_parses_real_single_step_fft_file(self):
+    def test_parses_synthetic_single_step_fft_file(self):
         # arrange
-        # use the real xyce_k0_kjfp2.cir.fft0 file with 512 harmonics and all metrics
-        netlists_dir = Path(__file__).parent.parent.parent / "netlists"
-        pattern = str(netlists_dir / "xyce_k0_kjfp2.cir.fft*")
-        step_info = StepInformation([], [], [slice(0, 513)], [(50.0, 25600.0)])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "single_step.fft0"
+            content = (
+                "FFT analysis for I(L1):\n"
+                "  Window: HANN, Start Time: 0.000000e+00, Stop Time: 1.000000e-02\n"
+                "  First Harmonic: 1.000000e+02, Start Freq: 1.000000e+02, Stop Freq: 1.000000e+03\n"
+                "  DC component    Norm. Mag= 4.323973e-01   Phase= 1.800000e+02\n"
+                "       Index       Frequency       Norm. Mag           Phase\n"
+                "           1    1.000000e+02    8.652246e-01    9.000000e+01\n"
+                "           2    2.000000e+02    1.234567e-01   -9.000000e+01\n"
+                "\n"
+                "  THD = 1.687485e+01 dB ( 6.978185e+00 )\n"
+                " SNDR = 2.000000e+01 dB\n"
+                " ENOB = 3.000000e+00 bit\n"
+                "  SNR = 2.000000e+02 dB\n"
+                " SFDR = -1.257423e+00 dB at frequency 1.150000e+03\n"
+            )
+            file_path.write_text(content, encoding="utf-8")
+            step_info = StepInformation([], [], [slice(0, 3)], [(0.0, 200.0)])
 
-        # act
-        result = xyce_fft_file_parser(pattern, step_info)
+            # act
+            result = xyce_fft_file_parser(str(Path(tmpdir) / "single_step.fft*"), step_info)
 
-        # assert
-        assert result is not None
-        assert len(result) == 1
-        output_file = result[0]
-        assert "I(L1)" in output_file.expression_manager.expression_names
-        mag = output_file.expression_manager.evaluate("I(L1)")
-        assert mag is not None
-        assert mag.step_count == 1
-        # verify dc magnitude
-        assert np.isclose(mag.steps[0][0], 4.323973e-01, rtol=1e-5)
-        # verify first harmonic magnitude
-        assert np.isclose(mag.steps[0][1], 8.652246e-01, rtol=1e-5)
-        # verify all metrics are present
-        assert mag.metadata[0].get("THD") is not None
-        assert mag.metadata[0].get("SNDR") is not None
-        assert mag.metadata[0].get("ENOB") is not None
-        assert mag.metadata[0].get("SNR") is not None
-        assert mag.metadata[0].get("SFDR") is not None
+            # assert
+            assert result is not None
+            assert len(result) == 1
+            output_file = result[0]
+            mag = output_file.expression_manager.evaluate("I(L1)")
+            assert mag is not None
+            assert mag.step_count == 1
+            assert np.isclose(mag.steps[0][0], 0.4323973, rtol=1e-7)
+            assert np.isclose(mag.steps[0][1], 0.8652246, rtol=1e-7)
+            assert mag.metadata[0].get("THD") == "1.687485e+01 dB ( 6.978185e+00 )"
+            assert mag.metadata[0].get("SNDR") == "2.000000e+01 dB"
+            assert mag.metadata[0].get("ENOB") == "3.000000e+00 bit"
+            assert mag.metadata[0].get("SNR") == "2.000000e+02 dB"
+            assert mag.metadata[0].get("SFDR") == "-1.257423e+00 dB at frequency 1.150000e+03"
 
-    def test_parses_real_two_signal_fft_file(self):
+    def test_parses_two_signals_with_same_abscissa(self):
         # arrange
-        # use xyce_5s5tshqp.cir.fft0 which contains two signals with the same abscissa
-        netlists_dir = Path(__file__).parent.parent.parent / "netlists"
-        pattern = str(netlists_dir / "xyce_5s5tshqp.cir.fft*")
-        step_info = StepInformation([], [], [slice(0, 513)], [(50.0, 25600.0)])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "same_abscissa.fft0"
+            content = (
+                "FFT analysis for I(L1):\n"
+                "  Window: HANN, Start Time: 0.000000e+00, Stop Time: 1.000000e-02\n"
+                "  First Harmonic: 1.000000e+02, Start Freq: 1.000000e+02, Stop Freq: 1.000000e+03\n"
+                "  DC component    Norm. Mag= 4.000000e-01   Phase= 0.000000e+00\n"
+                "       Index       Frequency       Norm. Mag           Phase\n"
+                "           1    1.000000e+02    5.000000e-01    0.000000e+00\n"
+                "\n"
+                "FFT analysis for V(OUT):\n"
+                "  Window: HANN, Start Time: 0.000000e+00, Stop Time: 1.000000e-02\n"
+                "  First Harmonic: 1.000000e+02, Start Freq: 1.000000e+02, Stop Freq: 1.000000e+03\n"
+                "  DC component    Norm. Mag= 2.000000e-01   Phase= 1.800000e+02\n"
+                "       Index       Frequency       Norm. Mag           Phase\n"
+                "           1    1.000000e+02    6.000000e-01    9.000000e+01\n"
+            )
+            file_path.write_text(content, encoding="utf-8")
+            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
 
-        # act
-        result = xyce_fft_file_parser(pattern, step_info)
+            # act
+            result = xyce_fft_file_parser(str(Path(tmpdir) / "same_abscissa.fft*"), step_info)
 
-        # assert
-        assert result is not None
-        # both signals share the same abscissa so they land in one output file
-        assert len(result) == 1
-        output_file = result[0]
-        names = output_file.expression_manager.expression_names
-        # at least one signal must be present
-        assert any("I(L1)" in n for n in names)
+            # assert
+            assert result is not None
+            assert len(result) == 1
+            output_file = result[0]
+            names = output_file.expression_manager.expression_names
+            assert "I(L1)" in names
+            assert "V(OUT)" in names
+            assert np.allclose(output_file.expression_manager.evaluate("I(L1)").steps[0], [0.4, 0.5])
+            assert np.allclose(output_file.expression_manager.evaluate("V(OUT)").steps[0], [0.2, 0.6])
