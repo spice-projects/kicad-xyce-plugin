@@ -3,7 +3,6 @@ import logging
 import mmap
 import re
 import time
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -144,8 +143,6 @@ def xyce_fft_file_parser(file_pattern: str | Path, step_information: StepInforma
                             m = _RE_WINDOW_LINE.search(line)
                             if m:
                                 window = m.group(1)
-                                start_time = float(m.group(2))
-                                stop_time = float(m.group(3))
                                 found_window = True
                                 # next
                                 continue

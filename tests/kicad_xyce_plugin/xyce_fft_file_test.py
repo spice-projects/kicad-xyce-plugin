@@ -1,10 +1,7 @@
-import glob
-import os
 import tempfile
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 from kicad_xyce_plugin.xyce_fft_file import xyce_fft_file_parser
 from kicad_xyce_plugin.xyce_output_file import StepInformation
@@ -385,6 +382,115 @@ class TestXyceFftFileParser:
             # assert
             # even with no trailing newline the parser should return a result (the last line is ignored gracefully)
             assert result is not None
+
+    def test_logs_warning_on_unexpected_line(self, caplog):
+        # arrange
+        # create a temporary directory for unexpected line test
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "unexpected.fft0"
+            content = (
+                "FFT analysis for V(OUT):\n"
+                "  Window: HANN, Start Time: 0.000000e+00, Stop Time: 1.000000e-02\n"
+                "  First Harmonic: 1.000000e+02, Start Freq: 1.000000e+02, Stop Freq: 1.000000e+03\n"
+                "  DC component    Norm. Mag= 1.000000e-02   Phase= 1.800000e+02\n"
+                "THIS IS AN UNEXPECTED LINE\n"
+                "       Index       Frequency       Norm. Mag           Phase\n"
+                "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
+            )
+            file_path.write_text(content, encoding="utf-8")
+            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+
+            # act
+            with caplog.at_level("WARNING"):
+                result = xyce_fft_file_parser(str(Path(tmpdir) / "unexpected.fft*"), step_info)
+
+            # assert
+            assert result is not None
+            assert "unexpected line" in caplog.text
+            assert "THIS IS AN UNEXPECTED LINE" in caplog.text
+
+    def test_parses_file_without_fft_index_suffix(self):
+        # arrange
+        # create temporary directory for file named without .fftN suffix
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # use a filename matching the pattern but without digits at the end
+            file_path = Path(tmpdir) / "sim.fft"
+            content = (
+                "FFT analysis for V(OUT):\n"
+                "  Window: HANN, Start Time: 0.000000e+00, Stop Time: 1.000000e-02\n"
+                "  First Harmonic: 1.000000e+02, Start Freq: 1.000000e+02, Stop Freq: 1.000000e+03\n"
+                "  DC component    Norm. Mag= 1.000000e-02   Phase= 1.800000e+02\n"
+                "       Index       Frequency       Norm. Mag           Phase\n"
+                "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
+            )
+            file_path.write_text(content, encoding="utf-8")
+            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+
+            # act
+            # parser must handle files without numeric suffix (sorted as -1)
+            result = xyce_fft_file_parser(str(Path(tmpdir) / "sim.fft*"), step_info)
+
+            # assert
+            assert result is not None
+            assert len(result) == 1
+
+    def test_parses_file_with_multiple_abscissas(self):
+        # arrange
+        # create temporary directory for multiple abscissas test
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "multi_abscissa.fft0"
+            # content with two DIFFERENT harmonic settings (creating different abscissas)
+            content = (
+                "FFT analysis for V(OUT1):\n"
+                "  Window: HANN, Start Time: 0.000000e+00, Stop Time: 1.000000e-02\n"
+                "  First Harmonic: 1.000000e+02, Start Freq: 1.000000e+02, Stop Freq: 1.000000e+03\n"
+                "  DC component    Norm. Mag= 1.000000e-02   Phase= 1.800000e+02\n"
+                "       Index       Frequency       Norm. Mag           Phase\n"
+                "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
+                "\n"
+                "FFT analysis for V(OUT2):\n"
+                "  Window: RECT, Start Time: 0.000000e+00, Stop Time: 1.000000e-02\n"
+                "  First Harmonic: 2.000000e+02, Start Freq: 2.000000e+02, Stop Freq: 2.000000e+03\n"
+                "  DC component    Norm. Mag= 5.000000e-02   Phase= 0.000000e+00\n"
+                "       Index       Frequency       Norm. Mag           Phase\n"
+                "           1    2.000000e+02    8.000000e-01   -9.000000e+01\n"
+            )
+            file_path.write_text(content, encoding="utf-8")
+            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+
+            # act
+            result = xyce_fft_file_parser(str(Path(tmpdir) / "multi_abscissa.fft*"), step_info)
+
+            # assert
+            # two different abscissa keys => two output files
+            assert result is not None
+            assert len(result) == 2
+
+    def test_parses_non_normalized_magnitude(self):
+        # arrange
+        # create temporary directory for non-normalized magnitude test
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "non_norm.fft0"
+            content = (
+                "FFT analysis for V(OUT):\n"
+                "  Window: HANN, Start Time: 0.000000e+00, Stop Time: 1.000000e-02\n"
+                "  First Harmonic: 1.000000e+02, Start Freq: 1.000000e+02, Stop Freq: 1.000000e+03\n"
+                "  DC component    Mag= 1.000000e-02   Phase= 1.800000e+02\n"
+                "       Index       Frequency           Mag           Phase\n"
+                "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
+            )
+            file_path.write_text(content, encoding="utf-8")
+            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+
+            # act
+            result = xyce_fft_file_parser(str(Path(tmpdir) / "non_norm.fft*"), step_info)
+
+            # assert
+            assert result is not None
+            output_file = result[0]
+            # check the metadata in output_file (not in signals)
+            # wait, the parser stores 'normalized' in the abscissa key, and then in output_file.metadata
+            assert output_file.metadata.get("Normalized") is False
 
     def test_parses_real_three_step_fft_files(self):
         # arrange

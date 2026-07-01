@@ -6,7 +6,7 @@ import numpy as np
 
 from kicad_xyce_plugin.expression import Expression
 from kicad_xyce_plugin.xyce_output_file import AbscissaScale, PlotSuggestion, StepInformation, VariableType, VariableTypeInformation
-from kicad_xyce_plugin.xyce_raw_file import xyce_raw_file_parser, _parse_ascii_variables, _parse_binary_variables, _process_abscissa_scale
+from kicad_xyce_plugin.xyce_raw_file import xyce_raw_file_parser, _parse_binary_variables, _process_abscissa_scale
 
 
 def _make_raw_bytes(title: str = "Test Circuit", plotname: str = "Transient Analysis", flags: str = "real", variable_defs: list[tuple[int, str, str]] | None = None, data_matrix: np.ndarray | None = None, is_ascii: bool = False, num_points_override: int | None = None) -> bytes:
@@ -366,7 +366,7 @@ class TestParseBinaryVariables:
         num_points, variables = _parse_binary_variables(raw_bytes, 0, variable_defs, False, 2, 1)
         # assert
         assert num_points == 1
-        assert len(variables) == 2        
+        assert len(variables) == 2
         assert variables[0][0] == "time"
         assert variables[0][2] == "s"
         assert variables[0][3] == "time"
@@ -406,7 +406,7 @@ class TestParseBinaryVariables:
         num_points, variables = _parse_binary_variables(raw_bytes, 0, variable_defs, True, 2, 2)
         # assert
         assert num_points == 2
-        assert len(variables) == 2        
+        assert len(variables) == 2
         assert variables[0][1].dtype == np.float64
         assert variables[1][1].dtype == np.complex128
 
@@ -1212,4 +1212,3 @@ class TestXyceRawFileParserEdgeCases:
         raw = xyce_raw_file_parser(Path(path))
         assert raw is None
         os.unlink(path)
-

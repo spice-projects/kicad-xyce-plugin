@@ -218,7 +218,7 @@ class XyceEvaluator:
                 return False
         # ok
         return True
-    
+
     def _evaluate_context_variable(self, name: str, context: EvaluationContext) -> XyceValue | None:
         # try to find the variable directly in the context
         value = context.variables.get(name)
