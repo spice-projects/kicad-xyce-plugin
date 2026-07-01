@@ -1,6 +1,7 @@
 import mmap
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 from .expression import Expression, ExpressionManager
 
@@ -111,7 +112,7 @@ class PlotSuggestion:
 
 class XyceOutputFile:
 
-    def __init__(self, filename: Path, title: str, complex: bool, step_information: StepInformation, abscissa: Expression, abscissa_scale: AbscissaScale, expression_manager: ExpressionManager, _mmap: mmap.mmap | None = None):
+    def __init__(self, filename: Path, title: str, complex: bool, step_information: StepInformation, abscissa: Expression, abscissa_scale: AbscissaScale, expression_manager: ExpressionManager, _mmap: mmap.mmap | None = None, metadata: dict[str, Any] = {}):
         # fields
         self._filename = filename
         self._title = title
@@ -122,6 +123,8 @@ class XyceOutputFile:
         self._expression_manager = expression_manager
         # keep the mmap alive for as long as this object exists — Variable._values arrays are zero-copy views into the mmap buffer; closing the mmap would invalidate all of them
         self._mmap = _mmap
+        # store metadata
+        self._metadata = metadata
 
     @property
     def filename(self) -> Path:
@@ -164,3 +167,8 @@ class XyceOutputFile:
     @property
     def expression_manager(self) -> ExpressionManager:
         return self._expression_manager
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        # return metadata
+        return self._metadata

@@ -1,14 +1,16 @@
 import logging
+import mmap
 import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
 from .expression import Expression
 from .expression import ExpressionManager
-from .xyce_output_file import AbscissaScale, StepInformation, XyceOutputFile
+from .xyce_output_file import AbscissaScale, StepInformation, VariableType, XyceOutputFile
 
 logger = logging.getLogger(__name__)
 
@@ -16,224 +18,10 @@ logger = logging.getLogger(__name__)
 _RE_SIGNAL_HEADER = re.compile(r"^FFT analysis for (.+):$")
 _RE_WINDOW_LINE = re.compile(r"Window:\s*(\S+),\s*Start Time:\s*([0-9eE+\-.]+),\s*Stop Time:\s*([0-9eE+\-.]+)")
 _RE_HARMONIC_LINE = re.compile(r"First Harmonic:\s*([0-9eE+\-.]+),\s*Start Freq:\s*([0-9eE+\-.]+),\s*Stop Freq:\s*([0-9eE+\-.]+)")
-_RE_DC_LINE = re.compile(r"DC component\s+Norm\. Mag=\s*([0-9eE+\-.]+)\s+Phase=\s*([0-9eE+\-.]+)")
-_RE_DATA_LINE = re.compile(r"^\s+(\d+)\s+([0-9eE+\-.]+)\s+([0-9eE+\-.]+)\s+([0-9eE+\-.]+)\s*$")
-_RE_THD_LINE = re.compile(r"^\s*THD\s*=\s*([0-9eE+\-.]+)\s*dB\s*\(\s*([0-9eE+\-.]+)\s*\)\s*$")
-_RE_SNDR_LINE = re.compile(r"^\s*SNDR\s*=\s*([0-9eE+\-.]+)\s*dB\s*$")
-_RE_ENOB_LINE = re.compile(r"^\s*ENOB\s*=\s*([0-9eE+\-.]+)\s*bit\s*$")
-_RE_SNR_LINE = re.compile(r"^\s*SNR\s*=\s*([0-9eE+\-.]+)\s*dB\s*$")
-_RE_SFDR_LINE = re.compile(r"^\s*SFDR\s*=\s*([0-9eE+\-.]+)\s*dB\s+at\s+frequency\s+([0-9eE+\-.]+)\s*$")
+_RE_DC_LINE = re.compile(r"DC component\s+(.*)\s+Mag=\s*([0-9eE+\-.]+)\s+Phase=\s*([0-9eE+\-.]+)")
 
 
-@dataclass(frozen=True)
-class FftSignalMeasurements:
-    thd_db: float | None = None
-    thd_value: float | None = None
-    sndr_db: float | None = None
-    enob_bits: float | None = None
-    snr_db: float | None = None
-    sfdr_db: float | None = None
-    sfdr_frequency: float | None = None
-
-
-class FftSignalMetadata:
-
-    def __init__(self, window: str, start_time: float, stop_time: float, first_harmonic: float, start_freq: float, stop_freq: float, dc_magnitude: float, dc_phase: float):
-        # fields
-        self._window = window
-        self._start_time = start_time
-        self._stop_time = stop_time
-        self._first_harmonic = first_harmonic
-        self._start_freq = start_freq
-        self._stop_freq = stop_freq
-        self._dc_magnitude = dc_magnitude
-        self._dc_phase = dc_phase
-
-    @property
-    def window(self) -> str:
-        return self._window
-
-    @property
-    def start_time(self) -> float:
-        return self._start_time
-
-    @property
-    def stop_time(self) -> float:
-        return self._stop_time
-
-    @property
-    def first_harmonic(self) -> float:
-        return self._first_harmonic
-
-    @property
-    def start_freq(self) -> float:
-        return self._start_freq
-
-    @property
-    def stop_freq(self) -> float:
-        return self._stop_freq
-
-    @property
-    def dc_magnitude(self) -> float:
-        return self._dc_magnitude
-
-    @property
-    def dc_phase(self) -> float:
-        return self._dc_phase
-
-
-class FftSignal:
-
-    def __init__(self, name: str, metadata: FftSignalMetadata, frequency: Expression, magnitude: Expression, phase: Expression, measurements: FftSignalMeasurements):
-        # fields
-        self._name = name
-        self._metadata = metadata
-        self._frequency = frequency
-        self._magnitude = magnitude
-        self._phase = phase
-        self._measurements = measurements
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def metadata(self) -> FftSignalMetadata:
-        return self._metadata
-
-    @property
-    def frequency(self) -> Expression:
-        return self._frequency
-
-    @property
-    def magnitude(self) -> Expression:
-        return self._magnitude
-
-    @property
-    def phase(self) -> Expression:
-        return self._phase
-
-    @property
-    def measurements(self) -> FftSignalMeasurements:
-        return self._measurements
-
-    @property
-    def num_points(self) -> int:
-        return len(self._frequency.data)
-
-
-def _magnitude_expression_name(signal_name: str) -> str:
-    # magnitude expression name is the signal name itself
-    return signal_name
-
-
-def _phase_expression_name(signal_name: str) -> str:
-    # phase expression name uses the "phase(<signal>)" convention
-    return f"phase({signal_name})"
-
-
-def _signal_frequency_key(signal: FftSignal) -> tuple[str, tuple[int, ...], bytes]:
-    # group signals by exact abscissa match so blocks with different NP values are kept separate
-    frequency_data = signal.frequency.data
-    return (frequency_data.dtype.str, frequency_data.shape, frequency_data.tobytes())
-
-
-def _parse_signal_block(signal_name: str, lines: list[str]) -> FftSignal | None:
-    # parse metadata: window line
-    window = ""
-    start_time = 0.0
-    stop_time = 0.0
-    first_harmonic = 0.0
-    start_freq = 0.0
-    stop_freq = 0.0
-    dc_magnitude = 0.0
-    dc_phase = 0.0
-    # accumulated data columns
-    freq_list: list[float] = []
-    mag_list: list[float] = []
-    phase_list: list[float] = []
-    measurements = FftSignalMeasurements()
-    # track header section
-    found_window = False
-    found_harmonic = False
-    found_dc = False
-    for line in lines:
-        # try window line
-        if not found_window:
-            m = _RE_WINDOW_LINE.search(line)
-            if m:
-                window = m.group(1)
-                start_time = float(m.group(2))
-                stop_time = float(m.group(3))
-                found_window = True
-                continue
-        # try harmonic line
-        if not found_harmonic:
-            m = _RE_HARMONIC_LINE.search(line)
-            if m:
-                first_harmonic = float(m.group(1))
-                start_freq = float(m.group(2))
-                stop_freq = float(m.group(3))
-                found_harmonic = True
-                continue
-        # try DC component line
-        if not found_dc:
-            m = _RE_DC_LINE.search(line)
-            if m:
-                dc_magnitude = float(m.group(1))
-                dc_phase = float(m.group(2))
-                found_dc = True
-                continue
-        # try data line (skip header row with "Index")
-        if "Index" in line:
-            continue
-        m = _RE_DATA_LINE.match(line)
-        if m:
-            freq_list.append(float(m.group(2)))
-            mag_list.append(float(m.group(3)))
-            phase_list.append(float(m.group(4)))
-            continue
-        # parse optional FFT measurement lines emitted when FFTOUT=1
-        m = _RE_THD_LINE.match(line)
-        if m:
-            measurements = FftSignalMeasurements(thd_db=float(m.group(1)), thd_value=float(m.group(2)), sndr_db=measurements.sndr_db, enob_bits=measurements.enob_bits, snr_db=measurements.snr_db, sfdr_db=measurements.sfdr_db, sfdr_frequency=measurements.sfdr_frequency)
-            continue
-        m = _RE_SNDR_LINE.match(line)
-        if m:
-            measurements = FftSignalMeasurements(thd_db=measurements.thd_db, thd_value=measurements.thd_value, sndr_db=float(m.group(1)), enob_bits=measurements.enob_bits, snr_db=measurements.snr_db, sfdr_db=measurements.sfdr_db, sfdr_frequency=measurements.sfdr_frequency)
-            continue
-        m = _RE_ENOB_LINE.match(line)
-        if m:
-            measurements = FftSignalMeasurements(thd_db=measurements.thd_db, thd_value=measurements.thd_value, sndr_db=measurements.sndr_db, enob_bits=float(m.group(1)), snr_db=measurements.snr_db, sfdr_db=measurements.sfdr_db, sfdr_frequency=measurements.sfdr_frequency)
-            continue
-        m = _RE_SNR_LINE.match(line)
-        if m:
-            measurements = FftSignalMeasurements(thd_db=measurements.thd_db, thd_value=measurements.thd_value, sndr_db=measurements.sndr_db, enob_bits=measurements.enob_bits, snr_db=float(m.group(1)), sfdr_db=measurements.sfdr_db, sfdr_frequency=measurements.sfdr_frequency)
-            continue
-        m = _RE_SFDR_LINE.match(line)
-        if m:
-            measurements = FftSignalMeasurements(thd_db=measurements.thd_db, thd_value=measurements.thd_value, sndr_db=measurements.sndr_db, enob_bits=measurements.enob_bits, snr_db=measurements.snr_db, sfdr_db=float(m.group(1)), sfdr_frequency=float(m.group(2)))
-            continue
-    # validate that we got data
-    if len(freq_list) == 0:
-        # log error
-        logger.error("no data points parsed for signal '%s'", signal_name)
-        return None
-    # build numpy arrays
-    freq_array = np.array(freq_list, dtype=np.float64)
-    mag_array = np.array(mag_list, dtype=np.float64)
-    phase_array = np.array(phase_list, dtype=np.float64)
-    # build expressions
-    frequency_expr = Expression("frequency", freq_array, "Hz", source=None, variable_type="frequency")
-    magnitude_expr = Expression(_magnitude_expression_name(signal_name), mag_array, "", source=None, variable_type="voltage")
-    phase_expr = Expression(_phase_expression_name(signal_name), phase_array, "°", source=None, variable_type="phase")
-    # build metadata
-    metadata = FftSignalMetadata(window=window, start_time=start_time, stop_time=stop_time, first_harmonic=first_harmonic, start_freq=start_freq, stop_freq=stop_freq, dc_magnitude=dc_magnitude, dc_phase=dc_phase)
-    # return the parsed signal
-    return FftSignal(name=signal_name, metadata=metadata, frequency=frequency_expr, magnitude=magnitude_expr, phase=phase_expr, measurements=measurements)
-
-
-def xyce_fft_file_parser(filename: Path) -> tuple[list[XyceOutputFile], list[FftSignal]] | None:
+def xyce_fft_file_parser(filename: Path, step_information: StepInformation) -> list[XyceOutputFile] | None:
     # load file
     path = Path(filename)
     if not path.exists():
@@ -242,77 +30,252 @@ def xyce_fft_file_parser(filename: Path) -> tuple[list[XyceOutputFile], list[Fft
         # exit
         return None
     # measure time taken to load file
-    start_time = time.perf_counter()
-    output_files: list[XyceOutputFile] = []
+    perf_counter = time.perf_counter()
     try:
         # log information
         logger.info("Loading Xyce FFT file: %s", path)
-        # read entire file as text
-        text = path.read_text(encoding="utf-8", errors="replace")
-        # split into lines for processing
-        all_lines = text.splitlines()
-        # locate the start index of each signal block
-        signal_starts: list[tuple[int, str]] = []
-        for i, line in enumerate(all_lines):
-            m = _RE_SIGNAL_HEADER.match(line.strip())
-            if m:
-                signal_starts.append((i, m.group(1).strip()))
-        # validate that at least one signal was found
-        if len(signal_starts) == 0:
-            # log error
-            logger.error("invalid Xyce FFT file: no signal blocks found in '%s'", path)
-            return None
-        # parse each signal block
-        signals: list[FftSignal] = []
-        for block_idx, (start_line, signal_name) in enumerate(signal_starts):
-            # lines belonging to this block end at the start of the next block (or end of file)
-            if block_idx + 1 < len(signal_starts):
-                end_line = signal_starts[block_idx + 1][0]
-            else:
-                end_line = len(all_lines)
-            # extract block lines (excluding the "FFT analysis for ..." header line itself)
-            block_lines = all_lines[start_line + 1:end_line]
-            # parse the signal block
-            signal = _parse_signal_block(signal_name, block_lines)
-            if signal is None:
-                # log warning and continue with remaining signals
-                logger.warning("Failed to parse signal block for '%s'; skipping", signal_name)
-                continue
-            signals.append(signal)
-        # validate that we successfully parsed at least one signal
-        if len(signals) == 0:
-            # log error
-            logger.error("invalid Xyce FFT file: no signals could be parsed from '%s'", path)
-            return None
-        # group signals by exact abscissa so blocks with different NP values become separate output files
-        grouped_signals: list[list[FftSignal]] = []
-        grouped_signal_map: dict[tuple[str, tuple[int, ...], bytes], list[FftSignal]] = {}
-        for signal in signals:
-            key = _signal_frequency_key(signal)
-            group = grouped_signal_map.get(key)
-            if group is None:
-                group = []
-                grouped_signal_map[key] = group
-                grouped_signals.append(group)
-            group.append(signal)
-        # build one output file per abscissa group
-        for group in grouped_signals:
-            # use the frequency from the first signal in the group as the shared abscissa
-            abscissa = group[0].frequency
-            num_points = len(abscissa.data)
-            abscissa_range = (float(abscissa.data[0]), float(abscissa.data[-1])) if num_points > 0 else (0.0, 0.0)
-            step_information = StepInformation(keys=[], values=[], abscissa_indices=[slice(0, num_points)], abscissa_value_ranges=[abscissa_range])
-            # create expression manager with the grouped signal expressions
-            all_expressions: list[Expression] = [abscissa]
-            for signal in group:
-                all_expressions.append(signal.magnitude)
-                all_expressions.append(signal.phase)
-            fft_expression_manager = ExpressionManager(all_expressions)
-            # derive title from parsed signal names
-            title = "FFT – " + ", ".join(s.name for s in group)
-            # return XyceOutputFile with FFT data
-            output_files.append(XyceOutputFile(filename=path, title=title, date="", plotname="FFT", complex=False, step_information=step_information, abscissa=abscissa, abscissa_scale=AbscissaScale.LINEAR, command="", expression_manager=fft_expression_manager))
+        # memory-map the file — the OS pages in only the regions that are actually read, so for a 300-variable file where only a few are displayed, the remaining columns are never loaded into physical RAM
+        with open(path, "rb") as _file:
+            data = mmap.mmap(_file.fileno(), 0, access=mmap.ACCESS_READ)
+        # initialize position for scanning
+        pos = 0
+        # data structure for storing parsed signal values
+        frequency: list[float] = []
+        magnitude: list[float] = []
+        phase: list[float] = []
+        # header section data
+        signal_name: str = ""
+        window: str = ""
+        first_harmonic: float = 0.0
+        start_freq: float = 0.0
+        stop_freq: float = 0.0
+        normalized: bool = False
+        dc_magnitude: float = 0.0
+        dc_phase: float = 0.0
+        # metadata
+        metadata: dict[str, Any] = {}
+        # flags to track if we have found the header lines
+        found_signal = False
+        found_window = False
+        found_harmonic = False
+        found_dc = False
+        # dict[key, [frequency_list, dict[signal_name, list[dc_magnitude, dc_phase, magnitude_list, phase_list]]]]
+        signals: dict[tuple, tuple[list[float], dict[str, list[tuple[dict[str, Any], float, float, list[float], list[float]]]]]] = {}
+        # data point expected index, a value greather the zero indicates we are reading the data points of a signal block, and the value indicates the expected index of the next data point
+        expected_index = 0
+        # line number for logging
+        line_number = -1
+        # scan line by line until the end of the file
+        while pos < len(data):
+            try:
+                # increment line number
+                line_number += 1
+                # find next newline
+                newline = data.find(b'\n', pos)
+                if newline == -1:
+                    break
+                # decode the line
+                line = data[pos:newline].decode("utf-8").strip()
+                # log header line
+                logger.debug(">> %s", line)
+                # advance position to the next line (include the delimiter)
+                pos = newline + 1
+                # check we should try to read data points
+                if expected_index > 0:
+                    # check end of data points (empty line)
+                    if line == "":
+                        # reset expected index
+                        expected_index = 0
+                        # next line
+                        continue
+                    # split the line into columns
+                    columns = line.split()
+                    # validate the number of columns
+                    if len(columns) != 4:
+                        # log error
+                        logger.error("invalid Xyce FFT file: unexpected number of columns (%d) in data point line '%s'", len(columns), line)
+                        # exit
+                        return None
+                    # append the data points to the lists
+                    index = int(columns[0])
+                    if index != expected_index:
+                        # log error
+                        logger.error("invalid Xyce FFT file: unexpected data point index %d (expected %d) in '%s'", index, expected_index, path)
+                        # exit
+                        return None
+                    # append the data points
+                    frequency.append(float(columns[1]))
+                    magnitude.append(float(columns[2]))
+                    phase.append(float(columns[3]))
+                # check line: FFT analysis for ...
+                if not found_signal:
+                    m = _RE_SIGNAL_HEADER.match(line)
+                    if m:
+                        signal_name = m.group(1).strip()
+                        found_signal = True
+                        # reset metadata
+                        metadata = {}
+                        # next
+                        continue
+                # check line: Window: ..., Start Time: ..., Stop Time: ...
+                if not found_window:
+                    m = _RE_WINDOW_LINE.search(line)
+                    if m:
+                        window = m.group(1)
+                        start_time = float(m.group(2))
+                        stop_time = float(m.group(3))
+                        found_window = True
+                        # next
+                        continue
+                # check line: First Harmonic: ..., Start Freq: ..., Stop Freq: ...
+                if not found_harmonic:
+                    m = _RE_HARMONIC_LINE.search(line)
+                    if m:
+                        first_harmonic = float(m.group(1))
+                        start_freq = float(m.group(2))
+                        stop_freq = float(m.group(3))
+                        found_harmonic = True
+                        # next
+                        continue
+                # check line: DC component Norm. Mag=..., Phase=...
+                if not found_dc:
+                    m = _RE_DC_LINE.search(line)
+                    if m:
+                        normalized = m.group(1) == "Norm."
+                        dc_magnitude = float(m.group(2))
+                        dc_phase = float(m.group(3))
+                        found_dc = True
+                        # next
+                        continue
+                # check line: Index ...
+                if line.startswith("Index"):
+                    # validate header lines were found
+                    if not (found_signal and found_window and found_harmonic and found_dc):
+                        # log error
+                        logger.error("invalid Xyce FFT file: missing header lines before data points in '%s'", path)
+                        # exit
+                        return None
+                    # reset flags
+                    found_signal = False
+                    found_window = False
+                    found_harmonic = False
+                    found_dc = False
+                    # initialize expected index for the data points
+                    expected_index = 1
+                    # reset data lists
+                    frequency = []
+                    magnitude = []
+                    phase = []
+                    # generate key based on the abscissa (frequency) and plot window, and normalized flag
+                    abscissa_key = (round(first_harmonic, 9), round(start_freq, 6), round(stop_freq, 6), window, normalized)
+                    # lookup key in signals dict
+                    abscissa_entry: tuple[list[float], dict] = signals.get(abscissa_key)
+                    if abscissa_entry is None:
+                        # create dictionary entry
+                        abscissa_entry = (frequency, {})
+                        signals[abscissa_key] = abscissa_entry
+                    # lookup signal key in signals dictionary for this abscissa
+                    steps: list[tuple[dict[str, Any], float, float, list[float], list[float]]] = abscissa_entry[1].get(signal_name)
+                    if steps is None:
+                        # create dictionary entry
+                        steps = []
+                        abscissa_entry[1][signal_name] = steps
+                    # append the current step data to the list
+                    steps.append((metadata, dc_magnitude, dc_phase, magnitude, phase))
+                    # next line
+                    continue
+                # check line: THD = ...
+                if line.startswith("THD"):
+                    # metadata
+                    metadata["THD"] = line[5:].strip()
+                    # next
+                    continue
+                # check line: SNDR = ...
+                if line.startswith("SNDR"):
+                    # metadata
+                    metadata["SNDR"] = line[6:].strip()
+                    # next
+                    continue
+                # check line: ENOB = ...
+                if line.startswith("ENOB"):
+                    # metadata
+                    metadata["ENOB"] = line[6:].strip()
+                    # next
+                    continue
+                # check line: SNR = ...
+                if line.startswith("SNR"):
+                    # metadata
+                    metadata["SNR"] = line[5:].strip()
+                    # next
+                    continue
+                # check line: SFDR = ...
+                if line.startswith("SFDR"):
+                    # metadata
+                    metadata["SFDR"] = line[6:].strip()
+                    # next
+                    continue
+                
+                if line != "":
+                    # unexpected line, log warning
+                    logger.warning("unexpected line in Xyce FFT file '%s' at line %d: '%s'", path, line_number, line)
+            except Exception:
+                # log information
+                logger.exception("Error processing Xyce FFT file: %s, line: %d", path, line_number, exc_info=True)
+                # exit
+                return None
+        # result
+        output_files: list[XyceOutputFile] = []
+        # now we can generate the output files and signals list
+        for (first_harmonic, _, _, window, normalized), (frequency_list, signal_dict) in signals.items():
+            # abscissa data (for one step)
+            abscissa_data = np.array([0] + frequency_list, dtype=np.float64)
+            # expressions
+            expressions: list[Expression] = []
+            # create abscissa for file, repeat abscissa_data for each step in the step_information
+            abscissa = Expression("frequency", [abscissa_data for _ in range(step_information.length)], VariableType.FREQUENCY.value.unit, source="FFT", variable_type=VariableType.FREQUENCY.value.name)
+            # append abscissa expression to the list
+            expressions.append(abscissa)
+            # process each signal for this abscissa
+            for signal_name, steps in signal_dict.items():
+                # validate the step count, it should be the same as in the RAW file, otherwise the data is inconsistent
+                if len(steps) != step_information.length:
+                    # log error
+                    logger.error("invalid Xyce FFT file: inconsistent step count for signal '%s' in '%s': expected %d, found %d", signal_name, path, step_information.length, len(steps))
+                    # exit
+                    return None
+                # signal data
+                magnitude_steps: list[np.ndarray] = []
+                phase_steps: list[np.ndarray] = []
+                # metadata, an entry for each step, with the same order as in the steps list
+                metadata_steps: list[dict[str, Any]] = []
+                # loop steps
+                for (metadata, dc_magnitude, dc_phase, magnitude_list, phase_list) in steps:
+                    # append the DC component to the magnitude and phase lists
+                    magnitude_steps.append(np.array([dc_magnitude] + magnitude_list, dtype=np.float64))
+                    phase_steps.append(np.array([dc_phase] + phase_list, dtype=np.float64))
+                    # append metadata for this step
+                    metadata_steps.append(metadata)
+                # create expressions for magnitude and phase
+                expressions.append(Expression(signal_name, magnitude_steps, VariableType.MAGNITUDE.value.unit, source="FFT", variable_type=VariableType.MAGNITUDE.value.name, metadata=metadata_steps))
+                expressions.append(Expression(f"phase({signal_name})", phase_steps, VariableType.PHASE.value.unit, source="FFT", variable_type=VariableType.PHASE.value.name, metadata=metadata_steps))
+            # abscissa indexes
+            abscissa_indices = [slice(idx * len(abscissa_data), (idx + 1) * len(abscissa_data)) for idx in range(step_information.length)]
+            # abscissa value ranges
+            abscissa_value_ranges = [(abscissa_data[0], abscissa_data[-1]) for _ in range(step_information.length)]
+            # re-create step information
+            fft_step_information = StepInformation(step_information.keys, step_information.values, abscissa_indices, abscissa_value_ranges)
+            # create expressions manager
+            expression_manager = ExpressionManager(expressions)
+            # file metadata
+            metadata = {
+                "Window": window,
+                "Normalized": normalized,
+                "First Harmonic": first_harmonic
+            }
+            # create output file object
+            output_files.append(XyceOutputFile(filename=path, title="FFT analysis", complex=False, step_information=fft_step_information, abscissa=abscissa, abscissa_scale=AbscissaScale.LINEAR, expression_manager=expression_manager, metadata=metadata))
+        # exit
+        return output_files
     finally:
         # log information
-        logger.info("Finished loading Xyce FFT file: %s, latency: %f seconds", path, time.perf_counter() - start_time)
-    return output_files, signals
+        logger.info("Finished loading Xyce FFT file: %s, latency: %f seconds", path, time.perf_counter() - perf_counter)

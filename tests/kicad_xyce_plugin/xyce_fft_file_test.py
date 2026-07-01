@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from kicad_xyce_plugin.xyce_fft_file import FftSignalMetadata, xyce_fft_file_parser, _magnitude_expression_name, _parse_signal_block, _phase_expression_name
+from kicad_xyce_plugin.xyce_fft_file import FftSignalMetadata, xyce_fft_file_parser, _magnitude_expression_name,  _phase_expression_name
 from kicad_xyce_plugin.xyce_output_file import AbscissaScale
 
 

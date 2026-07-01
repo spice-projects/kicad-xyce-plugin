@@ -1,9 +1,10 @@
 import numpy as np
+from typing import Any
 
 
 class Expression:
 
-    def __init__(self, name: str, steps: list[np.ndarray], unit: str, source: str | None = None, variable_type: str | None = None, data: np.ndarray | None = None):
+    def __init__(self, name: str, steps: list[np.ndarray], unit: str, source: str | None = None, variable_type: str | None = None, data: np.ndarray | None = None, metadata: list[dict[str, Any]] = []):
         # name field
         self._name = name
         # step data
@@ -18,6 +19,8 @@ class Expression:
         self._variable_type = variable_type
         # combined steps in a single array, cached on first access if not provided
         self._data = data
+        # metadata field
+        self._metadata = metadata
 
     @property
     def name(self) -> str:
@@ -66,3 +69,8 @@ class Expression:
     def variable_type(self) -> str | None:
         # return variable type
         return self._variable_type
+
+    @property
+    def metadata(self) -> list[dict[str, Any]]:
+        # return metadata
+        return self._metadata
