@@ -214,3 +214,42 @@ class TestExpressionMultiStep:
         # modifying the base affects step_data output (views share memory)
         flat[0] = 99.0
         assert expr.step_data(0)[0] == 99.0
+
+    def test_step_data_returns_c_contiguous_for_non_contiguous_step(self):
+        # arrange — sliced array with stride is not C-contiguous
+        non_contiguous = np.arange(10.0)[::2]
+        expr = Expression("V(R1)", [non_contiguous], "V")
+        # act
+        result = expr.step_data(0)
+        # assert
+        assert non_contiguous.flags['C_CONTIGUOUS'] is False
+        assert result.flags['C_CONTIGUOUS'] is True
+        np.testing.assert_array_equal(result, non_contiguous)
+        # step list is updated with the optimized array and reused on next access
+        assert expr.steps[0] is result
+        assert expr.step_data(0) is result
+
+    def test_step_data_returns_same_instance_when_step_is_already_c_contiguous(self):
+        # arrange
+        contiguous = np.ascontiguousarray([1.0, 2.0, 3.0])
+        expr = Expression("V(R1)", [contiguous], "V")
+        # act
+        result = expr.step_data(0)
+        # assert — no copy required when array is already C-contiguous
+        assert contiguous.flags['C_CONTIGUOUS'] is True
+        assert result is contiguous
+        assert expr.steps[0] is contiguous
+
+    def test_step_data_returns_c_contiguous_for_all_steps_independent_of_layout(self):
+        # arrange — mix C-contiguous and non-contiguous constructor inputs
+        contiguous = np.array([1.0, 2.0, 3.0])
+        non_contiguous = np.arange(8.0)[1::2]
+        expr = Expression("V(R1)", [contiguous, non_contiguous], "V")
+        # act
+        step0 = expr.step_data(0)
+        step1 = expr.step_data(1)
+        # assert — both outputs are C-contiguous and values are preserved
+        assert step0.flags['C_CONTIGUOUS'] is True
+        assert step1.flags['C_CONTIGUOUS'] is True
+        np.testing.assert_array_equal(step0, contiguous)
+        np.testing.assert_array_equal(step1, non_contiguous)

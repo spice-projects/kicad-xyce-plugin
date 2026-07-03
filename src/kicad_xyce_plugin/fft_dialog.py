@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+import numpy as np
 from PySide6.QtCore import Qt, QUrl, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtQuick import QQuickView
@@ -13,12 +14,34 @@ logger = logging.getLogger(__name__)
 
 _QML_FILE = Path(__file__).parent / "fft_dialog.qml"
 _BG = "#1a1b1e"
+_MAX_FREQUENCY_OPTIONS: tuple[tuple[str, float], ...] = (
+    ("100 Hz", 100.0),
+    ("1 kHz", 1e3),
+    ("10 kHz", 1e4),
+    ("100 kHz", 1e5),
+    ("1 MHz", 1e6),
+    ("10 MHz", 1e7),
+    ("100 MHz", 1e8),
+    ("1 GHz", 1e9),
+    ("10 GHz", 1e10),
+    ("100 GHz", 1e11),
+)
+_DEFAULT_MAX_FREQUENCY = 1e5
+
+
+def _max_frequency_default_index(max_frequency: float) -> int:
+    # pick the closest preset so the dropdown default reflects the current data scale
+    target = float(max_frequency)
+    option_values = [value for _, value in _MAX_FREQUENCY_OPTIONS]
+    return min(range(len(option_values)), key=lambda idx: abs(option_values[idx] - target))
 
 
 class FftDialog(QDialog):
     """Dialog for configuring and launching an FFT computation.
 
-    Presents a QML UI for selecting FFT parameters: expressions, data range, window, FFT point count, normalization, output type, and DC option. After acceptance, result properties reflect the user's selections.
+    Presents a QML UI for selecting FFT parameters: expressions, data range,
+    window, maximum frequency, normalization, output type, and DC option.
+    After acceptance, result properties reflect the user's selections.
 
     Parameters:
         parent: QWidget — parent widget
@@ -29,7 +52,7 @@ class FftDialog(QDialog):
         max_abscissa_value_zoomed: float — maximum abscissa value in zoom window
     """
 
-    def __init__(self, parent: QWidget, expressions: list[Expression], min_abscissa_value: float, max_abscissa_value: float, min_abscissa_value_zoomed: float, max_abscissa_value_zoomed: float):
+    def __init__(self, parent: QWidget, expressions: list[Expression], min_abscissa_value: float, max_abscissa_value: float, min_abscissa_value_zoomed: float, max_abscissa_value_zoomed: float, default_max_frequency: float = _DEFAULT_MAX_FREQUENCY):
         """Initialize the FFT dialog and set up the QML UI. All expressions are pre-selected by default."""
         super().__init__(parent)
         # store references
@@ -41,7 +64,9 @@ class FftDialog(QDialog):
         self._result_from_index: float = float(min_abscissa_value)
         self._result_to_index: float = float(max_abscissa_value)
         self._result_window: WindowFunction = WindowFunction.HANNING
-        self._result_np_points: int = 1024
+        self._default_max_frequency: float = float(default_max_frequency) if np.isfinite(default_max_frequency) and float(default_max_frequency) > 0.0 else _DEFAULT_MAX_FREQUENCY
+        self._default_max_frequency_index: int = _max_frequency_default_index(self._default_max_frequency)
+        self._result_max_frequency: float = _MAX_FREQUENCY_OPTIONS[self._default_max_frequency_index][1]
         self._result_normalize: bool = True
         self._result_keep_dc: bool = False
         self._result_output: FftOutput = FftOutput.MAGNITUDE
@@ -54,13 +79,13 @@ class FftDialog(QDialog):
         self._ctx_properties = {
             "windowFunctions": [w.value for w in WindowFunction],
             "outputTypes": [o.value for o in FftOutput],
-            "fftPointOptions": [128, 256, 512, 1024, 2048, 4096, 8192],
+            "maxFrequencyOptions": [{"label": label, "value": value} for label, value in _MAX_FREQUENCY_OPTIONS],
             "abscissaMin": min_abscissa_value,
             "abscissaMax": max_abscissa_value,
             "zoomFromTime": min_abscissa_value_zoomed,
             "zoomToTime": max_abscissa_value_zoomed,
             "defaultWindowIndex": [w.value for w in WindowFunction].index(WindowFunction.HANNING.value),
-            "defaultFftPointIndex": 3,
+            "defaultMaxFrequencyIndex": self._default_max_frequency_index,
         }
         # create QML view
         self._qml_view = QQuickView()
@@ -103,8 +128,8 @@ class FftDialog(QDialog):
         else:
             self._selected_expressions.discard(expression)
 
-    @Slot(str, int, str, bool, str, float, float, bool)
-    def _on_dialog_accepted(self, window_fn: str, np_points: int, output: str, normalize: bool, range_mode: str, custom_from: float, custom_to: float, keep_dc: bool):
+    @Slot(str, float, str, bool, str, float, float, bool)
+    def _on_dialog_accepted(self, window_fn: str, max_frequency: float, output: str, normalize: bool, range_mode: str, custom_from: float, custom_to: float, keep_dc: bool):
         """Validate selection, store result properties, and close the dialog when accepted from QML UI."""
         # reject if no expressions are selected
         if not self._selected_expressions:
@@ -123,19 +148,14 @@ class FftDialog(QDialog):
             # fall back to rectangular when the value is unrecognised
             self._result_window = WindowFunction.RECTANGULAR
         try:
-            # FFT point count
-            self._result_np_points = int(np_points)
+            # maximum frequency
+            parsed_max_frequency = float(max_frequency)
+            if not np.isfinite(parsed_max_frequency) or parsed_max_frequency <= 0.0:
+                raise ValueError()
+            self._result_max_frequency = parsed_max_frequency
         except (TypeError, ValueError):
             # fall back to default when the value is unrecognised
-            self._result_np_points = 1024
-        # validate minimum FFT point count
-        if self._result_np_points < 4:
-            # fall back to default when too small
-            self._result_np_points = 1024
-        # validate power-of-two FFT point count
-        if self._result_np_points & (self._result_np_points - 1):
-            # fall back to default when not a power of two
-            self._result_np_points = 1024
+            self._result_max_frequency = _MAX_FREQUENCY_OPTIONS[self._default_max_frequency_index][1]
         try:
             # output type
             self._result_output = FftOutput(output)
@@ -170,9 +190,9 @@ class FftDialog(QDialog):
         return self._result_window
 
     @property
-    def result_np_points(self) -> int:
-        """Selected FFT point count for interpolation/FFT."""
-        return self._result_np_points
+    def result_max_frequency(self) -> float:
+        """Selected maximum frequency for FFT interpolation/output."""
+        return self._result_max_frequency
 
     @property
     def result_normalize(self) -> bool:

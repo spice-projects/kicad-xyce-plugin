@@ -1078,10 +1078,8 @@ class TestXyceOutputFileMultiBlock:
         raw = xyce_raw_file_parser(path)
         # assert — step_data arrays are views into the mmap (have a non-None base)
         assert raw is not None
-        step0 = raw.abscissa.step_data(0)
-        step1 = raw.abscissa.step_data(1)
-        assert step0.base is not None
-        assert step1.base is not None
+        assert raw.abscissa.steps[0].base is not None
+        assert raw.abscissa.steps[1].base is not None
         # cleanup
         os.unlink(path)
 
