@@ -87,6 +87,7 @@ def _format_values(name: str, values: list[float], unit: str) -> str:
 
 _FALLBACK_DECIMATE_TARGET = 9600
 
+
 def _compute_fft_default_max_frequency(abscissa: Expression) -> float:
     # minimum time step in data
     min_delta = float("inf")
@@ -105,6 +106,7 @@ def _compute_fft_default_max_frequency(abscissa: Expression) -> float:
     # choose a default max frequency as 40% of Nyquist for stable defaults
     nyquist = 0.5 / min_delta
     return max(100.0, 0.4 * nyquist)
+
 
 def _compute_decimate_target(screen: QScreen) -> int:
     # return conservative fallback when no screen is available (headless / early startup)

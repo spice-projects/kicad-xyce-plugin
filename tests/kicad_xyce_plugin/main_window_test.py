@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
-import numpy as np
 import pytest
 from kicad_xyce_plugin.kicad_icons import load_kicad_icons
 from kicad_xyce_plugin.main_window import MainWindow, _compute_decimate_target, _format_value, _format_values
@@ -315,7 +314,7 @@ class TestMainWindowOnMenuRunSimulation:
         window._simulation_parameters = MagicMock()
         window._simulation_parameters.to_xyce_directive.return_value = ".TRAN 1u 1m"
         with patch.object(window, "_extract_schematic_netlist", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))), \
-             patch("kicad_xyce_plugin.main_window.run_xyce_simulation") as mock_run:
+                patch("kicad_xyce_plugin.main_window.run_xyce_simulation") as mock_run:
             mock_run.return_value = MagicMock()
             # act
             window._on_menu_run_simulation()
@@ -360,7 +359,7 @@ class TestMainWindowOnMenuShowNetlist:
         window._simulation_parameters = MagicMock()
         window._simulation_parameters.to_xyce_directive.return_value = ".OP"
         with patch.object(window, "_extract_schematic_netlist", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))), \
-             patch("kicad_xyce_plugin.main_window.NetlistViewerDialog") as mock_dialog_cls:
+                patch("kicad_xyce_plugin.main_window.NetlistViewerDialog") as mock_dialog_cls:
             mock_dialog_cls.return_value.exec.return_value = None
             # act
             window._on_menu_show_netlist()
@@ -808,7 +807,7 @@ class TestMainWindowPopulateCharts:
         window._plot_suggestion = [("A", [MagicMock()]), ("B", [MagicMock()])]
         mock_chart = MagicMock()
         with patch.object(window, "_add_chart", return_value=mock_chart) as mock_add, \
-             patch("kicad_xyce_plugin.main_window.QTimer.singleShot") as mock_shot:
+                patch("kicad_xyce_plugin.main_window.QTimer.singleShot") as mock_shot:
             # act
             window._populate_charts()
         # assert
@@ -899,7 +898,7 @@ class TestMainWindowAddRemovePlots:
         window._charts = [chart]
         expressions = [MagicMock()]
         with patch("kicad_xyce_plugin.main_window.AddPlotDialog") as mock_cls, \
-             patch("kicad_xyce_plugin.main_window.QTimer.singleShot"):
+                patch("kicad_xyce_plugin.main_window.QTimer.singleShot"):
             mock_cls.DialogCode.Accepted = "accepted"
             mock_cls.return_value.exec.return_value = "accepted"
             mock_cls.return_value.selected_expressions = expressions
@@ -954,7 +953,7 @@ class TestMainWindowOnMenuNewWindow:
         # arrange
         window = _make_window()
         with patch("kicad_xyce_plugin.main_window.MainWindow") as mock_cls, \
-             patch("kicad_xyce_plugin.main_window.register_child_window") as mock_reg:
+                patch("kicad_xyce_plugin.main_window.register_child_window") as mock_reg:
             mock_new = mock_cls.return_value
             # act
             window._on_menu_new_window()
@@ -1085,7 +1084,7 @@ class TestMainWindowOnSimulationFinishedSuccessPaths:
         window._raw_file_path = MagicMock()
         window._raw_file_path.exists.return_value = True
         with patch.object(window, "_load_raw_file", return_value=True), \
-             patch.object(window, "_add_chart") as mock_add:
+                patch.object(window, "_add_chart") as mock_add:
             # act
             window._on_simulation_finished(0, 0, False)
         # assert
@@ -1098,7 +1097,7 @@ class TestMainWindowOnSimulationFinishedSuccessPaths:
         window._raw_file_path.exists.return_value = True
         window._charts = [MagicMock()]
         with patch.object(window, "_load_raw_file", return_value=True), \
-             patch.object(window, "_update_all_charts") as mock_update:
+                patch.object(window, "_update_all_charts") as mock_update:
             # act
             window._on_simulation_finished(0, 0, False)
         # assert
@@ -1126,7 +1125,7 @@ class TestMainWindowOnMenuShowNetlistNoParameters:
         window._topology = MagicMock(directives=[])
         mock_params = MagicMock()
         with patch("kicad_xyce_plugin.main_window.from_xyce_directives", return_value=mock_params), \
-             patch("kicad_xyce_plugin.main_window.NetlistViewerDialog") as mock_dlg:
+                patch("kicad_xyce_plugin.main_window.NetlistViewerDialog") as mock_dlg:
             mock_dlg.return_value.exec.return_value = None
             # act
             window._on_menu_show_netlist()
@@ -1142,8 +1141,8 @@ class TestMainWindowOnMenuConfigureSimulationFallback:
         window._kicad_client = None
         window._topology = MagicMock(directives=[])
         with patch("kicad_xyce_plugin.main_window.from_xyce_directives", return_value=None), \
-             patch("kicad_xyce_plugin.main_window.SimulationParametersDialog") as mock_dlg, \
-             patch("kicad_xyce_plugin.main_window.OpSimulationParameters") as mock_op:
+                patch("kicad_xyce_plugin.main_window.SimulationParametersDialog") as mock_dlg, \
+                patch("kicad_xyce_plugin.main_window.OpSimulationParameters") as mock_op:
             mock_dlg.DialogCode.Accepted = "not_accepted"
             mock_dlg.return_value.exec.return_value = "not_accepted"
             # act
