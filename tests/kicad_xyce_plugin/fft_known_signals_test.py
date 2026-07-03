@@ -1,30 +1,34 @@
 import numpy as np
 import pytest
 
-from kicad_xyce_plugin.fft import compute_fft_many, FftOutput, WindowFunction
+from kicad_xyce_plugin.fft import compute_fft_many2, FftOutput, WindowFunction
 
 
-def _next_power_of_two(value):
-    # convert to plain int
-    integer_value = int(value)
-    # return the minimum supported FFT point count
-    if integer_value <= 4:
-        return 4
-    # compute the next power-of-two value
-    return 1 << int(np.ceil(np.log2(integer_value)))
+def _max_frequency_from_target_samples(x, x_left_index, x_right_index, target_sample_count):
+    # derive max_frequency so compute_fft_many2 creates approximately target_sample_count interpolation samples
+    left_index = int(x_left_index)
+    right_index = int(x_right_index)
+    sample_count = int(target_sample_count)
+    if sample_count < 2:
+        raise ValueError("target_sample_count must be at least 2")
+    interval_duration = float(x[right_index - 1]) - float(x[left_index])
+    if interval_duration <= 0.0:
+        raise ValueError("selected interval duration must be positive")
+    return (sample_count - 1) / (10.0 * interval_duration)
 
 
-def _compute_fft(x, y, window=WindowFunction.RECTANGULAR, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False, np_points=None, x_left_index=0, x_right_index=None):
+def _compute_fft(x, y, window=WindowFunction.RECTANGULAR, normalize=False, output=FftOutput.MAGNITUDE, keep_dc=False, max_frequency=None, np_points=None, x_left_index=0, x_right_index=None):
     # default right interval index to the end of x
     if x_right_index is None:
         x_right_index = len(x)
-    # compute number of selected samples
-    selected_sample_count = int(x_right_index) - int(x_left_index)
-    # infer FFT point count from the selected interval when omitted
-    if np_points is None:
-        np_points = _next_power_of_two(selected_sample_count)
+    # infer default maximum frequency from the selected interval when omitted
+    if max_frequency is None:
+        selected_sample_count = int(x_right_index) - int(x_left_index)
+        if np_points is None:
+            np_points = selected_sample_count
+        max_frequency = _max_frequency_from_target_samples(x, x_left_index, x_right_index, np_points)
     # use the batch API for a single signal
-    freqs, mat = compute_fft_many(x, np.asarray([y]), np_points=np_points, window=window, normalize=normalize, x_left_index=x_left_index, x_right_index=x_right_index, output=output, keep_dc=keep_dc)
+    freqs, mat = compute_fft_many2(x, np.asarray([y]), max_frequency=max_frequency, window=window, normalize=normalize, x_left_index=x_left_index, x_right_index=x_right_index, output=output, keep_dc=keep_dc)
     # unwrap row 0
     return freqs, mat[0]
 

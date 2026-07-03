@@ -4,10 +4,10 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
+import numpy as np
 import pytest
-
 from kicad_xyce_plugin.kicad_icons import load_kicad_icons
-from kicad_xyce_plugin.main_window import MainWindow, _format_value, _format_values, _compute_decimate_target
+from kicad_xyce_plugin.main_window import MainWindow, _compute_decimate_target, _format_value, _format_values
 from kicad_xyce_plugin.config.plugin_config import PluginConfig
 from kicad_xyce_plugin.xyce_raw_file import AbscissaScale
 from PySide6.QtCore import QSize
@@ -190,7 +190,7 @@ class TestMainWindowOnQmlReady:
         # act
         window._on_qml_ready(QQuickView.Status.Ready)
         # assert
-        window._root.setProperty.assert_any_call("fftVisible", False)
+        window._root.setProperty.assert_any_call("calculateFFTVisible", False)
         window._root.setProperty.assert_any_call("stepToolVisible", False)
         window._root.setProperty.assert_any_call("smithChartVisible", False)
 

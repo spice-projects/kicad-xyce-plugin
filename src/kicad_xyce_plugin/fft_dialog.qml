@@ -10,13 +10,13 @@ Item {
     // context properties injected by Python
     property var windowFunctions: []
     property var outputTypes: []
-    property var fftPointOptions: []
+    property var maxFrequencyOptions: []
     property real abscissaMin: 0
     property real abscissaMax: 0
     property real zoomFromTime: 0
     property real zoomToTime: 0
     property int defaultWindowIndex: 2
-    property int defaultFftPointIndex: 3
+    property int defaultMaxFrequencyIndex: 3
 
     // expression multi-select state
     property var expressionItems: []
@@ -39,7 +39,7 @@ Item {
         root.selectionState = state
     }
 
-    signal dialogAccepted(string windowFn, int npPoints, string output, bool normalize, string rangeMode, real customFrom, real customTo, bool keepDc)
+    signal dialogAccepted(string windowFn, real maxFrequency, string output, bool normalize, string rangeMode, real customFrom, real customTo, bool keepDc)
     signal dialogRejected()
     signal selectionChanged(string expressionName, bool selected)
 
@@ -348,10 +348,10 @@ Item {
             }
 
             // ---------------------------------------------------------------
-            // Section: FFT Points
+            // Section: Maximum Frequency
             // ---------------------------------------------------------------
             Text {
-                text: "FFT Points"
+                text: "Maximum Frequency"
                 color: "#7a8599"
                 font.pixelSize: 11
                 font.capitalization: Font.AllUppercase
@@ -367,31 +367,32 @@ Item {
                 border.width: 1
 
                 ComboBox {
-                    id: fftPointCombo
+                    id: maxFrequencyCombo
                     anchors { fill: parent; margins: 2 }
-                    model: root.fftPointOptions
-                    currentIndex: root.defaultFftPointIndex
-                    onModelChanged: currentIndex = root.defaultFftPointIndex
+                    model: root.maxFrequencyOptions
+                    textRole: "label"
+                    currentIndex: root.defaultMaxFrequencyIndex
+                    onModelChanged: currentIndex = root.defaultMaxFrequencyIndex
                     background: Rectangle { color: "transparent" }
                     contentItem: Text {
                         leftPadding: 8
-                        text: fftPointCombo.displayText
+                        text: maxFrequencyCombo.displayText
                         color: "#dce8f8"
                         font.pixelSize: 12
                         verticalAlignment: Text.AlignVCenter
                     }
                     delegate: ItemDelegate {
-                        id: fftPointDelegate
+                        id: maxFrequencyDelegate
                         required property var modelData
                         required property int index
-                        width: fftPointCombo.width
+                        width: maxFrequencyCombo.width
                         contentItem: Text {
-                            text: String(fftPointDelegate.modelData)
+                            text: String(maxFrequencyDelegate.modelData.label)
                             color: "#b0b8c8"
                             font.pixelSize: 12
                         }
                         background: Rectangle {
-                            color: fftPointCombo.highlightedIndex === fftPointDelegate.index ? "#3a3d4a" : "#252730"
+                            color: maxFrequencyCombo.highlightedIndex === maxFrequencyDelegate.index ? "#3a3d4a" : "#252730"
                         }
                     }
                     popup.background: Rectangle {
@@ -626,13 +627,13 @@ Item {
                     hoverEnabled: true
                     onClicked: {
                         var winFn = windowCombo.currentText
-                        var fftPts = parseInt(fftPointCombo.currentText)
+                        var maxFrequency = root.maxFrequencyOptions[maxFrequencyCombo.currentIndex].value
                         var out = outputCombo.currentText
                         var norm = normalizeCheck.checked
                         var from = parseFloat(fromField.text)
                         var to = parseFloat(toField.text)
                         var keepDc = keepDcCheck.checked
-                        root.dialogAccepted(winFn, fftPts, out, norm, root.rangeMode, from, to, keepDc)
+                        root.dialogAccepted(winFn, maxFrequency, out, norm, root.rangeMode, from, to, keepDc)
                     }
                 }
             }

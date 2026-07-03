@@ -167,10 +167,12 @@ def _set_fft_dialog_module(fft_dialog_module):
     _fft_dialog_module = fft_dialog_module
 
 
-def _make_dialog(abscissa_values=None, zoom_from=0, zoom_to=10):
+def _make_dialog(abscissa_values=None, zoom_from=0, zoom_to=10, default_max_frequency=None):
     # build a FftDialog bypassing __init__ so no Qt objects are created
     if abscissa_values is None:
         abscissa_values = np.linspace(0.0, 1.0, 11)
+    if default_max_frequency is None:
+        default_max_frequency = _fft_dialog_module._DEFAULT_MAX_FREQUENCY
     abscissa = Expression("Time", abscissa_values, "s")
     e1 = Expression("V(R1)", np.ones(len(abscissa_values)), "V")
     e2 = Expression("I(L1)", np.ones(len(abscissa_values)) * 2.0, "A")
@@ -184,7 +186,9 @@ def _make_dialog(abscissa_values=None, zoom_from=0, zoom_to=10):
     dialog._result_from_index = float(abscissa_values[0])
     dialog._result_to_index = float(abscissa_values[-1])
     dialog._result_window = WindowFunction.RECTANGULAR
-    dialog._result_np_points = 1024
+    dialog._default_max_frequency = float(default_max_frequency)
+    dialog._default_max_frequency_index = _fft_dialog_module._max_frequency_default_index(default_max_frequency)
+    dialog._result_max_frequency = _fft_dialog_module._MAX_FREQUENCY_OPTIONS[dialog._default_max_frequency_index][1]
     dialog._result_normalize = True
     dialog._result_keep_dc = False
     dialog._result_output = FftOutput.MAGNITUDE
@@ -202,7 +206,7 @@ class TestFftDialogOnDialogAccepted:
         dialog, _e1, _e2 = _make_dialog()
         dialog._selected_expressions = set()
         # act
-        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1e3, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert len(dialog._rejected_calls) == 1
         assert dialog._result_expressions == []
@@ -234,7 +238,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange — both expressions are pre-selected by default
         dialog, e1, e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1e3, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert e1 in dialog._result_expressions
         assert e2 in dialog._result_expressions
@@ -244,7 +248,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Hamming", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Hamming", 1e3, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_window == WindowFunction.HAMMING
 
@@ -252,39 +256,39 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("???", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("???", 1e3, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_window == WindowFunction.RECTANGULAR
 
-    def test_np_points_stored(self):
+    def test_max_frequency_stored(self):
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", 2048, "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1e6, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
-        assert dialog._result_np_points == 2048
+        assert dialog._result_max_frequency == 1e6
 
-    def test_np_points_not_power_of_two_falls_back_to_default(self):
+    def test_max_frequency_non_numeric_falls_back_to_default(self):
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", 300, "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", "bad", "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
-        assert dialog._result_np_points == 1024
+        assert dialog._result_max_frequency == _fft_dialog_module._MAX_FREQUENCY_OPTIONS[dialog._default_max_frequency_index][1]
 
-    def test_np_points_less_than_four_falls_back_to_default(self):
+    def test_max_frequency_non_positive_falls_back_to_default(self):
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", 2, "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 0.0, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
-        assert dialog._result_np_points == 1024
+        assert dialog._result_max_frequency == _fft_dialog_module._MAX_FREQUENCY_OPTIONS[dialog._default_max_frequency_index][1]
 
     def test_output_type_magnitude_db_stored(self):
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude (dB)", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1e3, "Magnitude (dB)", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_output == FftOutput.MAGNITUDE_DB
 
@@ -292,7 +296,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", 1024, "Phase", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1e3, "Phase", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_output == FftOutput.PHASE
 
@@ -300,7 +304,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", 1024, "???", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1e3, "???", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_output == FftOutput.MAGNITUDE
 
@@ -308,7 +312,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", True, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1e3, "Magnitude", True, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_normalize is True
 
@@ -316,7 +320,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1e3, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_normalize is False
 
@@ -324,7 +328,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange — 11-point abscissa
         dialog, _e1, _e2 = _make_dialog(np.linspace(0.0, 1.0, 11))
         # act
-        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1e3, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_from_index == 0.0
         assert dialog._result_to_index == 1.0
@@ -333,7 +337,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog(np.linspace(0.0, 1.0, 11))
         # act — unrecognised range_mode triggers full-range fallback
-        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "unknown_mode", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1e3, "Magnitude", False, "unknown_mode", 0.0, 1.0, False)
         # assert
         assert dialog._result_from_index == 0.0
         assert dialog._result_to_index == 1.0
@@ -342,7 +346,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, True)
+        dialog._on_dialog_accepted("Rectangular", 1e3, "Magnitude", False, "full", 0.0, 1.0, True)
         # assert
         assert dialog._result_keep_dc is True
 
@@ -350,7 +354,7 @@ class TestFftDialogOnDialogAccepted:
         # arrange
         dialog, _e1, _e2 = _make_dialog()
         # act
-        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1e3, "Magnitude", False, "full", 0.0, 1.0, False)
         # assert
         assert dialog._result_keep_dc is False
 
@@ -365,25 +369,43 @@ class TestFftDialogInitAndQml:
         max_val = 10.0
         min_zoom = 2.0
         max_zoom = 8.0
+        default_max_frequency = 1e6
         # act
-        dialog = _fft_dialog_module.FftDialog(parent, expressions, min_val, max_val, min_zoom, max_zoom)
+        dialog = _fft_dialog_module.FftDialog(parent, expressions, min_val, max_val, min_zoom, max_zoom, default_max_frequency)
         # assert
         assert dialog._expressions == expressions
         assert dialog._selected_expressions == set(expressions)
         assert dialog._result_from_index == min_val
         assert dialog._result_to_index == max_val
         assert dialog._result_window == WindowFunction.HANNING
-        assert dialog._result_np_points == 1024
+        assert dialog._result_max_frequency == 1e6
         assert dialog._result_normalize is True
         assert dialog._result_keep_dc is False
         assert dialog._result_output == FftOutput.MAGNITUDE
         assert "windowFunctions" in dialog._ctx_properties
         assert "outputTypes" in dialog._ctx_properties
-        assert "fftPointOptions" in dialog._ctx_properties
+        assert "maxFrequencyOptions" in dialog._ctx_properties
+        selected_option = dialog._ctx_properties["maxFrequencyOptions"][dialog._ctx_properties["defaultMaxFrequencyIndex"]]
+        assert selected_option["value"] == 1e6
         assert dialog._ctx_properties["abscissaMin"] == min_val
         assert dialog._ctx_properties["abscissaMax"] == max_val
         assert dialog._ctx_properties["zoomFromTime"] == min_zoom
         assert dialog._ctx_properties["zoomToTime"] == max_zoom
+
+    def test_constructor_default_frequency_selects_closest_preset(self):
+        # arrange
+        parent = MagicMock()
+        expressions = [Expression("A", np.arange(5), "V")]
+        min_val = 0.0
+        max_val = 1.0
+        min_zoom = 0.0
+        max_zoom = 1.0
+        default_max_frequency = 8e5
+        # act
+        dialog = _fft_dialog_module.FftDialog(parent, expressions, min_val, max_val, min_zoom, max_zoom, default_max_frequency)
+        # assert
+        assert dialog._result_max_frequency == 1e6
+        assert dialog._ctx_properties["maxFrequencyOptions"][dialog._ctx_properties["defaultMaxFrequencyIndex"]]["value"] == 1e6
 
     def test_on_qml_ready_injects_properties_and_connects_signals(self):
         # arrange
@@ -411,7 +433,7 @@ class TestFftDialogInitAndQml:
     def test_result_expressions_property_after_accept(self):
         # arrange — both expressions are pre-selected; verify both appear in result
         dialog, e1, e2 = _make_dialog()
-        dialog._on_dialog_accepted("Rectangular", 1024, "Magnitude", False, "full", 0.0, 1.0, False)
+        dialog._on_dialog_accepted("Rectangular", 1e3, "Magnitude", False, "full", 0.0, 1.0, False)
         # act / assert
         assert dialog.result_expressions == [e1, e2]
 
@@ -436,12 +458,12 @@ class TestFftDialogInitAndQml:
         # act / assert
         assert dialog.result_window == WindowFunction.BLACKMAN
 
-    def test_result_np_points_property(self):
+    def test_result_max_frequency_property(self):
         # arrange
         dialog, _e1, _e2 = _make_dialog()
-        dialog._result_np_points = 2048
+        dialog._result_max_frequency = 1e7
         # act / assert
-        assert dialog.result_np_points == 2048
+        assert dialog.result_max_frequency == 1e7
 
     def test_result_normalize_property(self):
         # arrange

@@ -47,8 +47,16 @@ class Expression:
         return len(self._steps)
 
     def step_data(self, step_index: int) -> np.ndarray:
-        # return the per-step array for the given step index; zero copy for raw parsed expressions whose steps are strided views into the mmap
-        return self._steps[step_index]
+        # step data
+        step_data = self._steps[step_index]
+        # check we have optimized this ndarray before
+        if not step_data.flags['C_CONTIGUOUS']:
+            # create a contiguous copy of the step data
+            step_data = np.ascontiguousarray(step_data)
+            # update list
+            self._steps[step_index] = step_data
+        # exit
+        return step_data
 
     @property
     def unit(self) -> str:

@@ -62,13 +62,13 @@ def test_property_default_values(root: QQuickItem):
     # assert default values for top-level properties exposed by the FFT dialog
     assert root.property("windowFunctions").toVariant() == []
     assert root.property("outputTypes").toVariant() == []
-    assert root.property("fftPointOptions").toVariant() == []
+    assert root.property("maxFrequencyOptions").toVariant() == []
     assert root.property("abscissaMin") == 0
     assert root.property("abscissaMax") == 0
     assert root.property("zoomFromTime") == 0
     assert root.property("zoomToTime") == 0
     assert root.property("defaultWindowIndex") == 2
-    assert root.property("defaultFftPointIndex") == 3
+    assert root.property("defaultMaxFrequencyIndex") == 3
     assert root.property("expressionItems").toVariant() == []
     assert root.property("selectionState").toVariant() == {}
     assert root.property("filterText") == ""

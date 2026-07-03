@@ -1,10 +1,11 @@
 import logging
 import subprocess
 import tempfile
+import time
+
 from pathlib import Path
 
 import numpy as np
-import time
 from kipy import KiCad
 from PySide6.QtCore import QSize, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QAction, QColor, QGuiApplication, QKeySequence, QScreen
@@ -16,7 +17,7 @@ from .chart import Chart
 from .config import PluginConfig, PluginConfigDialog
 from .expression import Expression, ExpressionManager
 from .fft_dialog import FftDialog
-from .fft import FftOutput, compute_fft_many
+from .fft import FftOutput, compute_fft_many2
 from .kicad_icons import KiCadIcon, get_kicad_icon, load_kicad_icons
 from .kicad import get_active_schematic_path
 from .netlist_parser import NetlistTopology, parse_netlist
@@ -86,6 +87,24 @@ def _format_values(name: str, values: list[float], unit: str) -> str:
 
 _FALLBACK_DECIMATE_TARGET = 9600
 
+def _compute_fft_default_max_frequency(abscissa: Expression) -> float:
+    # minimum time step in data
+    min_delta = float("inf")
+    # process abscissa steps
+    for step_data in abscissa.steps:
+        # require at least two samples to measure a time step
+        if len(step_data) < 2:
+            continue
+        # convert to a float array and measure the smallest delta between adjacent samples
+        step_min_delta = float(np.min(np.diff(step_data)))
+        if step_min_delta > 0 and step_min_delta < min_delta:
+            min_delta = step_min_delta
+    # conservative fallback when no valid time delta exists
+    if not np.isfinite(min_delta) or min_delta <= 0.0:
+        return 1e5
+    # choose a default max frequency as 40% of Nyquist for stable defaults
+    nyquist = 0.5 / min_delta
+    return max(100.0, 0.4 * nyquist)
 
 def _compute_decimate_target(screen: QScreen) -> int:
     # return conservative fallback when no screen is available (headless / early startup)
@@ -297,7 +316,8 @@ class MainWindow(QMainWindow):
         # root object
         self._root = self._qml_view.rootObject()
         # set window-level menu capability flags using built-in bool to avoid passing numpy.bool into QML properties
-        self._root.setProperty("fftVisible", bool(self._abscissa and self._abscissa.unit == "s"))
+        self._root.setProperty("calculateFFTVisible", bool(self._abscissa and self._abscissa.unit == "s"))
+        self._root.setProperty("openFFTCalculationVisible", False)
         self._root.setProperty("stepToolVisible", bool(self._step_information and self._step_information.length > 1))
         self._root.setProperty("smithChartVisible", False)
         # connect signals from QML to Python handlers
@@ -310,7 +330,7 @@ class MainWindow(QMainWindow):
         self._root.menuAddChart.connect(self._on_menu_add_chart)
         self._root.menuDeleteChart.connect(self._on_menu_delete_chart)
         self._root.menuNewWindow.connect(self._on_menu_new_window)
-        self._root.menuFft.connect(self._on_menu_fft)
+        self._root.menuCalculateFFT.connect(self._on_menu_calculate_fft)
         self._root.menuStepTool.connect(self._on_menu_step_tool)
         # self._root.menuSmithChart.connect(self._on_menu_smith_chart)
         # connect pointer hover signals to update the status bar
@@ -479,7 +499,7 @@ class MainWindow(QMainWindow):
         self._step_information = raw_file.step_information
         self._raw_file_path = raw_file_path
         # set window-level menu capability flags using built-in bool to avoid passing numpy.bool into QML properties
-        self._root.setProperty("fftVisible", bool(self._abscissa.unit == "s"))
+        self._root.setProperty("calculateFFTVisible", bool(self._abscissa.unit == "s"))
         self._root.setProperty("stepToolVisible", bool(self._step_information.length > 1))
         self._root.setProperty("smithChartVisible", False)
         # successfully loaded
@@ -546,16 +566,16 @@ class MainWindow(QMainWindow):
         smith_window.show()
 
     @Slot(int)
-    def _on_menu_fft(self, chart_index: int):
+    def _on_menu_calculate_fft(self, chart_index: int):
         # log information
-        logger.debug("User requested FFT on chart at index: %d", chart_index)
+        logger.debug("User requested Calculate FFT on chart at index: %d", chart_index)
         # find chart
         chart = self._charts[chart_index]
         # collect real-valued ordinate expressions currently plotted on this chart
         expressions = [v for v in chart.expressions if not v.complex and v != chart.abscissa]
         if not expressions:
             # log information
-            logger.warning("No suitable time-domain expressions to FFT on chart %d", chart_index)
+            logger.warning("No suitable time-domain expressions to Calculate FFT on chart %d", chart_index)
             # exit
             return
         # min and max abscissa values (time domain abscissa is always ascending order)
@@ -566,8 +586,10 @@ class MainWindow(QMainWindow):
         # apply selected chart zoom
         min_abscissa_value_zoomed = min_abscissa_value + (x_left_ratio or 0.0) * (max_abscissa_value - min_abscissa_value)
         max_abscissa_value_zoomed = min_abscissa_value + (x_right_ratio or 1.0) * (max_abscissa_value - min_abscissa_value)
+        # compute default max frequency from the abscissa sampling
+        default_max_frequency = _compute_fft_default_max_frequency(self._abscissa)
         # open FFT settings dialog
-        dialog = FftDialog(self, expressions, min_abscissa_value, max_abscissa_value, min_abscissa_value_zoomed, max_abscissa_value_zoomed)
+        dialog = FftDialog(self, expressions, min_abscissa_value, max_abscissa_value, min_abscissa_value_zoomed, max_abscissa_value_zoomed, default_max_frequency)
         # check if the user accepted the dialog; if not, exit without doing anything
         if dialog.exec() != FftDialog.DialogCode.Accepted:
             return
@@ -575,7 +597,7 @@ class MainWindow(QMainWindow):
         result_expressions = dialog.result_expressions
         from_abscissa_value = dialog.result_from_index
         to_abscissa_value = dialog.result_to_index
-        np_points = dialog.result_np_points
+        max_frequency = dialog.result_max_frequency
         window = dialog.result_window
         normalize = dialog.result_normalize
         keep_dc = dialog.result_keep_dc
@@ -616,7 +638,7 @@ class MainWindow(QMainWindow):
                 y_matrix[expr_index] = expression_step_data
             try:
                 # fft internals allocate output arrays (spectrum/frequency/value matrices)
-                frequencies, fft_matrix = compute_fft_many(step_abscissa, y_matrix, np_points=np_points, window=window, normalize=normalize, x_left_index=from_index, x_right_index=to_index, output=output, keep_dc=keep_dc)
+                frequencies, fft_matrix = compute_fft_many2(step_abscissa, y_matrix, max_frequency=max_frequency, window=window, normalize=normalize, x_left_index=from_index, x_right_index=to_index, output=output, keep_dc=keep_dc)
                 # guard against an unexpectedly empty frequency axis
                 if len(frequencies) == 0:
                     # log error and abort when no frequencies are returned
