@@ -577,6 +577,27 @@ class TestNetlistParser:
         assert ".PRINT TRAN FORMAT=RAW V(OUT) {V(OUT) * I(V1)}" in topology.directives
         assert len(topology.directives) == 2
 
+    def test_step_directive_is_extracted_for_round_tripping(self):
+        # arrange
+        netlist = "Title\n.TRAN 1u 1m\n.STEP V303 LIST 450 470\n.END\n"
+        # act
+        sanitized, topology = parse_netlist(netlist)
+        # assert
+        assert ".STEP V303 LIST 450 470" not in sanitized
+        assert ".STEP V303 LIST 450 470" in topology.passthrough_directives
+        assert ".TRAN 1u 1m" in topology.directives
+        assert len(topology.directives) == 1
+
+    def test_multiple_step_directives_keep_order(self):
+        # arrange
+        netlist = "Title\n.TRAN 1u 1m\n.STEP V1 LIST 1 2\n.STEP TEMP 0 100 10\n.END\n"
+        # act
+        sanitized, topology = parse_netlist(netlist)
+        # assert
+        assert ".STEP V1 LIST 1 2" not in sanitized
+        assert ".STEP TEMP 0 100 10" not in sanitized
+        assert topology.passthrough_directives == [".STEP V1 LIST 1 2", ".STEP TEMP 0 100 10"]
+
     def test_directive_extraction_ignores_non_simulation_directives(self):
         # arrange
         netlist = "Title\n.MODEL M1 NMOS\n.SUBCKT S1 A B\n.ENDS\n.END\n"

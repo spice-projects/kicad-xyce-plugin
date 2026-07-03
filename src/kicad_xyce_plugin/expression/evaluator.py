@@ -4,6 +4,7 @@ from typing import Any
 import numpy as np
 
 from .builtins import BUILTIN_CONSTANTS, BUILTIN_FUNCTIONS, XyceValue
+from .expression import Expression
 from .nodes import BinaryOperationNode, BinaryOperator, ExpressionNode, FunctionCallNode, FunctionDefinitionNode, IdentifierNode, NumberNode, StepSelectorNode, TernaryOperationNode, UnaryOperationNode, UnaryOperator
 from .probe_names import is_network_parameter_probe_name
 
@@ -25,6 +26,8 @@ _NUMBER_SUFFIXES: dict[str, float] = {
 @dataclass(frozen=True)
 class EvaluationContext:
 
+    expressions: dict[str, Expression]
+
     variables: dict[str, XyceValue]
     functions: dict[str, FunctionDefinitionNode]
     constants: dict[str, XyceValue]
@@ -34,15 +37,15 @@ class EvaluationContext:
 
 class XyceEvaluator:
 
-    def evaluate(self, expression: ExpressionNode, variables: dict[str, Any] | None = None, functions: dict[str, FunctionDefinitionNode] | None = None, constants: dict[str, Any] | None = None, step_slices: tuple[slice, ...] | None = None) -> Any:
+    def evaluate(self, expression: ExpressionNode, expressions: dict[str, Expression] | None = None, functions: dict[str, FunctionDefinitionNode] | None = None, constants: dict[str, Any] | None = None, step_slices: tuple[slice, ...] | None = None) -> Any:
         # build the evaluation context
-        context = EvaluationContext(self._normalize_value_mapping(variables), self._normalize_function_mapping(functions), self._normalize_value_mapping(constants, BUILTIN_CONSTANTS), step_slices)
+        context = EvaluationContext(expressions or {}, {}, self._normalize_function_mapping(functions), self._normalize_value_mapping(constants, BUILTIN_CONSTANTS), step_slices)
         # evaluate the expression tree
         result = self._evaluate(expression, context, ())
         # convert the internal value to a public result
         return self._to_public_value(result)
 
-    def _evaluate(self, expression: ExpressionNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> XyceValue:
+    def _evaluate(self, expression: ExpressionNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> Expression | XyceValue:
         # evaluate a numeric literal
         if isinstance(expression, NumberNode):
             return self._parse_number(expression.text)
@@ -85,11 +88,15 @@ class XyceEvaluator:
     def _evaluate_binary(self, expression: BinaryOperationNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> XyceValue:
         # short-circuit logical and
         if expression.operator == BinaryOperator.LOGICAL_AND:
+            # evaluate the left-hand side first
             left_value = self._evaluate(expression.left, context, call_stack)
+            # return the short-circuit result or evaluate the right-hand side
             return self._evaluate_logical_and(left_value, expression.right, context, call_stack)
         # short-circuit logical or
         if expression.operator == BinaryOperator.LOGICAL_OR:
+            # evaluate the left-hand side first
             left_value = self._evaluate(expression.left, context, call_stack)
+            # return the short-circuit result or evaluate the right-hand side
             return self._evaluate_logical_or(left_value, expression.right, context, call_stack)
         # evaluate the left-hand side
         left_value = self._evaluate(expression.left, context, call_stack)
@@ -163,6 +170,7 @@ class XyceEvaluator:
         if builtin is not None:
             # evaluate builtin arguments
             args = [self._evaluate(arg, context, call_stack) for arg in expression.args]
+            # evaluate the builtin function
             return builtin(args)
         # look up a user-defined function
         definition = context.functions.get(function_name)
@@ -180,7 +188,7 @@ class XyceEvaluator:
         for param, arg in zip(definition.params, expression.args):
             local_variables[param.casefold()] = self._evaluate(arg, context, call_stack)
         # build the local evaluation context; propagate step_slices, functions, and constants so @N and nested calls work inside function bodies
-        local_context = EvaluationContext(local_variables, context.functions, context.constants, context.step_slices)
+        local_context = EvaluationContext(context.expressions, local_variables, context.functions, context.constants, context.step_slices)
         # evaluate the function body
         return self._evaluate(definition.body, local_context, call_stack + (function_name,))
 
@@ -198,8 +206,8 @@ class XyceEvaluator:
             return False
         # reconstruct the stored variable key and resolve it directly from the context
         probe_key = self._reconstruct_probe_name(expression).casefold()
-        # it must be in the variables to be treated as a probe reference
-        return probe_key in context.variables
+        # it must be in the variables/expressions to be treated as a probe reference
+        return probe_key in context.variables or probe_key in context.expressions
 
     @staticmethod
     def _has_simple_probe_args(expression: FunctionCallNode) -> bool:
@@ -211,13 +219,30 @@ class XyceEvaluator:
         # ok
         return True
 
-    def _evaluate_probe(self, expression: FunctionCallNode, context: EvaluationContext, call_stack: tuple[str, ...]) -> XyceValue:
+    def _evaluate_context_variable(self, name: str, context: EvaluationContext) -> XyceValue | None:
+        # try to find the variable directly in the context
+        value = context.variables.get(name)
+        if value is not None:
+            return value
+        # find an expression for that name
+        expression = context.expressions.get(name)
+        if expression is not None:
+            # use expression data
+            value = expression.data
+            # cache the result in the variable context for future lookups
+            context.variables[name] = value
+            # exit
+            return value
+        # not found
+        return None
+
+    def _evaluate_probe(self, expression: FunctionCallNode, context: EvaluationContext, _: tuple[str, ...]) -> XyceValue:
         # reconstruct the probe reference name from arguments
         probe_name = self._reconstruct_probe_name(expression)
         # try to find the probe directly in variables
-        probe_key = probe_name.casefold()
-        if probe_key in context.variables:
-            return context.variables[probe_key]
+        value = self._evaluate_context_variable(probe_name.casefold(), context)
+        if value is not None:
+            return value
         # if probe has two arguments, try differential decomposition: V(a, b) = V(a) - V(b)
         if len(expression.args) == 2:
             # extract the two node names
@@ -227,19 +252,23 @@ class XyceEvaluator:
             if node_b_name == "0" or node_b_name.lower() == "0":
                 # return the first node directly
                 probe_a_key = ("v(" + node_a_name + ")").casefold()
-                if probe_a_key in context.variables:
-                    return context.variables[probe_a_key]
+                # evaluate probe
+                value = self._evaluate_context_variable(probe_a_key, context)
+                if value is not None:
+                    return value
             # handle ground as first argument: V(0, b) = -V(b)
             if node_a_name == "0":
                 probe_b_key = ("v(" + node_b_name + ")").casefold()
-                if probe_b_key in context.variables:
-                    return -context.variables[probe_b_key]
+                # evaluate probe
+                value = self._evaluate_context_variable(probe_b_key, context)
+                if value is not None:
+                    return -value
             # try to find both single-node probes for differential
             probe_a_key = ("v(" + node_a_name + ")").casefold()
             probe_b_key = ("v(" + node_b_name + ")").casefold()
             # look up both values
-            value_a = context.variables.get(probe_a_key)
-            value_b = context.variables.get(probe_b_key) if node_b_name != "0" else np.asarray(0.0)
+            value_a = self._evaluate_context_variable(probe_a_key, context)
+            value_b = self._evaluate_context_variable(probe_b_key, context) if node_b_name != "0" else np.asarray(0.0)
             # return differential if both probes exist
             if value_a is not None:
                 if value_b is not None:
@@ -315,12 +344,14 @@ class XyceEvaluator:
     def _lookup_name(self, name: str, context: EvaluationContext) -> XyceValue:
         # normalize the identifier name
         key = name.casefold()
-        # resolve a variable binding
-        if key in context.variables:
-            return context.variables[key]
+        # evaluate variable with this name
+        value = self._evaluate_context_variable(key, context)
+        if value is not None:
+            return value
         # resolve a constant binding
-        if key in context.constants:
-            return context.constants[key]
+        constant = context.constants.get(key)
+        if constant is not None:
+            return constant
         # fail on an unknown identifier
         raise ValueError(f"Unknown identifier: {name}")
 

@@ -1,0 +1,12 @@
+* Simple RLC Series Circuit - Transient Analysis Test
+V1 IN 0 PULSE(0 5 0 1n 1n 10m 20m)
+R1 IN N1 100
+L1 N1 N2 10mH
+C1 N2 0 1uF
+
+.TRAN 1u 20m 0
+.PRINT TRAN FORMAT=RAW FILE=tran-simple-01.raw V(*) I(*)
+.FFT I(L1) NP=1024 WINDOW=HANN
+.FFT I(C1) NP=2048 WINDOW=HANN
+
+.END

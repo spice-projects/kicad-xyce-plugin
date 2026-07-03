@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QApplication
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
-QML_PATH = Path(__file__).parent.parent.parent / "src" / "kicad_xyce_plugin" / "main_window.qml"
+QML_PATH = Path(__file__).parent.parent.parent / "src" / "kicad_xyce_plugin" / "fft_dialog.qml"
 
 
 @pytest.fixture
@@ -59,12 +59,22 @@ def test_loads_without_errors(view: QQuickView):
 
 
 def test_property_default_values(root: QQuickItem):
-    # assert default values for top-level properties
-    assert root.property("_activeChartIndex") == -1
-    assert root.property("_activeChartSeriesCount") == 0
-    assert root.property("calculateFFTVisible") is False
-    assert root.property("openFFTCalculationVisible") is False
-    assert root.property("stepToolVisible") is False
-    assert root.property("smithChartVisible") is False
-    assert root.property("logVisible") is False
-    assert root.property("statusText") == ""
+    # assert default values for top-level properties exposed by the FFT dialog
+    assert root.property("windowFunctions").toVariant() == []
+    assert root.property("outputTypes").toVariant() == []
+    assert root.property("maxFrequencyOptions").toVariant() == []
+    assert root.property("abscissaMin") == 0
+    assert root.property("abscissaMax") == 0
+    assert root.property("zoomFromTime") == 0
+    assert root.property("zoomToTime") == 0
+    assert root.property("defaultWindowIndex") == 2
+    assert root.property("defaultMaxFrequencyIndex") == 3
+    assert root.property("expressionItems").toVariant() == []
+    assert root.property("selectionState").toVariant() == {}
+    assert root.property("filterText") == ""
+    assert root.property("rangeMode") == "all"
+    assert root.property("rangeOptions").toVariant() == [
+        {"label": "All abscissa points", "value": "all"},
+        {"label": "Current zoom / visible range", "value": "zoom"},
+        {"label": "Custom time range", "value": "custom"}
+    ]

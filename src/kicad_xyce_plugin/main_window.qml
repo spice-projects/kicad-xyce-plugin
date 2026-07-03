@@ -11,7 +11,8 @@ Item {
 
     property int _activeChartIndex: -1
     property int _activeChartSeriesCount: 0
-    property bool fftVisible: false
+    property bool calculateFFTVisible: false
+    property bool openFFTCalculationVisible: false
     property bool stepToolVisible: false
     property bool smithChartVisible: false
 
@@ -30,7 +31,8 @@ Item {
     signal menuAddChart(int chartIndex)
     signal menuDeleteChart(int chartIndex)
     signal menuNewWindow()
-    signal menuFft(int chartIndex)
+    signal menuCalculateFFT(int chartIndex)
+    signal menuOpenFFTCalculation(int chartIndex)
     signal menuStepTool(int chartIndex)
     signal menuSmithChart(int chartIndex)
     signal pointerMoved(int chartIndex, real xRatio)
@@ -751,9 +753,14 @@ Item {
             }
             ContextMenuSeparator {}
             ContextMenuItem {
-                itemText: "FFT..."
-                visible: root.fftVisible && root._activeChartSeriesCount > 0
-                onTriggered: root.menuFft(root._activeChartIndex)
+                itemText: "Calculate FFT"
+                visible: root.calculateFFTVisible && root._activeChartSeriesCount > 0
+                onTriggered: root.menuCalculateFFT(root._activeChartIndex)
+            }
+            ContextMenuItem {
+                itemText: "Open FFT Calculation"
+                visible: root.openFFTCalculationVisible
+                onTriggered: root.menuOpenFFTCalculation(root._activeChartIndex)
             }
             ContextMenuItem {
                 itemText: "Step Tool..."
@@ -766,7 +773,7 @@ Item {
                 onTriggered: root.menuSmithChart(root._activeChartIndex)
             }
             ContextMenuSeparator {
-                visible: (root.fftVisible && root._activeChartSeriesCount > 0) || root.stepToolVisible || root.smithChartVisible
+                visible: (root.calculateFFTVisible && root._activeChartSeriesCount > 0) || root.openFFTCalculationVisible || root.stepToolVisible || root.smithChartVisible
             }
             ContextMenuItem {
                 itemText: "Add Chart"

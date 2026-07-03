@@ -1,21 +1,26 @@
 import numpy as np
+from typing import Any
 
 
 class Expression:
 
-    def __init__(self, name: str, data: np.ndarray, unit: str, source: str | None = None, variable_type: str | None = None):
+    def __init__(self, name: str, steps: list[np.ndarray], unit: str, source: str | None = None, variable_type: str | None = None, data: np.ndarray | None = None, metadata: list[dict[str, Any]] | None = None):
         # name field
         self._name = name
-        # data field
-        self._data = data
+        # step data
+        self._steps = steps
         # unit field
         self._unit = unit
-        # complex field
-        self._complex = data.dtype == np.complex128
+        # complex field: derived from the first step's dtype
+        self._complex = self._steps[0].dtype == np.complex128
         # source field
         self._source = source
         # variable type field
         self._variable_type = variable_type
+        # combined steps in a single array, cached on first access if not provided
+        self._data = data
+        # metadata field
+        self._metadata = metadata if metadata is not None else []
 
     @property
     def name(self) -> str:
@@ -23,9 +28,35 @@ class Expression:
         return self._name
 
     @property
+    def steps(self) -> list[np.ndarray]:
+        # return the list of per-step arrays
+        return self._steps
+
+    @property
     def data(self) -> np.ndarray:
-        # return data
+        # check data has been cached
+        if self._data is None:
+            # concatenate the per-step arrays into a single array
+            self._data = self._steps[0] if len(self._steps) == 1 else np.concatenate(self._steps)
+        # return the cached data
         return self._data
+
+    @property
+    def step_count(self) -> int:
+        # return the number of steps
+        return len(self._steps)
+
+    def step_data(self, step_index: int) -> np.ndarray:
+        # step data
+        step_data = self._steps[step_index]
+        # check we have optimized this ndarray before
+        if not step_data.flags['C_CONTIGUOUS']:
+            # create a contiguous copy of the step data
+            step_data = np.ascontiguousarray(step_data)
+            # update list
+            self._steps[step_index] = step_data
+        # exit
+        return step_data
 
     @property
     def unit(self) -> str:
@@ -46,3 +77,8 @@ class Expression:
     def variable_type(self) -> str | None:
         # return variable type
         return self._variable_type
+
+    @property
+    def metadata(self) -> list[dict[str, Any]]:
+        # return metadata
+        return self._metadata

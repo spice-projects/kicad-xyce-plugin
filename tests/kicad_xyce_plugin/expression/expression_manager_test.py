@@ -13,7 +13,7 @@ from kicad_xyce_plugin.expression.nodes import BinaryOperationNode, BinaryOperat
 # ---------------------------------------------------------------------------
 
 def _expr(name, data, unit=""):
-    return Expression(name, np.array(data, dtype=np.float64), unit)
+    return Expression(name, [np.array(data, dtype=np.float64)], unit)
 
 
 def _make_manager(expressions=None, step_slices=None):

@@ -92,6 +92,8 @@ class NetlistTopology:
     global_nodes: set[str]
     # simulation directives
     directives: list[str] = field(default_factory=list)
+    # directives preserved verbatim from the source netlist for round-tripping
+    passthrough_directives: list[str] = field(default_factory=list)
 
 
 def _join_continuation_lines(raw_lines: list[str]) -> list[str]:
@@ -198,6 +200,8 @@ def parse_netlist(text: str) -> tuple[str, NetlistTopology]:
     global_nodes: set[str] = set()
     # initialize directives
     directives: list[str] = []
+    # initialize pass-through directives that should be reinserted unchanged
+    passthrough_directives: list[str] = []
     # initialize subcircuit
     current_subckt: SubcircuitDefinition | None = None
     # sanitized netlist
@@ -263,6 +267,12 @@ def parse_netlist(text: str) -> tuple[str, NetlistTopology]:
                 # add to directives
                 directives.append(stripped)
                 # continue loop
+                continue
+            # preserve .STEP cards verbatim for round-tripping and append them later
+            if first_upper == ".STEP":
+                # store the original directive unchanged
+                passthrough_directives.append(stripped)
+                # continue without adding it to the sanitized body
                 continue
             # option packages that are managed separately from the sanitized netlist
             if first_upper == ".OPTIONS" and len(tokens) > 1 and tokens[1].upper() in ("HBINT", "NONLIN-HB", "LINSOL-HB", "DEVICE", "TIMEINT", "NONLIN", "LINSOL",):
@@ -352,4 +362,4 @@ def parse_netlist(text: str) -> tuple[str, NetlistTopology]:
                 # add to globals
                 global_nodes.add(node)
     # return result
-    return '\n'.join(netlist) + '\n', NetlistTopology(title=title, devices=top_level_devices, nodes=top_level_nodes, subcircuit_definitions=subcircuit_definitions, global_nodes=global_nodes, directives=directives)
+    return '\n'.join(netlist) + '\n', NetlistTopology(title=title, devices=top_level_devices, nodes=top_level_nodes, subcircuit_definitions=subcircuit_definitions, global_nodes=global_nodes, directives=directives, passthrough_directives=passthrough_directives)

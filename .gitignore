@@ -89,13 +89,7 @@ coverage.xml
 .env*
 .venv*
 
-# local raw-data artifacts
-/Ladder.qraw
-/MiddleBrook.qraw
-/Noise.qraw
-/NoiseFigure.qraw
-/PLL.qraw
-/test-2.fft.qraw
-/test-2.qraw
-/test.qraw
 /kicad-icons
+*.raw
+*.fft*
+*.prof

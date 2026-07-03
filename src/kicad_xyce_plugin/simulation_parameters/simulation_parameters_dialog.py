@@ -234,6 +234,10 @@ class SimulationParametersDialog(QDialog):
         # return model
         return StepParameters(sweep_mode, variable, start, stop, step, points, list_values, data_table, enabled)
 
+    def _assemble_result(self, analysis: AcSimulationParameters | DCSimulationParameters | HbSimulationParameters | LinSimulationParameters | NoiseSimulationParameters | OpSimulationParameters | TransientSimulationParameters | None) -> None:
+        # create result, using analysis and previous step and options and unassociated prints from the initial parameters
+        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), options=self._initial_parameters.options, unassociated_prints=self._initial_parameters.unassociated_prints,)
+
     def _get_current_sens_parameters(self) -> SensParameter | None:
         return self._sensitivity_section.get_current()
 
@@ -266,7 +270,7 @@ class SimulationParametersDialog(QDialog):
         if analysis is None:
             return
         # assemble final config and close dialog
-        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
+        self._assemble_result(analysis)
         # close the dialog and return acceptance to the caller
         self.accept()
 
@@ -279,7 +283,7 @@ class SimulationParametersDialog(QDialog):
             return
         # assemble final config and close dialog
         try:
-            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
+            self._assemble_result(analysis)
         except ValueError as e:
             self._root.setProperty("errorText", str(e))
             return
@@ -294,7 +298,7 @@ class SimulationParametersDialog(QDialog):
             return
         # assemble final config and close dialog
         try:
-            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
+            self._assemble_result(analysis)
         except ValueError as e:
             self._root.setProperty("errorText", str(e))
             return
@@ -309,7 +313,7 @@ class SimulationParametersDialog(QDialog):
             return
         # assemble final config and close dialog
         try:
-            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
+            self._assemble_result(analysis)
         except ValueError as e:
             self._root.setProperty("errorText", str(e))
             return
@@ -324,7 +328,7 @@ class SimulationParametersDialog(QDialog):
             return
         # assemble final config and close dialog
         try:
-            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
+            self._assemble_result(analysis)
         except ValueError as e:
             self._root.setProperty("errorText", str(e))
             return
@@ -335,7 +339,7 @@ class SimulationParametersDialog(QDialog):
         # delegate construction to the op panel (no validation failure path for OP)
         analysis = self._op_panel.handle_submit(print_enabled, print_all_nodes, print_all_currents, print_power, print_bjt_leads, print_fet_leads, print_specific_vars, print_format, print_file, save_enabled, save_type, nodeset_text, initial_conditions_text, save_file, replace_ground)
         # assemble final config and close dialog
-        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
+        self._assemble_result(analysis)
         # close the dialog and return acceptance to the caller
         self.accept()
 
@@ -348,7 +352,7 @@ class SimulationParametersDialog(QDialog):
             return
         # assemble final config and close dialog
         try:
-            self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters())
+            self._assemble_result(analysis)
         except ValueError as e:
             self._root.setProperty("errorText", str(e))
             return

@@ -309,11 +309,9 @@ class Chart:
             QTimer.singleShot(2000, lambda: (series_to_remove.clear(), axes_to_remove.clear(), old_series.clear()))
 
     def _plot_step(self, ordinate_variant: Expression, y_axis: QAbstractAxis, color: str, step: int, abscissa_left_value: float, abscissa_right_value: float, min_value: float, max_value: float, x_right_ratio: float | None, x_left_ratio: float | None) -> tuple[QLineSeries, float, float] | None:
-        # step slice
-        step_slice = self._step_information.abscissa_indices[step]
-        # step abscissa & ordinate values
-        abscissa_values = self._abscissa.data[step_slice]
-        ordinate_values_at_abscissa_value = ordinate_variant.data[step_slice]
+        # step abscissa & ordinate values — zero copy: step_data returns the per-step view directly
+        abscissa_values = self._abscissa.step_data(step)
+        ordinate_values_at_abscissa_value = ordinate_variant.step_data(step)
         # check we have a zoom window to apply
         if x_left_ratio is not None and x_right_ratio is not None:
             # find indexes for the new zoom window
@@ -470,11 +468,9 @@ class Chart:
                 values: list[float] = []
                 # step and series for this step
                 for step, _ in rendered_series.items():
-                    # step slice
-                    step_slice = self._step_information.abscissa_indices[step]
-                    # abscissa & ordinate values for this step
-                    abscissa_data = self._abscissa.data[step_slice]
-                    ordinate_data = ordinate_variant.data[step_slice]
+                    # abscissa & ordinate values for this step — zero copy
+                    abscissa_data = self._abscissa.step_data(step)
+                    ordinate_data = ordinate_variant.step_data(step)
                     # find abscissa index for value
                     index = _find_abscissa_index_for_value(abscissa_data, x_value, ascending)
                     # append ordinate value at this abscissa value
@@ -543,11 +539,9 @@ class Chart:
                     max_value = float("-inf")
                     # loop steps
                     for step, series in rendered_series.items():
-                        # step slice
-                        step_slice = self._step_information.abscissa_indices[step]
-                        # step abscissa & ordinate values
-                        abscissa_values = self._abscissa.data[step_slice]
-                        ordinate_values_at_abscissa_value = ordinate_variant.data[step_slice]
+                        # step abscissa & ordinate values — zero copy
+                        abscissa_values = self._abscissa.step_data(step)
+                        ordinate_values_at_abscissa_value = ordinate_variant.step_data(step)
                         # check we have a zoom window to apply
                         if x_left_ratio is not None and x_right_ratio is not None:
                             # find indexes for the new zoom window
