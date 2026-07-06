@@ -1,5 +1,6 @@
 from .ac_simulation_parameters import AcSimulationParameters
 from .data_block import DataBlock
+from .data_table_dialog import DataTableDialog
 from .dc_simulation_parameters import DCSimulationParameters
 from .fft_parameters import FftParameters
 from .four_parameters import FourParameters
@@ -20,6 +21,7 @@ from .transient_simulation_parameters import TransientSchedulePoint, TransientSi
 __all__ = [
     "AcSimulationParameters",
     "DataBlock",
+    "DataTableDialog",
     "DCSimulationParameters",
     "DeviceNoiseOperator",
     "FftParameters",

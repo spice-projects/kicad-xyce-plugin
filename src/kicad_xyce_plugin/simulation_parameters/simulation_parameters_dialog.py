@@ -1,4 +1,3 @@
-import logging
 import re
 from pathlib import Path
 
@@ -10,6 +9,8 @@ from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
 from ..netlist_parser import NetlistTopology
 from .ac_simulation_parameters import AcSimulationParameters
 from .ac_panel import AcPanel
+from .data_block import DataBlock
+from .data_table_dialog import DataTableDialog
 from .dc_simulation_parameters import DCSimulationParameters
 from .dc_panel import DcPanel
 from .hb_simulation_parameters import HbSimulationParameters
@@ -26,8 +27,6 @@ from .simulation_config import SimulationConfig
 from .step_parameters import StepParameters
 from .transient_simulation_parameters import TransientSimulationParameters, TransientSchedulePoint
 from .tran_panel import TranPanel
-
-logger = logging.getLogger(__name__)
 
 _QML_FILE = Path(__file__).parent / "simulation_parameters_dialog.qml"
 _BG = "#efefe8"
@@ -53,6 +52,8 @@ class SimulationParametersDialog(QDialog):
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         # capture initial config for form pre-population
         self._initial_parameters = initial_parameters
+        # keep editable data blocks separate so the user can modify one table at a time
+        self._data_blocks: list[DataBlock] = list(initial_parameters.data_blocks)
         # store topology for deriving variable candidates for the print sections
         self._topology = topology
         # keep the result empty until the user confirms valid values
@@ -112,6 +113,7 @@ class SimulationParametersDialog(QDialog):
         self._root.submitNoise.connect(self._on_submit_noise)
         self._root.submitHB.connect(self._on_submit_hb)
         self._root.submitLIN.connect(self._on_submit_lin)
+        self._root.editDataTableRequested.connect(self._on_edit_data_table_requested)
         # connect qml cancel signal to close without a result
         self._root.cancelRequested.connect(self.reject)
 
@@ -242,7 +244,55 @@ class SimulationParametersDialog(QDialog):
         # build the merged steps tuple with the current ui step first
         merged_steps = (current_step,) + preserved_rest if current_step.enabled else preserved_rest
         # create result, using analysis and merged steps, data blocks, options, and unassociated prints from the initial parameters
-        self._result = SimulationConfig(analysis=analysis, steps=merged_steps, data_blocks=self._initial_parameters.data_blocks, options=self._initial_parameters.options, unassociated_prints=self._initial_parameters.unassociated_prints)
+        self._result = SimulationConfig(analysis=analysis, steps=merged_steps, data_blocks=tuple(self._data_blocks), options=self._initial_parameters.options, unassociated_prints=self._initial_parameters.unassociated_prints)
+
+    def _find_data_block_index(self, table_name: str) -> int:
+        # search for the first matching block name
+        for index, data_block in enumerate(self._data_blocks):
+            if data_block.name == table_name:
+                return index
+        # return a sentinel when no matching block exists
+        return -1
+
+    def _set_data_table_name_for_analysis(self, analysis_type: str, table_name: str) -> None:
+        # update the table-name field on the active analysis panel
+        if analysis_type == "DC":
+            self._root.setProperty("dataTableName", table_name)
+            return
+        if analysis_type == "AC":
+            self._root.setProperty("acDataTableName", table_name)
+            return
+        if analysis_type == "NOISE":
+            self._root.setProperty("noiseDataTableName", table_name)
+            return
+        if analysis_type == "LIN":
+            self._root.setProperty("linDataTableName", table_name)
+
+    @Slot(str, str)
+    def _on_edit_data_table_requested(self, analysis_type: str, table_name: str) -> None:
+        # normalize the requested table name before lookup
+        normalized_name = table_name.strip()
+        # find the existing block for the requested table when one is already present
+        index = self._find_data_block_index(normalized_name) if normalized_name else -1
+        data_block = self._data_blocks[index] if index >= 0 else None
+        # collect the current names so the editor can reject duplicates
+        existing_names = tuple(block.name for block in self._data_blocks)
+        # open the dedicated data-table editor for a single block
+        dialog = DataTableDialog(self, data_block, existing_names, normalized_name)
+        # stop if the user cancels the editor
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        # read the accepted block from the dialog
+        result = dialog.data_block
+        if result is None:
+            return
+        # replace the existing block or append a new block when creating one
+        if index >= 0:
+            self._data_blocks[index] = result
+        else:
+            self._data_blocks.append(result)
+        # keep the parent analysis field in sync with the edited table name
+        self._set_data_table_name_for_analysis(analysis_type, result.name)
 
     def _get_current_sens_parameters(self) -> SensParameter | None:
         return self._sensitivity_section.get_current()

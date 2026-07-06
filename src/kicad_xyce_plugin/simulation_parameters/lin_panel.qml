@@ -28,6 +28,7 @@ ColumnLayout {
     property string printSpecificVars: ""
     property alias printFormatIndex: printFormatCombo.currentIndex
     property string printFile: ""
+    signal editDataTableRequested(string tableName)
     readonly property string sweepModeValue: (["LIN", "DEC", "OCT", "DATA"])[linSweepModeComboBox.currentIndex] || "LIN"
     readonly property bool isDataMode: linSweepModeComboBox.currentIndex === 3
     readonly property string printFormatValue: printFormatCombo.currentIndex > 0 ? printFormatCombo.model[printFormatCombo.currentIndex] : ""
@@ -172,11 +173,21 @@ ColumnLayout {
                     color: "#6B6B66"; font.pixelSize: 12
                     visible: panel.isDataMode
                 }
-                TextField {
-                    id: linDataTableNameField
-                    placeholderText: "e.g. freqTable"
+                RowLayout {
                     Layout.fillWidth: true
                     visible: panel.isDataMode
+                    spacing: 8
+
+                    TextField {
+                        id: linDataTableNameField
+                        placeholderText: "e.g. freqTable"
+                        Layout.fillWidth: true
+                    }
+
+                    Button {
+                        text: "Edit Table..."
+                        onClicked: panel.editDataTableRequested(panel.dataTableName)
+                    }
                 }
             }
         }
