@@ -753,12 +753,12 @@ Item {
             }
             ContextMenuSeparator {}
             ContextMenuItem {
-                itemText: "Calculate FFT"
+                itemText: "Calculate FFT on selected plots"
                 visible: root.calculateFFTVisible && root._activeChartSeriesCount > 0
                 onTriggered: root.menuCalculateFFT(root._activeChartIndex)
             }
             ContextMenuItem {
-                itemText: "Open FFT Calculation"
+                itemText: "Open Xyce FFT Calculation"
                 visible: root.openFFTCalculationVisible
                 onTriggered: root.menuOpenFFTCalculation(root._activeChartIndex)
             }

@@ -1,3 +1,4 @@
+import time
 from unittest.mock import patch
 
 import numpy as np
@@ -106,6 +107,62 @@ def test_xy_none_strided_inputs_become_contiguous():
     assert y_out.flags["C_CONTIGUOUS"]
     np.testing.assert_array_equal(x_out, x)
     np.testing.assert_array_equal(y_out, y)
+
+
+def test_benchmark_non_contiguous_vs_contiguous_before_decimation():
+    # arrange: build a strided view so we can compare both routes on identical values
+    rng = np.random.default_rng(123)
+    length = 250_000
+    target = 2_500
+    matrix = rng.standard_normal((length, 4), dtype=np.float64)
+    values_non_contiguous = matrix[:, 1]
+    assert not values_non_contiguous.flags["C_CONTIGUOUS"]
+
+    # benchmark settings (fixed and deterministic)
+    repeats = 7
+    inner_loops = 5
+
+    def run_non_contiguous_route() -> np.ndarray:
+        out = values_non_contiguous
+        for _ in range(inner_loops):
+            out = decimate(values_non_contiguous, target, DecimationAlgorithm.M4)
+        return out
+
+    def run_make_contiguous_then_decimate_route() -> np.ndarray:
+        out = values_non_contiguous
+        for _ in range(inner_loops):
+            out = decimate(np.ascontiguousarray(values_non_contiguous), target, DecimationAlgorithm.M4)
+        return out
+
+    # warm-up to stabilize one-time effects before timing
+    run_non_contiguous_route()
+    run_make_contiguous_then_decimate_route()
+
+    non_contiguous_times: list[float] = []
+    contiguous_then_decimate_times: list[float] = []
+
+    # act: alternating measurement reduces systematic bias
+    for _ in range(repeats):
+        start = time.perf_counter()
+        non_contiguous_result = run_non_contiguous_route()
+        non_contiguous_times.append(time.perf_counter() - start)
+
+        start = time.perf_counter()
+        contiguous_then_decimate_result = run_make_contiguous_then_decimate_route()
+        contiguous_then_decimate_times.append(time.perf_counter() - start)
+
+    # assert: both routes must produce exactly the same values for this algorithm
+    np.testing.assert_allclose(non_contiguous_result, contiguous_then_decimate_result)
+
+    # compare medians to reduce the impact of outliers
+    median_non_contiguous = float(np.median(np.array(non_contiguous_times, dtype=np.float64)))
+    median_contiguous_then_decimate = float(np.median(np.array(contiguous_then_decimate_times, dtype=np.float64)))
+
+    assert median_contiguous_then_decimate < median_non_contiguous, (
+        f"Expected contiguous+decimate to be faster; medians: "
+        f"non_contiguous={median_non_contiguous:.6f}s, "
+        f"contiguous_then_decimate={median_contiguous_then_decimate:.6f}s"
+    )
 
 
 def test_nth_point_length():

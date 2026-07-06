@@ -21,7 +21,7 @@ _RE_HARMONIC_LINE = re.compile(r"First Harmonic:\s*([0-9eE+\-.]+),\s*Start Freq:
 _RE_DC_LINE = re.compile(r"DC component\s+(.*)\s+Mag=\s*([0-9eE+\-.]+)\s+Phase=\s*([0-9eE+\-.]+)")
 
 
-def xyce_fft_file_parser(file_pattern: str | Path, step_information: StepInformation) -> list[XyceOutputFile] | None:
+def xyce_fft_file_parser(file_pattern: str | Path, step_information: StepInformation, expression_manager: ExpressionManager | None = None) -> list[XyceOutputFile] | None:
     # find all files matching the pattern
     pattern_str = str(file_pattern)
     matching_files = glob.glob(pattern_str)
@@ -277,9 +277,13 @@ def xyce_fft_file_parser(file_pattern: str | Path, step_information: StepInforma
                     phase_steps.append(np.array([dc_phase] + phase_list, dtype=np.float64))
                     # append metadata for this step
                     metadata_steps.append(metadata)
+                # strip signal name, remove `{}`
+                signal_name = signal_name.strip("{}")
+                # infer magnitude expression unit from signal name
+                magnitude_expression_unit = expression_manager.infer_unit(signal_name) if expression_manager else VariableType.UNKNOWN.value.unit
                 # create expressions for magnitude and phase
-                expressions.append(Expression(signal_name, magnitude_steps, VariableType.VOLTAGE.value.unit, source="FFT", variable_type=VariableType.VOLTAGE.value.name, metadata=metadata_steps))
-                expressions.append(Expression(f"phase({signal_name})", phase_steps, VariableType.PHASE.value.unit, source="FFT", variable_type=VariableType.PHASE.value.name, metadata=metadata_steps))
+                expressions.append(Expression(f"FFT({signal_name})", magnitude_steps, magnitude_expression_unit, source="FFT", metadata=metadata_steps))
+                expressions.append(Expression(f"FFT(phase({signal_name}))", phase_steps, VariableType.PHASE.value.unit, source="FFT", metadata=metadata_steps))
             # abscissa indexes
             abscissa_indices = [slice(idx * len(abscissa_data), (idx + 1) * len(abscissa_data)) for idx in range(step_information.length)]
             # abscissa value ranges
@@ -287,7 +291,7 @@ def xyce_fft_file_parser(file_pattern: str | Path, step_information: StepInforma
             # re-create step information
             fft_step_information = StepInformation(step_information.keys, step_information.values, abscissa_indices, abscissa_value_ranges)
             # create expressions manager
-            expression_manager = ExpressionManager(expressions)
+            fft_expression_manager = ExpressionManager(expressions)
             # file metadata
             metadata = {
                 "Window": window,
@@ -295,7 +299,7 @@ def xyce_fft_file_parser(file_pattern: str | Path, step_information: StepInforma
                 "First Harmonic": first_harmonic
             }
             # create output file object
-            output_files.append(XyceOutputFile(filename=Path(matching_files[0]), title="FFT analysis", complex=False, step_information=fft_step_information, abscissa=abscissa, abscissa_scale=AbscissaScale.LINEAR, expression_manager=expression_manager, metadata=metadata))
+            output_files.append(XyceOutputFile(filename=Path(matching_files[0]), title="FFT analysis", complex=False, step_information=fft_step_information, abscissa=abscissa, abscissa_scale=AbscissaScale.LINEAR, expression_manager=fft_expression_manager, metadata=metadata))
         # exit
         return output_files
     finally:

@@ -92,6 +92,25 @@ class ExpressionManager:
         # exit
         return result
 
+    def infer_unit(self, expression: str, name: str | None = None) -> str:
+        # context key
+        key = (name or expression).casefold()
+        # check expression has been evaluated before
+        result = self._context.get(key, None)
+        if result is None:
+            try:
+                # parse the expression string into a qspice AST
+                ast = self._parser.parse_expression(expression)
+                # build unit lookup context from cached expressions
+                unit_context = {context_key: context_expression.unit for context_key, context_expression in self._context.items()}
+                # infer propagated unit from the qspice AST
+                return self._infer_unit(ast, unit_context)
+            except ValueError as e:
+                # log information
+                logger.warning("Failed to parse expression %r: %s", expression, e)
+        # use expression unit
+        return result.unit if result is not None else ""
+
     def _rematerialize(self, data: np.ndarray, ast: ExpressionNode) -> np.ndarray:
         """Re-materialize a step-selector result to full stepped layout.
 

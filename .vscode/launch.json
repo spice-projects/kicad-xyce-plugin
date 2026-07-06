@@ -32,21 +32,10 @@
         },
         {
             "name": "Run App (Profiler)",
-            "type": "debugpy",
+            "type": "node-terminal",
             "request": "launch",
             "cwd": "${workspaceFolder}/src",
-            "module": "cProfile",
-            "console": "integratedTerminal",
-            "args": [
-                "-o",
-                "${workspaceFolder}/.plugin.prof",
-                "-s",
-                "cumtime",
-                "-m",
-                "kicad_xyce_plugin",
-                "--log-level=DEBUG"
-            ],
-            "justMyCode": true
+            "command": "${workspaceFolder}/.venv/bin/python -m cProfile -o ${workspaceFolder}/.plugin.prof -s cumtime -m kicad_xyce_plugin --log-level=DEBUG"
         }
     ]
 }

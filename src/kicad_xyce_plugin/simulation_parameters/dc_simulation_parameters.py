@@ -194,6 +194,10 @@ class DCSimulationParameters:
             return working_directory / self.print_parameters.print_file
         # otherwise, create raw file from netlist file, adding the ".raw" suffix
         return netlist_file_path.with_suffix(netlist_file_path.suffix + ".raw")
+    
+    def fft_output_file_path_pattern(self, _: Path) -> str | None:
+        # no FFT calculation is performed for this analysis
+        return None
 
     def _build_data_directive(self) -> str:
         # data-driven sweep references an existing .DATA table by name

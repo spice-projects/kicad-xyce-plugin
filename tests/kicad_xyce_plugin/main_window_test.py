@@ -32,7 +32,6 @@ def _make_window() -> MainWindow:
     window._netlist_file_path = None
     window._topology = None
     window._simulation_parameters = None
-    window._simulation_performed = False
     window._simulation_output_action = None
     window._simulation_config_action = None
     window._simulation_run_action = None
@@ -44,11 +43,25 @@ def _make_window() -> MainWindow:
     window._abscissa_scale = MagicMock()
     window._raw_file = None
     window._raw_file_path = None
+    window._fft_files = None
     window._decimate_target = 9600
     window._initial_selected_steps = None
     window._plot_suggestion = None
     window._last_status_time = 0.0
     return window
+
+
+def _configure_simulation_finish_context(window: MainWindow, raw_file_path: Path | None = None, fft_output_pattern: str | None = None) -> None:
+    # configure runner and analysis object expected by _on_simulation_finished
+    window._runner = MagicMock()
+    window._runner.working_directory = Path("/tmp")
+    window._runner.netlist_file_path = "/tmp/test.cir"
+    # build simulation parameters with analysis helpers
+    analysis = MagicMock()
+    analysis.raw_output_file_path.return_value = raw_file_path
+    analysis.fft_output_file_path_pattern.return_value = fft_output_pattern
+    window._simulation_parameters = MagicMock()
+    window._simulation_parameters.analysis = analysis
 
 
 class TestMainWindowSizeHint:
@@ -80,7 +93,7 @@ class TestMainWindowSetupNetlist:
                 with patch("kicad_xyce_plugin.main_window.subprocess.run") as mock_run:
                     with patch("kicad_xyce_plugin.main_window.parse_netlist", return_value=("netlist text", topology)):
                         # act
-                        netlist, netlist_path, parsed_topology = window._extract_schematic_netlist()
+                        netlist, netlist_path, parsed_topology = window._extract_netlist_from_schematic()
 
         # assert
         assert netlist == "netlist text"
@@ -105,7 +118,7 @@ class TestMainWindowSetupNetlist:
         with patch("kicad_xyce_plugin.main_window.get_active_schematic_path", return_value=(schematic_path, 1.0)):
             with patch("kicad_xyce_plugin.main_window.subprocess.run") as mock_run:
                 # act
-                netlist, netlist_path, parsed_topology = window._extract_schematic_netlist()
+                netlist, netlist_path, parsed_topology = window._extract_netlist_from_schematic()
 
         # assert
         assert netlist == "cached netlist"
@@ -121,7 +134,7 @@ class TestMainWindowSetupNetlist:
         with patch("kicad_xyce_plugin.main_window.get_active_schematic_path", return_value=(schematic_path, 1.0)):
             # act/assert
             with pytest.raises(AttributeError, match="get_kicad_binary_path"):
-                window._extract_schematic_netlist()
+                window._extract_netlist_from_schematic()
 
     def test_extract_schematic_netlist_raises_error_when_kicad_cli_missing(self):
         # arrange
@@ -131,7 +144,7 @@ class TestMainWindowSetupNetlist:
         with patch("kicad_xyce_plugin.main_window.get_active_schematic_path", return_value=(schematic_path, 1.0)):
             # act/assert
             with pytest.raises(RuntimeError, match="KiCad CLI binary path could not be resolved"):
-                window._extract_schematic_netlist()
+                window._extract_netlist_from_schematic()
 
     def test_extract_schematic_netlist_raises_error_when_cli_fails(self, tmp_path):
         # arrange
@@ -149,7 +162,7 @@ class TestMainWindowSetupNetlist:
 
                     # act/assert
                     with pytest.raises(RuntimeError, match="Failed to export schematic netlist with kicad-cli"):
-                        window._extract_schematic_netlist()
+                        window._extract_netlist_from_schematic()
 
 
 class TestMainWindowShowStatus:
@@ -275,9 +288,11 @@ class TestMainWindowOnSimulationFinished:
     def test_shows_success_status_when_exit_code_zero(self):
         # arrange
         window = _make_window()
+        _configure_simulation_finish_context(window, raw_file_path=None, fft_output_pattern=None)
         # act
         window._on_simulation_finished(0, 0, False)
         # assert
+        window._root.setProperty.assert_any_call("statusText", "Simulation finished successfully")
         window._root.setProperty.assert_any_call("statusText", "Simulation finished but output raw file could not be found")
         assert window._runner is None
 
@@ -299,7 +314,7 @@ class TestMainWindowOnMenuRunSimulation:
         window._simulation_parameters = None
         window._on_menu_configure_simulation = MagicMock()
         # mock parse_netlist to return empty directives so simulation parameters remain None
-        with patch.object(window, "_extract_schematic_netlist", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))):
+        with patch.object(window, "_extract_netlist_from_schematic", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))):
             with patch("kicad_xyce_plugin.main_window.parse_netlist") as mock_parse:
                 mock_parse.return_value = ("", MagicMock(directives=[]))
                 # act
@@ -313,7 +328,7 @@ class TestMainWindowOnMenuRunSimulation:
         window = _make_window()
         window._simulation_parameters = MagicMock()
         window._simulation_parameters.to_xyce_directive.return_value = ".TRAN 1u 1m"
-        with patch.object(window, "_extract_schematic_netlist", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))), \
+        with patch.object(window, "_extract_netlist_from_schematic", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))), \
                 patch("kicad_xyce_plugin.main_window.run_xyce_simulation") as mock_run:
             mock_run.return_value = MagicMock()
             # act
@@ -326,7 +341,7 @@ class TestMainWindowOnMenuRunSimulation:
         window = _make_window()
         window._simulation_parameters = MagicMock()
         window._simulation_parameters.to_xyce_directive.return_value = ".TRAN 1u 1m"
-        with patch.object(window, "_extract_schematic_netlist", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))):
+        with patch.object(window, "_extract_netlist_from_schematic", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))):
             with patch("kicad_xyce_plugin.main_window.run_xyce_simulation", side_effect=ValueError("Invalid executable")):
                 # act
                 window._on_menu_run_simulation()
@@ -342,7 +357,7 @@ class TestMainWindowOnMenuRunSimulation:
         window._topology = MagicMock(directives=[])
         window._simulation_parameters = MagicMock()
         window._simulation_parameters.to_xyce_directive.return_value = ".OP"
-        with patch.object(window, "_extract_schematic_netlist", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))):
+        with patch.object(window, "_extract_netlist_from_schematic", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))):
             with patch("kicad_xyce_plugin.main_window.run_xyce_simulation") as mock_run:
                 mock_run.return_value = MagicMock()
                 # act
@@ -358,7 +373,7 @@ class TestMainWindowOnMenuShowNetlist:
         window = _make_window()
         window._simulation_parameters = MagicMock()
         window._simulation_parameters.to_xyce_directive.return_value = ".OP"
-        with patch.object(window, "_extract_schematic_netlist", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))), \
+        with patch.object(window, "_extract_netlist_from_schematic", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))), \
                 patch("kicad_xyce_plugin.main_window.NetlistViewerDialog") as mock_dialog_cls:
             mock_dialog_cls.return_value.exec.return_value = None
             # act
@@ -374,7 +389,7 @@ class TestMainWindowOnMenuShowNetlist:
         window._topology = MagicMock(directives=[])
         window._simulation_parameters = MagicMock()
         window._simulation_parameters.to_xyce_directive.return_value = ".OP"
-        with patch.object(window, "_extract_schematic_netlist", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))):
+        with patch.object(window, "_extract_netlist_from_schematic", return_value=("", Path("/tmp/test.kicad_sch"), MagicMock(directives=[]))):
             with patch("kicad_xyce_plugin.main_window.NetlistViewerDialog") as mock_dialog_cls:
                 mock_dialog_cls.return_value.exec.return_value = None
                 # act
@@ -388,7 +403,7 @@ class TestMainWindowOnMenuConfigureSimulation:
     def test_keeps_existing_parameters_when_dialog_canceled(self):
         # arrange
         window = _make_window()
-        with patch.object(window, "_extract_schematic_netlist", return_value=("", MagicMock(), MagicMock(directives=[]))):
+        with patch.object(window, "_extract_netlist_from_schematic", return_value=("", MagicMock(), MagicMock(directives=[]))):
             with patch("kicad_xyce_plugin.main_window.SimulationParametersDialog") as mock_dialog_cls:
                 mock_dialog_cls.return_value.get_parameters.return_value = None
                 # act
@@ -401,7 +416,7 @@ class TestMainWindowOnMenuConfigureSimulation:
         window = _make_window()
         mock_params = MagicMock()
         mock_params.to_xyce_directive.return_value = ".TRAN 1u 1m"
-        with patch.object(window, "_extract_schematic_netlist", return_value=("", MagicMock(), MagicMock(directives=[]))):
+        with patch.object(window, "_extract_netlist_from_schematic", return_value=("", MagicMock(), MagicMock(directives=[]))):
             with patch("kicad_xyce_plugin.main_window.SimulationParametersDialog") as mock_dialog_cls:
                 mock_dialog_cls.DialogCode.Accepted = "accepted"
                 mock_dialog_cls.return_value.exec.return_value = "accepted"
@@ -669,11 +684,17 @@ class TestMainWindowViewSimulationOutput:
         # arrange
         window = _make_window()
         window._simulation_output_action = MagicMock()
+        window._raw_file = MagicMock()
+        window._raw_file_path = Path("/tmp/old.raw")
+        window._fft_files = [MagicMock()]
         # act
         window._on_simulation_started("/tmp/test.cir")
         # assert
-        assert window._simulation_performed is True
+        assert window._raw_file is None
+        assert window._raw_file_path is None
+        assert window._fft_files is None
         window._simulation_output_action.setEnabled.assert_called_with(True)
+        window._root.setProperty.assert_any_call("openFFTCalculationVisible", False)
 
     def test_view_simulation_output_toggles_log_visibility(self):
         # arrange
@@ -1081,38 +1102,103 @@ class TestMainWindowOnSimulationFinishedSuccessPaths:
     def test_adds_new_chart_when_raw_file_loaded_and_no_charts_exist(self):
         # arrange
         window = _make_window()
-        window._raw_file_path = MagicMock()
-        window._raw_file_path.exists.return_value = True
+        raw_file_path = Path("/tmp/test.raw")
+        _configure_simulation_finish_context(window, raw_file_path=raw_file_path, fft_output_pattern=None)
         with patch.object(window, "_load_raw_file", return_value=True), \
                 patch.object(window, "_add_chart") as mock_add:
+            with patch.object(Path, "exists", return_value=True):
             # act
-            window._on_simulation_finished(0, 0, False)
+                window._on_simulation_finished(0, 0, False)
         # assert
         mock_add.assert_called_once()
 
     def test_updates_existing_charts_when_raw_file_loaded_and_charts_exist(self):
         # arrange
         window = _make_window()
-        window._raw_file_path = MagicMock()
-        window._raw_file_path.exists.return_value = True
+        raw_file_path = Path("/tmp/test.raw")
+        _configure_simulation_finish_context(window, raw_file_path=raw_file_path, fft_output_pattern=None)
         window._charts = [MagicMock()]
         with patch.object(window, "_load_raw_file", return_value=True), \
                 patch.object(window, "_update_all_charts") as mock_update:
+            with patch.object(Path, "exists", return_value=True):
             # act
-            window._on_simulation_finished(0, 0, False)
+                window._on_simulation_finished(0, 0, False)
         # assert
         mock_update.assert_called_once()
 
     def test_shows_error_when_load_raw_file_returns_false(self):
         # arrange
         window = _make_window()
-        window._raw_file_path = MagicMock()
-        window._raw_file_path.exists.return_value = True
+        raw_file_path = Path("/tmp/test.raw")
+        _configure_simulation_finish_context(window, raw_file_path=raw_file_path, fft_output_pattern=None)
         with patch.object(window, "_load_raw_file", return_value=False):
-            # act — should not raise; status "could not be found" is not shown in this path
-            window._on_simulation_finished(0, 0, False)
+            with patch.object(Path, "exists", return_value=True):
+                # act — should not raise
+                window._on_simulation_finished(0, 0, False)
         # assert runner cleared
         assert window._runner is None
+
+    def test_parses_fft_outputs_and_toggles_open_fft_visibility(self):
+        # arrange
+        window = _make_window()
+        raw_file_path = Path("/tmp/test.raw")
+        fft_pattern = "/tmp/test.cir.fft*"
+        _configure_simulation_finish_context(window, raw_file_path=raw_file_path, fft_output_pattern=fft_pattern)
+        window._raw_file = MagicMock()
+        window._raw_file.expression_manager = MagicMock()
+        window._step_information = MagicMock()
+        parsed_fft_files = [MagicMock()]
+        with patch.object(window, "_load_raw_file", return_value=True), \
+            patch.object(window, "_add_chart"), \
+                patch.object(Path, "exists", return_value=True), \
+                patch("kicad_xyce_plugin.main_window.xyce_fft_file_parser", return_value=parsed_fft_files) as mock_fft_parser:
+            # act
+            window._on_simulation_finished(0, 0, False)
+        # assert
+        mock_fft_parser.assert_called_once_with(fft_pattern, window._step_information, window._raw_file.expression_manager)
+        assert window._fft_files == parsed_fft_files
+        window._root.setProperty.assert_any_call("openFFTCalculationVisible", True)
+
+
+class TestMainWindowOpenFftCalculation:
+
+    def test_does_nothing_when_no_fft_files_available(self):
+        # arrange
+        window = _make_window()
+        window._charts = [MagicMock()]
+        window._fft_files = None
+        # act
+        window._on_menu_open_fft_calculation(0)
+        # assert
+        assert window._fft_files is None
+
+    def test_opens_window_for_each_fft_file(self):
+        # arrange
+        window = _make_window()
+        window._charts = [MagicMock()]
+        window._plugin_config = MagicMock()
+        window._raw_file_path = Path("/tmp/test.raw")
+
+        abscissa_expression = MagicMock()
+        abscissa_expression.name = "frequency"
+        magnitude_expression = MagicMock()
+        magnitude_expression.name = "FFT(V(OUT))"
+
+        fft_file = MagicMock()
+        fft_file.abscissa = abscissa_expression
+        fft_file.expression_manager.expressions = [abscissa_expression, magnitude_expression]
+        window._fft_files = [fft_file]
+
+        with patch("kicad_xyce_plugin.main_window.MainWindow") as mock_window_cls, \
+                patch("kicad_xyce_plugin.main_window.register_child_window") as mock_register:
+            created_window = mock_window_cls.return_value
+            # act
+            window._on_menu_open_fft_calculation(0)
+
+        # assert
+        mock_window_cls.assert_called_once_with(None, window._plugin_config, fft_file, window._raw_file_path, [("FFT(V(OUT))", [magnitude_expression])])
+        mock_register.assert_called_once_with(created_window)
+        created_window.show.assert_called_once()
 
 
 class TestMainWindowOnMenuShowNetlistNoParameters:

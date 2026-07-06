@@ -92,6 +92,7 @@ class VariableType(Enum):
     POWER = VariableTypeInformation("power", "W")
     PARAMETER = VariableTypeInformation("parameter", "")
     PHASE = VariableTypeInformation("phase", "°")
+    UNKNOWN = VariableTypeInformation("unknown", "")
 
 
 class PlotSuggestion:
