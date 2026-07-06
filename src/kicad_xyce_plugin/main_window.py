@@ -709,8 +709,6 @@ class MainWindow(QMainWindow):
     def _on_menu_open_fft_calculation(self, chart_index: int):
         # log information
         logger.debug("User requested Open FFT Calculation on chart at index: %d", chart_index)
-        # find chart
-        chart = self._charts[chart_index]
         # validate we have FFT files
         if not self._fft_files:
             # log warning and exit
@@ -862,7 +860,7 @@ class MainWindow(QMainWindow):
         self._root.setProperty("openFFTCalculationVisible", False)
         self._root.setProperty("calculateFFTVisible", False)
         self._root.setProperty("stepToolVisible", False)
-        self._root.setProperty("smithChartVisible", False)        
+        self._root.setProperty("smithChartVisible", False)
         # clear
         self.log_clear_requested.emit()
 

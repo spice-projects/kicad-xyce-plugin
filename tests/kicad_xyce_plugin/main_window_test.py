@@ -1107,7 +1107,7 @@ class TestMainWindowOnSimulationFinishedSuccessPaths:
         with patch.object(window, "_load_raw_file", return_value=True), \
                 patch.object(window, "_add_chart") as mock_add:
             with patch.object(Path, "exists", return_value=True):
-            # act
+                # act
                 window._on_simulation_finished(0, 0, False)
         # assert
         mock_add.assert_called_once()
@@ -1121,7 +1121,7 @@ class TestMainWindowOnSimulationFinishedSuccessPaths:
         with patch.object(window, "_load_raw_file", return_value=True), \
                 patch.object(window, "_update_all_charts") as mock_update:
             with patch.object(Path, "exists", return_value=True):
-            # act
+                # act
                 window._on_simulation_finished(0, 0, False)
         # assert
         mock_update.assert_called_once()
