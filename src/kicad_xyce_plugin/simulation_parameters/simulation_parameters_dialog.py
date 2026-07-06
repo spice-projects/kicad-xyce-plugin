@@ -143,7 +143,7 @@ class SimulationParametersDialog(QDialog):
         self._apply_hb_parameters(p if isinstance(p, HbSimulationParameters) else None)
         self._apply_lin_parameters(p if isinstance(p, LinSimulationParameters) else None)
 
-        # initialize the shared step parameters
+        # initialize the shared step parameters using the first step for the ui (single-step ui for now)
         self._apply_step_parameters(self._initial_parameters.step)
         # initialize embedded sensitivity sections and apply the companion sensitivity parameters
         self._sensitivity_section.apply(None, None)
@@ -235,8 +235,14 @@ class SimulationParametersDialog(QDialog):
         return StepParameters(sweep_mode, variable, start, stop, step, points, list_values, data_table, enabled)
 
     def _assemble_result(self, analysis: AcSimulationParameters | DCSimulationParameters | HbSimulationParameters | LinSimulationParameters | NoiseSimulationParameters | OpSimulationParameters | TransientSimulationParameters | None) -> None:
-        # create result, using analysis and previous step and options and unassociated prints from the initial parameters
-        self._result = SimulationConfig(analysis=analysis, step=self._get_current_step_parameters(), options=self._initial_parameters.options, unassociated_prints=self._initial_parameters.unassociated_prints,)
+        # build the current step as a single-element tuple — multi-step editing is future ui work
+        current_step = self._get_current_step_parameters()
+        # preserve existing steps beyond the first from the initial parameters
+        preserved_rest = self._initial_parameters.steps[1:] if len(self._initial_parameters.steps) > 1 else ()
+        # build the merged steps tuple with the current ui step first
+        merged_steps = (current_step,) + preserved_rest if current_step.enabled else preserved_rest
+        # create result, using analysis and merged steps, data blocks, options, and unassociated prints from the initial parameters
+        self._result = SimulationConfig(analysis=analysis, steps=merged_steps, data_blocks=self._initial_parameters.data_blocks, options=self._initial_parameters.options, unassociated_prints=self._initial_parameters.unassociated_prints)
 
     def _get_current_sens_parameters(self) -> SensParameter | None:
         return self._sensitivity_section.get_current()

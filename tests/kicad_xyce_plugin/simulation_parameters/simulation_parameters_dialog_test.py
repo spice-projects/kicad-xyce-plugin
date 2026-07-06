@@ -20,9 +20,9 @@ def _make_dialog(initial_parameters=None) -> SimulationParametersDialog:
     QDialog.__init__(dialog)
     # wrap parameters in SimulationConfig if they are individual analysis types
     if initial_parameters is not None and not isinstance(initial_parameters, SimulationConfig):
-        initial_parameters = SimulationConfig(analysis=initial_parameters, step=StepParameters())
+        initial_parameters = SimulationConfig(analysis=initial_parameters, steps=())
     elif initial_parameters is None:
-        initial_parameters = SimulationConfig(analysis=None, step=StepParameters())
+        initial_parameters = SimulationConfig(analysis=None, steps=())
     dialog._initial_parameters = initial_parameters
     dialog._result = None
     dialog._root = MagicMock()
@@ -74,13 +74,13 @@ class TestSimulationParametersDialogConstruction:
 
     def test_dialog_can_be_instantiated(self):
         # act
-        dialog = SimulationParametersDialog(None, SimulationConfig(analysis=OpSimulationParameters(), step=StepParameters()))
+        dialog = SimulationParametersDialog(None, SimulationConfig(analysis=OpSimulationParameters(), steps=()))
         # assert
         assert isinstance(dialog, SimulationParametersDialog)
 
     def test_dialog_result_is_none_initially(self):
         # act
-        dialog = SimulationParametersDialog(None, SimulationConfig(analysis=OpSimulationParameters(), step=StepParameters()))
+        dialog = SimulationParametersDialog(None, SimulationConfig(analysis=OpSimulationParameters(), steps=()))
         # assert
         assert dialog._result is None
 
@@ -290,7 +290,7 @@ class TestSimulationParametersDialogOnSubmitOP:
         # arrange
         options = OptionParameters(device={"TEMP": "25"}, timeint={"RELTOL": "1e-3"})
         unassociated_prints = (PrintParameters(print_type="DC", output_variables=("V(1)",), print_format="RAW", print_file=""),)
-        initial_parameters = SimulationConfig(analysis=OpSimulationParameters(), step=StepParameters(), options=options, unassociated_prints=unassociated_prints)
+        initial_parameters = SimulationConfig(analysis=OpSimulationParameters(), steps=(), options=options, unassociated_prints=unassociated_prints)
         dialog = _make_dialog_with_accept(initial_parameters=initial_parameters)
         # act
         dialog._on_submit_op(False, False, False, False, False, False, "", "", "", False, "NODESET", "", "", "", False)
@@ -793,7 +793,7 @@ class TestSimulationParametersDialogGetParameters:
         # arrange
         options = OptionParameters(device={"TEMP": "25"}, timeint={"RELTOL": "1e-3"})
         unassociated_prints = (PrintParameters(print_type="DC", output_variables=("V(1)",), print_format="RAW", print_file=""),)
-        initial_parameters = SimulationConfig(analysis=OpSimulationParameters(), step=StepParameters(), options=options, unassociated_prints=unassociated_prints)
+        initial_parameters = SimulationConfig(analysis=OpSimulationParameters(), steps=(), options=options, unassociated_prints=unassociated_prints)
         dialog = _make_dialog_with_accept(initial_parameters=initial_parameters)
         # act
         dialog._on_submit_op(False, False, False, False, False, False, "", "", "", False, "NODESET", "", "", "", False)
