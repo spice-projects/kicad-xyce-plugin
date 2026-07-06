@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtQuick import QQuickView
 
 from kicad_xyce_plugin.netlist_parser import Device, NetlistTopology
-from kicad_xyce_plugin.simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, IcEntry, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, OptionParameters, PrintParameters, SimulationConfig, SimulationParametersDialog, StepParameters, TransientSchedulePoint, TransientSimulationParameters
+from kicad_xyce_plugin.simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, IcEntry, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, OptionParameters, PrintParameters, SimulationConfig, SimulationParametersDialog, TransientSchedulePoint, TransientSimulationParameters
 
 from kicad_xyce_plugin.simulation_parameters.noise_panel import _validate_device_name
 
