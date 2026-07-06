@@ -709,8 +709,6 @@ class MainWindow(QMainWindow):
     def _on_menu_open_fft_calculation(self, chart_index: int):
         # log information
         logger.debug("User requested Open FFT Calculation on chart at index: %d", chart_index)
-        # find chart
-        chart = self._charts[chart_index]
         # validate we have FFT files
         if not self._fft_files:
             # log warning and exit

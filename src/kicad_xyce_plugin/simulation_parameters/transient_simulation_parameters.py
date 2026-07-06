@@ -189,7 +189,7 @@ class TransientSimulationParameters:
             return working_directory / self.print_parameters.print_file
         # otherwise, create raw file from netlist file, adding the ".raw" suffix
         return netlist_file_path.with_suffix(netlist_file_path.suffix + ".raw")
-    
+
     def fft_output_file_path_pattern(self, netlist_file_path: Path) -> str | None:
         # check FFT calculations are configured for this simulation
         if not self.fft_parameters:
