@@ -3,6 +3,8 @@ from pathlib import Path
 
 import numpy as np
 
+from kicad_xyce_plugin.expression import Expression
+from kicad_xyce_plugin.expression import ExpressionManager
 from kicad_xyce_plugin.xyce_fft_file import xyce_fft_file_parser
 from kicad_xyce_plugin.xyce_output_file import StepInformation
 
@@ -57,11 +59,11 @@ class TestXyceFftFileParser:
             assert output_file.abscissa.step_count == 1
             assert np.allclose(output_file.abscissa.steps[0], [0.0, 100.0, 200.0])
             # verify expression manager has parsed signals
-            assert "V(OUT)" in output_file.expression_manager.expression_names
-            assert "phase(V(OUT))" in output_file.expression_manager.expression_names
+            assert "FFT(V(OUT))" in output_file.expression_manager.expression_names
+            assert "FFT(phase(V(OUT)))" in output_file.expression_manager.expression_names
             # evaluate parsed signals
-            mag_expr = output_file.expression_manager.evaluate("V(OUT)")
-            phase_expr = output_file.expression_manager.evaluate("phase(V(OUT))")
+            mag_expr = output_file.expression_manager.evaluate("FFT(V(OUT))")
+            phase_expr = output_file.expression_manager.evaluate("FFT(phase(V(OUT)))")
             assert mag_expr is not None
             assert phase_expr is not None
             # verify magnitude and phase values including dc component
@@ -115,8 +117,8 @@ class TestXyceFftFileParser:
             # verify step count
             assert output_file.step_information.length == 2
             # evaluate magnitudes and phases
-            mag_expr = output_file.expression_manager.evaluate("V(OUT)")
-            phase_expr = output_file.expression_manager.evaluate("phase(V(OUT))")
+            mag_expr = output_file.expression_manager.evaluate("FFT(V(OUT))")
+            phase_expr = output_file.expression_manager.evaluate("FFT(phase(V(OUT)))")
             assert mag_expr is not None
             assert phase_expr is not None
             # verify step count matches number of steps
@@ -162,7 +164,7 @@ class TestXyceFftFileParser:
             # verify metrics are parsed and stored in metadata
             assert result is not None
             output_file = result[0]
-            mag_expr = output_file.expression_manager.evaluate("V(OUT)")
+            mag_expr = output_file.expression_manager.evaluate("FFT(V(OUT))")
             assert mag_expr is not None
             # check metadata list containing metadata dictionary for step 0
             assert mag_expr.metadata is not None
@@ -217,17 +219,17 @@ class TestXyceFftFileParser:
             assert len(result) == 2
             # gather all expression names across all output files
             all_names = [name for of in result for name in of.expression_manager.expression_names]
-            assert "V(SPEAKER)" in all_names
-            assert "V(INPUT)" in all_names
+            assert "FFT(V(SPEAKER))" in all_names
+            assert "FFT(V(INPUT))" in all_names
             # locate the output file containing V(SPEAKER)
-            speaker_file = next(of for of in result if "V(SPEAKER)" in of.expression_manager.expression_names)
-            speaker_mag = speaker_file.expression_manager.evaluate("V(SPEAKER)")
+            speaker_file = next(of for of in result if "FFT(V(SPEAKER))" in of.expression_manager.expression_names)
+            speaker_mag = speaker_file.expression_manager.evaluate("FFT(V(SPEAKER))")
             assert speaker_mag is not None
             assert np.allclose(speaker_mag.steps[0], [0.01, 0.5])
             assert speaker_mag.metadata[0].get("THD") == "1.000000e+01 dB ( 3.000000e+00 )"
             # locate the output file containing V(INPUT)
-            input_file = next(of for of in result if "V(INPUT)" in of.expression_manager.expression_names)
-            input_mag = input_file.expression_manager.evaluate("V(INPUT)")
+            input_file = next(of for of in result if "FFT(V(INPUT))" in of.expression_manager.expression_names)
+            input_mag = input_file.expression_manager.evaluate("FFT(V(INPUT))")
             assert input_mag is not None
             assert np.allclose(input_mag.steps[0], [0.05, 0.8])
             assert input_mag.metadata[0].get("THD") == "2.000000e+01 dB ( 4.000000e+00 )"
@@ -532,7 +534,7 @@ class TestXyceFftFileParser:
             assert len(output_file.abscissa.steps[0]) == 3
             assert output_file.abscissa.steps[0][0] == 0.0
             assert np.isclose(output_file.abscissa.steps[0][1], 100.0)
-            mag = output_file.expression_manager.evaluate("I(L1)")
+            mag = output_file.expression_manager.evaluate("FFT(I(L1))")
             assert mag is not None
             assert mag.step_count == 3
             assert np.isclose(mag.steps[0][0], 0.4323973, rtol=1e-5)
@@ -571,7 +573,7 @@ class TestXyceFftFileParser:
             assert result is not None
             assert len(result) == 1
             output_file = result[0]
-            mag = output_file.expression_manager.evaluate("I(L1)")
+            mag = output_file.expression_manager.evaluate("FFT(I(L1))")
             assert mag is not None
             assert mag.step_count == 1
             assert np.isclose(mag.steps[0][0], 0.4323973, rtol=1e-7)
@@ -612,7 +614,60 @@ class TestXyceFftFileParser:
             assert len(result) == 1
             output_file = result[0]
             names = output_file.expression_manager.expression_names
-            assert "I(L1)" in names
-            assert "V(OUT)" in names
-            assert np.allclose(output_file.expression_manager.evaluate("I(L1)").steps[0], [0.4, 0.5])
-            assert np.allclose(output_file.expression_manager.evaluate("V(OUT)").steps[0], [0.2, 0.6])
+            assert "FFT(I(L1))" in names
+            assert "FFT(V(OUT))" in names
+            assert np.allclose(output_file.expression_manager.evaluate("FFT(I(L1))").steps[0], [0.4, 0.5])
+            assert np.allclose(output_file.expression_manager.evaluate("FFT(V(OUT))").steps[0], [0.2, 0.6])
+
+    def test_infers_magnitude_unit_from_expression_manager(self):
+        # arrange
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "infer_unit.fft0"
+            content = (
+                "FFT analysis for V(OUT):\n"
+                "  Window: HANN, Start Time: 0.000000e+00, Stop Time: 1.000000e-02\n"
+                "  First Harmonic: 1.000000e+02, Start Freq: 1.000000e+02, Stop Freq: 1.000000e+03\n"
+                "  DC component    Norm. Mag= 1.000000e-02   Phase= 1.800000e+02\n"
+                "       Index       Frequency       Norm. Mag           Phase\n"
+                "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
+            )
+            file_path.write_text(content, encoding="utf-8")
+            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            raw_expression_manager = ExpressionManager([Expression("V(OUT)", [np.array([0.0, 1.0])], "mV")])
+
+            # act
+            result = xyce_fft_file_parser(str(Path(tmpdir) / "infer_unit.fft*"), step_info, raw_expression_manager)
+
+            # assert
+            assert result is not None
+            output_file = result[0]
+            magnitude_expression = output_file.expression_manager.evaluate("FFT(V(OUT))")
+            assert magnitude_expression is not None
+            assert magnitude_expression.unit == "mV"
+
+    def test_strips_braces_before_unit_inference(self):
+        # arrange
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "strip_braces.fft0"
+            content = (
+                "FFT analysis for {V(OUT)}:\n"
+                "  Window: HANN, Start Time: 0.000000e+00, Stop Time: 1.000000e-02\n"
+                "  First Harmonic: 1.000000e+02, Start Freq: 1.000000e+02, Stop Freq: 1.000000e+03\n"
+                "  DC component    Norm. Mag= 1.000000e-02   Phase= 1.800000e+02\n"
+                "       Index       Frequency       Norm. Mag           Phase\n"
+                "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
+            )
+            file_path.write_text(content, encoding="utf-8")
+            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            raw_expression_manager = ExpressionManager([Expression("V(OUT)", [np.array([0.0, 1.0])], "V")])
+
+            # act
+            result = xyce_fft_file_parser(str(Path(tmpdir) / "strip_braces.fft*"), step_info, raw_expression_manager)
+
+            # assert
+            assert result is not None
+            output_file = result[0]
+            assert "FFT(V(OUT))" in output_file.expression_manager.expression_names
+            magnitude_expression = output_file.expression_manager.evaluate("FFT(V(OUT))")
+            assert magnitude_expression is not None
+            assert magnitude_expression.unit == "V"

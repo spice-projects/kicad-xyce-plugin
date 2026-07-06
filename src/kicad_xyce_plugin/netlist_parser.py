@@ -55,6 +55,10 @@ _SIMULATION_DIRECTIVES = (
     ".MEASURE", ".MEAS", ".SENS",
     # initial condition / bias point setup
     ".IC", ".DCVOLT",
+    # step parametric sweep analysis
+    ".STEP",
+    # user-defined data tables for sweep points
+    ".DATA", ".ENDDATA",
 )
 
 
@@ -267,12 +271,6 @@ def parse_netlist(text: str) -> tuple[str, NetlistTopology]:
                 # add to directives
                 directives.append(stripped)
                 # continue loop
-                continue
-            # preserve .STEP cards verbatim for round-tripping and append them later
-            if first_upper == ".STEP":
-                # store the original directive unchanged
-                passthrough_directives.append(stripped)
-                # continue without adding it to the sanitized body
                 continue
             # option packages that are managed separately from the sanitized netlist
             if first_upper == ".OPTIONS" and len(tokens) > 1 and tokens[1].upper() in ("HBINT", "NONLIN-HB", "LINSOL-HB", "DEVICE", "TIMEINT", "NONLIN", "LINSOL",):

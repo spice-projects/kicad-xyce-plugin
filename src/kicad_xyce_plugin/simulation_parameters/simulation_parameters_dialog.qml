@@ -263,7 +263,7 @@ Item {
             // --- Sidebar ---
             Rectangle {
                 id: sidebar
-                width: 220
+                Layout.preferredWidth: 220
                 Layout.fillHeight: true
                 color: root.sidebarColor
                 
@@ -313,8 +313,8 @@ Item {
                             required property int index
                             required property var modelData
 
-                            color: (root.currentTabIndex === index) ? root.bgColor : (mouseArea.containsMouse ? "#EBEAE6" : "transparent")
-                            border.color: (root.currentTabIndex === index) ? root.borderColor : "transparent"
+                            color: (root.currentTabIndex === sidebarButton.index) ? root.bgColor : (mouseArea.containsMouse ? "#EBEAE6" : "transparent")
+                            border.color: (root.currentTabIndex === sidebarButton.index) ? root.borderColor : "transparent"
                             border.width: 1
 
                             RowLayout {
@@ -325,29 +325,29 @@ Item {
 
                                 Rectangle {
                                     id: badgeRect
-                                    width: 38
-                                    height: 18
+                                    implicitWidth: 38
+                                    implicitHeight: 18
                                     radius: 4
-                                    color: (root.currentTabIndex === index) ? root.accentBlue : "#E6F1FB"
+                                    color: (root.currentTabIndex === sidebarButton.index) ? root.accentBlue : "#E6F1FB"
                                     
                                     Text {
                                         id: badgeText
                                         anchors.centerIn: parent
-                                        text: modelData.directive
+                                        text: sidebarButton.modelData.directive
                                         font.family: "monospace"
                                         font.pixelSize: 10
                                         font.weight: Font.Bold
-                                        color: (root.currentTabIndex === index) ? root.bgColor : root.accentBlue
+                                        color: (root.currentTabIndex === sidebarButton.index) ? root.bgColor : root.accentBlue
                                     }
                                 }
                                 
                                 Label {
                                     id: labelText
-                                    text: modelData.name
+                                    text: sidebarButton.modelData.name
                                     font.pixelSize: 13
                                     verticalAlignment: Text.AlignVCenter
-                                    color: (root.currentTabIndex === index) ? root.textColor : root.mutedTextColor
-                                    font.weight: (root.currentTabIndex === index) ? Font.Medium : Font.Normal
+                                    color: (root.currentTabIndex === sidebarButton.index) ? root.textColor : root.mutedTextColor
+                                    font.weight: (root.currentTabIndex === sidebarButton.index) ? Font.Medium : Font.Normal
                                     Layout.fillWidth: true
                                 }
                             }
@@ -356,7 +356,7 @@ Item {
                                 id: mouseArea
                                 anchors.fill: parent
                                 hoverEnabled: true
-                                onClicked: root.currentTabIndex = index
+                                onClicked: root.currentTabIndex = sidebarButton.index
                             }
                         }
                     }

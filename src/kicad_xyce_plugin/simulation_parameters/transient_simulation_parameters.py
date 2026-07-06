@@ -190,6 +190,13 @@ class TransientSimulationParameters:
         # otherwise, create raw file from netlist file, adding the ".raw" suffix
         return netlist_file_path.with_suffix(netlist_file_path.suffix + ".raw")
 
+    def fft_output_file_path_pattern(self, netlist_file_path: Path) -> str | None:
+        # check FFT calculations are configured for this simulation
+        if not self.fft_parameters:
+            return None
+        # otherwise, create the FFT output file pattern
+        return str(netlist_file_path) + ".fft*"
+
     def _to_xyce_directive(self) -> str:
         # build the required transient directive fields first
         tokens = [".TRAN", self.initial_step_value, self.final_time_value]

@@ -28,6 +28,7 @@ from .smith_chart_window import SmithChartWindow
 from .simulation_parameters import from_xyce_directives, OpSimulationParameters, SimulationConfig, SimulationParametersDialog
 from .step_tool_dialog import StepToolDialog
 from .window import load_app_icon, log_screen_info, register_child_window
+from .xyce_fft_file import xyce_fft_file_parser
 from .xyce_raw_file import AbscissaScale, StepInformation, XyceOutputFile, xyce_raw_file_parser
 
 logger = logging.getLogger(__name__)
@@ -138,7 +139,6 @@ class MainWindow(QMainWindow):
         self._charts: list[Chart] = []
         self._runner: XyceSimulationRunner | None = None
         self._simulation_parameters: SimulationConfig | None = None
-        self._simulation_performed: bool = False
         self._simulation_output_action: QAction | None = None
         self._simulation_config_action: QAction | None = None
         self._simulation_run_action: QAction | None = None
@@ -153,6 +153,7 @@ class MainWindow(QMainWindow):
         self._abscissa: Expression | None = raw_file.abscissa if raw_file else None
         self._abscissa_scale: AbscissaScale | None = raw_file.abscissa_scale if raw_file else None
         self._step_information: StepInformation | None = raw_file.step_information if raw_file else None
+        self._fft_files: list[XyceOutputFile] | None = None
         # store the simulation file path for use by the Jupyter integration
         self._raw_file_path = raw_file_path if raw_file_path is not None else raw_file.filename if raw_file else None
         # optional initial step selection applied when charts are first created (used by FFT windows to pre-focus on the same steps the user was viewing in the source chart)
@@ -333,6 +334,7 @@ class MainWindow(QMainWindow):
         self._root.menuDeleteChart.connect(self._on_menu_delete_chart)
         self._root.menuNewWindow.connect(self._on_menu_new_window)
         self._root.menuCalculateFFT.connect(self._on_menu_calculate_fft)
+        self._root.menuOpenFFTCalculation.connect(self._on_menu_open_fft_calculation)
         self._root.menuStepTool.connect(self._on_menu_step_tool)
         # self._root.menuSmithChart.connect(self._on_menu_smith_chart)
         # connect pointer hover signals to update the status bar
@@ -703,6 +705,27 @@ class MainWindow(QMainWindow):
         # show the FFT result window
         fft_window.show()
 
+    @Slot(int)
+    def _on_menu_open_fft_calculation(self, chart_index: int):
+        # log information
+        logger.debug("User requested Open FFT Calculation on chart at index: %d", chart_index)
+        # validate we have FFT files
+        if not self._fft_files:
+            # log warning and exit
+            logger.warning("No FFT calculation files available to open for chart %d", chart_index)
+            # exit
+            return
+        # we need to open a new window for each file
+        for fft_file in self._fft_files:
+            # build one «name» group per FFT expression so each gets its own chart
+            plot_suggestion = [(e.name, [e]) for e in fft_file.expression_manager.expressions if e.name != fft_file.abscissa.name]
+            # create a new MainWindow to render the FFT result
+            fft_window = MainWindow(None, self._plugin_config, fft_file, self._raw_file_path, plot_suggestion)
+            # keep reference alive independently of the source main window
+            register_child_window(fft_window)
+            # show the FFT result window
+            fft_window.show()
+
     @Slot(int, float)
     def _on_pointer_moved(self, chart_index: int, x_ratio: float):
         # throttle updates to ~30 fps to avoid saturating the UI thread
@@ -776,7 +799,7 @@ class MainWindow(QMainWindow):
         # clear list
         self._charts.clear()
 
-    def _extract_schematic_netlist(self) -> tuple[str, Path, NetlistTopology]:
+    def _extract_netlist_from_schematic(self) -> tuple[str, Path, NetlistTopology]:
         # find schematic path and modification time
         schematic_path, schematic_last_modified = get_active_schematic_path()
         # check we need to export netlist from schematic (if the schematic has changed since the last export, or if we haven't exported yet)
@@ -824,14 +847,20 @@ class MainWindow(QMainWindow):
     def _on_simulation_started(self, netlist_path: str) -> None:
         # status
         self._show_status("Simulation started...")
-        # set flag
-        self._simulation_performed = True
         # enable action
         if self._simulation_output_action:
             # enable
             self._simulation_output_action.setEnabled(True)
-        # log
+        # delete old simulation data
+        self._raw_file = None
+        self._raw_file_path = None
+        self._fft_files = None
+        # update UI
         self._root.setProperty("logVisible", True)
+        self._root.setProperty("openFFTCalculationVisible", False)
+        self._root.setProperty("calculateFFTVisible", False)
+        self._root.setProperty("stepToolVisible", False)
+        self._root.setProperty("smithChartVisible", False)
         # clear
         self.log_clear_requested.emit()
 
@@ -861,10 +890,13 @@ class MainWindow(QMainWindow):
         elif exit_code == 0:
             # status
             self._show_status("Simulation finished successfully")
-            # check raw file path is available
-            if self._raw_file_path and self._raw_file_path.exists():
+            # determine the output raw file path based on the simulation configuration and netlist file path
+            raw_file_path = self._simulation_parameters.analysis.raw_output_file_path(self._runner.working_directory, Path(self._runner.netlist_file_path))
+            if raw_file_path and raw_file_path.exists():
                 # load raw file
-                if self._load_raw_file(self._raw_file_path):
+                if self._load_raw_file(raw_file_path):
+                    # set path
+                    self._raw_file_path = raw_file_path
                     # check we need to create/update charts
                     if not self._charts:
                         # create new chart
@@ -875,6 +907,13 @@ class MainWindow(QMainWindow):
             else:
                 # error
                 self._show_status("Simulation finished but output raw file could not be found", 5000)
+            # FFT calculation ouput file pattern
+            fft_output_pattern = self._simulation_parameters.analysis.fft_output_file_path_pattern(Path(self._runner.netlist_file_path))
+            if fft_output_pattern:
+                # parse FFT output files
+                self._fft_files = xyce_fft_file_parser(fft_output_pattern, self._step_information, self._raw_file.expression_manager if self._raw_file else None)
+                # enable/disable menu action
+                self._root.setProperty("openFFTCalculationVisible", bool(self._fft_files))
         else:
             # status
             err_msg = f"Simulation failed (exit code: {exit_code})"
@@ -884,7 +923,7 @@ class MainWindow(QMainWindow):
 
     def _on_menu_run_simulation(self):
         # netlist and topology to use
-        netlist, netlist_file_path, topology = self._extract_schematic_netlist() if self._kicad_client else (self._netlist, self._netlist_file_path, self._topology)
+        netlist, netlist_file_path, topology = self._extract_netlist_from_schematic() if self._kicad_client else (self._netlist, self._netlist_file_path, self._topology)
         # initialize simulation parameters from netlist directives
         if self._simulation_parameters is None:
             self._simulation_parameters = from_xyce_directives(topology.directives)
@@ -910,8 +949,6 @@ class MainWindow(QMainWindow):
             self._runner.stdout_received.connect(self._on_stdout_received)
             self._runner.stderr_received.connect(self._on_stderr_received)
             self._runner.finished.connect(self._on_simulation_finished)
-            # determine the output raw file path based on the simulation configuration and netlist file path
-            self._raw_file_path = self._simulation_parameters.analysis.raw_output_file_path(self._runner.working_directory, Path(self._runner.netlist_file_path))
             # start simulation
             self._runner.start()
         # except
@@ -924,7 +961,7 @@ class MainWindow(QMainWindow):
 
     def _on_menu_show_netlist(self):
         # netlist and topology to use
-        netlist, _, topology = self._extract_schematic_netlist() if self._kicad_client else (self._netlist, None, self._topology)
+        netlist, _, topology = self._extract_netlist_from_schematic() if self._kicad_client else (self._netlist, None, self._topology)
         # initialize simulation parameters from netlist directives
         if self._simulation_parameters is None:
             self._simulation_parameters = from_xyce_directives(topology.directives)
@@ -943,7 +980,7 @@ class MainWindow(QMainWindow):
         # simulation parameters
         initial_parameters = self._simulation_parameters
         # always resolve topology so the dialog can pre-populate the print variable lists
-        _, _, topology = self._extract_schematic_netlist() if self._kicad_client else (None, None, self._topology)
+        _, _, topology = self._extract_netlist_from_schematic() if self._kicad_client else (None, None, self._topology)
         # extract topology to pre-populate parameters from schematic directives
         if initial_parameters is None:
             # load from directives if available
