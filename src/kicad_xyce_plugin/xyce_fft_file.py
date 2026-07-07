@@ -284,14 +284,10 @@ def xyce_fft_file_parser(file_pattern: str | Path, step_information: StepInforma
                 # create expressions for magnitude and phase
                 expressions.append(Expression(f"FFT({signal_name})", magnitude_steps, magnitude_expression_unit, source="FFT", metadata=metadata_steps))
                 expressions.append(Expression(f"FFT(phase({signal_name}))", phase_steps, VariableType.PHASE.value.unit, source="FFT", metadata=metadata_steps))
-            # abscissa indexes
-            abscissa_indices = [slice(idx * len(abscissa_data), (idx + 1) * len(abscissa_data)) for idx in range(step_information.length)]
-            # abscissa value ranges
-            abscissa_value_ranges = [(abscissa_data[0], abscissa_data[-1]) for _ in range(step_information.length)]
             # re-create step information
-            fft_step_information = StepInformation(step_information.keys, step_information.values, abscissa_indices, abscissa_value_ranges)
+            fft_step_information = StepInformation(step_information.keys, step_information.values, [(abscissa_data[0], abscissa_data[-1]) for _ in range(step_information.length)])
             # create expressions manager
-            fft_expression_manager = ExpressionManager(expressions)
+            fft_expression_manager = ExpressionManager(expressions, (slice(idx * len(abscissa_data), (idx + 1) * len(abscissa_data)) for idx in range(step_information.length)))
             # file metadata
             metadata = {
                 "Window": window,

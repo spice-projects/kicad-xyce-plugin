@@ -29,12 +29,11 @@ def _make_step_information(num_steps: int, abscissa_length: int, ascending: bool
     step_size = abscissa_length // num_steps if num_steps > 0 else abscissa_length
     keys = ["step"]
     values = [(i,) for i in range(num_steps)]
-    abscissa_indices = [slice(i * step_size, (i + 1) * step_size) for i in range(num_steps)]
     if ascending:
         abscissa_value_ranges = [(float(i * step_size), float((i + 1) * step_size)) for i in range(num_steps)]
     else:
         abscissa_value_ranges = [(float((i + 1) * step_size), float(i * step_size)) for i in range(num_steps)]
-    return StepInformation(keys, values, abscissa_indices, abscissa_value_ranges)
+    return StepInformation(keys, values, abscissa_value_ranges)
 
 
 def _make_component_with_y_axis() -> MagicMock:
@@ -553,7 +552,7 @@ class TestChart:
         component = MagicMock()
         values = np.linspace(0.0, 10.0, 100)
         abscissa = Expression("Time", values, "s")
-        step_information = StepInformation(["step"], [(0,)], [slice(0, 100)], [(0.0, 10.0)])
+        step_information = StepInformation(["step"], [(0,)], [(0.0, 10.0)])
         chart = _make_chart(component, MagicMock(), step_information, abscissa)
         # act
         chart.redraw_series(MagicMock(), step_information, abscissa, "Time", "linear")

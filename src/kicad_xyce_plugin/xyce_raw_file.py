@@ -326,7 +326,7 @@ def xyce_raw_file_parser(filename: Path) -> XyceOutputFile | None:
             # advance the abscissa index offset
             abscissa_index_offset += block_num_points
         # construct StepInformation
-        step_information = StepInformation(step_keys, step_values, abscissa_indices, abscissa_value_ranges)
+        step_information = StepInformation(step_keys, step_values, abscissa_value_ranges)
         # expressions from file variables
         expressions = [Expression(name, steps, unit, variable_type=vtype) for name, steps, unit, vtype in variables]
         # abscissa expression is the first variable (index 0) across all steps

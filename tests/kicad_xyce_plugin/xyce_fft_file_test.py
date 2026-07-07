@@ -14,7 +14,7 @@ class TestXyceFftFileParser:
     def test_returns_none_when_no_files_match_pattern(self):
         # arrange
         # create step information for verification
-        step_info = StepInformation([], [], [slice(0, 10)], [(0.0, 10.0)])
+        step_info = StepInformation([], [], [(0.0, 10.0)])
 
         # act
         result = xyce_fft_file_parser("/nonexistent/path/*.fft*", step_info)
@@ -43,7 +43,7 @@ class TestXyceFftFileParser:
             # write standard content to file
             file_path.write_text(content, encoding="utf-8")
             # create step information with single step
-            step_info = StepInformation([], [], [slice(0, 3)], [(0.0, 200.0)])
+            step_info = StepInformation([], [], [(0.0, 200.0)])
 
             # act
             # invoke parser with pattern matching the single file
@@ -103,7 +103,7 @@ class TestXyceFftFileParser:
             # write step 1 file
             file_path_1.write_text(content_1, encoding="utf-8")
             # create step information with two steps
-            step_info = StepInformation([], [], [slice(0, 2), slice(2, 4)], [(0.0, 100.0), (0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0), (0.0, 100.0)])
 
             # act
             # parse using file pattern matching both steps
@@ -154,7 +154,7 @@ class TestXyceFftFileParser:
             # write test file
             file_path.write_text(content, encoding="utf-8")
             # create step information
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
 
             # act
             # parse the metrics file
@@ -206,7 +206,7 @@ class TestXyceFftFileParser:
             # write test file
             file_path.write_text(content, encoding="utf-8")
             # create step information
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
 
             # act
             # parse the multi-signals file
@@ -249,7 +249,7 @@ class TestXyceFftFileParser:
                 "           1    1.000000e+02    5.000000e-01\n"
             )
             file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
 
             # act
             result = xyce_fft_file_parser(str(Path(tmpdir) / "bad_cols.fft*"), step_info)
@@ -274,7 +274,7 @@ class TestXyceFftFileParser:
                 "           3    3.000000e+02    2.500000e-01   -9.000000e+01\n"
             )
             file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation([], [], [slice(0, 3)], [(0.0, 300.0)])
+            step_info = StepInformation([], [], [(0.0, 300.0)])
 
             # act
             result = xyce_fft_file_parser(str(Path(tmpdir) / "bad_idx.fft*"), step_info)
@@ -298,7 +298,7 @@ class TestXyceFftFileParser:
                 "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
             )
             file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
 
             # act
             result = xyce_fft_file_parser(str(Path(tmpdir) / "bad_order.fft*"), step_info)
@@ -324,7 +324,7 @@ class TestXyceFftFileParser:
             )
             file_path.write_text(content, encoding="utf-8")
             # step_information expects 2 steps but only 1 file exists with 1 step
-            step_info = StepInformation([], [], [slice(0, 2), slice(2, 4)], [(0.0, 100.0), (0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0), (0.0, 100.0)])
 
             # act
             result = xyce_fft_file_parser(str(Path(tmpdir) / "mismatch.fft*"), step_info)
@@ -350,7 +350,7 @@ class TestXyceFftFileParser:
             # invalid utf-8 continuation byte triggers a UnicodeDecodeError
             bad_bytes = b"\xff\xfe bad data\n"
             file_path.write_bytes(valid_header + bad_bytes)
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
 
             # act
             result = xyce_fft_file_parser(str(Path(tmpdir) / "bad_encoding.fft*"), step_info)
@@ -375,7 +375,7 @@ class TestXyceFftFileParser:
                 "           1    1.000000e+02    5.000000e-01    9.000000e+01"
             )
             file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
 
             # act
             # parser must not crash when the last line has no trailing newline
@@ -400,7 +400,7 @@ class TestXyceFftFileParser:
                 "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
             )
             file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
 
             # act
             with caplog.at_level("WARNING"):
@@ -426,7 +426,7 @@ class TestXyceFftFileParser:
                 "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
             )
             file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
 
             # act
             # parser must handle files without numeric suffix (sorted as -1)
@@ -458,7 +458,7 @@ class TestXyceFftFileParser:
                 "           1    2.000000e+02    8.000000e-01   -9.000000e+01\n"
             )
             file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
 
             # act
             result = xyce_fft_file_parser(str(Path(tmpdir) / "multi_abscissa.fft*"), step_info)
@@ -482,7 +482,7 @@ class TestXyceFftFileParser:
                 "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
             )
             file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
 
             # act
             result = xyce_fft_file_parser(str(Path(tmpdir) / "non_norm.fft*"), step_info)
@@ -515,12 +515,7 @@ class TestXyceFftFileParser:
                     f"  THD = {thd_value}\n"
                 )
                 file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation(
-                [],
-                [],
-                [slice(0, 3), slice(3, 6), slice(6, 9)],
-                [(0.0, 200.0), (0.0, 200.0), (0.0, 200.0)],
-            )
+            step_info = StepInformation([], [], [(0.0, 200.0), (0.0, 200.0), (0.0, 200.0)])
 
             # act
             result = xyce_fft_file_parser(str(Path(tmpdir) / "sim_step*.fft*"), step_info)
@@ -564,7 +559,7 @@ class TestXyceFftFileParser:
                 " SFDR = -1.257423e+00 dB at frequency 1.150000e+03\n"
             )
             file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation([], [], [slice(0, 3)], [(0.0, 200.0)])
+            step_info = StepInformation([], [], [(0.0, 200.0)])
 
             # act
             result = xyce_fft_file_parser(str(Path(tmpdir) / "single_step.fft*"), step_info)
@@ -604,7 +599,7 @@ class TestXyceFftFileParser:
                 "           1    1.000000e+02    6.000000e-01    9.000000e+01\n"
             )
             file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
 
             # act
             result = xyce_fft_file_parser(str(Path(tmpdir) / "same_abscissa.fft*"), step_info)
@@ -632,7 +627,7 @@ class TestXyceFftFileParser:
                 "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
             )
             file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
             raw_expression_manager = ExpressionManager([Expression("V(OUT)", [np.array([0.0, 1.0])], "mV")])
 
             # act
@@ -658,7 +653,7 @@ class TestXyceFftFileParser:
                 "           1    1.000000e+02    5.000000e-01    9.000000e+01\n"
             )
             file_path.write_text(content, encoding="utf-8")
-            step_info = StepInformation([], [], [slice(0, 2)], [(0.0, 100.0)])
+            step_info = StepInformation([], [], [(0.0, 100.0)])
             raw_expression_manager = ExpressionManager([Expression("V(OUT)", [np.array([0.0, 1.0])], "V")])
 
             # act

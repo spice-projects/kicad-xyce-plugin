@@ -14,14 +14,13 @@ class AbscissaScale(Enum):
 
 class StepInformation:
 
-    def __init__(self, keys: list[str], values: list[tuple], abscissa_indices: list[slice], abscissa_value_ranges: list[tuple[float, float]]):
+    def __init__(self, keys: list[str], values: list[tuple], abscissa_value_ranges: list[tuple[float, float]]):
         # fields
         self._keys = keys
         self._values = values
-        self._abscissa_indices = abscissa_indices
         self._abscissa_value_ranges = abscissa_value_ranges
         # number of steps
-        self._step_count = len(abscissa_indices)
+        self._step_count = len(abscissa_value_ranges)
         # determine if abscissa is ascending or descending based on the first step's abscissa value range
         self._abscissa_ascending = self._abscissa_value_ranges[0][0] <= self._abscissa_value_ranges[0][1] if len(self._abscissa_value_ranges) > 0 else True
         # check abscissa direction
@@ -41,10 +40,6 @@ class StepInformation:
     @property
     def values(self) -> list[tuple]:
         return self._values
-
-    @property
-    def abscissa_indices(self) -> list[slice]:
-        return self._abscissa_indices
 
     @property
     def length(self) -> int:
