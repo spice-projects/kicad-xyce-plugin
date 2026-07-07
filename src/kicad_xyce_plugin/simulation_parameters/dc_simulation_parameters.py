@@ -199,10 +199,6 @@ class DCSimulationParameters:
         # no FFT calculation is performed for this analysis
         return None
 
-    def fft_output_file_path_pattern(self, _: Path) -> str | None:
-        # no FFT calculation is performed for this analysis
-        return None
-
     def _build_data_directive(self) -> str:
         # data-driven sweep references an existing .DATA table by name
         return f".DC DATA={self.data_table_name}"

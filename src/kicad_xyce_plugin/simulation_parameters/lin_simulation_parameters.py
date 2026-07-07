@@ -188,10 +188,6 @@ class LinSimulationParameters:
         # no FFT calculation is performed for this analysis
         return None
 
-    def fft_output_file_path_pattern(self, _: Path) -> str | None:
-        # no FFT calculation is performed for this analysis
-        return None
-
     def _build_lin_directive(self) -> str:
         # start with the base .LIN keyword
         parts = [".LIN"]
