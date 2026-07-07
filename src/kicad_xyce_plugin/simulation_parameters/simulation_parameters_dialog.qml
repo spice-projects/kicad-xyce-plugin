@@ -219,6 +219,7 @@ Item {
     signal submitNoise(string outputNode, string refNode, string sourceName, string sweepMode, string points, string start, string end, string dataTableName, string measureParametersText, bool printEnabled, bool printAllNodes, bool printAllCurrents, bool printInoise, bool printOnoise, string printSpecificVars, string printFormat, string printFile, bool replaceGround, var deviceOperatorsList)
     signal submitHB(string frequenciesText, string harmonicsText, int tahb, string selectharms, int startupPeriods, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printType, string printSpecificVars, string printFormat, string printFile, string nonlinOptionsText, string linsolOptionsText, bool replaceGround)
     signal submitLIN(bool sparcalc, string format, string lintype, string dataformat, string file, string width, string precision, string sweepMode, string points, string start, string end, string dataTableName, bool printEnabled, bool printAllNodes, bool printAllCurrents, string printSpecificVars, string printFormat, string printFile, bool replaceGround)
+    signal editDataTableRequested(string analysisType, string tableName)
     signal cancelRequested()
 
     // --- Internal Logic ---
@@ -400,16 +401,19 @@ Item {
                                 id: dcPanel
                                 replaceGround: root.replaceGround
                                 onReplaceGroundChanged: root.replaceGround = replaceGround
+                                onEditDataTableRequested: root.editDataTableRequested("DC", tableName)
                             }
                             AcPanel {
                                 id: acPanel
                                 replaceGround: root.replaceGround
                                 onReplaceGroundChanged: root.replaceGround = replaceGround
+                                onEditDataTableRequested: root.editDataTableRequested("AC", tableName)
                             }
                             NoisePanel {
                                 id: noisePanel
                                 replaceGround: root.replaceGround
                                 onReplaceGroundChanged: root.replaceGround = replaceGround
+                                onEditDataTableRequested: root.editDataTableRequested("NOISE", tableName)
                             }
                             HbPanel {
                                 id: hbPanel
@@ -420,6 +424,7 @@ Item {
                                 id: linPanel
                                 replaceGround: root.replaceGround
                                 onReplaceGroundChanged: root.replaceGround = replaceGround
+                                onEditDataTableRequested: root.editDataTableRequested("LIN", tableName)
                             }
                         }
 

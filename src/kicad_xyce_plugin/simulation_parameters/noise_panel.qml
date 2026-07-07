@@ -28,6 +28,7 @@ ColumnLayout {
     property alias printFormatIndex: printFormatCombo.currentIndex
     property string printFile: ""
     property var deviceOperators: []
+    signal editDataTableRequested(string tableName)
     readonly property string sweepModeValue: (["LIN", "DEC", "OCT", "DATA"])[noiseSweepModeComboBox.currentIndex] || "LIN"
     readonly property bool isDataMode: noiseSweepModeComboBox.currentIndex === 3
     readonly property string printFormatValue: printFormatCombo.currentIndex > 0 ? printFormatCombo.model[printFormatCombo.currentIndex] : ""
@@ -123,12 +124,22 @@ ColumnLayout {
                     color: "#6B6B66"; font.pixelSize: 12
                     visible: panel.isDataMode
                 }
-                TextField {
-                    id: noiseDataTableNameField
-                    placeholderText: "e.g. freqTable"
+                RowLayout {
                     Layout.fillWidth: true
                     visible: panel.isDataMode
-                    selectByMouse: true
+                    spacing: 8
+
+                    TextField {
+                        id: noiseDataTableNameField
+                        placeholderText: "e.g. freqTable"
+                        Layout.fillWidth: true
+                        selectByMouse: true
+                    }
+
+                    Button {
+                        text: "Edit Table..."
+                        onClicked: panel.editDataTableRequested(panel.dataTableName)
+                    }
                 }
             }
         }

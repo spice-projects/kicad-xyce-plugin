@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtQuick import QQuickView
 
 from kicad_xyce_plugin.netlist_parser import Device, NetlistTopology
-from kicad_xyce_plugin.simulation_parameters import AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, IcEntry, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, OptionParameters, PrintParameters, SimulationConfig, SimulationParametersDialog, TransientSchedulePoint, TransientSimulationParameters
+from kicad_xyce_plugin.simulation_parameters import AcSimulationParameters, DataBlock, DCSimulationParameters, HbSimulationParameters, IcEntry, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, OptionParameters, PrintParameters, SimulationConfig, SimulationParametersDialog, TransientSchedulePoint, TransientSimulationParameters
 
 from kicad_xyce_plugin.simulation_parameters.noise_panel import _validate_device_name
 
@@ -24,6 +24,7 @@ def _make_dialog(initial_parameters=None) -> SimulationParametersDialog:
     elif initial_parameters is None:
         initial_parameters = SimulationConfig(analysis=None, steps=())
     dialog._initial_parameters = initial_parameters
+    dialog._data_blocks = list(initial_parameters.data_blocks)
     dialog._result = None
     dialog._root = MagicMock()
 
@@ -709,6 +710,39 @@ class TestSimulationParametersDialogOnSubmitDC:
         assert result.analysis.measure_parameters[1].result_name == "MAX_CURRENT"
         assert result.analysis.measure_parameters[1].measure_type == "MAX"
         assert result.analysis.measure_parameters[1].variable == "I(R1)"
+
+
+class TestSimulationParametersDialogEditDataTable:
+
+    def test_replaces_existing_data_block_and_updates_field(self):
+        # arrange
+        existing_block = DataBlock(name="tableA", parameters=("r1",), records=(("1.0",),))
+        other_block = DataBlock(name="tableB", parameters=("r2",), records=(("2.0",),))
+        updated_block = DataBlock(name="tableA_edited", parameters=("r1", "r2"), records=(("1.0", "2.0"),))
+        dialog = _make_dialog(SimulationConfig(analysis=DCSimulationParameters("DATA", data_table_name="tableA"), steps=(), data_blocks=(existing_block, other_block)))
+        fake_editor = MagicMock()
+        fake_editor.exec.return_value = QDialog.DialogCode.Accepted
+        fake_editor.data_block = updated_block
+        # act
+        with patch("kicad_xyce_plugin.simulation_parameters.simulation_parameters_dialog.DataTableDialog", return_value=fake_editor):
+            dialog._on_edit_data_table_requested("DC", "tableA")
+        # assert
+        assert dialog._data_blocks == [updated_block, other_block]
+        dialog._root.setProperty.assert_any_call("dataTableName", "tableA_edited")
+
+    def test_appends_new_data_block_when_name_is_new(self):
+        # arrange
+        new_block = DataBlock(name="newTable", parameters=("r1",), records=(("1.0",),))
+        dialog = _make_dialog(SimulationConfig(analysis=DCSimulationParameters("DATA", data_table_name=""), steps=(), data_blocks=()))
+        fake_editor = MagicMock()
+        fake_editor.exec.return_value = QDialog.DialogCode.Accepted
+        fake_editor.data_block = new_block
+        # act
+        with patch("kicad_xyce_plugin.simulation_parameters.simulation_parameters_dialog.DataTableDialog", return_value=fake_editor):
+            dialog._on_edit_data_table_requested("AC", "")
+        # assert
+        assert dialog._data_blocks == [new_block]
+        dialog._root.setProperty.assert_any_call("acDataTableName", "newTable")
 
 
 class TestSimulationParametersDialogParseSchedulePoints:

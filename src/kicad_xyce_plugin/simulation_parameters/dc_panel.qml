@@ -24,6 +24,7 @@ ColumnLayout {
     property alias secondaryStep: secondaryStepField.text
     property alias secondaryPoints: secondaryPointsField.text
     property alias measureParametersText: dcMeasureParametersTextArea.text
+    signal editDataTableRequested(string tableName)
     property bool printEnabled: false
     property bool printAllNodes: false
     property bool printAllCurrents: false
@@ -169,12 +170,22 @@ ColumnLayout {
                     color: "#6B6B66"; font.pixelSize: 12
                     visible: panel.isDataMode
                 }
-                TextField {
-                    id: dataTableNameField
-                    placeholderText: "e.g. resistorValues"
+                RowLayout {
                     Layout.fillWidth: true
                     visible: panel.isDataMode
-                    selectByMouse: true
+                    spacing: 8
+
+                    TextField {
+                        id: dataTableNameField
+                        placeholderText: "e.g. resistorValues"
+                        Layout.fillWidth: true
+                        selectByMouse: true
+                    }
+
+                    Button {
+                        text: "Edit Table..."
+                        onClicked: panel.editDataTableRequested(panel.dataTableName)
+                    }
                 }
             }
 
