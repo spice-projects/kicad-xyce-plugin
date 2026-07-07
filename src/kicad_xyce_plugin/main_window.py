@@ -637,9 +637,7 @@ class MainWindow(QMainWindow):
             # fill matrix row-by-row using contiguous slices
             for expr_index, expression in enumerate(result_expressions):
                 # expression data for this step — zero copy per-step view
-                expression_step_data = expression.step_data(step)
-                # store this full-step expression data in the matrix
-                y_matrix[expr_index] = expression_step_data
+                y_matrix[expr_index] = expression.step_data(step)
             try:
                 # fft internals allocate output arrays (spectrum/frequency/value matrices)
                 frequencies, fft_matrix = compute_fft_many2(step_abscissa, y_matrix, max_frequency=max_frequency, window=window, normalize=normalize, x_left_index=from_index, x_right_index=to_index, output=output, keep_dc=keep_dc)
@@ -690,9 +688,9 @@ class MainWindow(QMainWindow):
         # build one «name» group per FFT expression so each gets its own chart
         plot_suggestion = [(e.name, [e]) for e in fft_expressions]
         # map source parameter values onto FFT steps (only available when there are multiple steps, otherwise leave empty)
-        fft_values = [self._step_information.values[index] for index in fft_steps] if self._step_information.length > 1 else []
+        fft_step_values = [self._step_information.values[index] for index in fft_steps] if self._step_information.length > 1 else []
         # create step information for FFT output
-        fft_step_information = StepInformation(self._step_information.keys, fft_values, fft_abscissa_indices, fft_abscissa_value_ranges)
+        fft_step_information = StepInformation(self._step_information.keys, fft_step_values, fft_abscissa_value_ranges)
         # create raw file with fft calculation results
         fft_raw = XyceOutputFile(filename=self._raw_file_path, title=f"FFT – {', '.join(e.name for e in result_expressions)}", complex=False, step_information=fft_step_information, abscissa=freq_expression, abscissa_scale=AbscissaScale.LINEAR, expression_manager=expression_manager)
         # create a new MainWindow to render the FFT result

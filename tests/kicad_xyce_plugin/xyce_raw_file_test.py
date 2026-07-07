@@ -216,78 +216,71 @@ class TestStepInformation:
 
     def test_length_single_step(self):
         # arrange
-        info = StepInformation(keys=[], values=[], abscissa_indices=[slice(0, 10)], abscissa_value_ranges=[(0.0, 9.0)])
+        info = StepInformation(keys=[], values=[], abscissa_value_ranges=[(0.0, 9.0)])
         # act / assert
         assert info.length == 1
 
     def test_length_multiple_steps(self):
         # arrange
-        info = StepInformation(keys=[], values=[], abscissa_indices=[slice(0, 5), slice(5, 10)], abscissa_value_ranges=[(0.0, 4.0), (0.0, 4.0)])
+        info = StepInformation(keys=[], values=[], abscissa_value_ranges=[(0.0, 4.0), (0.0, 4.0)])
         # act / assert
         assert info.length == 2
 
     def test_keys(self):
         # arrange
-        info = StepInformation(keys=["R1", "R2"], values=[(1.0, 2.0)], abscissa_indices=[slice(0, 5)], abscissa_value_ranges=[(0.0, 4.0)])
+        info = StepInformation(keys=["R1", "R2"], values=[(1.0, 2.0)], abscissa_value_ranges=[(0.0, 4.0)])
         # act / assert
         assert info.keys == ["R1", "R2"]
 
     def test_values(self):
         # arrange
-        info = StepInformation(keys=["R1"], values=[(1.0,), (2.0,)], abscissa_indices=[slice(0, 5), slice(5, 10)], abscissa_value_ranges=[(0.0, 4.0), (0.0, 4.0)])
+        info = StepInformation(keys=["R1"], values=[(1.0,), (2.0,)], abscissa_value_ranges=[(0.0, 4.0), (0.0, 4.0)])
         # act / assert
         assert info.values == [(1.0,), (2.0,)]
 
-    def test_abscissa_indices(self):
-        # arrange
-        slices = [slice(0, 5), slice(5, 10)]
-        info = StepInformation(keys=[], values=[], abscissa_indices=slices, abscissa_value_ranges=[(0.0, 4.0), (0.0, 4.0)])
-        # act / assert
-        assert info.abscissa_indices == slices
-
     def test_abscissa_left_right_ascending(self):
         # arrange
-        info = StepInformation(keys=[], values=[], abscissa_indices=[slice(0, 4), slice(4, 8)], abscissa_value_ranges=[(0.0, 3.0), (0.0, 3.0)])
+        info = StepInformation(keys=[], values=[], abscissa_value_ranges=[(0.0, 3.0), (0.0, 3.0)])
         # act / assert — overall left is the global minimum, right is the global maximum for ascending
         assert info.abscissa_left_value == 0.0
         assert info.abscissa_right_value == 3.0
 
     def test_abscissa_left_right_descending(self):
         # arrange — descending sweep (first value greater than last)
-        info = StepInformation(keys=[], values=[], abscissa_indices=[slice(0, 4)], abscissa_value_ranges=[(10.0, 1.0)])
+        info = StepInformation(keys=[], values=[], abscissa_value_ranges=[(10.0, 1.0)])
         # act / assert — descending: left is max, right is min
         assert info.abscissa_left_value == 10.0
         assert info.abscissa_right_value == 1.0
 
     def test_abscissa_ascending_flag(self):
         # arrange
-        info = StepInformation(keys=[], values=[], abscissa_indices=[slice(0, 4)], abscissa_value_ranges=[(0.0, 3.0)])
+        info = StepInformation(keys=[], values=[], abscissa_value_ranges=[(0.0, 3.0)])
         # act / assert
         assert info.abscissa_ascending is True
 
     def test_abscissa_descending_flag(self):
         # arrange
-        info = StepInformation(keys=[], values=[], abscissa_indices=[slice(0, 4)], abscissa_value_ranges=[(3.0, 0.0)])
+        info = StepInformation(keys=[], values=[], abscissa_value_ranges=[(3.0, 0.0)])
         # act / assert
         assert info.abscissa_ascending is False
 
     def test_step_abscissa_left_value(self):
         # arrange
-        info = StepInformation(keys=[], values=[], abscissa_indices=[slice(0, 5), slice(5, 10)], abscissa_value_ranges=[(0.0, 4.0), (1.0, 5.0)])
+        info = StepInformation(keys=[], values=[], abscissa_value_ranges=[(0.0, 4.0), (1.0, 5.0)])
         # act / assert — per-step left value
         assert info.step_abscissa_left_value(0) == 0.0
         assert info.step_abscissa_left_value(1) == 1.0
 
     def test_step_abscissa_right_value(self):
         # arrange
-        info = StepInformation(keys=[], values=[], abscissa_indices=[slice(0, 5), slice(5, 10)], abscissa_value_ranges=[(0.0, 4.0), (1.0, 5.0)])
+        info = StepInformation(keys=[], values=[], abscissa_value_ranges=[(0.0, 4.0), (1.0, 5.0)])
         # act / assert — per-step right value
         assert info.step_abscissa_right_value(0) == 4.0
         assert info.step_abscissa_right_value(1) == 5.0
 
     def test_empty_ranges_defaults_to_zero(self):
         # arrange
-        info = StepInformation(keys=[], values=[], abscissa_indices=[], abscissa_value_ranges=[])
+        info = StepInformation(keys=[], values=[], abscissa_value_ranges=[])
         # act / assert — no ranges: defaults to zero
         assert info.abscissa_left_value == 0.0
         assert info.abscissa_right_value == 0.0
@@ -1080,21 +1073,6 @@ class TestXyceOutputFileMultiBlock:
         assert raw is not None
         assert raw.abscissa.steps[0].base is not None
         assert raw.abscissa.steps[1].base is not None
-        # cleanup
-        os.unlink(path)
-
-    def test_multi_block_abscissa_indices_flat_layout(self):
-        # arrange — two steps of 4 points each
-        m = np.array([[0.0, 1.0], [1.0, 2.0], [2.0, 3.0], [3.0, 4.0]], dtype=np.float64)
-        content = _make_multi_block_raw_bytes(param_values=[1000.0, 2000.0], step_matrices=[m, m])
-        path = _write_temp_raw(content)
-        # act
-        raw = xyce_raw_file_parser(path)
-        # assert — flat-layout slices: step 0 covers [0, 4), step 1 covers [4, 8)
-        assert raw is not None
-        indices = raw.step_information.abscissa_indices
-        assert indices[0] == slice(0, 4)
-        assert indices[1] == slice(4, 8)
         # cleanup
         os.unlink(path)
 
