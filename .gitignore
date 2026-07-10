@@ -89,6 +89,9 @@ coverage.xml
 .env*
 .venv*
 
+.idea
+cmake-*
+
 /kicad-icons
 *.raw
 *.fft*

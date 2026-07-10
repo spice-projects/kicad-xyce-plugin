@@ -37,7 +37,9 @@
     },
     "gh": true,
     "/Users/rogelio/Projects/kicad-xyce-plugin/.venv/bin/python": true,
-    ".": true
+    ".": true,
+    "clang++": true,
+    "/tmp/xyce_raw_smoke": true
   },
   "python-envs.defaultEnvManager": "ms-python.python:venv"
 }
