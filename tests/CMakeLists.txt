@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(kicad-xyce-plugin-tests)
+project(kicad-xyce-plugin-tests LANGUAGES CXX)
 
 # c++ 23
 set(CMAKE_CXX_STANDARD 23)
