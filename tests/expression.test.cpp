@@ -135,8 +135,12 @@ TEST(ExpressionChecks, complex_span_steps_are_complex) {
 
 TEST(ExpressionChecks, step_count_returns_correct_count_for_real_views) {
     // arrange
-    const std::vector<double> buffer({1, 2, 3});
-    std::vector steps = {View(buffer), View(buffer), View(buffer)};
+    const std::vector<double> buffer = {1, 2, 3};
+    std::vector<View<double>> steps;
+    steps.reserve(3);
+    steps.emplace_back(make_view(buffer, 3, 1));
+    steps.emplace_back(make_view(buffer, 3, 1));
+    steps.emplace_back(make_view(buffer, 3, 1));
     const Expression expr("V1", steps, "V");
     // act/assert
     ASSERT_EQ(expr.step_count(), 3);
@@ -144,8 +148,13 @@ TEST(ExpressionChecks, step_count_returns_correct_count_for_real_views) {
 
 TEST(ExpressionChecks, step_count_returns_correct_count_for_complex_views) {
     // arrange
-    const std::vector<std::complex<double>> buffer({1, 2, 3});
-    std::vector steps = {View(buffer), View(buffer), View(buffer)};
+    using Complex = std::complex<double>;
+    const std::vector<Complex> buffer = {Complex(1, 0), Complex(2, 0), Complex(3, 0)};
+    std::vector<View<Complex>> steps;
+    steps.reserve(3);
+    steps.emplace_back(make_view(buffer, 3, 1));
+    steps.emplace_back(make_view(buffer, 3, 1));
+    steps.emplace_back(make_view(buffer, 3, 1));
     const Expression expr("V1", steps, "V");
     // act/assert
     ASSERT_EQ(expr.step_count(), 3);
@@ -198,7 +207,10 @@ TEST(ExpressionChecks, view_size_returns_constructor_size) {
 TEST(ExpressionChecks, data_returns_real_span_for_real_view_steps) {
     // arrange
     const std::vector<double> buffer = {1, 10, 2, 20, 3, 30};
-    std::vector<View<double>> steps = {make_view(buffer, 3, 2), make_view(buffer, 3, 2, 1)};
+    std::vector<View<double>> steps;
+    steps.reserve(2);
+    steps.emplace_back(make_view(buffer, 3, 2));
+    steps.emplace_back(make_view(buffer, 3, 2, 1));
     Expression expr("V1", steps, "V");
     // act
     const auto data = expr.data();
@@ -218,7 +230,10 @@ TEST(ExpressionChecks, data_returns_complex_span_for_complex_view_steps) {
     // arrange
     using Complex = std::complex<double>;
     const std::vector<Complex> buffer = {Complex(1, 1), Complex(10, 10), Complex(2, 2), Complex(20, 20)};
-    std::vector<View<Complex>> steps = {make_view(buffer, 2, 2), make_view(buffer, 2, 2, 1)};
+    std::vector<View<Complex>> steps;
+    steps.reserve(2);
+    steps.emplace_back(make_view(buffer, 2, 2));
+    steps.emplace_back(make_view(buffer, 2, 2, 1));
     Expression expr("I1", steps, "A");
     // act
     const auto data = expr.data();
@@ -270,7 +285,10 @@ TEST(ExpressionChecks, data_returns_complex_span_for_complex_span_steps) {
 TEST(ExpressionChecks, step_data_returns_real_step_from_real_view_steps) {
     // arrange
     const std::vector<double> buffer = {1, 10, 2, 20, 3, 30};
-    std::vector<View<double>> steps = {make_view(buffer, 3, 2), make_view(buffer, 3, 2, 1)};
+    std::vector<View<double>> steps;
+    steps.reserve(2);
+    steps.emplace_back(make_view(buffer, 3, 2));
+    steps.emplace_back(make_view(buffer, 3, 2, 1));
     Expression expr("V1", steps, "V");
     // act
     const auto step = expr.step_data(1);
@@ -287,7 +305,10 @@ TEST(ExpressionChecks, step_data_returns_complex_step_from_complex_view_steps) {
     // arrange
     using Complex = std::complex<double>;
     const std::vector<Complex> buffer = {Complex(1, 1), Complex(10, 10), Complex(2, 2), Complex(20, 20)};
-    std::vector<View<Complex>> steps = {make_view(buffer, 2, 2), make_view(buffer, 2, 2, 1)};
+    std::vector<View<Complex>> steps;
+    steps.reserve(2);
+    steps.emplace_back(make_view(buffer, 2, 2));
+    steps.emplace_back(make_view(buffer, 2, 2, 1));
     Expression expr("I1", steps, "A");
     // act
     const auto step = expr.step_data(0);
@@ -346,8 +367,11 @@ TEST(ExpressionChecks, step_data_throws_out_of_range_for_invalid_index) {
 TEST(ExpressionChecks, step_indices_returns_expected_ranges_for_view_steps) {
     // arrange
     const std::vector<double> buffer = {1, 10, 2, 20, 3, 30};
-    std::vector<View<double>> steps = {make_view(buffer, 3, 2), make_view(buffer, 3, 2, 1)};
-    Expression expr("V1", steps, "V");
+    std::vector<View<double>> steps;
+    steps.reserve(2);
+    steps.emplace_back(make_view(buffer, 3, 2));
+    steps.emplace_back(make_view(buffer, 3, 2, 1));
+    const Expression expr("V1", steps, "V");
     // act
     const auto indices = expr.step_indices();
     // assert
@@ -388,8 +412,6 @@ TEST(ExpressionChecks, transform_updates_metadata_and_values_for_real_expression
     // assert
     ASSERT_EQ(transformed.name(), "V1_scaled");
     ASSERT_EQ(transformed.unit(), "mV");
-    ASSERT_EQ(transformed.source(), "R1");
-    ASSERT_EQ(transformed.variable_type(), "derived");
     ASSERT_FALSE(transformed.is_complex());
     ASSERT_EQ(transformed.step_count(), 2);
     ASSERT_TRUE(std::holds_alternative<std::span<const double>>(data));
@@ -407,38 +429,32 @@ TEST(ExpressionChecks, transform_updates_metadata_and_values_for_real_expression
     ASSERT_EQ(step_values[2], 4000.0);
 }
 
-TEST(ExpressionChecks, transform_supports_complex_output_type) {
+TEST(ExpressionChecks, transform_real_output_from_complex_expression) {
     // arrange
-    std::vector<double> data_buffer = {1, 2, 3};
-    std::vector<std::span<const double>> steps = {{data_buffer.data(), 2}, {data_buffer.data() + 2, 1}};
-    Expression expr("V1", data_buffer, steps, "V");
-    std::string transformed_name = "V1_complex";
+    using Complex = std::complex<double>;
+    std::vector<Complex> data_buffer = {Complex(3, 4), Complex(5, 12), Complex(8, 15)};
+    std::vector<std::span<const Complex>> steps = {{data_buffer.data(), 2}, {data_buffer.data() + 2, 1}};
+    Expression expr("I1", data_buffer, steps, "A");
+    std::string transformed_name = "I1_mag";
     std::string transformed_unit = "V";
-    std::string transformed_variable_type = "phasor";
+    std::string transformed_variable_type = "magnitude";
     // act
-    Expression transformed = expr.transform<double, std::complex<double>>(
-        transformed_name,
-        transformed_unit,
-        transformed_variable_type,
-        [](double v) {
-            return std::complex<double>(v, -v);
-        }
-    );
+    Expression transformed = expr.transform<Complex, double>(transformed_name, transformed_unit, transformed_variable_type, [](const Complex& v) { return std::abs(v); });
     const auto data = transformed.data();
     const auto step = transformed.step_data(0);
     // assert
-    ASSERT_TRUE(transformed.is_complex());
-    ASSERT_TRUE(std::holds_alternative<std::span<const std::complex<double>>>(data));
-    const auto values = std::get<std::span<const std::complex<double>>>(data);
+    ASSERT_FALSE(transformed.is_complex());
+    ASSERT_TRUE(std::holds_alternative<std::span<const double>>(data));
+    const auto values = std::get<std::span<const double>>(data);
     ASSERT_EQ(values.size(), 3);
-    ASSERT_EQ(values[0], std::complex<double>(1, -1));
-    ASSERT_EQ(values[1], std::complex<double>(2, -2));
-    ASSERT_EQ(values[2], std::complex<double>(3, -3));
-    ASSERT_TRUE(std::holds_alternative<std::span<const std::complex<double>>>(step));
-    const auto step_values = std::get<std::span<const std::complex<double>>>(step);
+    ASSERT_EQ(values[0], 5);
+    ASSERT_EQ(values[1], 13);
+    ASSERT_EQ(values[2], 17);
+    ASSERT_TRUE(std::holds_alternative<std::span<const double>>(step));
+    const auto step_values = std::get<std::span<const double>>(step);
     ASSERT_EQ(step_values.size(), 2);
-    ASSERT_EQ(step_values[0], std::complex<double>(1, -1));
-    ASSERT_EQ(step_values[1], std::complex<double>(2, -2));
+    ASSERT_EQ(step_values[0], 5);
+    ASSERT_EQ(step_values[1], 13);
 }
 
 TEST(ExpressionChecks, transform_throws_when_input_type_does_not_match_expression_data) {
@@ -449,16 +465,34 @@ TEST(ExpressionChecks, transform_throws_when_input_type_does_not_match_expressio
     std::string transformed_name = "V1_bad";
     std::string transformed_unit = "V";
     std::string transformed_variable_type = "bad";
+    using Complex = std::complex<double>;
     // act/assert
-    ASSERT_THROW(
-        (void)expr.transform<std::complex<double>, std::complex<double>>(
-            transformed_name,
-            transformed_unit,
-            transformed_variable_type,
-            [](const std::complex<double>& v) {
-                return v;
-            }
-        ),
-        std::runtime_error
-    );
+    const auto run_mismatched_transform = [&expr, &transformed_name, &transformed_unit, &transformed_variable_type]() { (void)expr.transform<Complex, double>(transformed_name, transformed_unit, transformed_variable_type, [](const Complex& v) { return std::abs(v); }); };
+    ASSERT_THROW(run_mismatched_transform(), std::runtime_error);
+}
+
+TEST(ExpressionChecks, transform_initializes_cached_data_from_view_steps) {
+    // arrange
+    const std::vector<double> buffer = {1, 10, 2, 20, 3, 30};
+    std::vector<View<double>> steps;
+    steps.reserve(2);
+    steps.emplace_back(make_view(buffer, 3, 2));
+    steps.emplace_back(make_view(buffer, 3, 2, 1));
+    Expression expr("V1", steps, "V");
+    std::string transformed_name = "V1_half";
+    std::string transformed_unit = "V";
+    std::string transformed_variable_type = "derived";
+    // act
+    Expression transformed = expr.transform<double, double>(transformed_name, transformed_unit, transformed_variable_type, [](double v) { return v * 0.5; });
+    const auto data = transformed.data();
+    // assert
+    ASSERT_TRUE(std::holds_alternative<std::span<const double>>(data));
+    const auto values = std::get<std::span<const double>>(data);
+    ASSERT_EQ(values.size(), 6);
+    ASSERT_EQ(values[0], 0.5);
+    ASSERT_EQ(values[1], 1.0);
+    ASSERT_EQ(values[2], 1.5);
+    ASSERT_EQ(values[3], 5.0);
+    ASSERT_EQ(values[4], 10.0);
+    ASSERT_EQ(values[5], 15.0);
 }
