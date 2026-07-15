@@ -326,7 +326,7 @@ namespace
         // check we need to read complex numbers from file
         if (is_complex) {
             // validate file length
-            if (reinterpret_cast<size_t>(data + offset + num_points * sizeof(double) + (num_variables - 1) * num_points * sizeof(std::complex<double>)) > length)
+            if (offset + num_points * num_variables * sizeof(std::complex<double>) > length)
                 return false;
             // cast base pointer
             auto* base_ptr = reinterpret_cast<std::complex<double>*>(data + offset);
@@ -355,7 +355,7 @@ namespace
             return true;
         }
         // validate file length
-        if (reinterpret_cast<size_t>(data + offset + num_variables * num_points * sizeof(double)) > length)
+        if (offset + num_variables * num_points * sizeof(double) > length)
             return false;
         // cast base pointer
         auto* base_ptr = reinterpret_cast<double*>(data + offset);
@@ -417,6 +417,8 @@ std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path
         // exit
         return nullptr;
     }
+    // close file descriptor after mmap
+    close(fd);
     // cast to character pointer (plain buffer)
     const auto data = static_cast<char*>(addr);
     // initialize blocks list
@@ -437,25 +439,29 @@ std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path
         size_t data_offset = block_result->data_offset;
         // assign ascii status
         bool is_ascii = block_result->is_ascii;
-        // initialize actual points count
-        size_t actual_points = block_result->num_points;
+        // number of variables in this block
+        const size_t num_variables = block_result->variables.size();
         // check ascii file
         if (is_ascii) {
             // parse ascii values
             if (!parse_ascii_variables(data, length, data_offset, block_result->variables, block_result->is_complex, block_result->num_points))
                 break;
+            // ascii blocks are parsed from the remaining text section
+            pos = length;
         }
         else {
             // parse binary file
             if (!parse_binary_variables(data, length, data_offset, block_result->variables, block_result->is_complex, block_result->num_points))
                 break;
-            // compute bytes per value
-            size_t bytes_per_value = block_result->is_complex ? sizeof(std::complex<double>) : sizeof(double);
+            // compute bytes per point
+            const size_t bytes_per_point = block_result->is_complex ? num_variables * sizeof(std::complex<double>) : num_variables * sizeof(double);
             // compute next scan position
-            pos = data_offset + actual_points * sizeof(double) + (block_result->variables.size() - 1) * actual_points * bytes_per_value;
+            pos = data_offset + block_result->num_points * bytes_per_point;
         }
+        // append parsed block
+        blocks.push_back(std::move(*block_result));
         // process plotname
-        if (!block_result->plotname.empty()) {
+        if (!blocks.back().plotname.empty()) {
             // initialize regex
             std::regex pair_re(R"(name\s*=\s*(\S+)\s+value\s*=\s*([\d.eE+-]+))");
             // initialize name list
@@ -463,7 +469,7 @@ std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path
             // initialize value list
             std::vector<double> param_values;
             // get regex iterators
-            auto begin = std::sregex_iterator(block_result->plotname.begin(), block_result->plotname.end(), pair_re);
+            auto begin = std::sregex_iterator(blocks.back().plotname.begin(), blocks.back().plotname.end(), pair_re);
             // get end iterator
             auto end = std::sregex_iterator();
             // loop matches
@@ -504,8 +510,6 @@ std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path
     // reserve memory for steps
     abscissa_indices.reserve(step_count);
     abscissa_value_ranges.reserve(step_count);
-    // append first block slice
-    abscissa_indices.emplace_back(0, first_block.num_points);
     // assign scale
     AbscissaScale abscissa_scale = AbscissaScale::LINEAR;
     // check first block number of points in expressions
@@ -515,7 +519,7 @@ std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path
         // get first & last values
         double first_val = abscissa_view[0];
         double last_val = abscissa_view[abscissa_view.size() - 1];
-        // append first indices & range
+        // append first indices and range
         abscissa_indices.emplace_back(0, first_block.num_points);
         abscissa_value_ranges.emplace_back(first_val, last_val);
     }
@@ -563,8 +567,15 @@ std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path
         auto& block = blocks[b];
         // loop variables
         for (auto& [idx, name, variable_type, view] : block.variables) {
+            // validate variable index and metadata consistency across steps
+            if (idx < 0 || static_cast<size_t>(idx) >= temp_variables.size() || temp_variables[idx].name != name || temp_variables[idx].variable_type != variable_type) {
+                // unmap mmap memory
+                munmap(addr, length);
+                // invalid stepped variable layout
+                return nullptr;
+            }
             // variable at index
-            auto& variable = temp_variables.at(idx - 1);
+            auto& variable = temp_variables[idx];
             // check it is a complex variable
             if (variable.is_complex) {
                 // append view to steps
@@ -604,12 +615,14 @@ std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path
         // extract variable type info
         auto [vtype, unit] = get_variable_type_info(variable_type);
         // create expressions
-        auto l = [&expressions, &name, &vtype, &unit]<typename S>(S& s) {
+        auto l = [&expressions, &name, &vtype, &unit]<typename T0>(T0& s) {
+            // actual parameter type
+            using TX = std::decay_t<T0>;
             // double
-            if constexpr (std::is_same_v<S, View<double>>)
+            if constexpr (std::is_same_v<TX, std::vector<View<double>>>)
                 expressions.emplace_back(Expression<double>(name, s, unit, "", vtype));
             // complex
-            if constexpr (std::is_same_v<S, View<std::complex<double>>>)
+            if constexpr (std::is_same_v<TX, std::vector<View<std::complex<double>>>>)
                 expressions.emplace_back(Expression<std::complex<double>>(name, s, unit, "", vtype));
         };
         // process list
