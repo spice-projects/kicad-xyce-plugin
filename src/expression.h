@@ -1,11 +1,13 @@
 #ifndef EXPRESSION_H
 #define EXPRESSION_H
 
+#include <algorithm>
 #include <complex>
 #include <functional>
 #include <ranges>
 #include <span>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -50,8 +52,7 @@ private:
     std::vector<T> data;
 };
 
-using Steps = std::variant<std::vector<View<double>>, std::vector<View<std::complex<double>>>, std::vector<std::span<const double>>, std::vector<std::span<const std::complex<double>>>>;
-
+template <typename T>
 class Expression
 {
 public:
@@ -61,13 +62,13 @@ public:
 
     Expression(Expression&&) noexcept = default;
 
-    Expression(std::string name, std::vector<View<double>>& steps, std::string unit, std::string source = "", std::string variable_type = "");
+    Expression(std::string name, std::vector<View<T>>& steps, std::string unit, std::string source = "", std::string variable_type = "")
+        : m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)) {
+    }
 
-    Expression(std::string name, std::vector<View<std::complex<double>>>& steps, std::string unit, std::string source = "", std::string variable_type = "");
-
-    Expression(std::string name, std::vector<double>& data, std::vector<std::span<const double>>& steps, std::string unit, std::string source = "", std::string variable_type = "");
-
-    Expression(std::string name, std::vector<std::complex<double>>& data, std::vector<std::span<const std::complex<double>>>& steps, std::string unit, std::string source = "", std::string variable_type = "");
+    Expression(std::string name, std::vector<T>& data, std::vector<std::span<const T>>& steps, std::string unit, std::string source = "", std::string variable_type = "")
+        : m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)), m_cached_data(std::move(data)) {
+    }
 
     ~Expression() = default;
 
@@ -75,77 +76,158 @@ public:
 
     Expression& operator=(Expression&&) noexcept = default;
 
-    const std::string& name() const;
+    const std::string& name() const {
+        return m_name;
+    }
 
-    const std::string& unit() const;
+    const std::string& unit() const {
+        return m_unit;
+    }
 
-    const std::string& source() const;
+    const std::string& source() const {
+        return m_source;
+    }
 
-    const std::string& variable_type() const;
+    const std::string& variable_type() const {
+        return m_variable_type;
+    }
 
-    bool is_complex() const;
+    size_t step_count() const {
+        return std::visit([](auto&& v) { return v.size(); }, m_steps);
+    }
 
-    size_t step_count() const;
-
-    std::variant<std::span<const double>, std::span<const std::complex<double>>> step_data(size_t step_index);
-
-    std::variant<std::span<const double>, std::span<const std::complex<double>>> data();
-
-    std::vector<std::pair<size_t, size_t>> step_indices() const;
-
-    template <typename I, typename O> requires (std::same_as<I, double> || std::same_as<I, std::complex<double>>) && (std::same_as<O, double> || std::same_as<O, std::complex<double>>)
-    Expression transform(std::string& name, std::string& unit, std::string& variable_type, const std::function<O(I)>& f) {
+    const std::span<const T>& step_data(size_t step_index) {
         // check data has been initialized for this expression
         if (std::holds_alternative<std::monostate>(m_cached_data)) {
             // initialize expression
             initialize_expression_data();
         }
-        // create out data vector
-        std::vector<O> out_data;
-        // process expression data
-        auto l = [&out_data, &f]<typename T0>(T0& d) -> void {
-            // actual parameter type
-            using T = std::decay_t<T0>;
-            // process input data
-            if constexpr (std::is_same_v<T, std::vector<I>>) {
-                // reserve storage
-                out_data.reserve(d.size());
-                // transform data // [&f](const I& v) -> O { return f(v); }
-                std::ranges::transform(d.begin(), d.end(), std::back_inserter(out_data), f);
-                // exit
-                return;
+        // at this point only span is available
+        const auto& steps = std::get<std::vector<std::span<const T>>>(m_steps);
+        // return step at index
+        return steps.at(step_index);
+    }
+
+    std::span<const T> data() {
+        // check data has been initialized for this expression
+        if (std::holds_alternative<std::monostate>(m_cached_data)) {
+            // initialize expression
+            initialize_expression_data();
+        }
+        // return data (create a span over the whole vector)
+        return std::span<const T>(std::get<std::vector<T>>(m_cached_data));
+    }
+
+    [[nodiscard]] std::vector<std::pair<size_t, size_t>> step_indices() const {
+        // result
+        std::vector<std::pair<size_t, size_t>> result;
+        // lambda
+        auto l = [&result](auto& steps) -> void {
+            // reserve capacity
+            result.reserve(steps.size());
+            // offset
+            size_t offset = 0;
+            // loop steps
+            for (auto& step : steps) {
+                // end index for step
+                size_t end = offset + step.size();
+                // append slice
+                result.emplace_back(offset, end);
+                // update offset
+                offset = end;
             }
-            throw std::runtime_error("Unexpected state detected");
         };
-        // data
-        const auto& in_data = std::get<std::variant<std::vector<double>, std::vector<std::complex<double>>>>(m_cached_data);
-        // process data
-        std::visit(l, in_data);
+        // compute step slices
+        std::visit(l, m_steps);
+        // return slices
+        return result;
+    }
+
+    void transform(const std::function<T(T)>& f) {
+        // check data has been initialized for this expression
+        if (std::holds_alternative<std::monostate>(m_cached_data)) {
+            // initialize expression
+            initialize_expression_data();
+        }
+        // at this moment vector contains data
+        const auto& data = std::get<std::vector<T>>(m_cached_data);
+        // create out data vector
+        std::vector<T> out_data;
+        // reserve storage
+        out_data.reserve(data.size());
+        // transform data
+        std::ranges::transform(data.begin(), data.end(), std::back_inserter(out_data), f);
         // data pointer
         const auto pointer = out_data.data();
-        // recreate the step spans
-        std::vector<std::span<const double>> views;
         // step indices
         auto indices = step_indices();
+        // recreate the step spans
+        std::vector<std::span<const T>> views;
         // allocate vector
         views.reserve(indices.size());
         // loop indices
         for (const auto& [begin, end] : indices)
             views.emplace_back(pointer + begin, end - begin);
-        // recreate expression
-        return {name, out_data, views, unit, variable_type};
+        // update cache field (at the end of the processing since this moves the data into the field)
+        m_cached_data = std::move(out_data);
+        // update steps with views on the contiguous memory data
+        m_steps = std::move(views);
     }
 
 private:
     std::string m_name;
-    Steps m_steps;
+    std::variant<std::vector<View<T>>, std::vector<std::span<const T>>> m_steps;
     std::string m_unit;
     std::string m_source;
     std::string m_variable_type;
-    bool m_is_complex{};
-    std::variant<std::monostate, std::variant<std::vector<double>, std::vector<std::complex<double>>>> m_cached_data;
+    std::variant<std::monostate, std::vector<T>> m_cached_data;
 
-    void initialize_expression_data();
+    void initialize_expression_data() {
+        // check steps
+        if (std::holds_alternative<std::vector<View<T>>>(m_steps)) {
+            // steps
+            const auto& steps = std::get<std::vector<View<T>>>(m_steps);
+            // total vector size
+            size_t total_size = 0;
+            // loop steps
+            for (const auto& step : steps) {
+                // accumulate size
+                total_size += step.size();
+            }
+            // create data & step vectors
+            std::vector<T> concatenated;
+            std::vector<std::span<const T>> spans;
+            // allocate vectors
+            concatenated.reserve(total_size);
+            // loop steps
+            for (const auto& step : steps) {
+                // step
+                // loop step data
+                for (size_t j = 0; j < step.size(); ++j)
+                    concatenated.push_back(step[j]);
+            }
+            // data pointer and offset
+            const T* pointer = concatenated.data();
+            size_t offset = 0;
+            // allocate spans
+            spans.reserve(steps.size());
+            // loop steps
+            for (const auto& step : steps) {
+                // step size
+                const auto length = step.size();
+                // update view
+                spans.emplace_back(pointer + offset, length);
+                // move offset
+                offset += length;
+            }
+            // update cache field (at the end of the processing since this moves the data into the field)
+            m_cached_data = std::move(concatenated);
+            // update steps with views on the contiguous memory data
+            m_steps = std::move(spans);
+        }
+    }
 };
+
+using AnyExpression = std::variant<Expression<double>, Expression<std::complex<double>>>;
 
 #endif

@@ -24,7 +24,7 @@ public:
 
     XyceOutputFile(XyceOutputFile&&) noexcept = default;
 
-    XyceOutputFile(std::filesystem::path filename, std::string title, bool is_complex, StepInformation&& step_info, Expression&& abscissa, AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, const void* mmap_ptr, size_t mmap_length);
+    XyceOutputFile(std::filesystem::path filename, std::string title, bool is_complex, StepInformation&& step_info, AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, const void* mmap_ptr, size_t mmap_length);
 
     ~XyceOutputFile();
 
@@ -40,11 +40,9 @@ public:
 
     [[nodiscard]] const StepInformation& step_information() const;
 
-    Expression& abscissa();
+    [[nodiscard]] Expression<double>& abscissa();
 
     [[nodiscard]] AbscissaScale abscissa_scale() const;
-
-    [[nodiscard]] std::string chart_type() const;
 
     [[nodiscard]] ExpressionManager& expression_manager();
 
@@ -53,7 +51,6 @@ private:
     std::string m_title;
     bool m_is_complex;
     StepInformation m_step_information;
-    Expression m_abscissa;
     AbscissaScale m_abscissa_scale;
     ExpressionManager m_expression_manager;
 

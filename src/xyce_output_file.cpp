@@ -8,8 +8,8 @@
 #include "expression.h"
 #include "step_information.h"
 
-XyceOutputFile::XyceOutputFile(std::filesystem::path filename, std::string title, const bool is_complex, StepInformation&& step_info, Expression&& abscissa, const AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, const void* mmap_ptr, const size_t mmap_length)
-    : m_filename(std::move(filename)), m_title(std::move(title)), m_is_complex(is_complex), m_step_information(std::move(step_info)), m_abscissa(std::move(abscissa)), m_abscissa_scale(abscissa_scale), m_expression_manager(std::move(expression_manager)), m_mmap_ptr(mmap_ptr), m_mmap_len(mmap_length) {
+XyceOutputFile::XyceOutputFile(std::filesystem::path filename, std::string title, const bool is_complex, StepInformation&& step_info, const AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, const void* mmap_ptr, const size_t mmap_length)
+    : m_filename(std::move(filename)), m_title(std::move(title)), m_is_complex(is_complex), m_step_information(std::move(step_info)), m_abscissa_scale(abscissa_scale), m_expression_manager(std::move(expression_manager)), m_mmap_ptr(mmap_ptr), m_mmap_len(mmap_length) {
 }
 
 XyceOutputFile::~XyceOutputFile() {
@@ -40,27 +40,13 @@ const StepInformation& XyceOutputFile::step_information() const {
     return m_step_information;
 }
 
-Expression& XyceOutputFile::abscissa() {
-    // return abscissa
-    return m_abscissa;
+Expression<double>& XyceOutputFile::abscissa() {
+    return m_expression_manager.abscissa();
 }
 
 AbscissaScale XyceOutputFile::abscissa_scale() const {
     // return scale
     return m_abscissa_scale;
-}
-
-std::string XyceOutputFile::chart_type() const {
-    if (m_abscissa.unit() == "Hz") {
-        // return ac type
-        return "AC";
-    }
-    if (m_abscissa.unit() == "s") {
-        // return transient type
-        return "TRANSIENT";
-    }
-    // fallback type
-    return "DC";
 }
 
 ExpressionManager& XyceOutputFile::expression_manager() {

@@ -1,7 +1,6 @@
 #ifndef STEP_INFORMATION_H
 #define STEP_INFORMATION_H
 
-#include <cstddef>
 #include <string>
 #include <utility>
 #include <vector>

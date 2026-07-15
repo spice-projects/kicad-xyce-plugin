@@ -7,15 +7,18 @@
 
 #include "expression_manager.h"
 
-ExpressionManager::ExpressionManager(std::vector<Expression>& expressions, std::vector<std::pair<size_t, size_t>>& step_slices)
+ExpressionManager::ExpressionManager(std::vector<AnyExpression>& expressions, std::vector<std::pair<size_t, size_t>>& step_slices)
     : m_expressions(std::make_move_iterator(expressions.begin()), std::make_move_iterator(expressions.end())), m_step_slices(std::move(step_slices)) {
-    // insert case folded key for expressions
+    // pre-process expressions
     for (size_t idx = 0; idx < m_expressions.size(); ++idx)
-        m_context[casefold(m_expressions[idx].name())] = idx;
+        std::visit([this, &idx](auto&& expression) { this->m_context[casefold(expression.name())] = idx; }, m_expressions[idx]);
 }
 
-const std::deque<Expression>& ExpressionManager::expressions() const {
-    // return list
+Expression<double>& ExpressionManager::abscissa() {
+    return std::get<Expression<double>>(m_expressions[0]);
+}
+
+const std::deque<AnyExpression>& ExpressionManager::expressions() const {
     return m_expressions;
 }
 
@@ -25,18 +28,17 @@ std::vector<std::string> ExpressionManager::expression_names() const {
     // reserve memory
     names.reserve(m_expressions.size());
     // loop expressions, collect names
-    for (const auto& expr : m_expressions)
-        names.push_back(expr.name());
+    for (const auto& expression : m_expressions)
+        names.push_back(std::visit([](auto&& exp) { return exp.name(); }, expression));
     // return list
     return names;
 }
 
 const std::vector<std::pair<size_t, size_t>>& ExpressionManager::step_slices() const {
-    // return slices
     return m_step_slices;
 }
 
-Expression* ExpressionManager::evaluate(const std::string& expression, const std::optional<std::string>& name) {
+AnyExpression* ExpressionManager::evaluate(const std::string& expression, const std::optional<std::string>& name) {
     // build search key
     const std::string key = casefold(name.value_or(expression));
     // find key in map

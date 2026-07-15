@@ -19,7 +19,7 @@ public:
 
     ExpressionManager(ExpressionManager&&) noexcept = default;
 
-    ExpressionManager(std::vector<Expression>& expressions, std::vector<std::pair<size_t, size_t>>& step_slices);
+    ExpressionManager(std::vector<AnyExpression>& expressions, std::vector<std::pair<size_t, size_t>>& step_slices);
 
     ~ExpressionManager() = default;
 
@@ -27,16 +27,18 @@ public:
 
     ExpressionManager& operator=(ExpressionManager&&) noexcept = default;
 
-    [[nodiscard]] const std::deque<Expression>& expressions() const;
+    [[nodiscard]] Expression<double>& abscissa();
+
+    [[nodiscard]] const std::deque<AnyExpression>& expressions() const;
 
     [[nodiscard]] std::vector<std::string> expression_names() const;
 
     [[nodiscard]] const std::vector<std::pair<size_t, size_t>>& step_slices() const;
 
-    [[nodiscard]] Expression* evaluate(const std::string& expression, const std::optional<std::string>& name = std::nullopt);
+    [[nodiscard]] AnyExpression* evaluate(const std::string& expression, const std::optional<std::string>& name = std::nullopt);
 
 private:
-    std::deque<Expression> m_expressions;
+    std::deque<AnyExpression> m_expressions;
     std::vector<std::pair<size_t, size_t>> m_step_slices;
     std::unordered_map<std::string, size_t> m_context;
 
