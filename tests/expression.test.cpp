@@ -35,18 +35,22 @@ TEST(ExpressionChecks, view_index_operator_respects_stride) {
     // arrange
     const std::vector<double> buffer = {1, 10, 2, 20, 3, 30};
     const View<double> view = make_view(buffer, 3, 2);
-    // act/assert
-    ASSERT_EQ(view[0], 1);
-    ASSERT_EQ(view[1], 2);
-    ASSERT_EQ(view[2], 3);
+    // act
+    const std::vector<double> values = {view[0], view[1], view[2]};
+    // assert
+    ASSERT_EQ(values[0], 1);
+    ASSERT_EQ(values[1], 2);
+    ASSERT_EQ(values[2], 3);
 }
 
 TEST(ExpressionChecks, view_size_returns_constructor_size) {
     // arrange
     const std::vector<double> buffer = {1, 10, 2, 20, 3, 30};
     const View<double> view = make_view(buffer, 3, 2);
-    // act/assert
-    ASSERT_EQ(view.size(), 3);
+    // act
+    const auto size = view.size();
+    // assert
+    ASSERT_EQ(size, 3);
 }
 
 TEST(ExpressionChecks, view_vector_constructor_owns_data) {
@@ -101,8 +105,10 @@ TEST(ExpressionChecks, step_count_returns_correct_count_for_view_steps) {
     steps.emplace_back(make_view(buffer, 3, 2));
     steps.emplace_back(make_view(buffer, 3, 2, 1));
     const Expression<double> expr("V1", steps, "V");
-    // act/assert
-    ASSERT_EQ(expr.step_count(), 2);
+    // act
+    const auto step_count = expr.step_count();
+    // assert
+    ASSERT_EQ(step_count, 2);
 }
 
 TEST(ExpressionChecks, step_count_returns_correct_count_for_span_steps) {
@@ -110,8 +116,10 @@ TEST(ExpressionChecks, step_count_returns_correct_count_for_span_steps) {
     std::vector<std::complex<double>> data = {1, 2, 3, 4, 5, 6};
     std::vector<std::span<const std::complex<double>>> steps = {{data.data(), 2}, {data.data() + 2, 2}, {data.data() + 4, 2}};
     const Expression<std::complex<double>> expr("I1", data, steps, "A");
-    // act/assert
-    ASSERT_EQ(expr.step_count(), 3);
+    // act
+    const auto step_count = expr.step_count();
+    // assert
+    ASSERT_EQ(step_count, 3);
 }
 
 // ========================================================================================
@@ -173,8 +181,10 @@ TEST(ExpressionChecks, step_data_throws_out_of_range_for_invalid_index) {
     std::vector<double> data_buffer = {1, 2};
     std::vector<std::span<const double>> steps = {{data_buffer.data(), 2}};
     Expression<double> expr("V1", data_buffer, steps, "V");
-    // act/assert
-    ASSERT_THROW((void)expr.step_data(1), std::out_of_range);
+    // act
+    const auto read_step = [&expr]() { (void)expr.step_data(1); };
+    // assert
+    ASSERT_THROW(read_step(), std::out_of_range);
 }
 
 // ========================================================================================

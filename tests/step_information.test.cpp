@@ -51,38 +51,55 @@ TEST(StepInformationChecks, constructor_does_not_modify_lvalue_inputs) {
 TEST(StepInformationChecks, ascending_ranges_set_ascending_flag_and_global_min_max) {
     // arrange
     const StepInformation info({}, {}, {{2.0, 3.0}, {1.0, 5.0}, {4.0, 4.5}});
-    // act/assert
-    ASSERT_TRUE(info.is_abscissa_ascending());
-    ASSERT_DOUBLE_EQ(info.abscissa_left_value(), 1.0);
-    ASSERT_DOUBLE_EQ(info.abscissa_right_value(), 5.0);
+    // act
+    const bool is_ascending = info.is_abscissa_ascending();
+    const double left = info.abscissa_left_value();
+    const double right = info.abscissa_right_value();
+    // assert
+    ASSERT_TRUE(is_ascending);
+    ASSERT_DOUBLE_EQ(left, 1.0);
+    ASSERT_DOUBLE_EQ(right, 5.0);
 }
 
 TEST(StepInformationChecks, descending_ranges_set_descending_flag_and_global_max_min) {
     // arrange
     const StepInformation info({}, {}, {{10.0, 9.0}, {12.0, 8.0}, {11.0, 7.0}});
-    // act/assert
-    ASSERT_FALSE(info.is_abscissa_ascending());
-    ASSERT_DOUBLE_EQ(info.abscissa_left_value(), 12.0);
-    ASSERT_DOUBLE_EQ(info.abscissa_right_value(), 7.0);
+    // act
+    const bool is_ascending = info.is_abscissa_ascending();
+    const double left = info.abscissa_left_value();
+    const double right = info.abscissa_right_value();
+    // assert
+    ASSERT_FALSE(is_ascending);
+    ASSERT_DOUBLE_EQ(left, 12.0);
+    ASSERT_DOUBLE_EQ(right, 7.0);
 }
 
 TEST(StepInformationChecks, equal_endpoints_are_treated_as_ascending) {
     // arrange
     const StepInformation info({}, {}, {{3.0, 3.0}, {2.0, 4.0}});
-    // act/assert
-    ASSERT_TRUE(info.is_abscissa_ascending());
-    ASSERT_DOUBLE_EQ(info.abscissa_left_value(), 2.0);
-    ASSERT_DOUBLE_EQ(info.abscissa_right_value(), 4.0);
+    // act
+    const bool is_ascending = info.is_abscissa_ascending();
+    const double left = info.abscissa_left_value();
+    const double right = info.abscissa_right_value();
+    // assert
+    ASSERT_TRUE(is_ascending);
+    ASSERT_DOUBLE_EQ(left, 2.0);
+    ASSERT_DOUBLE_EQ(right, 4.0);
 }
 
 TEST(StepInformationChecks, empty_ranges_default_to_zero_bounds_and_ascending) {
     // arrange
     const StepInformation info({}, {}, {});
-    // act/assert
-    ASSERT_EQ(info.length(), 0);
-    ASSERT_TRUE(info.is_abscissa_ascending());
-    ASSERT_DOUBLE_EQ(info.abscissa_left_value(), 0.0);
-    ASSERT_DOUBLE_EQ(info.abscissa_right_value(), 0.0);
+    // act
+    const size_t length = info.length();
+    const bool is_ascending = info.is_abscissa_ascending();
+    const double left = info.abscissa_left_value();
+    const double right = info.abscissa_right_value();
+    // assert
+    ASSERT_EQ(length, 0);
+    ASSERT_TRUE(is_ascending);
+    ASSERT_DOUBLE_EQ(left, 0.0);
+    ASSERT_DOUBLE_EQ(right, 0.0);
 }
 
 // ========================================================================================
@@ -92,23 +109,32 @@ TEST(StepInformationChecks, empty_ranges_default_to_zero_bounds_and_ascending) {
 TEST(StepInformationChecks, step_abscissa_accessors_return_values_for_valid_indices) {
     // arrange
     const StepInformation info({}, {}, {{0.0, 4.0}, {1.0, 5.0}});
-    // act/assert
-    ASSERT_DOUBLE_EQ(info.step_abscissa_left_value(0), 0.0);
-    ASSERT_DOUBLE_EQ(info.step_abscissa_right_value(0), 4.0);
-    ASSERT_DOUBLE_EQ(info.step_abscissa_left_value(1), 1.0);
-    ASSERT_DOUBLE_EQ(info.step_abscissa_right_value(1), 5.0);
+    // act
+    const double left0 = info.step_abscissa_left_value(0);
+    const double right0 = info.step_abscissa_right_value(0);
+    const double left1 = info.step_abscissa_left_value(1);
+    const double right1 = info.step_abscissa_right_value(1);
+    // assert
+    ASSERT_DOUBLE_EQ(left0, 0.0);
+    ASSERT_DOUBLE_EQ(right0, 4.0);
+    ASSERT_DOUBLE_EQ(left1, 1.0);
+    ASSERT_DOUBLE_EQ(right1, 5.0);
 }
 
 TEST(StepInformationChecks, step_abscissa_left_value_throws_for_out_of_range_index) {
     // arrange
     const StepInformation info({}, {}, {{0.0, 4.0}});
-    // act/assert
-    ASSERT_THROW((void)info.step_abscissa_left_value(1), std::out_of_range);
+    // act
+    const auto read_left = [&info]() { (void)info.step_abscissa_left_value(1); };
+    // assert
+    ASSERT_THROW(read_left(), std::out_of_range);
 }
 
 TEST(StepInformationChecks, step_abscissa_right_value_throws_for_out_of_range_index) {
     // arrange
     const StepInformation info({}, {}, {{0.0, 4.0}});
-    // act/assert
-    ASSERT_THROW((void)info.step_abscissa_right_value(1), std::out_of_range);
+    // act
+    const auto read_right = [&info]() { (void)info.step_abscissa_right_value(1); };
+    // assert
+    ASSERT_THROW(read_right(), std::out_of_range);
 }

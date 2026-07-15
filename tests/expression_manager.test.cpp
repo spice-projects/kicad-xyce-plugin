@@ -31,11 +31,13 @@ static_assert(!std::is_copy_assignable_v<ExpressionManager>);
 TEST(ExpressionManagerChecks, default_constructor_initializes_empty_state) {
     // arrange
     ExpressionManager manager;
-    // act / assert
+    // act
+    const auto result = manager.evaluate("v(out)");
+    // assert
     ASSERT_TRUE(manager.expressions().empty());
     ASSERT_TRUE(manager.expression_names().empty());
     ASSERT_TRUE(manager.step_slices().empty());
-    ASSERT_EQ(manager.evaluate("v(out)"), nullptr);
+    ASSERT_EQ(result, nullptr);
 }
 
 TEST(ExpressionManagerChecks, constructor_stores_expressions_and_step_slices) {
@@ -104,8 +106,10 @@ TEST(ExpressionManagerChecks, evaluate_returns_nullopt_when_lookup_key_is_missin
     expressions.emplace_back(make_real_expression("V(in)", {1.0, 2.0}, "V"));
     std::vector<std::pair<size_t, size_t>> slices = {{0, 2}};
     ExpressionManager manager(expressions, slices);
-    // act / assert
-    ASSERT_EQ(manager.evaluate("V(out)"), nullptr);
+    // act
+    const auto result = manager.evaluate("V(out)");
+    // assert
+    ASSERT_EQ(result, nullptr);
 }
 
 TEST(ExpressionManagerChecks, evaluate_with_name_override_returns_nullopt_when_override_key_missing) {
@@ -114,8 +118,10 @@ TEST(ExpressionManagerChecks, evaluate_with_name_override_returns_nullopt_when_o
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V"));
     std::vector<std::pair<size_t, size_t>> slices = {{0, 2}};
     ExpressionManager manager(expressions, slices);
-    // act / assert
-    ASSERT_EQ(manager.evaluate("V(out)", "missing"), nullptr);
+    // act
+    const auto result = manager.evaluate("V(out)", "missing");
+    // assert
+    ASSERT_EQ(result, nullptr);
 }
 
 TEST(ExpressionManagerChecks, evaluate_returns_last_expression_when_casefolded_keys_collide) {

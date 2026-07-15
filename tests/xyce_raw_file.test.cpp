@@ -221,9 +221,11 @@ TEST(XyceRawFileTest, load_real_binary_filename) {
 
 TEST(XyceRawFileTest, load_real_binary_complex_flag_false) {
     // arrange
+    // act
     const std::string content = make_raw_bytes("RC Circuit", "Transient Analysis", "real");
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_NE(raw, nullptr);
     ASSERT_FALSE(raw->is_complex());
 }
@@ -533,11 +535,13 @@ TEST(XyceRawFileTest, load_complex_ac_signal_is_complex) {
 
 TEST(XyceRawFileTest, load_ascii_complex_ac) {
     // arrange
+    // act
     const std::vector<TestVarDef> variable_definitions = {{0, "frequency", "frequency"}, {1, "V(out)", "voltage"}};
     const std::vector<std::vector<double>> data_matrix = {{1e3, 0.0, 0.5, 0.5}, {1e4, 0.0, 0.7, 0.3}};
     const std::string content = make_raw_bytes("AC Sweep Test", "AC Analysis", "complex", variable_definitions, data_matrix, true);
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_NE(raw, nullptr);
     ASSERT_TRUE(raw->is_complex());
     ASSERT_EQ(raw->abscissa().variable_type(), "frequency");
@@ -546,10 +550,12 @@ TEST(XyceRawFileTest, load_ascii_complex_ac) {
 
 TEST(XyceRawFileTest, load_ascii_no_points_zero_reads_all) {
     // arrange
+    // act
     const std::vector<std::vector<double>> data_matrix = {{0.0, 1.0}, {1e-9, 1.1}, {2e-9, 1.2}};
     const std::string content = make_raw_bytes("RC Circuit", "Transient Analysis", "real", {{0, "time", "time"}, {1, "V(1)", "voltage"}}, data_matrix, true, 0);
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_NE(raw, nullptr);
     ASSERT_EQ(raw->abscissa().step_data(0).size(), 3);
 }
@@ -612,21 +618,25 @@ TEST(XyceRawFileTest, multi_block_step_parameter_values) {
 
 TEST(XyceRawFileTest, multi_block_expression_step_count) {
     // arrange
+    // act
     const std::vector<std::vector<double>> matrix = {{0.0, 1.0}, {1.0, 2.0}, {2.0, 3.0}};
     const std::string content = make_multi_block_raw_bytes("Stepped Circuit", {{0, "sweep", "voltage"}, {1, "V(2)", "voltage"}}, {matrix, matrix}, "R1", {1000.0, 2000.0});
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_NE(raw, nullptr);
     ASSERT_EQ(raw->abscissa().step_count(), 2);
 }
 
 TEST(XyceRawFileTest, multi_block_step_data_correct_values) {
     // arrange
+    // act
     const std::vector<std::vector<double>> m0 = {{0.0, 1.0}, {1.0, 2.0}, {2.0, 3.0}};
     const std::vector<std::vector<double>> m1 = {{0.0, 4.0}, {1.0, 5.0}, {2.0, 6.0}};
     const std::string content = make_multi_block_raw_bytes("Stepped Circuit", {{0, "sweep", "voltage"}, {1, "V(2)", "voltage"}}, {m0, m1}, "R1", {1000.0, 2000.0});
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_NE(raw, nullptr);
     auto* v2_expr = evaluate_real(raw->expression_manager(), "V(2)");
     ASSERT_NE(v2_expr, nullptr);
@@ -640,11 +650,13 @@ TEST(XyceRawFileTest, multi_block_step_data_correct_values) {
 
 TEST(XyceRawFileTest, multi_block_abscissa_step_data_zero_copy) {
     // arrange
+    // act
     const std::vector<std::vector<double>> m0 = {{0.0, 1.0}, {1.0, 2.0}};
     const std::vector<std::vector<double>> m1 = {{0.0, 3.0}, {1.0, 4.0}};
     const std::string content = make_multi_block_raw_bytes("Stepped Circuit", {{0, "sweep", "voltage"}, {1, "V(2)", "voltage"}}, {m0, m1}, "R1", {1000.0, 2000.0});
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_NE(raw, nullptr);
     ASSERT_EQ(raw->abscissa().step_count(), 2);
     ASSERT_EQ(raw->abscissa().step_data(0).size(), 2);
@@ -653,11 +665,13 @@ TEST(XyceRawFileTest, multi_block_abscissa_step_data_zero_copy) {
 
 TEST(XyceRawFileTest, multi_block_data_property_concatenates) {
     // arrange
+    // act
     const std::vector<std::vector<double>> m0 = {{0.0, 1.0}, {1.0, 2.0}};
     const std::vector<std::vector<double>> m1 = {{0.0, 3.0}, {1.0, 4.0}};
     const std::string content = make_multi_block_raw_bytes("Stepped Circuit", {{0, "sweep", "voltage"}, {1, "V(2)", "voltage"}}, {m0, m1}, "R1", {1000.0, 2000.0});
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_NE(raw, nullptr);
     auto* v2_expr = evaluate_real(raw->expression_manager(), "V(2)");
     ASSERT_NE(v2_expr, nullptr);
@@ -670,19 +684,23 @@ TEST(XyceRawFileTest, multi_block_data_property_concatenates) {
 
 TEST(XyceRawFileTest, multi_block_title_from_first_block) {
     // arrange
+    // act
     const std::string content = make_multi_block_raw_bytes("DC Stepped Test");
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_NE(raw, nullptr);
     ASSERT_EQ(raw->title(), "DC Stepped Test");
 }
 
 TEST(XyceRawFileTest, multi_block_abscissa_value_ranges) {
     // arrange
+    // act
     const std::vector<std::vector<double>> m = {{0.0, 1.0}, {1.0, 2.0}, {2.0, 3.0}};
     const std::string content = make_multi_block_raw_bytes("Stepped Circuit", {{0, "sweep", "voltage"}, {1, "V(2)", "voltage"}}, {m, m}, "R1", {1000.0, 2000.0});
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_NE(raw, nullptr);
     ASSERT_DOUBLE_EQ(raw->step_information().step_abscissa_left_value(0), 0.0);
     ASSERT_DOUBLE_EQ(raw->step_information().step_abscissa_right_value(0), 2.0);
@@ -692,52 +710,64 @@ TEST(XyceRawFileTest, multi_block_abscissa_value_ranges) {
 
 TEST(XyceRawFileTest, ascii_values_with_blank_lines) {
     // arrange
+    // act
     const std::string content = "Title: Test Circuit\nPlotname: Transient Analysis\nFlags: real\nNo. Variables: 2\nNo. Points: 2\nVariables:\n\t0\ttime\ttime\n\t1\tV(1)\tvoltage\nValues:\n\n 0  0.0  1.0\n\n   \n 1  1.0  2.0\n";
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_NE(raw, nullptr);
     ASSERT_EQ(raw->abscissa().step_data(0).size(), 2);
 }
 
 TEST(XyceRawFileTest, ascii_values_unexpected_index) {
     // arrange
+    // act
     const std::string content = "Title: Test Circuit\nPlotname: Transient Analysis\nFlags: real\nNo. Variables: 2\nNo. Points: 2\nVariables:\n\t0\ttime\ttime\n\t1\tV(1)\tvoltage\nValues:\n 0  0.0  1.0\n 2  1.0  2.0\n";
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_EQ(raw, nullptr);
 }
 
 TEST(XyceRawFileTest, ascii_values_invalid_token_count) {
     // arrange
+    // act
     const std::string content = "Title: Test Circuit\nPlotname: Transient Analysis\nFlags: real\nNo. Variables: 2\nNo. Points: 2\nVariables:\n\t0\ttime\ttime\n\t1\tV(1)\tvoltage\nValues:\n 0  0.0  1.0\n 1  1.0\n";
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_EQ(raw, nullptr);
 }
 
 TEST(XyceRawFileTest, ascii_values_parsing_exception) {
     // arrange
+    // act
     const std::string content = "Title: Test Circuit\nPlotname: Transient Analysis\nFlags: real\nNo. Variables: 2\nNo. Points: 2\nVariables:\n\t0\ttime\ttime\n\t1\tV(1)\tvoltage\nValues:\n 0  0.0  1.0\n 1  abc  2.0\n";
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_EQ(raw, nullptr);
 }
 
 TEST(XyceRawFileTest, ascii_values_point_count_mismatch) {
     // arrange
+    // act
     const std::string content = "Title: Test Circuit\nPlotname: Transient Analysis\nFlags: real\nNo. Variables: 2\nNo. Points: 3\nVariables:\n\t0\ttime\ttime\n\t1\tV(1)\tvoltage\nValues:\n 0  0.0  1.0\n 1  1.0  2.0\n";
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_EQ(raw, nullptr);
 }
 
 TEST(XyceRawFileTest, multi_block_variables_mismatch) {
     // arrange
+    // act
     const std::string content0 = make_multi_block_raw_bytes("Stepped Circuit", {{0, "sweep", "voltage"}, {1, "V(2)", "voltage"}}, { {{0.0, 1.0}, {1.0, 2.0}}    }, "R1", {1000.0});
     const std::string content1 = make_multi_block_raw_bytes("Stepped Circuit", {{0, "sweep", "voltage"}, {1, "V(3)", "voltage"}}, {        {{0.0, 1.5}, {1.0, 2.5}}    }, "R1", {2000.0});
     const size_t marker = content1.find("Title: Stepped Circuit");
     const std::string content = content0 + content1.substr(marker);
     const TempFileRAII temp_file(content);
     const auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
     ASSERT_EQ(raw, nullptr);
 }

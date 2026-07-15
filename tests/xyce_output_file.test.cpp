@@ -297,11 +297,17 @@ TEST(XyceOutputFileChecks, expression_manager_returns_mutable_reference) {
 // ========================================================================================
 
 TEST(XyceOutputFileChecks, copy_constructor_is_deleted) {
+    // arrange
+    // act
     static_assert(!std::is_copy_constructible_v<XyceOutputFile>);
+    // assert
     SUCCEED();
 }
 
 TEST(XyceOutputFileChecks, copy_assignment_is_deleted) {
+    // arrange
+    // act
     static_assert(!std::is_copy_assignable_v<XyceOutputFile>);
+    // assert
     SUCCEED();
 }

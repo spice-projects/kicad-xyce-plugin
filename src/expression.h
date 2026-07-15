@@ -76,23 +76,23 @@ public:
 
     Expression& operator=(Expression&&) noexcept = default;
 
-    const std::string& name() const {
+    [[nodiscard]] const std::string& name() const {
         return m_name;
     }
 
-    const std::string& unit() const {
+    [[nodiscard]] const std::string& unit() const {
         return m_unit;
     }
 
-    const std::string& source() const {
+    [[nodiscard]] const std::string& source() const {
         return m_source;
     }
 
-    const std::string& variable_type() const {
+    [[nodiscard]] const std::string& variable_type() const {
         return m_variable_type;
     }
 
-    size_t step_count() const {
+    [[nodiscard]] size_t step_count() const {
         return std::visit([](auto&& v) { return v.size(); }, m_steps);
     }
 
@@ -150,28 +150,9 @@ public:
             initialize_expression_data();
         }
         // at this moment vector contains data
-        const auto& data = std::get<std::vector<T>>(m_cached_data);
-        // create out data vector
-        std::vector<T> out_data;
-        // reserve storage
-        out_data.reserve(data.size());
-        // transform data
-        std::ranges::transform(data.begin(), data.end(), std::back_inserter(out_data), f);
-        // data pointer
-        const auto pointer = out_data.data();
-        // step indices
-        auto indices = step_indices();
-        // recreate the step spans
-        std::vector<std::span<const T>> views;
-        // allocate vector
-        views.reserve(indices.size());
-        // loop indices
-        for (const auto& [begin, end] : indices)
-            views.emplace_back(pointer + begin, end - begin);
-        // update cache field (at the end of the processing since this moves the data into the field)
-        m_cached_data = std::move(out_data);
-        // update steps with views on the contiguous memory data
-        m_steps = std::move(views);
+        auto& data = std::get<std::vector<T>>(m_cached_data);
+        // transform data in-place
+        std::ranges::transform(data, data.begin(), f);
     }
 
 private:
