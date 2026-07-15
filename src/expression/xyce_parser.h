@@ -1,7 +1,6 @@
 #ifndef XYCE_PARSER_H
 #define XYCE_PARSER_H
 
-#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>

@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include "expression.h"
+#include "../../src/expression/expression.h"
 
 // helper to create a View from a const buffer, working around View storing a non-const pointer
 template <typename T>

@@ -8,9 +8,10 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include "xyce_output_file.h"
 #include "xyce_raw_file.h"
-#include "expression.h"
-#include "step_information.h"
+#include "../step_information.h"
+#include "../expression/expression.h"
 
 namespace
 {

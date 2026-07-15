@@ -10,8 +10,8 @@
 
 #include <gtest/gtest.h>
 
-#include "xyce_evaluator.h"
-#include "xyce_parser.h"
+#include "../../src/expression/xyce_evaluator.h"
+#include "../../src/expression/xyce_parser.h"
 
 namespace
 {
@@ -113,7 +113,6 @@ namespace
 
 TEST(XyceLanguageLexer, tokenizes_core_symbols)
 {
-    // arrange
     // act
     const auto tokens = tokenize(".func x() {1+2-3*4/5%6^~!&|&&||==!=<=>=@:?,}");
     // assert
@@ -125,7 +124,6 @@ TEST(XyceLanguageLexer, tokenizes_core_symbols)
 
 TEST(XyceLanguageLexer, tokenizes_numbers_identifiers_and_suffixes)
 {
-    // arrange
     // act
     const auto tokens = tokenize("42 3.14 1e6 2.5e-3 1MEG v_out node[1]");
     // assert

@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "xyce_parser.h"
+#include "../../src/expression/xyce_parser.h"
 
 namespace
 {

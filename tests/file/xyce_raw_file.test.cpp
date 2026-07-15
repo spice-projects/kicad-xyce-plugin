@@ -8,9 +8,9 @@
 #include <optional>
 #include <chrono>
 
-#include "expression.h"
-#include "expression_manager.h"
-#include "xyce_raw_file.h"
+#include "../../src/expression/expression.h"
+#include "../../src/expression/expression_manager.h"
+#include "../../src/file/xyce_raw_file.h"
 
 // temp file manager helper class
 class TempFileRAII {

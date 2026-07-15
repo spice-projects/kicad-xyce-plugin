@@ -1,6 +1,6 @@
-#include "step_information.h"
-
 #include <algorithm>
+
+#include "step_information.h"
 
 StepInformation::StepInformation(std::vector<std::string> keys, std::vector<std::vector<double>> values, std::vector<std::pair<double, double>> abscissa_value_ranges)
     : m_keys(std::move(keys)), m_values(std::move(values)), m_abscissa_value_ranges(std::move(abscissa_value_ranges)), m_step_count(m_abscissa_value_ranges.size()) {

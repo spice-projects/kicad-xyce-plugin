@@ -1,10 +1,10 @@
-#include "xyce_parser.h"
-
 #include <algorithm>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <unordered_map>
+
+#include "xyce_parser.h"
 
 namespace
 {

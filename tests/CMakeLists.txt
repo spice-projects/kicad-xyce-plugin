@@ -17,8 +17,8 @@ FetchContent_Declare(googletest GIT_REPOSITORY https://github.com/google/googlet
 # make it available for use in this CMakeLists.txt
 FetchContent_MakeAvailable(googletest)
 
-file(GLOB_RECURSE SOURCE_FILES "../src/*.cpp")
-file(GLOB_RECURSE TEST_FILES "./*.cpp")
+file(GLOB_RECURSE SOURCE_FILES "../src/*.cpp" "../src/expression/*.cpp" "../src/file/*.cpp")
+file(GLOB_RECURSE TEST_FILES "./*.cpp" "./expression/*.cpp" "./file/*.cpp")
 
 include_directories(../src)
 

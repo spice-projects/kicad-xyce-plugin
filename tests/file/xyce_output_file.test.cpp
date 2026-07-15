@@ -5,10 +5,11 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include "expression.h"
-#include "expression_manager.h"
+
 #include "step_information.h"
-#include "xyce_output_file.h"
+#include "../../src/expression/expression.h"
+#include "../../src/expression/expression_manager.h"
+#include "../../src/file/xyce_output_file.h"
 
 namespace {
 

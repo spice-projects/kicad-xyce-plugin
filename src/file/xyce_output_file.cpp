@@ -5,8 +5,8 @@
 #include <sys/mman.h>
 
 #include "xyce_output_file.h"
-#include "expression.h"
-#include "step_information.h"
+#include "../step_information.h"
+#include "../expression/expression.h"
 
 XyceOutputFile::XyceOutputFile(std::filesystem::path filename, std::string title, const bool is_complex, StepInformation&& step_info, const AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, const void* mmap_ptr, const size_t mmap_length)
     : m_filename(std::move(filename)), m_title(std::move(title)), m_is_complex(is_complex), m_step_information(std::move(step_info)), m_abscissa_scale(abscissa_scale), m_expression_manager(std::move(expression_manager)), m_mmap_ptr(mmap_ptr), m_mmap_len(mmap_length) {

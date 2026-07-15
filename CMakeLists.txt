@@ -14,7 +14,7 @@ add_subdirectory(dependencies/imgui)
 include_directories(dependencies/imgui)
 
 # find all cpp files
-file(GLOB_RECURSE SOURCE_FILES "src/*.mm" "src/*.cpp")
+file(GLOB_RECURSE SOURCE_FILES "src/*.mm" "src/*.cpp" "src/expression/*.cpp" "src/file/*.cpp")
 
 add_executable(kicad-xyce-plugin ${SOURCE_FILES})
 

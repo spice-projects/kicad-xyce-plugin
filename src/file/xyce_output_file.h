@@ -4,9 +4,9 @@
 #include <filesystem>
 #include <string>
 
-#include "expression.h"
-#include "expression_manager.h"
-#include "step_information.h"
+#include "../step_information.h"
+#include "../expression/expression.h"
+#include "../expression/expression_manager.h"
 
 enum class AbscissaScale
 {

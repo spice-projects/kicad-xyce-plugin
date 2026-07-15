@@ -1,11 +1,11 @@
-#include "xyce_evaluator.h"
-
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <numbers>
 #include <stdexcept>
 #include <type_traits>
+
+#include "xyce_evaluator.h"
 
 namespace
 {
