@@ -17,8 +17,8 @@ FetchContent_Declare(googletest GIT_REPOSITORY https://github.com/google/googlet
 # make it available for use in this CMakeLists.txt
 FetchContent_MakeAvailable(googletest)
 
-file(GLOB_RECURSE SOURCE_FILES "../src/*.cpp" "../src/expression/*.cpp" "../src/file/*.cpp")
-file(GLOB_RECURSE TEST_FILES "./*.cpp" "./expression/*.cpp" "./file/*.cpp")
+file(GLOB_RECURSE SOURCE_FILES "../src/*.cpp" "../src/expression/*.cpp" "../src/file/*.cpp" "../src/ui/*.cpp")
+file(GLOB_RECURSE TEST_FILES "./*.cpp" "./expression/*.cpp" "./file/*.cpp" "./ui/*.cpp")
 
 include_directories(../src)
 
@@ -26,7 +26,7 @@ include_directories(../src)
 add_executable(kicad-xyce-plugin-tests ${TEST_FILES} ${SOURCE_FILES})
 
 # link
-target_link_libraries(kicad-xyce-plugin-tests PRIVATE GTest::gtest_main imgui imgui-backend)
+target_link_libraries(kicad-xyce-plugin-tests PRIVATE GTest::gtest_main imgui imgui-backend wx::core wx::base)
 
 if(APPLE)
     target_link_libraries(kicad-xyce-plugin-tests PRIVATE
