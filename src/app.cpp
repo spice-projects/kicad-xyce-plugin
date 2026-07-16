@@ -1,7 +1,11 @@
+#ifndef __APPLE__
+
 #include "app.h"
 #include "ui/main_window.h"
 
 bool App::OnInit() {
+    // initialize image handlers
+    wxInitAllImageHandlers();
     // create main window instance
     const auto frame = new MainWindow("KiCad Xyce Plugin");
     // show main window
@@ -9,3 +13,5 @@ bool App::OnInit() {
     // return true to continue running the app
     return true;
 }
+
+#endif

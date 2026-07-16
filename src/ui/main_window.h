@@ -7,10 +7,18 @@
 class MainWindow : public wxFrame
 {
 public:
-    MainWindow(const wxString& title);
+    explicit MainWindow(const wxString& title);
 
 private:
     void on_exit(wxCommandEvent& event);
+
+    void create_menubar();
+
+    void create_toolbar();
+
+    void create_statusbar();
+
+    void on_menu_open(wxCommandEvent&);
 };
 
 #endif
