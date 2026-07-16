@@ -1,0 +1,32 @@
+{
+  "name": "kicad-xyce-plugin",
+  "version-string": "1.0.0",
+  "dependencies": [
+    {
+      "name": "imgui",
+      "version>=": "1.92.8#1",
+      "platform": "osx",
+      "features": [
+        "osx-binding",
+        "metal-binding"
+      ]
+    },
+    {
+      "name": "imgui",
+      "version>=": "1.92.8#1",
+      "platform": "windows",
+      "features": [
+        "win32-binding",
+        "dx11-binding"
+      ]
+    },
+    {
+      "name": "implot",
+      "version>=": "1.0"
+    },
+    {
+      "name": "wxwidgets",
+      "version>=": "3.3.1#1"
+    }
+  ]
+}

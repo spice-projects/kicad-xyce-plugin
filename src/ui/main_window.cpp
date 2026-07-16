@@ -3,6 +3,7 @@
 #include <wx/menu.h>
 #include <wx/toolbar.h>
 
+#include "chart.h"
 #include "main_window.h"
 #include "../file/xyce_raw_file.h"
 
@@ -12,6 +13,9 @@ MainWindow::MainWindow(const wxString& title)
     create_menubar();
     create_toolbar();
     create_statusbar();
+
+    auto chart = new Chart(this);
+
     // bind exit event
     Bind(wxEVT_MENU, &MainWindow::on_exit, this, wxID_EXIT);
     // bind close window event

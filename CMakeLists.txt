@@ -17,21 +17,16 @@ option(BUILD_TESTS "Build tests" ON)
 set(wxBUILD_SAMPLES OFF)
 set(wxBUILD_SHARED OFF)
 
-add_subdirectory(vendor/wxWidgets)
-add_subdirectory(dependencies/imgui)
-include_directories(dependencies/imgui)
+find_package(imgui CONFIG REQUIRED)
+find_package(implot CONFIG REQUIRED)
+find_package(wxwidgets CONFIG REQUIRED)
 
 # gather cpp sources (all platforms)
 file(GLOB_RECURSE CPP_SOURCES "src/*.cpp" "src/expression/*.cpp" "src/file/*.cpp" "src/ui/*.cpp")
 
 if(APPLE)
     # gather objective-c++ sources
-    file(GLOB_RECURSE MM_SOURCES "src/*.mm")
-    # remove any cpp file that has a .mm counterpart — the .mm replaces it on apple
-    foreach(MM_FILE ${MM_SOURCES})
-        string(REPLACE ".mm" ".cpp" CPP_EQUIV ${MM_FILE})
-        list(REMOVE_ITEM CPP_SOURCES ${CPP_EQUIV})
-    endforeach()
+    file(GLOB_RECURSE MM_SOURCES "src/*.mm" "src/ui/*.mm")
     # combine remaining cpp sources with .mm sources
     set(SOURCE_FILES ${CPP_SOURCES} ${MM_SOURCES})
 else()
@@ -41,14 +36,11 @@ endif()
 
 add_executable(kicad-xyce-plugin ${SOURCE_FILES})
 
-target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base imgui imgui-backend)
+target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base imgui::imgui implot::implot)
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis
-    target_link_libraries(kicad-xyce-plugin PRIVATE "-framework AppKit")
-    # suppress deprecation warnings from wxWidgets vendor headers (NSOpenGLContext, NSOpenGLPixelFormat)
-    # these are in the vendor directory and cannot be modified; the warnings are harmless
-    target_compile_options(kicad-xyce-plugin PRIVATE -Wno-deprecated-declarations)
+    target_link_libraries(kicad-xyce-plugin PRIVATE "-framework Foundation" "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController")
 endif()
 
 if (BUILD_TESTS)

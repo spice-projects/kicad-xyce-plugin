@@ -3,7 +3,6 @@
 
 #include <wx/frame.h>
 
-// main window class
 class MainWindow : public wxFrame
 {
 public:
