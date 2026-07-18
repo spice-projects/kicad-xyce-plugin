@@ -18,22 +18,16 @@ using OrdinateVariantSeriesSteps = std::tuple<
             std::span<const double>
         >
     >,
-    double, double, int>;
+    double, double, ImVec4>;
 
 using OrdinateVariantSeries = std::unordered_map<
     Expression<double>*,
     OrdinateVariantSeriesSteps
 >;
 
-using OrdinateSeries = std::tuple<
-    AnyExpression*,
-    OrdinateVariantSeries
->;
+using OrdinateSeries = std::tuple<AnyExpression*, OrdinateVariantSeries>;
 
-using Series = std::unordered_map<
-    std::string,
-    OrdinateSeries
->;
+using Series = std::unordered_map<std::string, OrdinateSeries>;
 
 struct AxisInformation
 {
@@ -42,6 +36,8 @@ struct AxisInformation
     int plots;
     double min_value;
     double max_value;
+    double plot_min_value;
+    double plot_max_value;
 };
 
 class Chart
@@ -69,17 +65,13 @@ private:
     std::set<size_t> m_selected_steps = {0};
     double m_abscissa_left_value = 0.0;
     double m_abscissa_right_value = 0.0;
-
+    size_t m_next_color_index = 0;
+    std::tuple<double, double, double, double> m_zoom_window = {-1, -1, -1, -1};
     AxisInformation m_axes[3] = {{ImAxis_Y1}, {ImAxis_Y2}, {ImAxis_Y3}};
-
-    // std::unordered_map<std::string, int> m_y_axes;
-    // std::unordered_map<int, int> m_y_axes_ref_counts;
-    // std::unordered_map<int, std::pair<double, double>> m_axis_ranges;
-    // char8_t m_axes = 0;
 
     std::vector<Expression<double>*> get_expressions_to_plot(AnyExpression*) const;
 
-    std::tuple<bool, std::span<const double>, std::span<const double>, double, double> plot_step(Expression<double>* ordinate_variant, int color, size_t step, double min_value, double max_value, double x_right_ratio, double x_left_ratio) const;
+    std::tuple<bool, std::span<const double>, std::span<const double>, double, double> plot_step(Expression<double>* ordinate_variant, size_t step, double min_value, double max_value, double x_right_ratio, double x_left_ratio) const;
 
     int get_y_axis(const std::string& unit);
 
@@ -87,5 +79,9 @@ private:
 
     double ratio_to_abscissa_value(double x_ratio) const;
 
+    void update_zoom_window(double x_left_ratio, double x_right_ratio, double y_top_ratio, double y_bottom_ratio);
+
     std::pair<size_t, size_t> find_abscissa_indexes(const std::span<const double>& abscissa, double left_value, double right_value) const;
+
+    void redraw_all_series();
 };

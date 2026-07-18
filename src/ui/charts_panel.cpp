@@ -49,6 +49,8 @@ void ChartsPanel::refresh_charts() {
     // render
     render_frame([this]()-> void {
         spdlog::info("Charts Panel render");
+        // removing padding
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         // panel
         if (ImGui::Begin("Charts Panel", nullptr, ImGuiWindowFlags_NoTitleBar)) {
             // check we have charts to render
@@ -75,5 +77,7 @@ void ChartsPanel::refresh_charts() {
             // close
             ImGui::End();
         }
+        // pop style var
+        ImGui::PopStyleVar();
     });
 }

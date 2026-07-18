@@ -93,6 +93,7 @@ void MainWindow::on_menu_open(wxCommandEvent&) {
             // update title
             // delete all charts
             m_charts_panel->delete_all_charts();
+
             // add chart
             auto& chart = m_charts_panel->add_chart(file.expression_manager(), file.step_information(), file.abscissa(), "", file.abscissa_scale(), 100);
 
@@ -104,6 +105,5 @@ void MainWindow::on_menu_open(wxCommandEvent&) {
 
             m_charts_panel->refresh_charts();
         }
-        // m_charts_panel.
     }
 }
