@@ -1,8 +1,8 @@
-#ifndef XYCE_RAW_FILE_H
-#define XYCE_RAW_FILE_H
+#pragma once
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "xyce_output_file.h"
@@ -82,6 +82,4 @@ inline VariableType parse_variable_type(const std::string& type_str) {
     return VariableType::UNKNOWN;
 }
 
-std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path& filename);
-
-#endif // XYCE_RAW_FILE_H
+std::optional<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path& filename);

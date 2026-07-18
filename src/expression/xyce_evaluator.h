@@ -1,5 +1,4 @@
-#ifndef XYCE_EVALUATOR_H
-#define XYCE_EVALUATOR_H
+#pragma once
 
 #include <complex>
 #include <functional>
@@ -29,5 +28,3 @@ XyceValue evaluate_expression(const ExpressionNode& expression, const std::unord
 extern const std::unordered_map<std::string, double> NUMBER_SUFFIXES;
 extern const std::unordered_map<std::string, BuiltinCallable> BUILTIN_FUNCTIONS;
 extern const std::unordered_map<std::string, XyceValue> BUILTIN_CONSTANTS;
-
-#endif

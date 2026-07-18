@@ -1,5 +1,4 @@
-#ifndef XYCE_PARSER_H
-#define XYCE_PARSER_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -220,5 +219,3 @@ std::vector<Token> tokenize(const std::string& text);
 ExpressionPtr parse_expression(const std::string& text);
 
 FunctionDefinitionNode parse_function_definition(const std::string& text);
-
-#endif

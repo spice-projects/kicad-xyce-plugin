@@ -20,13 +20,24 @@ set(wxBUILD_SHARED OFF)
 find_package(imgui CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
 find_package(wxwidgets CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 
 # gather cpp sources (all platforms)
 file(GLOB_RECURSE CPP_SOURCES "src/*.cpp" "src/expression/*.cpp" "src/file/*.cpp" "src/ui/*.cpp")
 
 if(APPLE)
     # gather objective-c++ sources
-    file(GLOB_RECURSE MM_SOURCES "src/*.mm" "src/ui/*.mm")
+    file(GLOB_RECURSE MM_SOURCES "src/*.osx.mm" "src/ui/*.osx.mm")
+    # combine remaining cpp sources with .mm sources
+    set(SOURCE_FILES ${CPP_SOURCES} ${MM_SOURCES})
+elseif (WINDOWS)
+    # gather win32 sources
+    file(GLOB_RECURSE MM_SOURCES "src/*.win32.c++" "src/ui/*.win32.c++")
+    # combine remaining cpp sources with .mm sources
+    set(SOURCE_FILES ${CPP_SOURCES} ${MM_SOURCES})
+elseif (LINUX)
+    # gather linux sources
+    file(GLOB_RECURSE MM_SOURCES "src/*.linux.c++" "src/ui/*.linux.c++")
     # combine remaining cpp sources with .mm sources
     set(SOURCE_FILES ${CPP_SOURCES} ${MM_SOURCES})
 else()
@@ -36,7 +47,7 @@ endif()
 
 add_executable(kicad-xyce-plugin ${SOURCE_FILES})
 
-target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base imgui::imgui implot::implot)
+target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base imgui::imgui implot::implot spdlog::spdlog)
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis

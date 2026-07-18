@@ -1,5 +1,4 @@
-#ifndef APP_H
-#define APP_H
+#pragma once
 
 #include <wx/app.h>
 
@@ -10,5 +9,3 @@ public:
     // initialize application
     bool OnInit() override;
 };
-
-#endif

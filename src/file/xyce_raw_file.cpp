@@ -3,6 +3,7 @@
 #include <cmath>
 #include <complex>
 #include <fcntl.h>
+#include <optional>
 #include <regex>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -386,21 +387,21 @@ namespace
     };
 }
 
-std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path& filename) {
+std::optional<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path& filename) {
     // check if file exists
     if (!std::filesystem::exists(filename))
-        return nullptr;
+        return {};
     // open the file
     int fd = open(filename.c_str(), O_RDONLY);
     if (fd < 0)
-        return nullptr;
+        return {};
     // stat file size
     struct stat file_info{};
     if (fstat(fd, &file_info) == -1) {
         // close fd
         close(fd);
         // exit
-        return nullptr;
+        return {};
     }
     // assign length
     size_t length = file_info.st_size;
@@ -408,7 +409,7 @@ std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path
         // close fd
         close(fd);
         // exit
-        return nullptr;
+        return {};
     }
     // memory map the file
     void* addr = mmap(nullptr, length, PROT_READ, MAP_SHARED, fd, 0);
@@ -416,7 +417,7 @@ std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path
         // close fd
         close(fd);
         // exit
-        return nullptr;
+        return {};
     }
     // close file descriptor after mmap
     close(fd);
@@ -499,7 +500,7 @@ std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path
         // un-map memory
         munmap(addr, length);
         // return null
-        return nullptr;
+        return {};
     }
     // get first block reference
     auto& first_block = blocks[0];
@@ -573,7 +574,7 @@ std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path
                 // unmap mmap memory
                 munmap(addr, length);
                 // invalid stepped variable layout
-                return nullptr;
+                return {};
             }
             // variable at index
             auto& variable = temp_variables[idx];
@@ -638,6 +639,6 @@ std::shared_ptr<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path
     // }
     // create expression manager
     ExpressionManager expression_manager(expressions, abscissa_indices);
-    // return shared pointer
-    return std::make_shared<XyceOutputFile>(filename, first_block.title, first_block.is_complex, std::move(step_information), abscissa_scale, std::move(expression_manager), addr, length);
+    // return file
+    return XyceOutputFile(filename, first_block.title, first_block.is_complex, std::move(step_information), abscissa_scale, std::move(expression_manager), addr, length);
 }

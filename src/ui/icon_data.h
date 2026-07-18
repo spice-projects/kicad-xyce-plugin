@@ -1,5 +1,4 @@
-#ifndef ICON_DATA_H
-#define ICON_DATA_H
+#pragma once
 
 // generated using: python3 -c "import os; filepath = 'src/kicad_xyce_plugin/window-icon-512x512.png'; outpath = 'src/ui/icon_data.h'; ..."
 // window-icon-512x512.png byte array
@@ -26154,5 +26153,3 @@ inline const unsigned char window_icon_512x512_png[] = {
     0x82
 };
 inline const unsigned int window_icon_512x512_png_len = 313765;
-
-#endif

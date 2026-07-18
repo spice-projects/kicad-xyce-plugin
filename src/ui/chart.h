@@ -1,35 +1,91 @@
-#ifndef CHART_H
-#define CHART_H
+#pragma once
 
-#include <wx/panel.h>
-#include "wx/wx.h"
-#include <imgui.h>
+#include <implot.h>
+#include <set>
+#include <unordered_map>
 
-class Chart : public wxPanel
+#include "../step_information.h"
+#include "../expression/expression.h"
+#include "../expression/expression_manager.h"
+#include "../file/xyce_output_file.h"
+
+using OrdinateVariantSeriesSteps = std::tuple<
+    int,
+    std::unordered_map<
+        size_t,
+        std::pair<
+            std::span<const double>,
+            std::span<const double>
+        >
+    >,
+    double, double, int>;
+
+using OrdinateVariantSeries = std::unordered_map<
+    Expression<double>*,
+    OrdinateVariantSeriesSteps
+>;
+
+using OrdinateSeries = std::tuple<
+    AnyExpression*,
+    OrdinateVariantSeries
+>;
+
+using Series = std::unordered_map<
+    std::string,
+    OrdinateSeries
+>;
+
+struct AxisInformation
 {
-public:
-    explicit Chart(wxWindow* parent, wxWindowID id = wxID_ANY);
-
-private:
-    bool m_initialized = false;
-    WXWidget m_widget = nullptr;
-
-#ifdef __APPLE__
-    void* m_metal_layer = nullptr;
-    void* m_command_queue = nullptr;
-#endif
-
-    ImGuiContext* m_imgui_ctx = nullptr;
-
-    void initialize();
-
-    void on_size(wxSizeEvent&);
-
-    void on_paint(wxPaintEvent&);
-
-    void render_frame(const std::function<void()>&);
-
-    void update_bounds();
+    const int axis;
+    std::string unit;
+    int plots;
+    double min_value;
+    double max_value;
 };
 
-#endif
+class Chart
+{
+public:
+    Chart(ExpressionManager& expression_manager, const StepInformation& step_information, Expression<double>& abscissa, const std::string& abscissa_label, AbscissaScale abscissa_scale, size_t decimate_target);
+
+    const std::set<size_t>& selected_steps();
+
+    void plot_series(const std::set<AnyExpression*>& expressions);
+
+    void auto_range();
+
+    void render();
+
+private:
+    ExpressionManager& m_expression_manager;
+    StepInformation const& m_step_information;
+    Expression<double>& m_abscissa;
+    std::string m_abscissa_label;
+    AbscissaScale m_abscissa_scale;
+    size_t m_decimate_target;
+
+    Series m_series;
+    std::set<size_t> m_selected_steps = {0};
+    double m_abscissa_left_value = 0.0;
+    double m_abscissa_right_value = 0.0;
+
+    AxisInformation m_axes[3] = {{ImAxis_Y1}, {ImAxis_Y2}, {ImAxis_Y3}};
+
+    // std::unordered_map<std::string, int> m_y_axes;
+    // std::unordered_map<int, int> m_y_axes_ref_counts;
+    // std::unordered_map<int, std::pair<double, double>> m_axis_ranges;
+    // char8_t m_axes = 0;
+
+    std::vector<Expression<double>*> get_expressions_to_plot(AnyExpression*) const;
+
+    std::tuple<bool, std::span<const double>, std::span<const double>, double, double> plot_step(Expression<double>* ordinate_variant, int color, size_t step, double min_value, double max_value, double x_right_ratio, double x_left_ratio) const;
+
+    int get_y_axis(const std::string& unit);
+
+    bool release_y_axis(const int axis);
+
+    double ratio_to_abscissa_value(double x_ratio) const;
+
+    std::pair<size_t, size_t> find_abscissa_indexes(const std::span<const double>& abscissa, double left_value, double right_value) const;
+};

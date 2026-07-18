@@ -1,7 +1,8 @@
-#ifndef MAIN_WINDOW_H
-#define MAIN_WINDOW_H
+#pragma once
 
 #include <wx/frame.h>
+
+#include "charts_panel.h"
 
 class MainWindow : public wxFrame
 {
@@ -9,6 +10,9 @@ public:
     explicit MainWindow(const wxString& title);
 
 private:
+    ChartsPanel* m_charts_panel;
+    std::optional<XyceOutputFile> m_xyce_raw_file;
+
     void on_exit(wxCommandEvent& event);
 
     void create_menubar();
@@ -19,5 +23,3 @@ private:
 
     void on_menu_open(wxCommandEvent&);
 };
-
-#endif

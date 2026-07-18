@@ -160,7 +160,7 @@ class Chart:
             _, ordinate_series = self._series.get(ordinate.name, (ordinate, {}))
             # lookup expressions to plot for this ordinate, e.g. magnitude and phase for complex expressions when in AC chart
             for ordinate_variant in self._get_expressions_to_plot(ordinate):
-                # looup ordinate variant in series
+                # lookup ordinate variant in series
                 y_axis, rendered_series, min_value, max_value, color = ordinate_series.get(ordinate_variant, (None, {}, float("inf"), float("-inf"), None))
                 # loop rendered steps
                 for step in list(rendered_series.keys()):

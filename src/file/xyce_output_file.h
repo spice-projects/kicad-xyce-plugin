@@ -1,5 +1,4 @@
-#ifndef XYCE_OUTPUT_FILE_H
-#define XYCE_OUTPUT_FILE_H
+#pragma once
 
 #include <filesystem>
 #include <string>
@@ -22,7 +21,7 @@ public:
 
     XyceOutputFile(const XyceOutputFile&) = delete;
 
-    XyceOutputFile(XyceOutputFile&&) noexcept = default;
+    XyceOutputFile(XyceOutputFile&&) noexcept;
 
     XyceOutputFile(std::filesystem::path filename, std::string title, bool is_complex, StepInformation&& step_info, AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, const void* mmap_ptr, size_t mmap_length);
 
@@ -30,7 +29,7 @@ public:
 
     XyceOutputFile& operator=(const XyceOutputFile&) = delete;
 
-    XyceOutputFile& operator=(XyceOutputFile&&) noexcept = default;
+    XyceOutputFile& operator=(XyceOutputFile&&) noexcept;
 
     [[nodiscard]] const std::filesystem::path& filename() const;
 
@@ -57,5 +56,3 @@ private:
     const void* m_mmap_ptr = nullptr;
     size_t m_mmap_len = 0;
 };
-
-#endif

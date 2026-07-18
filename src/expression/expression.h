@@ -1,5 +1,4 @@
-#ifndef EXPRESSION_H
-#define EXPRESSION_H
+#pragma once
 
 #include <algorithm>
 #include <complex>
@@ -181,11 +180,10 @@ private:
             // allocate vectors
             concatenated.reserve(total_size);
             // loop steps
-            for (const auto& step : steps) {
-                // step
-                // loop step data
+            for (const View<T>& step : steps) {
+                // loop step data, append it to buffer
                 for (size_t j = 0; j < step.size(); ++j)
-                    concatenated.push_back(step[j]);
+                    concatenated.emplace_back(step[j]);
             }
             // data pointer and offset
             const T* pointer = concatenated.data();
@@ -210,5 +208,3 @@ private:
 };
 
 using AnyExpression = std::variant<Expression<double>, Expression<std::complex<double>>>;
-
-#endif

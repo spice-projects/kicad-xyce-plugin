@@ -1,5 +1,4 @@
-#ifndef ADD_PLOT_DIALOG_H
-#define ADD_PLOT_DIALOG_H
+#pragma once
 
 #include <functional>
 #include <vector>
@@ -35,5 +34,3 @@ private:
     wxButton* m_add_button;
     wxStaticText* m_error_label;
 };
-
-#endif

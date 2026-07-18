@@ -1,5 +1,4 @@
-#ifndef EXPRESSION_MANAGER_H
-#define EXPRESSION_MANAGER_H
+#pragma once
 
 #include <deque>
 #include <optional>
@@ -44,5 +43,3 @@ private:
 
     static std::string casefold(std::string str);
 };
-
-#endif

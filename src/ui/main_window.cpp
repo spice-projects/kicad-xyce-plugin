@@ -1,10 +1,11 @@
+#include <spdlog/spdlog.h>
 #include <wx/artprov.h>
 #include <wx/filedlg.h>
 #include <wx/menu.h>
 #include <wx/toolbar.h>
 
-#include "chart.h"
 #include "main_window.h"
+#include "charts_panel.h"
 #include "../file/xyce_raw_file.h"
 
 MainWindow::MainWindow(const wxString& title)
@@ -14,7 +15,10 @@ MainWindow::MainWindow(const wxString& title)
     create_toolbar();
     create_statusbar();
 
-    auto chart = new Chart(this);
+    spdlog::set_level(spdlog::level::debug);
+
+    // create charts panel, it should cover all the available area
+    m_charts_panel = new ChartsPanel(this);
 
     // bind exit event
     Bind(wxEVT_MENU, &MainWindow::on_exit, this, wxID_EXIT);
@@ -80,6 +84,26 @@ void MainWindow::on_menu_open(wxCommandEvent&) {
 
         wxFrame::SetStatusText(filepath + filename);
 
-        xyce_raw_file_parser(filepath.ToStdString());
+        // parse file
+        m_xyce_raw_file = xyce_raw_file_parser(filepath.ToStdString());
+        if (m_xyce_raw_file.has_value()) {
+            // file reference
+            auto& file = m_xyce_raw_file.value();
+            // TODO: disable simulation actions
+            // update title
+            // delete all charts
+            m_charts_panel->delete_all_charts();
+            // add chart
+            auto& chart = m_charts_panel->add_chart(file.expression_manager(), file.step_information(), file.abscissa(), "", file.abscissa_scale(), 100);
+
+            auto& em = file.expression_manager();
+
+            auto time = em.evaluate("V(VCC)");
+
+            chart.plot_series({time});
+
+            m_charts_panel->refresh_charts();
+        }
+        // m_charts_panel.
     }
 }

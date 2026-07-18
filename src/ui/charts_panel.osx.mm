@@ -5,23 +5,24 @@
 #include <imgui.h>
 #include <imgui_impl_osx.h>
 #include <imgui_impl_metal.h>
+#include <implot.h>
 #include <wx/wx.h>
 
-#include "chart.h"
+#include "charts_panel.h"
 #include "apple_metal.h"
 
-void Chart::initialize() {
+void ChartsPanel::initialize() {
     // check flag
-    if (m_initialized)
+    if (m_charts_panel)
         return;
     // platform NSView*
-    m_widget = GetHandle();
+    m_charts_panel = GetHandle();
     // get static reference to MetalResourceManager
     auto resource_manager = MetalResourceManager::get_instance();
     // gpu for current view (associated to current display)
-    MetalGPUHandle gpu = resource_manager->get_gpu(m_widget);
+    auto gpu = resource_manager->get_gpu(m_charts_panel);
     // create metal layer for panel
-    CAMetalLayer* metal_layer = [CAMetalLayer layer];
+    auto metal_layer = [CAMetalLayer layer];
     metal_layer.device = (__bridge id<MTLDevice>)gpu.device;
     metal_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
     metal_layer.framebufferOnly = YES;
@@ -29,32 +30,49 @@ void Chart::initialize() {
     CGFloat scale = [[NSScreen mainScreen] backingScaleFactor];
     metal_layer.contentsScale = scale;
     // set metal layer for panel
-    [m_widget setWantsLayer:YES];
-    [m_widget setLayer:metal_layer];
+    [m_charts_panel setWantsLayer:YES];
+    [m_charts_panel setLayer:metal_layer];
     // dimensions
     wxSize sz = GetClientSize();
     metal_layer.bounds = CGRectMake(0, 0, sz.x, sz.y);
     metal_layer.drawableSize = CGSizeMake(sz.x * scale, sz.y * scale);
     // create imgui isolated context for this panel
-    m_imgui_ctx = ImGui::CreateContext();
-    // m_implot_ctx = ImPlot::CreateImPlotContext();
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImPlot::CreateContext();
     // style
     ImGui::StyleColorsDark();
     // bind platform specific hooks
-    ImGui_ImplOSX_Init(m_widget);
+    ImGui_ImplOSX_Init(m_charts_panel);
     ImGui_ImplMetal_Init((__bridge id<MTLDevice>)gpu.device);
     // update class fields
     m_metal_layer = metal_layer;
     m_command_queue = gpu.command_queue;
-    m_initialized = true;
 }
 
-void Chart::render_frame(const std::function<void()>& renderer) {
+void ChartsPanel::terminate() {
+    // check flag
+    if (!m_charts_panel)
+        return;
+    // shudown backend
+    ImGui_ImplMetal_Shutdown();
+    ImGui_ImplOSX_Shutdown();
+    // imgui and implot
+    ImPlot::DestroyContext();
+    ImGui::DestroyContext();
+    // update flag
+    m_charts_panel = nullptr;
+}
+
+void ChartsPanel::render_frame(const std::function<void()>& renderer) {
+    // check flag
+    if (!m_charts_panel)
+        return;
     // use objective-c++ memory management
     @autoreleasepool {
         // cast fields as apple types
-        CAMetalLayer* metal_layer = (__bridge CAMetalLayer *)m_metal_layer;
-        id<MTLCommandQueue> command_queue = (__bridge id<MTLCommandQueue>)m_command_queue;
+        auto metal_layer = (__bridge CAMetalLayer *)m_metal_layer;
+        auto command_queue = (__bridge id<MTLCommandQueue>)m_command_queue;
         // drawable
         id<CAMetalDrawable> drawable = [metal_layer nextDrawable];
         if (!drawable)
@@ -70,7 +88,7 @@ void Chart::render_frame(const std::function<void()>& renderer) {
         id<MTLRenderCommandEncoder> renderEncoder = [command_buffer renderCommandEncoderWithDescriptor:render_pass_descriptor];
         // create metal frame
         ImGui_ImplMetal_NewFrame(render_pass_descriptor);
-        ImGui_ImplOSX_NewFrame(m_widget);
+        ImGui_ImplOSX_NewFrame(m_charts_panel);
         // start frame
         ImGui::NewFrame();
         // position and size
@@ -90,9 +108,9 @@ void Chart::render_frame(const std::function<void()>& renderer) {
     }
 }
 
-void Chart::update_bounds() {
+void ChartsPanel::update_bounds() {
     // cast fields as apple types
-    CAMetalLayer* metal_layer = (__bridge CAMetalLayer *)m_metal_layer;
+    auto metal_layer = (__bridge CAMetalLayer *)m_metal_layer;
     // current panel size
     wxSize sz = GetClientSize();
     CGFloat scale = [[NSScreen mainScreen] backingScaleFactor];
