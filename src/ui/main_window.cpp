@@ -91,17 +91,19 @@ void MainWindow::on_menu_open(wxCommandEvent&) {
             auto& file = m_xyce_raw_file.value();
             // TODO: disable simulation actions
             // update title
-            // delete all charts
-            m_charts_panel->delete_all_charts();
+
+            // update all charts
+            m_charts_panel->update_charts(file.expression_manager(), file.step_information(), "", file.abscissa_scale(), 100);
 
             // add chart
-            auto& chart = m_charts_panel->add_chart(file.expression_manager(), file.step_information(), file.abscissa(), "", file.abscissa_scale(), 100);
+            const auto chart = m_charts_panel->add_chart();
 
             auto& em = file.expression_manager();
 
-            auto time = em.evaluate("V(VCC)");
+            auto i = em.evaluate("I(R213)");
+            auto v = em.evaluate("V(VCC)");
 
-            chart.plot_series({time});
+            chart->plot_series({v, i});
 
             m_charts_panel->refresh_charts();
         }

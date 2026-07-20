@@ -1,13 +1,20 @@
 #pragma once
 
-#include <implot.h>
 #include <set>
+#include <span>
+#include <string>
+#include <tuple>
 #include <unordered_map>
+#include <utility>
+
+#include "implot.h"
 
 #include "../step_information.h"
 #include "../expression/expression.h"
 #include "../expression/expression_manager.h"
 #include "../file/xyce_output_file.h"
+
+#include "events.h"
 
 using OrdinateVariantSeriesSteps = std::tuple<
     int,
@@ -31,43 +38,64 @@ using Series = std::unordered_map<std::string, OrdinateSeries>;
 
 struct AxisInformation
 {
-    const int axis;
+    int axis;
+    double plot_min_value;
+    double plot_max_value;
     std::string unit;
     int plots;
     double min_value;
     double max_value;
-    double plot_min_value;
-    double plot_max_value;
 };
 
 class Chart
 {
 public:
-    Chart(ExpressionManager& expression_manager, const StepInformation& step_information, Expression<double>& abscissa, const std::string& abscissa_label, AbscissaScale abscissa_scale, size_t decimate_target);
+    Chart() = delete;
+
+    Chart(wxEvtHandler* parent, ExpressionManager* expression_manager, StepInformation const* step_information, std::string abscissa_label, AbscissaScale abscissa_scale, size_t decimate_target);
+
+    Chart(const Chart&) = delete;
+
+    Chart(Chart&&) noexcept = default;
+
+    Chart& operator=(const Chart&) = delete;
+
+    Chart& operator=(Chart&&) noexcept = default;
 
     const std::set<size_t>& selected_steps();
+
+    void render(const std::tuple<float, float, float, float>&);
 
     void plot_series(const std::set<AnyExpression*>& expressions);
 
     void auto_range();
 
-    void render();
+    void clear();
+
+    void reset_zoom_window(bool horizontal, bool vertical);
+
+    void update_zoom_window(double x_left_ratio, double x_right_ratio, double y_top_ratio, double y_bottom_ratio);
+
+    [[nodiscard]] const std::tuple<float, float, float, float>& get_plot_rect() const;
 
 private:
-    ExpressionManager& m_expression_manager;
-    StepInformation const& m_step_information;
-    Expression<double>& m_abscissa;
+    wxEvtHandler* m_parent;
+
+    ExpressionManager* m_expression_manager;
+    const StepInformation* m_step_information;
     std::string m_abscissa_label;
     AbscissaScale m_abscissa_scale;
     size_t m_decimate_target;
+    std::string m_abscissa_unit;
+    std::tuple<float, float, float, float> m_plot_rect = {-1, -1, -1, -1};
 
     Series m_series;
     std::set<size_t> m_selected_steps = {0};
     double m_abscissa_left_value = 0.0;
-    double m_abscissa_right_value = 0.0;
+    double m_abscissa_right_value = 1.0;
     size_t m_next_color_index = 0;
     std::tuple<double, double, double, double> m_zoom_window = {-1, -1, -1, -1};
-    AxisInformation m_axes[3] = {{ImAxis_Y1}, {ImAxis_Y2}, {ImAxis_Y3}};
+    std::array<AxisInformation, 3> m_axes = {{{ImAxis_Y1, 0.0, 1.0}, {ImAxis_Y2, 0.0, 1.0}, {ImAxis_Y3, 0.0, 1.0}}};
 
     std::vector<Expression<double>*> get_expressions_to_plot(AnyExpression*) const;
 
@@ -75,13 +103,11 @@ private:
 
     int get_y_axis(const std::string& unit);
 
-    bool release_y_axis(const int axis);
+    bool release_y_axis(int axis);
 
-    double ratio_to_abscissa_value(double x_ratio) const;
+    [[nodiscard]] double ratio_to_abscissa_value(double x_ratio) const;
 
-    void update_zoom_window(double x_left_ratio, double x_right_ratio, double y_top_ratio, double y_bottom_ratio);
-
-    std::pair<size_t, size_t> find_abscissa_indexes(const std::span<const double>& abscissa, double left_value, double right_value) const;
+    [[nodiscard]] std::pair<size_t, size_t> find_abscissa_indexes(const std::span<const double>& abscissa, double left_value, double right_value) const;
 
     void redraw_all_series();
 };

@@ -16,3 +16,6 @@ void ChartsPanel::terminate() {
 
 void ChartsPanel::render_frame(const std::function<void()>& renderer) {
 }
+
+void ChartsPanel::update_bounds() {
+}

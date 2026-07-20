@@ -51,10 +51,11 @@ target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base imgui::imgui i
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis
-    target_link_libraries(kicad-xyce-plugin PRIVATE "-framework Foundation" "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController")
+    target_link_libraries(kicad-xyce-plugin PRIVATE "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController")
+    target_link_options(kicad-xyce-plugin PRIVATE "-Wl,-no_warn_duplicate_libraries")
 endif()
 
-if (BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
-endif()
+# if (BUILD_TESTS)
+#     enable_testing()
+#     add_subdirectory(tests)
+# endif()

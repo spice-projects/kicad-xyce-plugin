@@ -41,7 +41,7 @@ void ChartsPanel::initialize() {
     ImGui::CreateContext();
     ImPlot::CreateContext();
     // style
-    ImGui::StyleColorsDark();
+    ImGui::StyleColorsClassic();
     // bind platform specific hooks
     ImGui_ImplOSX_Init(m_charts_panel);
     ImGui_ImplMetal_Init((__bridge id<MTLDevice>)gpu.device);
