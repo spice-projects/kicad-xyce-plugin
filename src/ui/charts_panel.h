@@ -22,11 +22,13 @@ public:
 
     void delete_all_charts();
 
-    void refresh_charts();
+    void refresh_charts(int frames = 3);
+
+    void display_changed();
 
 private:
     WXWidget m_charts_panel = nullptr;
-    bool m_render_charts = false;
+    int m_render_chart_frames = 0;
 
     ExpressionManager* m_expression_manager = nullptr;
     StepInformation const* m_step_information = nullptr;

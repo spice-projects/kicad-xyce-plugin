@@ -19,3 +19,6 @@ void ChartsPanel::render_frame(const std::function<void()>& renderer) {
 
 void ChartsPanel::update_bounds() {
 }
+
+void ChartsPanel::display_changed() {
+}

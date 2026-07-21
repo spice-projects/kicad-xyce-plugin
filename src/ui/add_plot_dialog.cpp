@@ -99,7 +99,7 @@ std::vector<AnyExpression*> AddPlotDialog::selected_expressions() const {
     return m_selected_expressions;
 }
 
-void AddPlotDialog::on_add_custom(wxCommandEvent& event) {
+void AddPlotDialog::on_add_custom(wxCommandEvent&) {
     // get input value
     wxString input_wx = m_custom_input->GetValue();
     // trim leading and trailing spaces

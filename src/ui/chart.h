@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iterator>
 #include <set>
 #include <span>
 #include <string>
@@ -21,8 +22,8 @@ using OrdinateVariantSeriesSteps = std::tuple<
     std::unordered_map<
         size_t,
         std::pair<
-            std::span<const double>,
-            std::span<const double>
+            View<double>,
+            View<double>
         >
     >,
     double, double, ImVec4>;
@@ -97,9 +98,7 @@ private:
     std::tuple<double, double, double, double> m_zoom_window = {-1, -1, -1, -1};
     std::array<AxisInformation, 3> m_axes = {{{ImAxis_Y1, 0.0, 1.0}, {ImAxis_Y2, 0.0, 1.0}, {ImAxis_Y3, 0.0, 1.0}}};
 
-    std::vector<Expression<double>*> get_expressions_to_plot(AnyExpression*) const;
-
-    std::tuple<bool, std::span<const double>, std::span<const double>, double, double> plot_step(Expression<double>* ordinate_variant, size_t step, double min_value, double max_value, double x_right_ratio, double x_left_ratio) const;
+    std::tuple<bool, View<double>, View<double>, double, double> plot_step(Expression<double>* ordinate_variant, size_t step, double min_value, double max_value, double x_right_ratio, double x_left_ratio) const;
 
     int get_y_axis(const std::string& unit);
 

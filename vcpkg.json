@@ -31,6 +31,10 @@
     {
       "name": "spdlog",
       "version>=": "1.17.0#1"
+    },
+    {
+      "name": "gtest",
+      "version>=": "1.17.0#2"
     }
   ]
 }

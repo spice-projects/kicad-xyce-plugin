@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+
 #include "step_information.h"
 
 // ========================================================================================

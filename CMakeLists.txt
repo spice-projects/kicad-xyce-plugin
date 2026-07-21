@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.12)
-project(kicad-xyce-plugin LANGUAGES CXX)
+if(APPLE)
+    project(kicad-xyce-plugin LANGUAGES CXX OBJCXX)
+else()
+    project(kicad-xyce-plugin LANGUAGES CXX)
+endif()
 
 # c++ 23
 set(CMAKE_CXX_STANDARD 23)
@@ -9,7 +13,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(APPLE)
+    # enable objective-c++ language for .mm files
     enable_language(OBJCXX)
+    # c++ 23 (mm files)
+    set(CMAKE_OBJCXX_STANDARD 23)
+    # enforce the c++23 standard
+    set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+    # disable compiler specific things
+    set(CMAKE_OBJCXX_EXTENSIONS OFF)
 endif()
 
 option(BUILD_TESTS "Build tests" ON)
@@ -27,25 +38,24 @@ file(GLOB_RECURSE CPP_SOURCES "src/*.cpp" "src/expression/*.cpp" "src/file/*.cpp
 
 if(APPLE)
     # gather objective-c++ sources
-    file(GLOB_RECURSE MM_SOURCES "src/*.osx.mm" "src/ui/*.osx.mm")
+    file(GLOB_RECURSE PLATFORM_SOURCES "src/*.osx.mm" "src/ui/*.osx.mm")
     # combine remaining cpp sources with .mm sources
-    set(SOURCE_FILES ${CPP_SOURCES} ${MM_SOURCES})
+    set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 elseif (WINDOWS)
     # gather win32 sources
-    file(GLOB_RECURSE MM_SOURCES "src/*.win32.c++" "src/ui/*.win32.c++")
+    file(GLOB_RECURSE PLATFORM_SOURCES "src/*.win32.c++" "src/ui/*.win32.c++")
     # combine remaining cpp sources with .mm sources
-    set(SOURCE_FILES ${CPP_SOURCES} ${MM_SOURCES})
+    set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 elseif (LINUX)
     # gather linux sources
-    file(GLOB_RECURSE MM_SOURCES "src/*.linux.c++" "src/ui/*.linux.c++")
+    file(GLOB_RECURSE PLATFORM_SOURCES "src/*.linux.c++" "src/ui/*.linux.c++")
     # combine remaining cpp sources with .mm sources
-    set(SOURCE_FILES ${CPP_SOURCES} ${MM_SOURCES})
-else()
-    # non-apple builds use only cpp sources
-    set(SOURCE_FILES ${CPP_SOURCES})
+    set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 endif()
 
 add_executable(kicad-xyce-plugin ${SOURCE_FILES})
+
+target_compile_definitions(kicad-xyce-plugin PRIVATE KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
 
 target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base imgui::imgui implot::implot spdlog::spdlog)
 

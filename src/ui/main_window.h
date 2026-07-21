@@ -13,7 +13,9 @@ private:
     ChartsPanel* m_charts_panel;
     std::optional<XyceOutputFile> m_xyce_raw_file;
 
-    void on_exit(wxCommandEvent& event);
+    void on_exit(wxCommandEvent&);
+
+    void on_display_changed(wxDisplayChangedEvent&);
 
     void create_menubar();
 

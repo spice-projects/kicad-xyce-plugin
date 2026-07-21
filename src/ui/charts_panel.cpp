@@ -24,13 +24,6 @@ ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id)
     // Bind(wxEVT_LEFT_DCLICK, &ChartsPanel::on_mouse_button, this);
     Bind(wxEVT_LEFT_DOWN, &ChartsPanel::on_mouse_button, this);
     Bind(wxEVT_LEFT_UP, &ChartsPanel::on_mouse_button, this);
-    // Bind(wxEVT_RIGHT_DCLICK, &ChartsPanel::on_mouse_button, this);
-    // Bind(wxEVT_RIGHT_DOWN, &ChartsPanel::on_mouse_button, this);
-    // Bind(wxEVT_RIGHT_UP, &ChartsPanel::on_mouse_button, this);
-    // Bind(wxEVT_MIDDLE_DCLICK, &ChartsPanel::on_mouse_button, this);
-    // Bind(wxEVT_MIDDLE_DOWN, &ChartsPanel::on_mouse_button, this);
-    // Bind(wxEVT_MIDDLE_UP, &ChartsPanel::on_mouse_button, this);
-    // Bind(wxEVT_MOUSEWHEEL, &ChartsPanel::on_mouse_wheel, this);
     // other events
     Bind(wxEVT_IDLE, &ChartsPanel::on_idle, this);
     Bind(wxEVT_PAINT, &ChartsPanel::on_paint, this);
@@ -134,12 +127,26 @@ void ChartsPanel::on_mouse_button(wxMouseEvent& event) {
             auto z_y1 = (std::min(y1, y2) - y_min) / height;
             auto z_x2 = (std::max(x1, x2) - x_min) / width;
             auto z_y2 = (std::max(y1, y2) - y_min) / height;
-
-            spdlog::debug("Updating zoom window to [{}, {}, {}, {}]", z_x1, z_y1, z_x2, z_y2);
-
-            m_selected_chart->update_zoom_window(z_x1, z_x2, z_y1, z_y2);
             // update zoom window
             m_zoom_window = {z_x1, z_y1, z_x2, z_y2};
+            // loop charts
+            for (size_t i = 0; i < m_charts.size(); i++) {
+                // chart at i
+                const auto& chart = m_charts[i];
+                // check if this is the chart that triggered the zoom action
+                if (i == m_selected_chart_index) {
+                    // log information
+                    spdlog::debug("Updating zoom window in chart at index [{}] to [{}, {}, {}, {}]", i, z_x1, z_y1, z_x2, z_y2);
+                    // update zoom window in selected chart
+                    chart->update_zoom_window(z_x1, z_x2, z_y1, z_y2);
+                }
+                else {
+                    // log information
+                    spdlog::debug("Updating zoom window in chart at index [{}] to [{}, {}, {}, {}]", i, z_x1, z_y1, -1, -1);
+                    // update horizontal zoom window only, keep vertical zoom as is
+                    chart->update_zoom_window(z_x1, z_x2, -1, -1);
+                }
+            }
         }
         // reset selected chart & selection
         m_selected_chart = nullptr;
@@ -151,28 +158,19 @@ void ChartsPanel::on_mouse_button(wxMouseEvent& event) {
     }
 }
 
-void ChartsPanel::on_mouse_wheel(wxMouseEvent& event) {
-    // io dispatcher
-    ImGuiIO& io = ImGui::GetIO();
-    // forward wheel scroll data
-    const auto wheel_y = static_cast<float>(event.GetWheelRotation());
-    // forward the event
-    io.AddMouseWheelEvent(0.0, wheel_y);
-    // check we need to refresh panel
-    if (io.WantCaptureMouse)
-        Refresh();
-    // skip event
-    event.Skip();
-}
-
-void ChartsPanel::on_idle(wxIdleEvent&) {
+void ChartsPanel::on_idle(wxIdleEvent& event) {
     // check flag is set
-    if (m_render_charts) {
-        // reset flag
-        m_render_charts = false;
+    if (m_render_chart_frames > 0) {
+        // decrease counter
+        m_render_chart_frames--;
         // render charts panel
         render();
+        // request another idle event to render the next frame
+        if (m_render_chart_frames > 0)
+            event.RequestMore();
     }
+    // skip event
+    event.Skip();
 }
 
 void ChartsPanel::on_paint(wxPaintEvent&) {
@@ -181,7 +179,7 @@ void ChartsPanel::on_paint(wxPaintEvent&) {
     // initialize widget (only the first time)
     initialize();
     // indicate we need to render charts
-    m_render_charts = true;
+    m_render_chart_frames = 1;
 }
 
 void ChartsPanel::on_size(wxSizeEvent& event) {
@@ -370,8 +368,8 @@ void ChartsPanel::delete_all_charts() {
     refresh_charts();
 }
 
-void ChartsPanel::refresh_charts() {
-    m_render_charts = true;
+void ChartsPanel::refresh_charts(int frames) {
+    m_render_chart_frames = frames;
 }
 
 void ChartsPanel::render() {

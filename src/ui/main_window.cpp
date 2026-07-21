@@ -20,18 +20,20 @@ MainWindow::MainWindow(const wxString& title)
     // create charts panel, it should cover all the available area
     m_charts_panel = new ChartsPanel(this);
 
-    // bind exit event
+    // bind events
     Bind(wxEVT_MENU, &MainWindow::on_exit, this, wxID_EXIT);
-    // bind close window event
-    Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent&) {
-        // destroy the window
-        Destroy();
-    });
+    Bind(wxEVT_DISPLAY_CHANGED, &MainWindow::on_display_changed, this);
+    Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent&) { Destroy(); });
 }
 
 void MainWindow::on_exit(wxCommandEvent&) {
     // close the window
     Close(true);
+}
+
+void MainWindow::on_display_changed(wxDisplayChangedEvent&) {
+    // notify charts panel that display has changed
+    m_charts_panel->display_changed();
 }
 
 void MainWindow::create_menubar() {
@@ -93,17 +95,18 @@ void MainWindow::on_menu_open(wxCommandEvent&) {
             // update title
 
             // update all charts
-            m_charts_panel->update_charts(file.expression_manager(), file.step_information(), "", file.abscissa_scale(), 100);
+            m_charts_panel->update_charts(file.expression_manager(), file.step_information(), "", file.abscissa_scale(), 5000);
 
             // add chart
             const auto chart = m_charts_panel->add_chart();
 
             auto& em = file.expression_manager();
 
-            auto i = em.evaluate("I(R213)");
+            // auto i = em.evaluate("I(R213)");
             auto v = em.evaluate("V(VCC)");
 
-            chart->plot_series({v, i});
+            // chart->plot_series({v, i});
+            chart->plot_series({v});
 
             m_charts_panel->refresh_charts();
         }

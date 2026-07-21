@@ -8,34 +8,50 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # disable compiler specific things
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# include package that lets us get things from git
-include(FetchContent)
+if(APPLE)
+    enable_language(OBJCXX)
+endif()
 
-# get google test from git
-FetchContent_Declare(googletest GIT_REPOSITORY https://github.com/google/googletest.git GIT_TAG v1.17.0)
+find_package(imgui CONFIG REQUIRED)
+find_package(implot CONFIG REQUIRED)
+find_package(wxwidgets CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+find_package(gtest CONFIG REQUIRED)
 
-# make it available for use in this CMakeLists.txt
-FetchContent_MakeAvailable(googletest)
-
-file(GLOB_RECURSE SOURCE_FILES "../src/*.cpp" "../src/expression/*.cpp" "../src/file/*.cpp" "../src/ui/*.cpp")
+file(GLOB_RECURSE CPP_SOURCES "../src/step_information.cpp" "../src/expression/*.cpp" "../src/file/*.cpp" "../src/ui/*.cpp")
 file(GLOB_RECURSE TEST_FILES "./*.cpp" "./expression/*.cpp" "./file/*.cpp" "./ui/*.cpp")
 
-include_directories(../src)
-
-# math-tests executable
-add_executable(kicad-xyce-plugin-tests ${TEST_FILES} ${SOURCE_FILES})
-
-# link
-target_link_libraries(kicad-xyce-plugin-tests PRIVATE GTest::gtest_main imgui imgui-backend wx::core wx::base)
+include_directories("../src" "../src/expression" "../src/file" "../src/ui")
 
 if(APPLE)
-    target_link_libraries(kicad-xyce-plugin-tests PRIVATE
-            "-framework Foundation"
-            "-framework AppKit"
-            "-framework Metal"
-            "-framework MetalKit"
-            "-framework GameController"
-    )
+    # gather objective-c++ sources
+    file(GLOB_RECURSE PLATFORM_SOURCES "../src/*.osx.mm" "../src/ui/*.osx.mm")
+    # combine remaining cpp sources with .mm sources
+    set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
+elseif (WINDOWS)
+    # gather win32 sources
+    file(GLOB_RECURSE PLATFORM_SOURCES "../src/*.win32.c++" "../src/ui/*.win32.c++")
+    # combine remaining cpp sources with .mm sources
+    set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
+elseif (LINUX)
+    # gather linux sources
+    file(GLOB_RECURSE PLATFORM_SOURCES "../src/*.linux.c++" "../src/ui/*.linux.c++")
+    # combine remaining cpp sources with .mm sources
+    set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
+endif()
+
+message(STATUS "Collected source files:\n${CPP_SOURCES}")
+
+add_executable(kicad-xyce-plugin-tests ${TEST_FILES} ${SOURCE_FILES})
+
+target_compile_definitions(kicad-xyce-plugin-tests PRIVATE KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
+
+target_link_libraries(kicad-xyce-plugin-tests PRIVATE wx::core wx::base imgui::imgui implot::implot spdlog::spdlog GTest::gtest_main)
+
+if(APPLE)
+    # link AppKit for NSApp dock icon and other cocoa apis
+    target_link_libraries(kicad-xyce-plugin-tests PRIVATE "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController")
+    target_link_options(kicad-xyce-plugin-tests PRIVATE "-Wl,-no_warn_duplicate_libraries")
 endif()
 
 # enable more warnings in tests for better

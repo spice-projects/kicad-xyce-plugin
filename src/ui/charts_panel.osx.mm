@@ -6,10 +6,13 @@
 #include <imgui_impl_osx.h>
 #include <imgui_impl_metal.h>
 #include <implot.h>
+#include <spdlog/spdlog.h>
 #include <wx/wx.h>
 
 #include "charts_panel.h"
 #include "apple_metal.h"
+
+static constexpr const char* FONT_PATH = KICAD_XYCE_FONTS_DIR "/Inter-Regular.ttf"; 
 
 void ChartsPanel::initialize() {
     // check flag
@@ -26,9 +29,10 @@ void ChartsPanel::initialize() {
     metal_layer.device = (__bridge id<MTLDevice>)gpu.device;
     metal_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
     metal_layer.framebufferOnly = YES;
-    // scale
-    CGFloat scale = [[NSScreen mainScreen] backingScaleFactor];
-    metal_layer.contentsScale = scale;
+    // screen
+    NSScreen* screen = [m_charts_panel window].screen ?: [NSScreen mainScreen];
+    // scale factor for retina displays
+    CGFloat scale = [screen backingScaleFactor];
     // set metal layer for panel
     [m_charts_panel setWantsLayer:YES];
     [m_charts_panel setLayer:metal_layer];
@@ -36,18 +40,32 @@ void ChartsPanel::initialize() {
     wxSize sz = GetClientSize();
     metal_layer.bounds = CGRectMake(0, 0, sz.x, sz.y);
     metal_layer.drawableSize = CGSizeMake(sz.x * scale, sz.y * scale);
+    metal_layer.contentsScale = scale;
     // create imgui isolated context for this panel
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImPlot::CreateContext();
     // style
     ImGui::StyleColorsClassic();
+    // ImGui configuration
+    ImGuiIO& io = ImGui::GetIO();
+    // font base size
+    const float base_size = 12.0f;
+    // add font with scaling for retina displays
+    io.Fonts->AddFontFromFileTTF(FONT_PATH, base_size * scale);
+    io.FontGlobalScale = 1.0f / (float)scale;
+    // update style
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.AntiAliasedLines = true;
+    style.AntiAliasedLinesUseTex = true;
     // bind platform specific hooks
     ImGui_ImplOSX_Init(m_charts_panel);
     ImGui_ImplMetal_Init((__bridge id<MTLDevice>)gpu.device);
     // update class fields
     m_metal_layer = metal_layer;
     m_command_queue = gpu.command_queue;
+    // log information
+    spdlog::debug("Display [{}]: initialized Metal layer bounds: {}x{} (scale: {})", [[screen localizedName] UTF8String], sz.x, sz.y, scale);
 }
 
 void ChartsPanel::terminate() {
@@ -89,10 +107,16 @@ void ChartsPanel::render_frame(const std::function<void()>& renderer) {
         // create metal frame
         ImGui_ImplMetal_NewFrame(render_pass_descriptor);
         ImGui_ImplOSX_NewFrame(m_charts_panel);
-        // start frame
-        ImGui::NewFrame();
+        // scale used in the metal layer for retina displays
+        auto scale = [metal_layer contentsScale];
         // position and size
         wxSize sz = GetClientSize();
+        // ImGui io configuration
+        ImGuiIO& io = ImGui::GetIO();
+        io.DisplaySize = ImVec2((float)sz.x, (float)sz.y);
+        io.DisplayFramebufferScale = ImVec2((float)scale, (float)scale);
+        // start frame
+        ImGui::NewFrame();
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2((float)sz.x, (float)sz.y));
         // render frame content
@@ -113,8 +137,40 @@ void ChartsPanel::update_bounds() {
     auto metal_layer = (__bridge CAMetalLayer *)m_metal_layer;
     // current panel size
     wxSize sz = GetClientSize();
-    CGFloat scale = [[NSScreen mainScreen] backingScaleFactor];
+    // get current screen
+    NSScreen* screen = [m_charts_panel window].screen ?: [NSScreen mainScreen];
+    // scale factor for retina displays
+    CGFloat scale = [screen backingScaleFactor];
     // update layer
     metal_layer.bounds = CGRectMake(0, 0, sz.x, sz.y);
     metal_layer.drawableSize = CGSizeMake(sz.x * scale, sz.y * scale);
+    metal_layer.contentsScale = scale;
+}
+
+void ChartsPanel::display_changed() {
+    // // check flag
+    // if (!m_charts_panel)
+    //     return;    
+    // // get static reference to MetalResourceManager
+    // auto resource_manager = MetalResourceManager::get_instance();
+    // // gpu for current view (associated to current display)
+    // auto gpu = resource_manager->get_gpu(m_charts_panel);
+    // // create metal layer for panel
+    // auto metal_layer = [CAMetalLayer layer];
+    // metal_layer.device = (__bridge id<MTLDevice>)gpu.device;
+    // metal_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    // metal_layer.framebufferOnly = YES;
+    // // screen
+    // NSScreen* screen = [m_charts_panel window].screen ?: [NSScreen mainScreen];
+    // // scale factor for retina displays
+    // CGFloat scale = [screen backingScaleFactor];
+    // // set metal layer for panel
+    // [m_charts_panel setWantsLayer:YES];
+    // [m_charts_panel setLayer:metal_layer];
+
+    // // update class fields
+    // m_metal_layer = metal_layer;
+    // m_command_queue = gpu.command_queue;
+    // // log information
+    // spdlog::debug("Display [{}]: initialized Metal layer bounds: {}x{} (scale: {})", [[screen localizedName] UTF8String], sz.x, sz.y, scale);
 }
