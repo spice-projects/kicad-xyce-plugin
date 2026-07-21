@@ -96,7 +96,7 @@ private:
     double m_abscissa_right_value = 1.0;
     size_t m_next_color_index = 0;
     std::tuple<double, double, double, double> m_zoom_window = {-1, -1, -1, -1};
-    std::array<AxisInformation, 3> m_axes = {{{ImAxis_Y1, 0.0, 1.0}, {ImAxis_Y2, 0.0, 1.0}, {ImAxis_Y3, 0.0, 1.0}}};
+    std::array<AxisInformation, 3> m_axes = {{{ImAxis_Y1, 0.0, 1.0, "", 0, 0.0, 1.0}, {ImAxis_Y2, 0.0, 1.0, "", 0, 0.0, 1.0}, {ImAxis_Y3, 0.0, 1.0, "", 0, 0.0, 1.0}}};
 
     std::tuple<bool, View<double>, View<double>, double, double> plot_step(Expression<double>* ordinate_variant, size_t step, double min_value, double max_value, double x_right_ratio, double x_left_ratio) const;
 

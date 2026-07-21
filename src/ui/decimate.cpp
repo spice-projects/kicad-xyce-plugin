@@ -114,10 +114,10 @@ static std::vector<size_t> min_max_indices(const std::span<const double>& values
     return indices;
 }
 
-
 // extend min-max by also keeping the first and last sample of every bucket
 // (4 points per bucket).  mirrors the Python _m4_indices() implementation.
 static std::vector<size_t> m4_indices(const std::span<const double>& values, size_t target) {
+    // capture the length of the input vector
     size_t length = values.size();
     // trivial small-target cases
     if (target <= 1)
@@ -131,9 +131,12 @@ static std::vector<size_t> m4_indices(const std::span<const double>& values, siz
     // collect first, last, min, max indices for each bucket
     std::vector<size_t> indices;
     indices.reserve(number_of_buckets * 4);
+    // loop over buckets
     for (size_t b = 0; b < number_of_buckets; ++b) {
+        // start of the bucket in the original vector
         size_t bucket_start = b * points_per_bucket;
         auto   bucket       = values.subspan(bucket_start, points_per_bucket);
+        // relative positions of the first, last, min, and max within the bucket
         size_t first_rel    = 0;
         size_t last_rel     = points_per_bucket - 1;
         size_t min_rel      = static_cast<size_t>(std::min_element(bucket.begin(), bucket.end()) - bucket.begin());
@@ -149,6 +152,7 @@ static std::vector<size_t> m4_indices(const std::span<const double>& values, siz
     indices.erase(std::unique(indices.begin(), indices.end()), indices.end());
     // ensure we do not exceed the target after deduplication
     trim_indices(indices, target);
+    // exit
     return indices;
 }
 

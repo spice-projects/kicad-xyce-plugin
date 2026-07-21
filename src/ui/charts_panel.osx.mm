@@ -30,7 +30,7 @@ void ChartsPanel::initialize() {
     metal_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
     metal_layer.framebufferOnly = YES;
     // screen
-    NSScreen* screen = [m_charts_panel window].screen ?: [NSScreen mainScreen];
+    NSScreen* screen = [m_charts_panel window].screen ? [m_charts_panel window].screen : [NSScreen mainScreen];
     // scale factor for retina displays
     CGFloat scale = [screen backingScaleFactor];
     // set metal layer for panel
@@ -138,7 +138,7 @@ void ChartsPanel::update_bounds() {
     // current panel size
     wxSize sz = GetClientSize();
     // get current screen
-    NSScreen* screen = [m_charts_panel window].screen ?: [NSScreen mainScreen];
+    NSScreen* screen = [m_charts_panel window].screen ? [m_charts_panel window].screen : [NSScreen mainScreen];
     // scale factor for retina displays
     CGFloat scale = [screen backingScaleFactor];
     // update layer

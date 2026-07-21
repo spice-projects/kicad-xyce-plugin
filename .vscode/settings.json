@@ -1,4 +1,15 @@
 {
   "C_Cpp.default.cppStandard": "c++23",
-  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/.build-debug/compile_commands.json",
+  "C_Cpp.default.compilerPath": "/usr/bin/clang++",
+  "C_Cpp.default.intelliSenseMode": "macos-clang-x64",
+  "C_Cpp.default.cStandard": "c17",
+  "C_Cpp.errorSquiggles": "enabled",
+  "C_Cpp.intelliSenseEngine": "default",
+  "cmake.useCMakePresets": "always",
+  "cmake.buildDirectory": "${workspaceFolder}/.build-debug",
+  "cmake.configureOnOpen": false,
+  "cmake.configureSettings": {
+    "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+  }
 }

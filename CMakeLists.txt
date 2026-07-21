@@ -57,6 +57,8 @@ add_executable(kicad-xyce-plugin ${SOURCE_FILES})
 
 target_compile_definitions(kicad-xyce-plugin PRIVATE KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
 
+target_compile_options(kicad-xyce-plugin PRIVATE -Wall -Wextra -Wpedantic)
+
 target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base imgui::imgui implot::implot spdlog::spdlog)
 
 if(APPLE)

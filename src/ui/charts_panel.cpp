@@ -116,7 +116,7 @@ void ChartsPanel::on_mouse_button(wxMouseEvent& event) {
     // check the user released the left button
     if (event.LeftUp()) {
         // check we are dragging inside a plot
-        if (const auto [x1, y1, x2, y2] = m_zoom_selection; m_selected_chart && x1 >= 0 and y1 >= 0 && x2 >= 0 && y2 >= 0) {
+        if (const auto [x1, y1, x2, y2] = m_zoom_selection; m_selected_chart && x1 >= 0 and y1 >= 0 && x2 >= 0 && y2 >= 0 && std::abs(x2 - x1) > 10 && std::abs(y2 - y1) > 10) {
             // plot area
             auto [x_min, y_min, x_max, y_max] = m_selected_chart->get_plot_rect();
             // width & height
@@ -199,7 +199,17 @@ void ChartsPanel::on_context_menu(const wxContextMenuEvent& event) {
     if (m_charts.empty())
         return;
     // mouse position where the user right-clicked
-    const wxPoint mousePosition = event.GetPosition();
+    wxPoint mousePosition = event.GetPosition();
+    if (mousePosition == wxDefaultPosition) {
+        // current panel size
+        wxSize panel_size = GetSize();
+        // use center of the panel
+        mousePosition = wxPoint(panel_size.x / 2, panel_size.y / 2);
+    }
+    else {
+        // convert screen coordinates from the event to local window coordinates
+        mousePosition = ScreenToClient(mousePosition);
+    }
     // available area in the panel
     const auto& clientRect = GetClientRect();
     // selected chart
@@ -209,7 +219,7 @@ void ChartsPanel::on_context_menu(const wxContextMenuEvent& event) {
         m_selected_chart = nullptr;
         // exit
         return;
-    }
+    }        
     // chart at index
     m_selected_chart = m_charts[m_selected_chart_index].get();
     // log information
@@ -223,11 +233,21 @@ void ChartsPanel::on_context_menu(const wxContextMenuEvent& event) {
     contextMenu.AppendSeparator();
     contextMenu.Append(ID_CONTEXT_OPTION_2, "Add/Remove Plots");
     contextMenu.Append(ID_CONTEXT_DELETE_ALL_PLOTS, "Delete All Plots");
-    contextMenu.AppendSeparator();
-    contextMenu.Append(ID_CONTEXT_OPTION_2, "Calculate FFT on selected plots");
-    contextMenu.Append(ID_CONTEXT_OPTION_2, "Open Xyce FFT Calculation");
-    contextMenu.Append(ID_CONTEXT_OPTION_2, "Step Tool...");
-    contextMenu.Append(ID_CONTEXT_OPTION_2, "Smith Chart...");
+    // tools block, conditional on one of them being available
+    if (m_expression_manager->abscissa().unit() == "s" || m_step_information->length() > 1) {
+        // separator
+        contextMenu.AppendSeparator();
+        // FFT
+        if (m_expression_manager->abscissa().unit() == "s") {
+            // calculate FFT always available
+            contextMenu.Append(ID_CONTEXT_OPTION_2, "Calculate FFT on selected plots");
+            contextMenu.Append(ID_CONTEXT_OPTION_2, "Open Xyce FFT Calculation");
+        }
+        // append step tool only on multiple steps (otherwise it is not useful)
+        if (m_step_information->length() > 1)
+            contextMenu.Append(ID_CONTEXT_OPTION_2, "Step Tool...");
+        contextMenu.Append(ID_CONTEXT_OPTION_2, "Smith Chart...");
+    }
     contextMenu.AppendSeparator();
     contextMenu.Append(ID_CONTEXT_ADD_CHART, "Add Chart");
     contextMenu.Append(ID_CONTEXT_DELETE_CHART, "Delete Chart");
