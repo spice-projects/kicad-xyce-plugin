@@ -183,7 +183,7 @@ void ChartsPanel::on_paint(wxPaintEvent&) {
 
 void ChartsPanel::on_size(wxSizeEvent& event) {
     // check we have initialized
-    if (m_charts_panel && m_metal_layer) {
+    if (m_charts_panel) {
         // update bounds in the native layer
         update_bounds();
         // refresh charts

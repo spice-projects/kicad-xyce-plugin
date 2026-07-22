@@ -44,7 +44,7 @@ if(APPLE)
     file(GLOB_RECURSE PLATFORM_SOURCES "src/*.osx.mm" "src/ui/*.osx.mm")
     # combine remaining cpp sources with .mm sources
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
-elseif (WINDOWS)
+elseif (WIN32)
     # gather win32 sources
     file(GLOB_RECURSE PLATFORM_SOURCES "src/*.win32.c++" "src/ui/*.win32.c++")
     # combine remaining cpp sources with .mm sources
