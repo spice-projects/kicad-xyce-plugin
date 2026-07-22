@@ -30,7 +30,7 @@ jobs:
     steps:
       - name: Checkout repository
         if: ${{ matrix.build_enabled }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Ninja
         if: ${{ matrix.build_enabled }}
@@ -38,7 +38,7 @@ jobs:
 
       - name: Cache vcpkg dependencies and binary archives
         if: ${{ matrix.build_enabled }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/vcpkg/archives

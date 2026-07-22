@@ -65,7 +65,7 @@ TEST_F(AddPlotDialogTest, constructor_populates_list_box_with_filtered_expressio
     std::vector<std::pair<size_t, size_t>> slices = {{0, 2}, {2, 4}};
     ExpressionManager manager(expressions, slices);
     // act
-    const AddPlotDialog dialog(nullptr, manager, {}, true, [](const AnyExpression& expr) { return std::visit([](const auto& e) { return e.variable_type() == "voltage"; }, expr); });
+    const AddPlotDialog dialog(nullptr, &manager, {}, true, [](const AnyExpression& expr) { return std::visit([](const auto& e) { return e.variable_type() == "voltage"; }, expr); });
     wxListBox* list_box = get_list_box(dialog);
     // assert
     ASSERT_NE(list_box, nullptr);
@@ -82,7 +82,7 @@ TEST_F(AddPlotDialogTest, constructor_preselects_specified_expressions) {
     ExpressionManager manager(expressions, slices);
     std::vector<AnyExpression*> selected = {manager.evaluate("V(out)", "V(out)")};
     // act
-    const AddPlotDialog dialog(nullptr, manager, selected);
+    const AddPlotDialog dialog(nullptr, &manager, selected);
     wxListBox* list_box = get_list_box(dialog);
     // assert
     ASSERT_NE(list_box, nullptr);
@@ -96,7 +96,7 @@ TEST_F(AddPlotDialogTest, add_custom_adds_and_selects_valid_expression) {
     expressions.emplace_back(make_real_expression("V(out)", {1.0}, "V", "voltage"));
     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
     ExpressionManager manager(expressions, slices);
-    AddPlotDialog dialog(nullptr, manager, {});
+    AddPlotDialog dialog(nullptr, &manager, {});
     // act
     simulate_add_custom(dialog, "V(out)");
     wxListBox* list_box = get_list_box(dialog);
@@ -114,7 +114,7 @@ TEST_F(AddPlotDialogTest, add_custom_sets_error_for_invalid_expression) {
     std::vector<AnyExpression> expressions;
     std::vector<std::pair<size_t, size_t>> slices;
     ExpressionManager manager(expressions, slices);
-    AddPlotDialog dialog(nullptr, manager, {});
+    AddPlotDialog dialog(nullptr, &manager, {});
     // act
     simulate_add_custom(dialog, "invalid_expr");
     wxListBox* list_box = get_list_box(dialog);
@@ -131,7 +131,7 @@ TEST_F(AddPlotDialogTest, ok_button_updates_selected_expressions) {
     expressions.emplace_back(make_real_expression("I(R1)", {0.1}, "A", "current"));
     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}, {1, 2}};
     ExpressionManager manager(expressions, slices);
-    AddPlotDialog dialog(nullptr, manager, {});
+    AddPlotDialog dialog(nullptr, &manager, {});
     wxListBox* list_box = get_list_box(dialog);
     // act
     list_box->Select(1);

@@ -71,6 +71,8 @@ private:
 
     void on_menu_zoom_abscissa_extent(wxCommandEvent&);
 
+    void on_menu_add_remove_plots(wxCommandEvent&);
+
     void on_menu_delete_all_plots(wxCommandEvent&);
 
     void on_menu_add_chart(wxCommandEvent&);

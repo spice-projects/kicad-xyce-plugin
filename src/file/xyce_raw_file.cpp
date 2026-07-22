@@ -1,18 +1,18 @@
 #include <algorithm>
-#include <chrono>
-#include <cmath>
 #include <complex>
 #include <fcntl.h>
 #include <optional>
 #include <regex>
-#include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
+#include <spdlog/spdlog.h>
+
+#include "../expression/expression.h"
+#include "../step_information.h"
 #include "xyce_output_file.h"
 #include "xyce_raw_file.h"
-#include "../step_information.h"
-#include "../expression/expression.h"
 
 namespace
 {
@@ -82,12 +82,16 @@ namespace
             std::string line(data + pos, newline - pos);
             // trim whitespace
             trim(line);
+            // log information
+            spdlog::debug(">> {}", line);
             // advance position
             pos = newline + 1;
             // check we are processing variables
             if (in_variables) {
                 // check for end of variables
                 if (line == "Binary:" || line == "Values:") {
+                    // log transition
+                    spdlog::debug(">> ...");
                     // record offset
                     result.data_offset = pos;
                     // record ascii status
@@ -239,6 +243,8 @@ namespace
             // get tokens
             std::vector<std::string> tokens = get_tokens(line);
             if (tokens.size() != tokens_per_line) {
+                // log information
+                spdlog::warn("Invalid Xyce RAW file, expected {} tokens per line, got {} tokens => {}", tokens_per_line, tokens.size(), line);
                 // error return
                 return false;
             }
@@ -246,6 +252,8 @@ namespace
                 // parse index
                 const size_t index = std::stoull(tokens[0]);
                 if (index != expected_index) {
+                    // log information
+                    spdlog::warn("Invalid Xyce RAW file, expected index {}, got {} => {}", expected_index, index, line);
                     // error return
                     return false;
                 }
@@ -257,6 +265,8 @@ namespace
                 expected_index++;
             }
             catch (...) {
+                // log information
+                spdlog::warn("Invalid Xyce RAW file, failed to parse line => {}", line);
                 // error return
                 return false;
             }
@@ -385,12 +395,14 @@ namespace
         std::variant<std::vector<View<double>>, std::vector<View<std::complex<double>>>> steps;
         VariableType variable_type;
     };
-}
+} // namespace
 
 std::optional<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path& filename) {
     // check if file exists
     if (!std::filesystem::exists(filename))
         return {};
+    // log information
+    spdlog::info("Parsing Xyce RAW file: {}", filename.string());
     // open the file
     int fd = open(filename.c_str(), O_RDONLY);
     if (fd < 0)

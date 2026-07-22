@@ -13,7 +13,7 @@
 class AddPlotDialog : public wxDialog
 {
 public:
-    AddPlotDialog(wxWindow* parent, ExpressionManager& expressions_manager, const std::vector<AnyExpression*>& selected_expressions, bool allow_custom_expressions = true, std::function<bool(const AnyExpression&)> expression_filter = [](const AnyExpression&) { return true; });
+    AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_manager, const std::vector<AnyExpression*>& selected_expressions, bool allow_custom_expressions = true, std::function<bool(const AnyExpression&)> expression_filter = [](const AnyExpression&) { return true; });
 
     [[nodiscard]] std::vector<AnyExpression*> selected_expressions() const;
 
@@ -24,7 +24,7 @@ private:
 
     void on_ok(wxCommandEvent& event);
 
-    ExpressionManager& m_expressions_manager;
+    ExpressionManager* m_expressions_manager;
     std::vector<AnyExpression*> m_selected_expressions;
     bool m_allow_custom_expressions;
     std::function<bool(const AnyExpression&)> m_expression_filter;

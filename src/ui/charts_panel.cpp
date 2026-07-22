@@ -3,6 +3,7 @@
 #include <wx/window.h>
 #include <wx/wx.h>
 
+#include "add_plot_dialog.h"
 #include "charts_panel.h"
 
 enum
@@ -12,12 +13,14 @@ enum
     ID_CONTEXT_ZOOM_ABSCISSA_EXTENT,
     ID_CONTEXT_OPTION_2,
 
+    ID_CONTEXT_ADD_REMOVE_PLOTS,
     ID_CONTEXT_DELETE_ALL_PLOTS,
     ID_CONTEXT_ADD_CHART,
     ID_CONTEXT_DELETE_CHART
 };
 
-ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) : wxPanel(parent, id, wxDefaultPosition, wxDefaultSize, wxNO_BORDER | wxFULL_REPAINT_ON_RESIZE) {
+ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
+    wxPanel(parent, id, wxDefaultPosition, wxDefaultSize, wxNO_BORDER | wxFULL_REPAINT_ON_RESIZE) {
     // mouse events
     Bind(wxEVT_MOTION, &ChartsPanel::on_mouse_move, this);
     // Bind(wxEVT_LEFT_DCLICK, &ChartsPanel::on_mouse_button, this);
@@ -33,6 +36,7 @@ ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) : wxPanel(parent
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_zoom_to_fit, this, ID_CONTEXT_ZOOM_TO_FIT);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_autorange, this, ID_CONTEXT_AUTORANGE);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_zoom_abscissa_extent, this, ID_CONTEXT_ZOOM_ABSCISSA_EXTENT);
+    Bind(wxEVT_MENU, &ChartsPanel::on_menu_add_remove_plots, this, ID_CONTEXT_ADD_REMOVE_PLOTS);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_delete_all_plots, this, ID_CONTEXT_DELETE_ALL_PLOTS);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_add_chart, this, ID_CONTEXT_ADD_CHART);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_delete_chart, this, ID_CONTEXT_DELETE_CHART);
@@ -230,7 +234,7 @@ void ChartsPanel::on_context_menu(const wxContextMenuEvent& event) {
     contextMenu.Append(ID_CONTEXT_AUTORANGE, "Autorange");
     contextMenu.Append(ID_CONTEXT_ZOOM_ABSCISSA_EXTENT, "Zoom Abscissa Extent");
     contextMenu.AppendSeparator();
-    contextMenu.Append(ID_CONTEXT_OPTION_2, "Add/Remove Plots");
+    contextMenu.Append(ID_CONTEXT_ADD_REMOVE_PLOTS, "Add/Remove Plots");
     contextMenu.Append(ID_CONTEXT_DELETE_ALL_PLOTS, "Delete All Plots");
     // tools block, conditional on one of them being available
     if (m_expression_manager->abscissa().unit() == "s" || m_step_information->length() > 1) {
@@ -305,6 +309,25 @@ void ChartsPanel::on_menu_zoom_abscissa_extent(wxCommandEvent&) {
         for (const auto& chart : m_charts) {
             // reset zoom window
             chart->reset_zoom_window(true, false);
+        }
+        // reset selected chart
+        m_selected_chart = nullptr;
+        // refresh
+        refresh_charts();
+    }
+}
+
+void ChartsPanel::on_menu_add_remove_plots(wxCommandEvent&) {
+    // check we have a selected chart
+    if (m_selected_chart != nullptr) {
+        // log information
+        spdlog::debug("User requested add/remove plots on chart at index: {}", m_selected_chart_index);
+        // create dialog
+        AddPlotDialog dialog(this, m_expression_manager, {}, false, [](auto&) { return true; });
+        // center on screen
+        dialog.Centre(wxCENTER_ON_SCREEN);
+        // show and wait for ok
+        if (dialog.ShowModal() == wxID_OK) {
         }
         // reset selected chart
         m_selected_chart = nullptr;

@@ -8,16 +8,14 @@
 
 #include "add_plot_dialog.h"
 
-AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager& expressions_manager, const std::vector<AnyExpression*>& selected_expressions, bool allow_custom_expressions, std::function<bool(const AnyExpression&)> expression_filter) :
-    wxDialog(parent, wxID_ANY, "Add Plot", wxDefaultPosition, wxSize(560, 480)),
-    // initialize fields
-    m_expressions_manager(expressions_manager), m_selected_expressions(selected_expressions), m_allow_custom_expressions(allow_custom_expressions), m_expression_filter(std::move(expression_filter)), m_list_box(nullptr), m_custom_input(nullptr), m_add_button(nullptr), m_error_label(nullptr) {
+AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_manager, const std::vector<AnyExpression*>& selected_expressions, bool allow_custom_expressions, std::function<bool(const AnyExpression&)> expression_filter) :
+    wxDialog(parent, wxID_ANY, "Add Plot", wxDefaultPosition, wxSize(560, 480)), m_expressions_manager(expressions_manager), m_selected_expressions(selected_expressions), m_allow_custom_expressions(allow_custom_expressions), m_expression_filter(std::move(expression_filter)), m_list_box(nullptr), m_custom_input(nullptr), m_add_button(nullptr), m_error_label(nullptr) {
     // create top-level sizer
     auto main_sizer = new wxBoxSizer(wxVERTICAL);
     // create list box with multi-selection enabled
     m_list_box = new wxListBox(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, nullptr, wxLB_MULTIPLE);
     // loop through expressions in manager
-    for (const auto& expression : m_expressions_manager.expressions()) {
+    for (const auto& expression : m_expressions_manager->expressions()) {
         // apply filter to expression
         if (m_expression_filter(expression)) {
             // get name
@@ -34,7 +32,7 @@ AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager& expressions_ma
             // append to list box
             m_list_box->Append(display_str);
             // track displayed expression pointer
-            m_displayed_expressions.push_back(m_expressions_manager.evaluate(name, name));
+            m_displayed_expressions.push_back(m_expressions_manager->evaluate(name, name));
         }
     }
     // select items that are in the initial selected_expressions list
@@ -105,7 +103,7 @@ void AddPlotDialog::on_add_custom(wxCommandEvent&) {
     // convert to standard string
     std::string text = input_wx.ToStdString();
     // evaluate expression using manager
-    AnyExpression* expr = m_expressions_manager.evaluate(text, text);
+    AnyExpression* expr = m_expressions_manager->evaluate(text, text);
     // check if evaluation failed
     if (!expr) {
         // display error message
