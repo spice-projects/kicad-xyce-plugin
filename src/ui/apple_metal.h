@@ -3,7 +3,8 @@
 #include <mutex>
 #include <unordered_map>
 
-struct MetalGPUHandle {
+struct MetalGPUHandle
+{
     void* device = nullptr;
     void* command_queue = nullptr;
 };
@@ -12,7 +13,7 @@ namespace MTL
 {
     class Device;
     class CommandQueue;
-}
+} // namespace MTL
 
 class MetalResourceManager
 {

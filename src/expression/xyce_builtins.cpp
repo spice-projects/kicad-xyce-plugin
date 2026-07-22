@@ -267,9 +267,7 @@ namespace
     }
 
     // Xyce log maps to base-10 log
-    XyceValue builtin_log(const std::vector<XyceValue>& args) {
-        return builtin_log10(args);
-    }
+    XyceValue builtin_log(const std::vector<XyceValue>& args) { return builtin_log10(args); }
 
     // natural logarithm builtin
     XyceValue builtin_ln(const std::vector<XyceValue>& args) {
@@ -436,9 +434,7 @@ namespace
     }
 
     // arctangent alias
-    XyceValue builtin_arctan(const std::vector<XyceValue>& args) {
-        return builtin_atan(args);
-    }
+    XyceValue builtin_arctan(const std::vector<XyceValue>& args) { return builtin_atan(args); }
 
     // atan2 builtin
     XyceValue builtin_atan2(const std::vector<XyceValue>& args) {
@@ -680,97 +676,20 @@ namespace
     }
 
     // derivative builtin placeholder
-    XyceValue builtin_ddt(const std::vector<XyceValue>&) {
-        throw std::logic_error("DDT() requires time-domain simulation context and cannot be evaluated in post-processing");
-    }
+    XyceValue builtin_ddt(const std::vector<XyceValue>&) { throw std::logic_error("DDT() requires time-domain simulation context and cannot be evaluated in post-processing"); }
 
     // integral builtin placeholder
-    XyceValue builtin_sdt(const std::vector<XyceValue>&) {
-        throw std::logic_error("SDT() requires time-domain simulation context and cannot be evaluated in post-processing");
-    }
-}
+    XyceValue builtin_sdt(const std::vector<XyceValue>&) { throw std::logic_error("SDT() requires time-domain simulation context and cannot be evaluated in post-processing"); }
+} // namespace
 
 const std::unordered_map<std::string, double> NUMBER_SUFFIXES{
-    {"T", 1e12},
-    {"G", 1e9},
-    {"MEG", 1e6},
-    {"K", 1e3},
-    {"M", 1e-3},
-    {"U", 1e-6},
-    {"N", 1e-9},
-    {"P", 1e-12},
-    {"F", 1e-15},
-    {"MIL", 25.4e-6},
+    {"T", 1e12}, {"G", 1e9}, {"MEG", 1e6}, {"K", 1e3}, {"M", 1e-3}, {"U", 1e-6}, {"N", 1e-9}, {"P", 1e-12}, {"F", 1e-15}, {"MIL", 25.4e-6},
 };
 
 const std::unordered_map<std::string, XyceValue> BUILTIN_CONSTANTS{
-    {"e", std::exp(1.0)},
-    {"f", 1e-15},
-    {"g", 1e9},
-    {"j", std::complex<double>(0.0, 1.0)},
-    {"k", 1e3},
-    {"m", 1e-3},
-    {"meg", 1e6},
-    {"mho", 1.0},
-    {"mil", 25.4e-6},
-    {"n", 1e-9},
-    {"p", 1e-12},
-    {"pi", std::acos(-1.0)},
-    {"s", 1.0},
-    {"t", 1e12},
-    {"u", 1e-6},
+    {"e", std::exp(1.0)}, {"f", 1e-15}, {"g", 1e9}, {"j", std::complex<double>(0.0, 1.0)}, {"k", 1e3}, {"m", 1e-3}, {"meg", 1e6}, {"mho", 1.0}, {"mil", 25.4e-6}, {"n", 1e-9}, {"p", 1e-12}, {"pi", std::acos(-1.0)}, {"s", 1.0}, {"t", 1e12}, {"u", 1e-6},
 };
 
 const std::unordered_map<std::string, BuiltinCallable> BUILTIN_FUNCTIONS{
-    {"abs", builtin_abs},
-    {"acos", builtin_acos},
-    {"acosh", builtin_acosh},
-    {"arctan", builtin_arctan},
-    {"asin", builtin_asin},
-    {"asinh", builtin_asinh},
-    {"atan", builtin_atan},
-    {"atanh", builtin_atanh},
-    {"atan2", builtin_atan2},
-    {"ceil", builtin_ceil},
-    {"conj", builtin_conj},
-    {"cos", builtin_cos},
-    {"cosh", builtin_cosh},
-    {"db", builtin_db},
-    {"ddt", builtin_ddt},
-    {"exp", builtin_exp},
-    {"floor", builtin_floor},
-    {"fmod", builtin_fmod},
-    {"if", builtin_if},
-    {"img", builtin_imag},
-    {"imag", builtin_imag},
-    {"int", builtin_int},
-    {"limit", builtin_limit},
-    {"ln", builtin_ln},
-    {"log", builtin_log},
-    {"log10", builtin_log10},
-    {"m", builtin_abs},
-    {"mag", builtin_abs},
-    {"max", builtin_max},
-    {"min", builtin_min},
-    {"nint", builtin_nint},
-    {"ph", builtin_angle},
-    {"phase", builtin_angle},
-    {"pow", builtin_pow},
-    {"pwr", builtin_pwr},
-    {"pwrs", builtin_pwrs},
-    {"r", builtin_real},
-    {"re", builtin_real},
-    {"real", builtin_real},
-    {"round", builtin_round},
-    {"sdt", builtin_sdt},
-    {"sgn", builtin_sgn},
-    {"sign", builtin_sign},
-    {"sin", builtin_sin},
-    {"sinh", builtin_sinh},
-    {"sqr", builtin_sqr},
-    {"sqrt", builtin_sqrt},
-    {"stp", builtin_stp},
-    {"tan", builtin_tan},
-    {"tanh", builtin_tanh},
-    {"uramp", builtin_uramp},
+    {"abs", builtin_abs}, {"acos", builtin_acos}, {"acosh", builtin_acosh}, {"arctan", builtin_arctan}, {"asin", builtin_asin}, {"asinh", builtin_asinh}, {"atan", builtin_atan}, {"atanh", builtin_atanh}, {"atan2", builtin_atan2}, {"ceil", builtin_ceil}, {"conj", builtin_conj}, {"cos", builtin_cos}, {"cosh", builtin_cosh}, {"db", builtin_db}, {"ddt", builtin_ddt}, {"exp", builtin_exp}, {"floor", builtin_floor}, {"fmod", builtin_fmod}, {"if", builtin_if}, {"img", builtin_imag}, {"imag", builtin_imag}, {"int", builtin_int}, {"limit", builtin_limit}, {"ln", builtin_ln}, {"log", builtin_log}, {"log10", builtin_log10}, {"m", builtin_abs}, {"mag", builtin_abs}, {"max", builtin_max}, {"min", builtin_min}, {"nint", builtin_nint}, {"ph", builtin_angle}, {"phase", builtin_angle}, {"pow", builtin_pow}, {"pwr", builtin_pwr}, {"pwrs", builtin_pwrs}, {"r", builtin_real}, {"re", builtin_real}, {"real", builtin_real}, {"round", builtin_round}, {"sdt", builtin_sdt}, {"sgn", builtin_sgn}, {"sign", builtin_sign}, {"sin", builtin_sin}, {"sinh", builtin_sinh}, {"sqr", builtin_sqr}, {"sqrt", builtin_sqrt}, {"stp", builtin_stp}, {"tan", builtin_tan}, {"tanh", builtin_tanh}, {"uramp", builtin_uramp},
 };

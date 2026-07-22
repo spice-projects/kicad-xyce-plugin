@@ -12,6 +12,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # disable compiler specific things
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# generate compile_commands.json for clangd
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 if(APPLE)
     # enable objective-c++ language for .mm files
     enable_language(OBJCXX)
@@ -67,7 +70,7 @@ if(APPLE)
     target_link_options(kicad-xyce-plugin PRIVATE "-Wl,-no_warn_duplicate_libraries")
 endif()
 
-# if (BUILD_TESTS)
-#     enable_testing()
-#     add_subdirectory(tests)
-# endif()
+if (BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

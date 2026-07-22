@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <complex>
 #include <deque>
 #include <iterator>
 #include <optional>
@@ -7,20 +6,15 @@
 
 #include "expression_manager.h"
 
-ExpressionManager::ExpressionManager(std::vector<AnyExpression>& expressions, std::vector<std::pair<size_t, size_t>>& step_slices)
-    : m_expressions(std::make_move_iterator(expressions.begin()), std::make_move_iterator(expressions.end())), m_step_slices(std::move(step_slices)) {
+ExpressionManager::ExpressionManager(std::vector<AnyExpression>& expressions, std::vector<std::pair<size_t, size_t>>& step_slices) : m_expressions(std::make_move_iterator(expressions.begin()), std::make_move_iterator(expressions.end())), m_step_slices(std::move(step_slices)) {
     // pre-process expressions
     for (size_t idx = 0; idx < m_expressions.size(); ++idx)
         std::visit([this, &idx](auto&& expression) { this->m_context[casefold(expression.name())] = idx; }, m_expressions[idx]);
 }
 
-Expression<double>& ExpressionManager::abscissa() {
-    return std::get<Expression<double>>(m_expressions[0]);
-}
+Expression<double>& ExpressionManager::abscissa() { return std::get<Expression<double>>(m_expressions[0]); }
 
-const std::deque<AnyExpression>& ExpressionManager::expressions() const {
-    return m_expressions;
-}
+const std::deque<AnyExpression>& ExpressionManager::expressions() const { return m_expressions; }
 
 std::vector<std::string> ExpressionManager::expression_names() const {
     // create list
@@ -34,9 +28,7 @@ std::vector<std::string> ExpressionManager::expression_names() const {
     return names;
 }
 
-const std::vector<std::pair<size_t, size_t>>& ExpressionManager::step_slices() const {
-    return m_step_slices;
-}
+const std::vector<std::pair<size_t, size_t>>& ExpressionManager::step_slices() const { return m_step_slices; }
 
 AnyExpression* ExpressionManager::evaluate(const std::string& expression, const std::optional<std::string>& name) {
     // build search key

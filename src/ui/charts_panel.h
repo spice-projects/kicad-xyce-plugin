@@ -5,9 +5,9 @@
 
 #include "chart.h"
 
-#include "../step_information.h"
 #include "../expression/expression.h"
 #include "../expression/expression_manager.h"
+#include "../step_information.h"
 
 class ChartsPanel : public wxPanel
 {
@@ -37,7 +37,7 @@ private:
     size_t m_decimate_target = -1;
 
     std::vector<std::unique_ptr<Chart>> m_charts;
-    Chart *m_selected_chart = nullptr;
+    Chart* m_selected_chart = nullptr;
     size_t m_selected_chart_index = 0;
     std::tuple<float, float, float, float> m_zoom_selection = {-1, -1, -1, -1};
     std::tuple<double, double, double, double> m_zoom_window = {-1, -1, -1, -1};

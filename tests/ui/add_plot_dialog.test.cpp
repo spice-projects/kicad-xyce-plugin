@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <span>
 #include <string>
 #include <utility>
@@ -7,8 +6,8 @@
 #include <gtest/gtest.h>
 #include <wx/app.h>
 #include <wx/listbox.h>
-#include <wx/textctrl.h>
 #include <wx/stattext.h>
+#include <wx/textctrl.h>
 
 #include "ui/add_plot_dialog.h"
 
@@ -66,9 +65,7 @@ TEST_F(AddPlotDialogTest, constructor_populates_list_box_with_filtered_expressio
     std::vector<std::pair<size_t, size_t>> slices = {{0, 2}, {2, 4}};
     ExpressionManager manager(expressions, slices);
     // act
-    const AddPlotDialog dialog(nullptr, manager, {}, true, [](const AnyExpression& expr) {
-        return std::visit([](const auto& e) { return e.variable_type() == "voltage"; }, expr);
-    });
+    const AddPlotDialog dialog(nullptr, manager, {}, true, [](const AnyExpression& expr) { return std::visit([](const auto& e) { return e.variable_type() == "voltage"; }, expr); });
     wxListBox* list_box = get_list_box(dialog);
     // assert
     ASSERT_NE(list_box, nullptr);

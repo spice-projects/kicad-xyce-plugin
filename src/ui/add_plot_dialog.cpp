@@ -8,17 +8,10 @@
 
 #include "add_plot_dialog.h"
 
-AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager& expressions_manager, const std::vector<AnyExpression*>& selected_expressions, bool allow_custom_expressions, std::function<bool(const AnyExpression&)> expression_filter)
-    : wxDialog(parent, wxID_ANY, "Add Plot", wxDefaultPosition, wxSize(560, 480)),
-      // initialize fields
-      m_expressions_manager(expressions_manager),
-      m_selected_expressions(selected_expressions),
-      m_allow_custom_expressions(allow_custom_expressions),
-      m_expression_filter(std::move(expression_filter)),
-      m_list_box(nullptr),
-      m_custom_input(nullptr),
-      m_add_button(nullptr),
-      m_error_label(nullptr) {
+AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager& expressions_manager, const std::vector<AnyExpression*>& selected_expressions, bool allow_custom_expressions, std::function<bool(const AnyExpression&)> expression_filter) :
+    wxDialog(parent, wxID_ANY, "Add Plot", wxDefaultPosition, wxSize(560, 480)),
+    // initialize fields
+    m_expressions_manager(expressions_manager), m_selected_expressions(selected_expressions), m_allow_custom_expressions(allow_custom_expressions), m_expression_filter(std::move(expression_filter)), m_list_box(nullptr), m_custom_input(nullptr), m_add_button(nullptr), m_error_label(nullptr) {
     // create top-level sizer
     auto main_sizer = new wxBoxSizer(wxVERTICAL);
     // create list box with multi-selection enabled

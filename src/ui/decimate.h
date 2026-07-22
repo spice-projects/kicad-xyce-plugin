@@ -10,17 +10,17 @@
 // ---------------------------------------------------------------------------
 
 // pass the original vectors through unchanged (decimation disabled)
-inline constexpr int DECIMATE_NONE      = 0;
+inline constexpr int DECIMATE_NONE = 0;
 // keep every N-th sample using evenly-spaced linspace indices
 inline constexpr int DECIMATE_NTH_POINT = 1;
 // retain the index of the min and max value inside each bucket
-inline constexpr int DECIMATE_MIN_MAX   = 2;
+inline constexpr int DECIMATE_MIN_MAX = 2;
 // extend min-max by also keeping the first and last sample of every bucket (4 points per bucket)
-inline constexpr int DECIMATE_M4        = 3;
+inline constexpr int DECIMATE_M4 = 3;
 // largest triangle three buckets — maximises perceived visual fidelity for smooth signals
-inline constexpr int DECIMATE_LTTB      = 4;
+inline constexpr int DECIMATE_LTTB = 4;
 // ramer-douglas-peucker polyline simplification with auto-tuned epsilon
-inline constexpr int DECIMATE_RDP       = 5;
+inline constexpr int DECIMATE_RDP = 5;
 
 // decimate an (x, y) pair jointly so plotted points remain coherent.
 // for value-dependent algorithms (MIN_MAX, M4, LTTB, RDP) the index set is

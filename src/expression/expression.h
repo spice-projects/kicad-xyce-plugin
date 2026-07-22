@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <complex>
 #include <functional>
-#include <ranges>
 #include <span>
 #include <string>
 #include <utility>
@@ -78,7 +77,7 @@ public:
     }
 
     explicit View(std::vector<T>& vector)
-        : m_data(std::move(vector)), m_stride(1) {
+        : m_stride(1), m_data(std::move(vector)) {
         // pointer to vector data
         m_pointer = m_data.data();
         m_size = m_data.size();

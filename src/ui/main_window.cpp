@@ -4,12 +4,11 @@
 #include <wx/menu.h>
 #include <wx/toolbar.h>
 
-#include "main_window.h"
-#include "charts_panel.h"
 #include "../file/xyce_raw_file.h"
+#include "charts_panel.h"
+#include "main_window.h"
 
-MainWindow::MainWindow(const wxString& title)
-    : wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(800, 600)) {
+MainWindow::MainWindow(const wxString& title) : wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(800, 600)) {
     // create menubar/toolbar/statusbar
     create_menubar();
     create_toolbar();

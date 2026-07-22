@@ -14,11 +14,8 @@ void ChartsPanel::terminate() {
     m_charts_panel = nullptr;
 }
 
-void ChartsPanel::render_frame(const std::function<void()>& renderer) {
-}
+void ChartsPanel::render_frame(const std::function<void()>& renderer) {}
 
-void ChartsPanel::update_bounds() {
-}
+void ChartsPanel::update_bounds() {}
 
-void ChartsPanel::display_changed() {
-}
+void ChartsPanel::display_changed() {}

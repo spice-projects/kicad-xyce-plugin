@@ -17,8 +17,7 @@ enum
     ID_CONTEXT_DELETE_CHART
 };
 
-ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id)
-    : wxPanel(parent, id, wxDefaultPosition, wxDefaultSize, wxNO_BORDER | wxFULL_REPAINT_ON_RESIZE) {
+ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) : wxPanel(parent, id, wxDefaultPosition, wxDefaultSize, wxNO_BORDER | wxFULL_REPAINT_ON_RESIZE) {
     // mouse events
     Bind(wxEVT_MOTION, &ChartsPanel::on_mouse_move, this);
     // Bind(wxEVT_LEFT_DCLICK, &ChartsPanel::on_mouse_button, this);
@@ -61,7 +60,7 @@ void ChartsPanel::on_mouse_move(wxMouseEvent& event) {
             // current chart
             const auto& chart = m_charts[m_selected_chart_index];
             // plot area
-            const auto [x_min, y_min, x_max, y_max] = chart->get_plot_rect();;
+            const auto [x_min, y_min, x_max, y_max] = chart->get_plot_rect();
             // check x user mouse position, force it to be within plot area
             if (x < x1 && x < x_min)
                 x = x_min;
@@ -219,7 +218,7 @@ void ChartsPanel::on_context_menu(const wxContextMenuEvent& event) {
         m_selected_chart = nullptr;
         // exit
         return;
-    }        
+    }
     // chart at index
     m_selected_chart = m_charts[m_selected_chart_index].get();
     // log information
@@ -378,7 +377,7 @@ Chart* ChartsPanel::add_chart() {
     // plot series (will do nothing, but will set the correct abscissa for the zoom window)
     chart->plot_series({});
     // exit
-    return chart.get();;
+    return chart.get();
 }
 
 void ChartsPanel::delete_all_charts() {
@@ -388,13 +387,11 @@ void ChartsPanel::delete_all_charts() {
     refresh_charts();
 }
 
-void ChartsPanel::refresh_charts(int frames) {
-    m_render_chart_frames = frames;
-}
+void ChartsPanel::refresh_charts(int frames) { m_render_chart_frames = frames; }
 
 void ChartsPanel::render() {
     // render
-    render_frame([this]()-> void {
+    render_frame([this]() -> void {
         // removing padding
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         // panel

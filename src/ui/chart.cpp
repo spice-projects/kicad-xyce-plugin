@@ -1,5 +1,4 @@
 #include <format>
-#include <iterator>
 #include <limits>
 #include <ranges>
 #include <set>
@@ -9,8 +8,9 @@
 #include <variant>
 #include <vector>
 
-#include "implot.h"
-#include "spdlog/spdlog.h"
+#include <imgui.h>
+#include <implot.h>
+#include <spdlog/spdlog.h>
 
 #include "chart.h"
 #include "decimate.h"
@@ -74,13 +74,14 @@ static std::vector<Expression<double>*> get_expressions_to_plot(ExpressionManage
     return {&std::get<Expression<double>>(*magnitude_expression), &std::get<Expression<double>>(*phase_expression)};
 }
 
-Chart::Chart(wxEvtHandler* parent, ExpressionManager* expression_manager, const StepInformation* step_information, std::string abscissa_label, const AbscissaScale abscissa_scale, const size_t decimate_target)
-    : m_parent(parent), m_expression_manager(expression_manager), m_step_information(step_information), m_abscissa_label(std::move(abscissa_label)), m_abscissa_scale(abscissa_scale), m_decimate_target(decimate_target) {
+Chart::Chart(wxEvtHandler* parent, ExpressionManager* expression_manager, const StepInformation* step_information, std::string abscissa_label, const AbscissaScale abscissa_scale, const size_t decimate_target) :
+    m_parent(parent), m_expression_manager(expression_manager), m_step_information(step_information), m_abscissa_label(std::move(abscissa_label)), m_abscissa_scale(abscissa_scale), m_decimate_target(decimate_target) {
     // abscissa unit
     m_abscissa_unit = expression_manager->abscissa().unit();
 }
 
 const std::set<size_t>& Chart::selected_steps() {
+    // return selected steps
     return m_selected_steps;
 }
 
@@ -449,7 +450,7 @@ void Chart::update_zoom_window(double x_left_ratio, double x_right_ratio, double
     // check horizontal zoom ratios were provided
     if (x_left_ratio >= 0 && x_right_ratio >= 0) {
         // current zoom window
-        auto& [current_x_left_ratio, current_y_top_ratio , current_x_right_ratio, current_y_bottom_ratio] = m_zoom_window;
+        auto& [current_x_left_ratio, current_y_top_ratio, current_x_right_ratio, current_y_bottom_ratio] = m_zoom_window;
         // use defaults
         current_x_left_ratio = current_x_left_ratio >= 0 ? current_x_left_ratio : 0.0;
         current_x_right_ratio = current_x_right_ratio >= 0 ? current_x_right_ratio : 1.0;
@@ -464,7 +465,7 @@ void Chart::update_zoom_window(double x_left_ratio, double x_right_ratio, double
     // check vertical zoom ratios were provided
     if (y_top_ratio >= 0 && y_bottom_ratio >= 0) {
         // current zoom window
-        auto& [current_x_left_ratio, current_y_top_ratio , current_x_right_ratio, current_y_bottom_ratio] = m_zoom_window;
+        auto& [current_x_left_ratio, current_y_top_ratio, current_x_right_ratio, current_y_bottom_ratio] = m_zoom_window;
         // use defaults
         current_y_top_ratio = current_y_top_ratio >= 0 ? current_y_top_ratio : 0.0;
         current_y_bottom_ratio = current_y_bottom_ratio >= 0 ? current_y_bottom_ratio : 1.0;
@@ -523,7 +524,7 @@ std::pair<size_t, size_t> Chart::find_abscissa_indexes(const std::span<const dou
 
 void Chart::redraw_all_series() {
     // current zoom window
-    auto& [x_left_ratio, y_top_ratio , x_right_ratio, current_y_bottom_ratio] = m_zoom_window;
+    auto& [x_left_ratio, y_top_ratio, x_right_ratio, current_y_bottom_ratio] = m_zoom_window;
     // x0 and x1
     m_abscissa_left_value = x_left_ratio >= 0 ? ratio_to_abscissa_value(x_left_ratio) : m_step_information->abscissa_left_value();
     m_abscissa_right_value = x_right_ratio >= 0 ? ratio_to_abscissa_value(x_right_ratio) : m_step_information->abscissa_right_value();
@@ -572,6 +573,4 @@ void Chart::redraw_all_series() {
     }
 }
 
-const std::tuple<float, float, float, float>& Chart::get_plot_rect() const {
-    return m_plot_rect;
-}
+const std::tuple<float, float, float, float>& Chart::get_plot_rect() const { return m_plot_rect; }

@@ -7,8 +7,8 @@
 #include <tuple>
 #include <vector>
 
-#include "decimate.h"
 #include "../expression/expression.h"
+#include "decimate.h"
 
 // ---------------------------------------------------------------------------
 // index-selection helpers (value-dependent algorithms)
@@ -27,7 +27,7 @@ static void trim_indices(std::vector<size_t>& indices, size_t target) {
     // degenerate case: keep at most the two endpoints
     if (target <= 2) {
         size_t first = indices.front();
-        size_t last  = indices.back();
+        size_t last = indices.back();
         indices.clear();
         if (target >= 1)
             indices.push_back(first);
@@ -37,9 +37,9 @@ static void trim_indices(std::vector<size_t>& indices, size_t target) {
     }
     // sample the interior evenly, always preserving the first and last index
     size_t first = indices.front();
-    size_t last  = indices.back();
+    size_t last = indices.back();
     // number of interior slots we can fill
-    size_t count    = target - 2;
+    size_t count = target - 2;
     size_t interior = indices.size() - 2;
     std::vector<size_t> result;
     result.reserve(target);
@@ -54,7 +54,6 @@ static void trim_indices(std::vector<size_t>& indices, size_t target) {
     result.push_back(last);
     indices = std::move(result);
 }
-
 
 // produce at most *target* evenly-spaced indices covering [0, length-1].
 // mirrors the Python _nth_point_indices() implementation.
@@ -79,7 +78,6 @@ static std::vector<size_t> nth_point_indices(size_t length, size_t target) {
     return indices;
 }
 
-
 // retain the index of the minimum and maximum value inside each bucket.
 // mirrors the Python _min_max_indices() implementation.
 static std::vector<size_t> min_max_indices(const std::span<const double>& values, size_t target) {
@@ -90,7 +88,7 @@ static std::vector<size_t> min_max_indices(const std::span<const double>& values
     if (target == 2)
         return {0, length - 1};
     // size each bucket so that two points per bucket (min & max) do not exceed target
-    size_t half              = std::max<size_t>(1, target / 2);
+    size_t half = std::max<size_t>(1, target / 2);
     size_t points_per_bucket = std::max<size_t>(1, (length + half - 1) / half);
     size_t number_of_buckets = length / points_per_bucket;
     // collect min and max indices for each bucket
@@ -125,7 +123,7 @@ static std::vector<size_t> m4_indices(const std::span<const double>& values, siz
     if (target == 2)
         return {0, length - 1};
     // size each bucket so that four points per bucket stay within target
-    size_t quarter           = std::max<size_t>(1, target / 4);
+    size_t quarter = std::max<size_t>(1, target / 4);
     size_t points_per_bucket = std::max<size_t>(1, (length + quarter - 1) / quarter);
     size_t number_of_buckets = length / points_per_bucket;
     // collect first, last, min, max indices for each bucket
@@ -135,12 +133,12 @@ static std::vector<size_t> m4_indices(const std::span<const double>& values, siz
     for (size_t b = 0; b < number_of_buckets; ++b) {
         // start of the bucket in the original vector
         size_t bucket_start = b * points_per_bucket;
-        auto   bucket       = values.subspan(bucket_start, points_per_bucket);
+        auto bucket = values.subspan(bucket_start, points_per_bucket);
         // relative positions of the first, last, min, and max within the bucket
-        size_t first_rel    = 0;
-        size_t last_rel     = points_per_bucket - 1;
-        size_t min_rel      = static_cast<size_t>(std::min_element(bucket.begin(), bucket.end()) - bucket.begin());
-        size_t max_rel      = static_cast<size_t>(std::max_element(bucket.begin(), bucket.end()) - bucket.begin());
+        size_t first_rel = 0;
+        size_t last_rel = points_per_bucket - 1;
+        size_t min_rel = static_cast<size_t>(std::min_element(bucket.begin(), bucket.end()) - bucket.begin());
+        size_t max_rel = static_cast<size_t>(std::max_element(bucket.begin(), bucket.end()) - bucket.begin());
         // accumulate all four candidates
         indices.push_back(bucket_start + first_rel);
         indices.push_back(bucket_start + last_rel);
@@ -156,7 +154,6 @@ static std::vector<size_t> m4_indices(const std::span<const double>& values, siz
     return indices;
 }
 
-
 // largest triangle three buckets — for each output point pick the sample in
 // the current bucket that forms the triangle with the largest area relative to
 // the previously selected point and the centroid of the next bucket.
@@ -171,7 +168,7 @@ static std::vector<size_t> lttb_indices(const std::span<const double>& x, const 
     // output buffer; first and last slots are fixed
     std::vector<size_t> out_indices(target);
     out_indices.front() = 0;
-    out_indices.back()  = length - 1;
+    out_indices.back() = length - 1;
     // target == 2 is already satisfied
     if (target == 2)
         return out_indices;
@@ -182,10 +179,10 @@ static std::vector<size_t> lttb_indices(const std::span<const double>& x, const 
     for (size_t i = 1; i < target - 1; ++i) {
         // boundaries of the current bucket
         size_t bucket_start = static_cast<size_t>((i - 1) * bucket_size) + 1;
-        size_t bucket_end   = std::min(static_cast<size_t>(i * bucket_size) + 1, length - 1);
+        size_t bucket_end = std::min(static_cast<size_t>(i * bucket_size) + 1, length - 1);
         // boundaries of the next bucket (used to compute its centroid)
-        size_t next_start   = bucket_end;
-        size_t next_end     = std::min(static_cast<size_t>((i + 1) * bucket_size) + 1, length - 1);
+        size_t next_start = bucket_end;
+        size_t next_end = std::min(static_cast<size_t>((i + 1) * bucket_size) + 1, length - 1);
         // centroid of the next bucket — the "far" apex of the triangle
         double next_x_sum = 0.0;
         double next_y_sum = 0.0;
@@ -201,25 +198,24 @@ static std::vector<size_t> lttb_indices(const std::span<const double>& x, const 
         double ay = values[prev_index];
         // find the candidate in the current bucket with the largest triangle area
         size_t best_relative = 0;
-        double best_area     = -1.0;
+        double best_area = -1.0;
         for (size_t j = bucket_start; j < bucket_end; ++j) {
-            double bx   = x[j];
-            double by   = values[j];
+            double bx = x[j];
+            double by = values[j];
             // triangle area = 0.5 * |cross product|; the 0.5 is constant so we
             // maximise the absolute cross product
             double area = std::abs((ax - next_x_avg) * (by - ay) - (ax - bx) * (next_y_avg - ay));
             if (area > best_area) {
-                best_area     = area;
+                best_area = area;
                 best_relative = j - bucket_start;
             }
         }
         size_t best_index = bucket_start + best_relative;
-        out_indices[i]    = best_index;
-        prev_index        = best_index;
+        out_indices[i] = best_index;
+        prev_index = best_index;
     }
     return out_indices;
 }
-
 
 // perpendicular distance from point (px, py) to the line from (x0, y0) to (x1, y1).
 // used by the iterative RDP helper.
@@ -233,14 +229,13 @@ static double point_to_segment_distance(double px, double py, double x0, double 
     return std::abs((px - x0) * dy - (py - y0) * dx) / denom;
 }
 
-
 // run one pass of RDP at the given epsilon and return the keep-mask.
 // mirrors the Python _rdp_indices_for_epsilon() implementation.
 static std::vector<size_t> rdp_indices_for_epsilon(const std::span<const double>& x, const std::span<const double>& values, double epsilon) {
     size_t length = values.size();
     // initialize keep mask — always preserve endpoints
     std::vector<bool> keep(length, false);
-    keep[0]          = true;
+    keep[0] = true;
     keep[length - 1] = true;
     // iterative segment stack — avoids recursion-depth limits for large inputs
     std::vector<std::pair<size_t, size_t>> stack;
@@ -257,12 +252,12 @@ static std::vector<size_t> rdp_indices_for_epsilon(const std::span<const double>
         double y0 = values[start];
         double x1 = x[end];
         double y1 = values[end];
-        double max_distance    = -1.0;
-        size_t farthest_index  = start + 1;
+        double max_distance = -1.0;
+        size_t farthest_index = start + 1;
         for (size_t i = start + 1; i < end; ++i) {
             double d = point_to_segment_distance(x[i], values[i], x0, y0, x1, y1);
             if (d > max_distance) {
-                max_distance   = d;
+                max_distance = d;
                 farthest_index = i;
             }
         }
@@ -281,7 +276,6 @@ static std::vector<size_t> rdp_indices_for_epsilon(const std::span<const double>
             indices.push_back(i);
     return indices;
 }
-
 
 // auto-tune the RDP epsilon via binary search so the output has at most
 // *target* points.  mirrors the Python _rdp_indices() implementation.
@@ -304,7 +298,7 @@ static std::vector<size_t> rdp_indices(const std::span<const double>& x, const s
     double y0 = values[0];
     double x1 = x[length - 1];
     double y1 = values[length - 1];
-    double epsilon_low  = 0.0;
+    double epsilon_low = 0.0;
     double epsilon_high = 0.0;
     for (size_t i = 0; i < length; ++i) {
         double d = point_to_segment_distance(x[i], values[i], x0, y0, x1, y1);
@@ -314,12 +308,12 @@ static std::vector<size_t> rdp_indices(const std::span<const double>& x, const s
     // binary-search epsilon so output length is as close as possible without exceeding target
     std::vector<size_t> best = rdp_indices_for_epsilon(x, values, epsilon_high);
     for (int iter = 0; iter < 24; ++iter) {
-        double epsilon_mid    = (epsilon_low + epsilon_high) / 2.0;
-        auto   candidate      = rdp_indices_for_epsilon(x, values, epsilon_mid);
+        double epsilon_mid = (epsilon_low + epsilon_high) / 2.0;
+        auto candidate = rdp_indices_for_epsilon(x, values, epsilon_mid);
         if (candidate.size() > target)
-            epsilon_low  = epsilon_mid;
+            epsilon_low = epsilon_mid;
         else {
-            best         = candidate;
+            best = candidate;
             epsilon_high = epsilon_mid;
         }
     }
