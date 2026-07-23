@@ -1,6 +1,6 @@
 #pragma once
 
-#include <iterator>
+#include <array>
 #include <set>
 #include <span>
 #include <string>
@@ -8,14 +8,13 @@
 #include <unordered_map>
 #include <utility>
 
-#include "implot.h"
+#include <implot.h>
+#include <wx/wx.h>
 
 #include "../step_information.h"
 #include "../expression/expression.h"
 #include "../expression/expression_manager.h"
 #include "../file/xyce_output_file.h"
-
-#include "events.h"
 
 using OrdinateVariantSeriesSteps = std::tuple<
     int,

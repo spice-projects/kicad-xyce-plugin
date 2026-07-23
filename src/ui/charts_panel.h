@@ -5,7 +5,6 @@
 
 #include "chart.h"
 
-#include "../expression/expression.h"
 #include "../expression/expression_manager.h"
 #include "../step_information.h"
 

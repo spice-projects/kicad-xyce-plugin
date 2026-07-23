@@ -18,6 +18,7 @@
             "displayName": "",
             "configurePreset": "vcpkg",
             "targets": [
+                "kicad-xyce-plugin"
             ],
             "configuration": "Debug",
             "inheritConfigureEnvironment": true

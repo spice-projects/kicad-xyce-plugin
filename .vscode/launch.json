@@ -14,6 +14,17 @@
             "MIMode": "lldb"
         },
         {
+            "name": "kicad-xyce-plugin (Windows)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false
+        },
+        {
             "name": "Run Plugin",
             "type": "debugpy",
             "request": "launch",
