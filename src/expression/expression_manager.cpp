@@ -6,7 +6,8 @@
 
 #include "expression_manager.h"
 
-ExpressionManager::ExpressionManager(std::vector<AnyExpression>& expressions, std::vector<std::pair<size_t, size_t>>& step_slices) : m_expressions(std::make_move_iterator(expressions.begin()), std::make_move_iterator(expressions.end())), m_step_slices(std::move(step_slices)) {
+ExpressionManager::ExpressionManager(std::vector<AnyExpression>& expressions, std::vector<std::pair<size_t, size_t>>& step_slices) :
+    m_expressions(std::make_move_iterator(expressions.begin()), std::make_move_iterator(expressions.end())), m_step_slices(std::move(step_slices)) {
     // pre-process expressions
     for (size_t idx = 0; idx < m_expressions.size(); ++idx)
         std::visit([this, &idx](auto&& expression) { this->m_context[casefold(expression.name())] = idx; }, m_expressions[idx]);
@@ -14,7 +15,16 @@ ExpressionManager::ExpressionManager(std::vector<AnyExpression>& expressions, st
 
 Expression<double>& ExpressionManager::abscissa() { return std::get<Expression<double>>(m_expressions[0]); }
 
-const std::deque<AnyExpression>& ExpressionManager::expressions() const { return m_expressions; }
+std::vector<AnyExpression*> ExpressionManager::expressions() {
+    // result
+    std::vector<AnyExpression*> result;
+    // reserve memory
+    result.reserve(m_expressions.size());
+    // transform deque to vector of pointers
+    std::ranges::transform(m_expressions.begin(), m_expressions.end(), std::back_inserter(result), [](auto& expression) { return &expression; });
+    // exit
+    return result;
+}
 
 std::vector<std::string> ExpressionManager::expression_names() const {
     // create list

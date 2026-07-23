@@ -42,6 +42,8 @@ private:
     std::tuple<float, float, float, float> m_zoom_selection = {-1, -1, -1, -1};
     std::tuple<double, double, double, double> m_zoom_window = {-1, -1, -1, -1};
 
+    ImVec4 m_background_color;
+
 #ifdef __APPLE__
     void* m_metal_layer = nullptr;
     void* m_command_queue = nullptr;
@@ -50,6 +52,12 @@ private:
     void initialize();
 
     void terminate();
+
+    bool update_bounds();
+
+    void render_frame(const std::function<void()>&);
+
+    void render();
 
     void on_mouse_move(wxMouseEvent&);
 
@@ -78,10 +86,4 @@ private:
     void on_menu_add_chart(wxCommandEvent&);
 
     void on_menu_delete_chart(wxCommandEvent&);
-
-    void render_frame(const std::function<void()>&);
-
-    void update_bounds();
-
-    void render();
 };

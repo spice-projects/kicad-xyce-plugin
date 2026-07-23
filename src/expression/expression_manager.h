@@ -28,7 +28,7 @@ public:
 
     [[nodiscard]] Expression<double>& abscissa();
 
-    [[nodiscard]] const std::deque<AnyExpression>& expressions() const;
+    [[nodiscard]] std::vector<AnyExpression*> expressions();
 
     [[nodiscard]] std::vector<std::string> expression_names() const;
 

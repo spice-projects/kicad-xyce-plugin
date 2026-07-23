@@ -7,6 +7,8 @@
 bool App::OnInit() {
     // initialize image handlers
     wxInitAllImageHandlers();
+    // use system appearance for the app
+    SetAppearance(Appearance::System);
     // create main window instance
     const auto frame = new MainWindow("KiCad Xyce Plugin");
     // show main window

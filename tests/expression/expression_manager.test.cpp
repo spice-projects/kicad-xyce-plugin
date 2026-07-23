@@ -50,8 +50,8 @@ TEST(ExpressionManagerChecks, constructor_stores_expressions_and_step_slices) {
     ExpressionManager manager(expressions, slices);
     // assert
     ASSERT_EQ(manager.expressions().size(), 2);
-    ASSERT_EQ(std::get<Expression<double>>(manager.expressions()[0]).name(), "time");
-    ASSERT_EQ(std::get<Expression<double>>(manager.expressions()[1]).name(), "V(out)");
+    ASSERT_EQ(std::get<Expression<double>>(*manager.expressions()[0]).name(), "time");
+    ASSERT_EQ(std::get<Expression<double>>(*manager.expressions()[1]).name(), "V(out)");
 }
 
 TEST(ExpressionManagerChecks, expression_names_returns_names_in_insertion_order) {

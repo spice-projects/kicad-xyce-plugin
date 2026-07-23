@@ -40,11 +40,56 @@ ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_delete_all_plots, this, ID_CONTEXT_DELETE_ALL_PLOTS);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_add_chart, this, ID_CONTEXT_ADD_CHART);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_delete_chart, this, ID_CONTEXT_DELETE_CHART);
+    // fetch the platform's active workspace background color
+    wxColour wxBgColor = wxSystemSettings::GetColour(wxSYS_COLOUR_APPWORKSPACE);
+    // convert it to ImVec4
+    m_background_color = ImVec4(wxBgColor.Red() / 255.0f, wxBgColor.Green() / 255.0f, wxBgColor.Blue() / 255.0f, 1.0f);
 }
 
 ChartsPanel::~ChartsPanel() {
     // terminate
     terminate();
+}
+
+void ChartsPanel::render() {
+    // render
+    render_frame([this]() -> void {
+        // removing padding
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        // panel
+        if (ImGui::Begin("Charts Panel", nullptr, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs)) {
+            // check we have charts to render
+            if (!m_charts.empty()) {
+                // available are
+                const ImVec2 total_space = ImGui::GetContentRegionAvail();
+                // chart height
+                const float height = total_space.y / static_cast<float>(m_charts.size());
+                // render charts within native frame
+                for (size_t i = 0; i < m_charts.size(); ++i) {
+                    // area name
+                    auto name = std::format("Chart {}", i);
+                    // create child with given height, use the whole area in the horizontal
+                    if (ImGui::BeginChild(name.c_str(), ImVec2(0, height), true)) {
+                        // check current chart is selected
+                        if (i == m_selected_chart_index) {
+                            // render chart
+                            m_charts[i]->render(m_zoom_selection);
+                        }
+                        else {
+                            // render chart
+                            m_charts[i]->render({-1, -1, -1, -1});
+                        }
+                        // close
+                        ImGui::EndChild();
+                    }
+                }
+            }
+            // close
+            ImGui::End();
+        }
+        // pop style var
+        ImGui::PopStyleVar();
+    });
 }
 
 void ChartsPanel::on_mouse_move(wxMouseEvent& event) {
@@ -187,11 +232,12 @@ void ChartsPanel::on_paint(wxPaintEvent&) {
 
 void ChartsPanel::on_size(wxSizeEvent& event) {
     // check we have initialized
-    if (m_charts_panel && m_metal_layer) {
+    if (m_charts_panel) {
         // update bounds in the native layer
-        update_bounds();
-        // refresh charts
-        refresh_charts();
+        if (update_bounds()) {
+            // refresh charts
+            refresh_charts();
+        }
     }
     // skip even
     event.Skip();
@@ -322,8 +368,11 @@ void ChartsPanel::on_menu_add_remove_plots(wxCommandEvent&) {
     if (m_selected_chart != nullptr) {
         // log information
         spdlog::debug("User requested add/remove plots on chart at index: {}", m_selected_chart_index);
+
+        std::vector<AnyExpression*> selected_expressions;
+        
         // create dialog
-        AddPlotDialog dialog(this, m_expression_manager, {}, false, [](auto&) { return true; });
+        AddPlotDialog dialog(this, m_expression_manager, selected_expressions, false);
         // center on screen
         dialog.Centre(wxCENTER_ON_SCREEN);
         // show and wait for ok
@@ -411,44 +460,3 @@ void ChartsPanel::delete_all_charts() {
 }
 
 void ChartsPanel::refresh_charts(int frames) { m_render_chart_frames = frames; }
-
-void ChartsPanel::render() {
-    // render
-    render_frame([this]() -> void {
-        // removing padding
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        // panel
-        if (ImGui::Begin("Charts Panel", nullptr, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs)) {
-            // check we have charts to render
-            if (!m_charts.empty()) {
-                // available are
-                const ImVec2 total_space = ImGui::GetContentRegionAvail();
-                // chart height
-                const float height = total_space.y / static_cast<float>(m_charts.size());
-                // render charts within native frame
-                for (size_t i = 0; i < m_charts.size(); ++i) {
-                    // area name
-                    auto name = std::format("Chart {}", i);
-                    // create child with given height, use the whole area in the horizontal
-                    if (ImGui::BeginChild(name.c_str(), ImVec2(0, height), true)) {
-                        // check current chart is selected
-                        if (i == m_selected_chart_index) {
-                            // render chart
-                            m_charts[i]->render(m_zoom_selection);
-                        }
-                        else {
-                            // render chart
-                            m_charts[i]->render({-1, -1, -1, -1});
-                        }
-                        // close
-                        ImGui::EndChild();
-                    }
-                }
-            }
-            // close
-            ImGui::End();
-        }
-        // pop style var
-        ImGui::PopStyleVar();
-    });
-}

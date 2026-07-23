@@ -3,14 +3,15 @@
 #import <AppKit/AppKit.h>
 
 #include <imgui.h>
-#include <imgui_impl_osx.h>
 #include <imgui_impl_metal.h>
+#include <imgui_impl_osx.h>
 #include <implot.h>
 #include <spdlog/spdlog.h>
 #include <wx/wx.h>
 
-#include "charts_panel.h"
 #include "apple_metal.h"
+#include "charts_panel.h"
+#include "wxwidgets_imgui.h"
 
 static constexpr const char* FONT_PATH = KICAD_XYCE_FONTS_DIR "/Inter-Regular.ttf"; 
 
@@ -29,6 +30,7 @@ void ChartsPanel::initialize() {
     metal_layer.device = (__bridge id<MTLDevice>)gpu.device;
     metal_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
     metal_layer.framebufferOnly = YES;
+    metal_layer.opaque = YES;
     // screen
     NSScreen* screen = [m_charts_panel window].screen ? [m_charts_panel window].screen : [NSScreen mainScreen];
     // scale factor for retina displays
@@ -46,11 +48,11 @@ void ChartsPanel::initialize() {
     ImGui::CreateContext();
     ImPlot::CreateContext();
     // style
-    ImGui::StyleColorsClassic();
+    PlatformStyle();
     // ImGui configuration
     ImGuiIO& io = ImGui::GetIO();
     // font base size
-    const float base_size = 12.0f;
+    const float base_size = 14.0f;
     // add font with scaling for retina displays
     io.Fonts->AddFontFromFileTTF(FONT_PATH, base_size * scale);
     io.FontGlobalScale = 1.0f / (float)scale;
@@ -82,6 +84,26 @@ void ChartsPanel::terminate() {
     m_charts_panel = nullptr;
 }
 
+bool ChartsPanel::update_bounds() {
+    // check flag
+    if (!m_charts_panel)
+        return false;
+    // cast fields as apple types
+    auto metal_layer = (__bridge CAMetalLayer *)m_metal_layer;
+    // current panel size
+    wxSize sz = GetClientSize();
+    // get current screen
+    NSScreen* screen = [m_charts_panel window].screen ? [m_charts_panel window].screen : [NSScreen mainScreen];
+    // scale factor for retina displays
+    CGFloat scale = [screen backingScaleFactor];
+    // update layer
+    metal_layer.bounds = CGRectMake(0, 0, sz.x, sz.y);
+    metal_layer.drawableSize = CGSizeMake(sz.x * scale, sz.y * scale);
+    metal_layer.contentsScale = scale;
+    // indicate success
+    return true;
+}
+
 void ChartsPanel::render_frame(const std::function<void()>& renderer) {
     // check flag
     if (!m_charts_panel)
@@ -99,7 +121,7 @@ void ChartsPanel::render_frame(const std::function<void()>& renderer) {
         MTLRenderPassDescriptor* render_pass_descriptor = [MTLRenderPassDescriptor renderPassDescriptor];
         render_pass_descriptor.colorAttachments[0].texture = drawable.texture;
         render_pass_descriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
-        render_pass_descriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.15f, 0.15f, 0.15f, 1.0f);
+        render_pass_descriptor.colorAttachments[0].clearColor = MTLClearColorMake(m_background_color.x, m_background_color.y, m_background_color.z, m_background_color.w);
         render_pass_descriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
         // create command buffer
         id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
@@ -119,8 +141,13 @@ void ChartsPanel::render_frame(const std::function<void()>& renderer) {
         ImGui::NewFrame();
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2((float)sz.x, (float)sz.y));
+        // set background color
+        // ImPlot::PushStyleColor(ImPlotCol_FrameBg, m_background_color);
+        // ImPlot::PushStyleColor(ImPlotCol_PlotBg,  m_background_color);
         // render frame content
         renderer();
+        // pop style colors
+        // ImPlot::PopStyleColor(2);
         // render frame
         ImGui::Render();
         // get rendering commands
@@ -130,21 +157,6 @@ void ChartsPanel::render_frame(const std::function<void()>& renderer) {
         [command_buffer presentDrawable:drawable];
         [command_buffer commit];
     }
-}
-
-void ChartsPanel::update_bounds() {
-    // cast fields as apple types
-    auto metal_layer = (__bridge CAMetalLayer *)m_metal_layer;
-    // current panel size
-    wxSize sz = GetClientSize();
-    // get current screen
-    NSScreen* screen = [m_charts_panel window].screen ? [m_charts_panel window].screen : [NSScreen mainScreen];
-    // scale factor for retina displays
-    CGFloat scale = [screen backingScaleFactor];
-    // update layer
-    metal_layer.bounds = CGRectMake(0, 0, sz.x, sz.y);
-    metal_layer.drawableSize = CGSizeMake(sz.x * scale, sz.y * scale);
-    metal_layer.contentsScale = scale;
 }
 
 void ChartsPanel::display_changed() {

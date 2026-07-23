@@ -1,88 +1,263 @@
 #include <algorithm>
+#include <cctype>
 #include <iterator>
 #include <string>
 #include <utility>
 
-#include <wx/button.h>
+#include <wx/dcclient.h>
+#include <wx/graphics.h>
 #include <wx/sizer.h>
+#include <wx/statline.h>
 
 #include "add_plot_dialog.h"
 
-AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_manager, const std::vector<AnyExpression*>& selected_expressions, bool allow_custom_expressions, std::function<bool(const AnyExpression&)> expression_filter) :
-    wxDialog(parent, wxID_ANY, "Add Plot", wxDefaultPosition, wxSize(560, 480)), m_expressions_manager(expressions_manager), m_selected_expressions(selected_expressions), m_allow_custom_expressions(allow_custom_expressions), m_expression_filter(std::move(expression_filter)), m_list_box(nullptr), m_custom_input(nullptr), m_add_button(nullptr), m_error_label(nullptr) {
-    // create top-level sizer
-    auto main_sizer = new wxBoxSizer(wxVERTICAL);
-    // create list box with multi-selection enabled
-    m_list_box = new wxListBox(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, nullptr, wxLB_MULTIPLE);
-    // loop through expressions in manager
-    for (const auto& expression : m_expressions_manager->expressions()) {
-        // apply filter to expression
+namespace
+{
+    // type indicator colors matching QML getIndicatorColor
+    const wxColour VOLTAGE_COLOR(0x5b, 0x9b, 0xd5);
+    const wxColour CURRENT_COLOR(0x7c, 0xb3, 0x42);
+    const wxColour FREQ_COLOR(0xe5, 0x73, 0x73);
+    const wxColour TIME_COLOR(0xba, 0x68, 0xc8);
+    const wxColour POWER_COLOR(0xff, 0xb7, 0x4d);
+    const wxColour MISC_COLOR(0x3a, 0x3d, 0x4a);
+
+    std::string to_lower(std::string s) {
+        // convert string to lower case
+        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+        return s;
+    }
+} // namespace
+
+AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_manager, std::vector<AnyExpression*> selected_expressions, bool allow_custom_expressions, std::function<bool(const AnyExpression*)> expression_filter) :
+    wxDialog(parent, wxID_ANY, "Select Plot Expressions", wxDefaultPosition, wxSize(560, 480), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER), m_expressions_manager(expressions_manager), m_selected_expressions(selected_expressions), m_allow_custom_expressions(allow_custom_expressions), m_expression_filter(std::move(expression_filter)) {
+
+    // loop expressions
+    for (AnyExpression* expression : m_expressions_manager->expressions()) {
+        // check filter
         if (m_expression_filter(expression)) {
             // get name
-            std::string name = std::visit([](const auto& e) { return e.name(); }, expression);
+            std::string name = std::visit([](const auto& e) { return e.name(); }, *expression);
             // get type
-            std::string type = std::visit([](const auto& e) { return e.variable_type(); }, expression);
-            // check if type is empty
-            if (type.empty()) {
-                // default type
+            std::string type = std::visit([](const auto& e) { return e.variable_type(); }, *expression);
+            if (type.empty())
                 type = "Misc";
-            }
-            // format display string
-            std::string display_str = name + " [" + type + "]";
-            // append to list box
-            m_list_box->Append(display_str);
-            // track displayed expression pointer
-            m_displayed_expressions.push_back(m_expressions_manager->evaluate(name, name));
+            // check initial selection
+            bool is_selected = (std::find(m_selected_expressions.begin(), m_selected_expressions.end(), expression) != m_selected_expressions.end());
+            // append item
+            m_all_expressions.push_back({expression, name, type, is_selected});
         }
     }
-    // select items that are in the initial selected_expressions list
-    for (size_t i = 0; i < m_displayed_expressions.size(); ++i) {
-        // search for displayed expression in selected list
-        if (auto it = std::ranges::find(m_selected_expressions, m_displayed_expressions[i]); it != m_selected_expressions.end()) {
-            // select in list box
-            m_list_box->Select(i);
-        }
-    }
-    // add list box to main sizer
-    main_sizer->Add(m_list_box, 1, wxEXPAND | wxALL, 10);
-    // check if custom expressions are allowed
+
+    // create main vertical sizer
+    auto main_sizer = new wxBoxSizer(wxVERTICAL);
+
+    // create title label
+    auto title_text = new wxStaticText(this, wxID_ANY, "Select one or more expressions to plot:");
+    wxFont title_font = title_text->GetFont();
+    title_font.SetPointSize(12);
+    title_text->SetFont(title_font);
+    main_sizer->Add(title_text, 0, wxTOP | wxLEFT | wxRIGHT, 12);
+
+    // create search filter input
+    m_filter_input = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxSize(-1, 28));
+    m_filter_input->SetHint("Filter expressions...");
+    main_sizer->Add(m_filter_input, 0, wxEXPAND | wxALL, 10);
+    m_filter_input->Bind(wxEVT_TEXT, &AddPlotDialog::on_filter_text_changed, this);
+
+    // separator
+    main_sizer->Add(new wxStaticLine(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxTOP | wxBOTTOM, 4);
+
+    // create scrollable window for grid
+    m_grid_scroller = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
+    m_grid_scroller->SetScrollRate(0, 10);
+
+    // create grid container panel
+    m_grid_container = new wxPanel(m_grid_scroller, wxID_ANY);
+
+    auto scroller_sizer = new wxBoxSizer(wxVERTICAL);
+    scroller_sizer->Add(m_grid_container, 0, wxEXPAND);
+    m_grid_scroller->SetSizer(scroller_sizer);
+
+    main_sizer->Add(m_grid_scroller, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
+
+    // check if custom expressions are enabled
     if (m_allow_custom_expressions) {
-        // create custom expression horizontal sizer
-        auto custom_sizer = new wxBoxSizer(wxHORIZONTAL);
-        // create label
-        auto label = new wxStaticText(this, wxID_ANY, "Custom Expression:");
-        // add label to custom sizer
-        custom_sizer->Add(label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
-        // create text input for custom expression
-        m_custom_input = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
-        // add text input to custom sizer
-        custom_sizer->Add(m_custom_input, 1, wxEXPAND | wxRIGHT, 5);
-        // create add button
-        m_add_button = new wxButton(this, wxID_ANY, "Add");
-        // add button to custom sizer
-        custom_sizer->Add(m_add_button, 0, wxALIGN_CENTER_VERTICAL);
-        // add custom sizer to main sizer
-        main_sizer->Add(custom_sizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
+        auto custom_panel = new wxPanel(this, wxID_ANY);
+
+        auto custom_sizer = new wxBoxSizer(wxVERTICAL);
+        auto input_row_sizer = new wxBoxSizer(wxHORIZONTAL);
+
+        auto expr_label = new wxStaticText(custom_panel, wxID_ANY, "Expression:");
+
+        m_custom_input = new wxTextCtrl(custom_panel, wxID_ANY, "", wxDefaultPosition, wxSize(-1, 28), wxTE_PROCESS_ENTER);
+        m_custom_input->SetHint("e.g. V(net1) / I(R1)");
+
+        m_add_button = new wxButton(custom_panel, wxID_ANY, "Add", wxDefaultPosition, wxSize(52, 28));
+
+        input_row_sizer->Add(expr_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
+        input_row_sizer->Add(m_custom_input, 1, wxEXPAND | wxRIGHT, 6);
+        input_row_sizer->Add(m_add_button, 0, wxALIGN_CENTER_VERTICAL);
+
+        custom_sizer->Add(input_row_sizer, 0, wxEXPAND | wxALL, 10);
+
         // create error label
-        m_error_label = new wxStaticText(this, wxID_ANY, wxEmptyString);
-        // set error label text color to red
-        m_error_label->SetForegroundColour(*wxRED);
-        // add error label to main sizer
-        main_sizer->Add(m_error_label, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
-        // bind add button click event
+        m_error_label = new wxStaticText(custom_panel, wxID_ANY, "");
+        custom_sizer->Add(m_error_label, 0, wxLEFT | wxRIGHT | wxBOTTOM, 6);
+
+        custom_panel->SetSizer(custom_sizer);
+        main_sizer->Add(custom_panel, 0, wxEXPAND);
+
         m_add_button->Bind(wxEVT_BUTTON, &AddPlotDialog::on_add_custom, this);
-        // bind enter key press on text input
         m_custom_input->Bind(wxEVT_TEXT_ENTER, &AddPlotDialog::on_add_custom, this);
     }
-    // create buttons sizer
-    if (wxSizer* button_sizer = CreateButtonSizer(wxOK | wxCANCEL)) {
-        // add button sizer to main sizer
-        main_sizer->Add(button_sizer, 0, wxALIGN_RIGHT | wxALL, 10);
+
+    // separator
+    main_sizer->Add(new wxStaticLine(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxTOP | wxBOTTOM, 4);
+
+    // create bottom panel for legend and action buttons
+    auto bottom_panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 50));
+    auto bottom_sizer = new wxBoxSizer(wxHORIZONTAL);
+
+    // create legend horizontal sizer
+    auto legend_sizer = new wxBoxSizer(wxHORIZONTAL);
+    struct LegendItem
+    {
+        std::string label;
+        wxColour color;
+    };
+    std::vector<LegendItem> legend_items = {{"Voltage", VOLTAGE_COLOR}, {"Current", CURRENT_COLOR}, {"Freq", FREQ_COLOR}, {"Time", TIME_COLOR}, {"Power", POWER_COLOR}, {"Misc", MISC_COLOR}};
+
+    for (const auto& item : legend_items) {
+        auto dot = new wxPanel(bottom_panel, wxID_ANY, wxDefaultPosition, wxSize(6, 6));
+        dot->SetBackgroundColour(item.color);
+        auto lbl = new wxStaticText(bottom_panel, wxID_ANY, item.label);
+        wxFont legend_font = lbl->GetFont();
+        legend_font.SetPointSize(9);
+        lbl->SetFont(legend_font);
+
+        legend_sizer->Add(dot, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+        legend_sizer->Add(lbl, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
     }
-    // set dialog sizer
+
+    bottom_sizer->Add(legend_sizer, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, 12);
+
+    // create cancel and ok buttons
+    auto cancel_btn = new wxButton(bottom_panel, wxID_CANCEL, "Cancel", wxDefaultPosition, wxSize(80, 28));
+
+    auto ok_btn = new wxButton(bottom_panel, wxID_OK, "OK", wxDefaultPosition, wxSize(80, 28));
+
+    bottom_sizer->Add(cancel_btn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+    bottom_sizer->Add(ok_btn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+
+    bottom_panel->SetSizer(bottom_sizer);
+    main_sizer->Add(bottom_panel, 0, wxEXPAND);
+
+    // set sizer
     SetSizer(main_sizer);
+
+    // perform initial filter update
+    update_filter();
+
     // bind ok button event
     Bind(wxEVT_BUTTON, &AddPlotDialog::on_ok, this, wxID_OK);
+}
+
+wxColour AddPlotDialog::get_type_colour(const std::string& type) const {
+    // get lower case type
+    std::string lower = to_lower(type);
+    if (lower.find("voltage") != std::string::npos || lower == "v")
+        return VOLTAGE_COLOR;
+    if (lower.find("current") != std::string::npos || lower == "i")
+        return CURRENT_COLOR;
+    if (lower.find("freq") != std::string::npos)
+        return FREQ_COLOR;
+    if (lower.find("time") != std::string::npos)
+        return TIME_COLOR;
+    if (lower.find("power") != std::string::npos)
+        return POWER_COLOR;
+    return MISC_COLOR;
+}
+
+void AddPlotDialog::on_filter_text_changed(wxCommandEvent&) {
+    // update filter on input change
+    update_filter();
+}
+
+void AddPlotDialog::update_filter() {
+    // get search text
+    std::string query = (m_filter_input != nullptr) ? to_lower(m_filter_input->GetValue().ToStdString()) : "";
+    // remove current filtered indices
+    m_filtered_indices.clear();
+    // filter indices
+    for (size_t i = 0; i < m_all_expressions.size(); ++i) {
+        // check if query is empty or if the expression name contains the query substring
+        if (query.empty() || to_lower(m_all_expressions[i].name).find(query) != std::string::npos)
+            m_filtered_indices.push_back(i);
+    }
+    // rebuild grid layout
+    rebuild_grid();
+}
+
+void AddPlotDialog::rebuild_grid() {
+    // destroy existing grid children
+    m_grid_container->DestroyChildren();
+
+    // create 3-column flex grid sizer with fixed row gap & column gap (cols, vgap, hgap)
+    auto flex_sizer = new wxFlexGridSizer(0, 3, 6, 6);
+    // allow columns to grow proportionally
+    flex_sizer->AddGrowableCol(0, 1);
+    flex_sizer->AddGrowableCol(1, 1);
+    flex_sizer->AddGrowableCol(2, 1);
+
+    // loop filtered items
+    for (size_t filtered_idx = 0; filtered_idx < m_filtered_indices.size(); ++filtered_idx) {
+        // get real index in all expressions
+        size_t real_idx = m_filtered_indices[filtered_idx];
+        // get item
+        const auto& item = m_all_expressions[real_idx];
+        // chip panel fixed at 28px height
+        auto chip = new wxPanel(m_grid_container, wxID_ANY, wxDefaultPosition, wxSize(-1, 28));
+        // chip->SetBackgroundColour(item.selected ? CHIP_BG_SELECTED_COLOR : CHIP_BG_COLOR);
+        // sizer for chip contents
+        auto chip_sizer = new wxBoxSizer(wxHORIZONTAL);
+
+        auto dot = new wxPanel(chip, wxID_ANY, wxDefaultPosition, wxSize(6, 6));
+        dot->SetBackgroundColour(get_type_colour(item.type));
+
+        auto label = new wxStaticText(chip, wxID_ANY, item.name, wxDefaultPosition, wxDefaultSize, wxST_ELLIPSIZE_END);
+        // label->SetForegroundColour(item.selected ? CHIP_TEXT_SELECTED_COLOR : CHIP_TEXT_COLOR);
+        wxFont chip_font = label->GetFont();
+        chip_font.SetPointSize(12);
+        label->SetFont(chip_font);
+
+        chip_sizer->Add(dot, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 6);
+        chip_sizer->Add(label, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+        chip->SetSizer(chip_sizer);
+
+        // bind click event
+        auto on_click = [this, real_idx](wxMouseEvent&) { toggle_expression_selection(real_idx); };
+
+        chip->Bind(wxEVT_LEFT_DOWN, on_click);
+        dot->Bind(wxEVT_LEFT_DOWN, on_click);
+        label->Bind(wxEVT_LEFT_DOWN, on_click);
+
+        flex_sizer->Add(chip, 0, wxEXPAND);
+    }
+
+    m_grid_container->SetSizer(flex_sizer);
+    m_grid_scroller->FitInside();
+    m_grid_container->Layout();
+    Layout();
+}
+
+void AddPlotDialog::toggle_expression_selection(size_t real_idx) {
+    // check if index is valid
+    if (real_idx < m_all_expressions.size()) {
+        // toggle selection boolean
+        m_all_expressions[real_idx].selected = !m_all_expressions[real_idx].selected;
+        // rebuild grid to reflect selection change
+        rebuild_grid();
+    }
 }
 
 std::vector<AnyExpression*> AddPlotDialog::selected_expressions() const {
@@ -91,81 +266,59 @@ std::vector<AnyExpression*> AddPlotDialog::selected_expressions() const {
 }
 
 void AddPlotDialog::on_add_custom(wxCommandEvent&) {
-    // get input value
+    // check if custom input is available
+    if (m_custom_input == nullptr)
+        return;
+    // get input string
     wxString input_wx = m_custom_input->GetValue();
-    // trim leading and trailing spaces
     input_wx.Trim(true).Trim(false);
-    // check if input is empty
-    if (input_wx.IsEmpty()) {
-        // return early
+    if (input_wx.IsEmpty())
         return;
-    }
-    // convert to standard string
     std::string text = input_wx.ToStdString();
-    // evaluate expression using manager
-    AnyExpression* expr = m_expressions_manager->evaluate(text, text);
-    // check if evaluation failed
-    if (!expr) {
-        // display error message
+    // evaluate expression
+    AnyExpression* expression = m_expressions_manager->evaluate(text, text);
+    if (expression == nullptr) {
+        // show error message
         m_error_label->SetLabel("Invalid expression");
-        // perform layout update
+        // refresh layout
         Layout();
-        // return early
+        // exit
         return;
     }
-    // clear error label text
-    m_error_label->SetLabel(wxEmptyString);
-    // perform layout update
+    // reset error message
+    m_error_label->SetLabel("");
+    // refresh layout
     Layout();
-    // find if expression is already displayed in list box
-    auto it = std::find(m_displayed_expressions.begin(), m_displayed_expressions.end(), expr);
-    // check if found
-    if (it != m_displayed_expressions.end()) {
-        // calculate index of existing item
-        int index = static_cast<int>(std::distance(m_displayed_expressions.begin(), it));
-        // check if item is not selected
-        if (!m_list_box->IsSelected(index)) {
-            // select the item in list box
-            m_list_box->Select(index);
-        }
+    // search existing item
+    auto it = std::find_if(m_all_expressions.begin(), m_all_expressions.end(), [expression](const DisplayedExpressionItem& item) { return item.expression == expression; });
+    if (it != m_all_expressions.end()) {
+        // expression already exists, mark as selected
+        it->selected = true;
     }
     else {
-        // get name
-        std::string name = std::visit([](const auto& e) { return e.name(); }, *expr);
-        // get type
-        std::string type = std::visit([](const auto& e) { return e.variable_type(); }, *expr);
-        // check if type is empty
-        if (type.empty()) {
-            // default type
+        // name and type
+        std::string name = std::visit([](const auto& e) { return e.name(); }, *expression);
+        std::string type = std::visit([](const auto& e) { return e.variable_type(); }, *expression);
+        if (type.empty())
             type = "Misc";
-        }
-        // format display string
-        std::string display_str = name + " [" + type + "]";
-        // append display string to list box
-        int new_index = m_list_box->Append(display_str);
-        // add pointer to displayed expressions list
-        m_displayed_expressions.push_back(expr);
-        // select newly added item in list box
-        m_list_box->Select(new_index);
+        // append to all expressions and mark as selected
+        m_all_expressions.emplace_back(expression, name, type, true);
     }
-    // clear custom input text field
+    // clear custom input and update filter
     m_custom_input->Clear();
+    // update filter to include new expression
+    update_filter();
 }
 
 void AddPlotDialog::on_ok(wxCommandEvent& event) {
-    // clear previous selection list
+    // update selected expressions array
     m_selected_expressions.clear();
-    // create array to hold selected indices
-    wxArrayInt selections;
-    // get selected indices from list box
-    m_list_box->GetSelections(selections);
-    // loop selected indices
-    for (size_t i = 0; i < selections.size(); ++i) {
-        // get list box index
-        const int idx = selections[i];
-        // append to selected expressions list
-        m_selected_expressions.push_back(m_displayed_expressions[idx]);
+    // loop all expressions and collect selected ones
+    for (const auto& item : m_all_expressions) {
+        // check if selected and expression is not null
+        if (item.selected && item.expression != nullptr)
+            m_selected_expressions.push_back(item.expression);
     }
-    // skip event to allow default processing
+    // skip event to allow default handling (closing the dialog)
     event.Skip();
 }

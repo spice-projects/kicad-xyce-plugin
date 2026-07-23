@@ -40,6 +40,10 @@ protected:
         return dialog.m_error_label;
     }
 
+    void toggle_selection(AddPlotDialog& dialog, size_t index) {
+        dialog.toggle_expression_selection(index);
+    }
+
     void simulate_add_custom(AddPlotDialog& dialog, const std::string& text) {
         // set value in input field
         dialog.m_custom_input->SetValue(text);
@@ -57,6 +61,7 @@ protected:
     }
 };
 
+
 TEST_F(AddPlotDialogTest, constructor_populates_list_box_with_filtered_expressions) {
     // arrange
     std::vector<AnyExpression> expressions;
@@ -65,7 +70,7 @@ TEST_F(AddPlotDialogTest, constructor_populates_list_box_with_filtered_expressio
     std::vector<std::pair<size_t, size_t>> slices = {{0, 2}, {2, 4}};
     ExpressionManager manager(expressions, slices);
     // act
-    const AddPlotDialog dialog(nullptr, &manager, {}, true, [](const AnyExpression& expr) { return std::visit([](const auto& e) { return e.variable_type() == "voltage"; }, expr); });
+    const AddPlotDialog dialog(nullptr, &manager, {}, true, [](const AnyExpression* expr) { return std::visit([](const auto& e) { return e.variable_type() == "voltage"; }, *expr); });
     wxListBox* list_box = get_list_box(dialog);
     // assert
     ASSERT_NE(list_box, nullptr);
@@ -132,12 +137,12 @@ TEST_F(AddPlotDialogTest, ok_button_updates_selected_expressions) {
     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}, {1, 2}};
     ExpressionManager manager(expressions, slices);
     AddPlotDialog dialog(nullptr, &manager, {});
-    wxListBox* list_box = get_list_box(dialog);
     // act
-    list_box->Select(1);
+    toggle_selection(dialog, 1);
     simulate_ok(dialog);
     const auto result = dialog.selected_expressions();
     // assert
     ASSERT_EQ(result.size(), 1);
     ASSERT_EQ(std::visit([](const auto& e) { return e.name(); }, *result[0]), "I(R1)");
 }
+
