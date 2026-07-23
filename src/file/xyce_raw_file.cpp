@@ -1,18 +1,14 @@
 #include <algorithm>
-#include <chrono>
-#include <cmath>
 #include <complex>
-#include <fcntl.h>
 #include <optional>
 #include <regex>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 
+#include "../expression/expression.h"
+#include "../step_information.h"
+#include "mapped_file.h"
 #include "xyce_output_file.h"
 #include "xyce_raw_file.h"
-#include "../step_information.h"
-#include "../expression/expression.h"
+
 
 namespace
 {
@@ -322,7 +318,7 @@ namespace
         return true;
     }
 
-    bool parse_binary_variables(char* data, const size_t length, const size_t offset, std::vector<std::tuple<int, std::string, VariableType, std::variant<std::monostate, View<double>, View<std::complex<double>>>>>& variables, bool is_complex, const size_t num_points) {
+    bool parse_binary_variables(const char* data, const size_t length, const size_t offset, std::vector<std::tuple<int, std::string, VariableType, std::variant<std::monostate, View<double>, View<std::complex<double>>>>>& variables, bool is_complex, const size_t num_points) {
         // number of variables
         const size_t num_variables = variables.size();
         // check we need to read complex numbers from file
@@ -331,7 +327,7 @@ namespace
             if (offset + num_points * num_variables * sizeof(std::complex<double>) > length)
                 return false;
             // cast base pointer
-            auto* base_ptr = reinterpret_cast<std::complex<double>*>(data + offset);
+            auto* base_ptr = reinterpret_cast<const std::complex<double>*>(data + offset);
             // loop variable definitions
             for (auto& variable : variables) {
                 // parse variable index
@@ -343,7 +339,7 @@ namespace
                 // check this is the abscissa (always a real number)
                 if (idx == 0) {
                     // cast pointer to double for real abscissa
-                    auto ptr = reinterpret_cast<double*>(base_ptr);
+                    auto ptr = reinterpret_cast<const double*>(base_ptr);
                     // create stride view
                     std::get<3>(variable) = View(ptr, num_points, 2 * num_variables);
                 }
@@ -360,7 +356,7 @@ namespace
         if (offset + num_variables * num_points * sizeof(double) > length)
             return false;
         // cast base pointer
-        auto* base_ptr = reinterpret_cast<double*>(data + offset);
+        auto* base_ptr = reinterpret_cast<const double*>(data + offset);
         // loop variable definitions
         for (auto& variable : variables) {
             // parse index
@@ -385,44 +381,22 @@ namespace
         std::variant<std::vector<View<double>>, std::vector<View<std::complex<double>>>> steps;
         VariableType variable_type;
     };
-}
+} // namespace
 
 std::optional<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path& filename) {
     // check if file exists
     if (!std::filesystem::exists(filename))
         return {};
-    // open the file
-    int fd = open(filename.c_str(), O_RDONLY);
-    if (fd < 0)
+
+    MappedFile mapped_file(filename);
+    if (!mapped_file.is_valid())
         return {};
-    // stat file size
-    struct stat file_info{};
-    if (fstat(fd, &file_info) == -1) {
-        // close fd
-        close(fd);
-        // exit
-        return {};
-    }
-    // assign length
-    size_t length = file_info.st_size;
+
+    const auto data = mapped_file.data();
+    const size_t length = mapped_file.size();
     if (length == 0) {
-        // close fd
-        close(fd);
-        // exit
         return {};
     }
-    // memory map the file
-    void* addr = mmap(nullptr, length, PROT_READ, MAP_SHARED, fd, 0);
-    if (addr == MAP_FAILED) {
-        // close fd
-        close(fd);
-        // exit
-        return {};
-    }
-    // close file descriptor after mmap
-    close(fd);
-    // cast to character pointer (plain buffer)
-    const auto data = static_cast<char*>(addr);
     // initialize blocks list
     std::vector<BlockHeaderScanResult> blocks;
     // initialize step keys
@@ -497,9 +471,6 @@ std::optional<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path& 
     }
     // check we found blocks in file
     if (blocks.empty()) {
-        // un-map memory
-        munmap(addr, length);
-        // return null
         return {};
     }
     // get first block reference
@@ -571,9 +542,6 @@ std::optional<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path& 
         for (auto& [idx, name, variable_type, view] : block.variables) {
             // validate variable index and metadata consistency across steps
             if (idx < 0 || static_cast<size_t>(idx) >= temp_variables.size() || temp_variables[idx].name != name || temp_variables[idx].variable_type != variable_type) {
-                // unmap mmap memory
-                munmap(addr, length);
-                // invalid stepped variable layout
                 return {};
             }
             // variable at index
@@ -639,6 +607,7 @@ std::optional<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path& 
     // }
     // create expression manager
     ExpressionManager expression_manager(expressions, abscissa_indices);
+    auto shared_mapped_file = std::make_shared<MappedFile>(std::move(mapped_file));
     // return file
-    return XyceOutputFile(filename, first_block.title, first_block.is_complex, std::move(step_information), abscissa_scale, std::move(expression_manager), addr, length);
+    return XyceOutputFile(filename, first_block.title, first_block.is_complex, std::move(step_information), abscissa_scale, std::move(expression_manager), shared_mapped_file);
 }

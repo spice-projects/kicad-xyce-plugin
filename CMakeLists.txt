@@ -58,6 +58,10 @@ endif()
 
 add_executable(kicad-xyce-plugin ${SOURCE_FILES})
 
+if(WIN32)
+    set_target_properties(kicad-xyce-plugin PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
+
 target_compile_definitions(kicad-xyce-plugin PRIVATE KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
 
 target_compile_options(kicad-xyce-plugin PRIVATE -Wall -Wextra -Wpedantic)
@@ -68,6 +72,9 @@ if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis
     target_link_libraries(kicad-xyce-plugin PRIVATE "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController")
     target_link_options(kicad-xyce-plugin PRIVATE "-Wl,-no_warn_duplicate_libraries")
+elseif(WIN32)
+    # link windows graphics and system libraries required by the ui backend
+    target_link_libraries(kicad-xyce-plugin PRIVATE d3d11 d3dcompiler dxgi gdi32 user32 shell32 ole32 oleaut32 uuid comdlg32 advapi32 version ws2_32 wininet oleacc uxtheme)
 endif()
 
 if (BUILD_TESTS)
