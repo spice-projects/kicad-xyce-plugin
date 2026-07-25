@@ -50,7 +50,7 @@ endif()
 
 target_compile_definitions(kicad-xyce-plugin-tests PRIVATE KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
 
-target_link_libraries(kicad-xyce-plugin-tests PRIVATE wx::core wx::base imgui::imgui implot::implot spdlog::spdlog GTest::gtest_main)
+target_link_libraries(kicad-xyce-plugin-tests PRIVATE wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog GTest::gtest_main)
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis
