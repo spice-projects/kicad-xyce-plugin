@@ -112,8 +112,7 @@ static std::vector<size_t> min_max_indices(const std::span<const double>& values
     return indices;
 }
 
-// extend min-max by also keeping the first and last sample of every bucket
-// (4 points per bucket).  mirrors the Python _m4_indices() implementation.
+// extend min-max by also keeping the first and last sample of every bucket (4 points per bucket)
 static std::vector<size_t> m4_indices(const std::span<const double>& values, size_t target) {
     // capture the length of the input vector
     size_t length = values.size();

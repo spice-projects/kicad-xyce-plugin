@@ -4,11 +4,13 @@
 #include <string>
 #include <utility>
 
+#include <wx/event.h>
 #include <wx/wxprec.h>
 
 #ifndef WX_PRECOMP
 #include <wx/dcclient.h>
 #include <wx/graphics.h>
+#include <wx/settings.h>
 #include <wx/sizer.h>
 #include <wx/statline.h>
 #endif
@@ -29,8 +31,60 @@ namespace
     std::string to_lower(std::string s) {
         // convert string to lower case
         std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+        // exit
         return s;
     }
+
+    class ChipPanel : public wxPanel
+    {
+    public:
+        ChipPanel(wxWindow* parent, const wxColour& color, const std::string& label, bool selected, int radius = 5) :
+            wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(-1, 28)), m_radius(radius) {
+            // prevent background flickering in Windows
+            SetBackgroundStyle(wxBG_STYLE_PAINT);
+            // set background color based on selection state
+            SetBackgroundColour(selected ? wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT) : wxSystemSettings::GetColour(wxSYS_COLOUR_LISTBOX));
+            // create sizer
+            auto sizer = new wxBoxSizer(wxHORIZONTAL);
+            // create color dot
+            auto dot = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(6, 6));
+            dot->SetBackgroundColour(color);
+            // create label
+            auto text_label = new wxStaticText(this, wxID_ANY, label, wxDefaultPosition, wxDefaultSize, wxST_ELLIPSIZE_END);
+            wxFont font = text_label->GetFont();
+            font.SetPointSize(12);
+            text_label->SetFont(font);
+            // add to sizer
+            sizer->Add(dot, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 6);
+            sizer->Add(text_label, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+            // set sizer
+            SetSizer(sizer);
+            // add event handler
+            Bind(wxEVT_PAINT, &ChipPanel::on_paint, this);
+        }
+
+    private:
+        int m_radius = 0;
+
+        void on_paint(wxPaintEvent& event) {
+            // create a paint DC to handle the paint event
+            wxPaintDC dc(this);
+            // graphics context for anti-aliased drawing
+            std::unique_ptr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));
+            if (gc) {
+                // get the size of the panel
+                wxSize size = GetClientSize();
+                // set the brush to a light gray color for the background
+                gc->SetBrush(wxBrush(wxColour(245, 245, 245)));
+                // set the pen to a slightly darker gray for the border
+                gc->SetPen(wxPen(wxColour(200, 200, 200), 1));
+                // draw a rounded rectangle with the specified radius
+                gc->DrawRoundedRectangle(1, 1, size.GetWidth() - 2, size.GetHeight() - 2, m_radius);
+            }
+            // skip event
+            event.Skip();
+        }
+    };
 } // namespace
 
 AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_manager, std::vector<AnyExpression*> selected_expressions, bool allow_custom_expressions, std::function<bool(const AnyExpression*)> expression_filter) :
@@ -55,6 +109,7 @@ AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_ma
 
     // create main vertical sizer
     auto main_sizer = new wxBoxSizer(wxVERTICAL);
+    SetSizer(main_sizer);
 
     // create title label
     auto title_text = new wxStaticText(this, wxID_ANY, "Select one or more expressions to plot:");
@@ -75,6 +130,7 @@ AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_ma
     // create scrollable window for grid
     m_grid_scroller = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
     m_grid_scroller->SetScrollRate(0, 10);
+    main_sizer->Add(m_grid_scroller, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
     // create grid container panel
     m_grid_container = new wxPanel(m_grid_scroller, wxID_ANY);
@@ -83,38 +139,36 @@ AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_ma
     scroller_sizer->Add(m_grid_container, 0, wxEXPAND);
     m_grid_scroller->SetSizer(scroller_sizer);
 
-    main_sizer->Add(m_grid_scroller, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
-
     // check if custom expressions are enabled
-    if (m_allow_custom_expressions) {
-        auto custom_panel = new wxPanel(this, wxID_ANY);
+    // if (m_allow_custom_expressions) {
+    //     auto custom_panel = new wxPanel(this, wxID_ANY);
 
-        auto custom_sizer = new wxBoxSizer(wxVERTICAL);
-        auto input_row_sizer = new wxBoxSizer(wxHORIZONTAL);
+    //     auto custom_sizer = new wxBoxSizer(wxVERTICAL);
+    //     auto input_row_sizer = new wxBoxSizer(wxHORIZONTAL);
 
-        auto expr_label = new wxStaticText(custom_panel, wxID_ANY, "Expression:");
+    //     auto expr_label = new wxStaticText(custom_panel, wxID_ANY, "Expression:");
 
-        m_custom_input = new wxTextCtrl(custom_panel, wxID_ANY, "", wxDefaultPosition, wxSize(-1, 28), wxTE_PROCESS_ENTER);
-        m_custom_input->SetHint("e.g. V(net1) / I(R1)");
+    //     m_custom_input = new wxTextCtrl(custom_panel, wxID_ANY, "", wxDefaultPosition, wxSize(-1, 28), wxTE_PROCESS_ENTER);
+    //     m_custom_input->SetHint("e.g. V(net1) / I(R1)");
 
-        m_add_button = new wxButton(custom_panel, wxID_ANY, "Add", wxDefaultPosition, wxSize(52, 28));
+    //     m_add_button = new wxButton(custom_panel, wxID_ANY, "Add", wxDefaultPosition, wxSize(52, 28));
 
-        input_row_sizer->Add(expr_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
-        input_row_sizer->Add(m_custom_input, 1, wxEXPAND | wxRIGHT, 6);
-        input_row_sizer->Add(m_add_button, 0, wxALIGN_CENTER_VERTICAL);
+    //     input_row_sizer->Add(expr_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
+    //     input_row_sizer->Add(m_custom_input, 1, wxEXPAND | wxRIGHT, 6);
+    //     input_row_sizer->Add(m_add_button, 0, wxALIGN_CENTER_VERTICAL);
 
-        custom_sizer->Add(input_row_sizer, 0, wxEXPAND | wxALL, 10);
+    //     custom_sizer->Add(input_row_sizer, 0, wxEXPAND | wxALL, 10);
 
-        // create error label
-        m_error_label = new wxStaticText(custom_panel, wxID_ANY, "");
-        custom_sizer->Add(m_error_label, 0, wxLEFT | wxRIGHT | wxBOTTOM, 6);
+    //     // create error label
+    //     m_error_label = new wxStaticText(custom_panel, wxID_ANY, "");
+    //     custom_sizer->Add(m_error_label, 0, wxLEFT | wxRIGHT | wxBOTTOM, 6);
 
-        custom_panel->SetSizer(custom_sizer);
-        main_sizer->Add(custom_panel, 0, wxEXPAND);
+    //     custom_panel->SetSizer(custom_sizer);
+    //     main_sizer->Add(custom_panel, 0, wxEXPAND);
 
-        m_add_button->Bind(wxEVT_BUTTON, &AddPlotDialog::on_add_custom, this);
-        m_custom_input->Bind(wxEVT_TEXT_ENTER, &AddPlotDialog::on_add_custom, this);
-    }
+    //     m_add_button->Bind(wxEVT_BUTTON, &AddPlotDialog::on_add_custom, this);
+    //     m_custom_input->Bind(wxEVT_TEXT_ENTER, &AddPlotDialog::on_add_custom, this);
+    // }
 
     // separator
     main_sizer->Add(new wxStaticLine(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxTOP | wxBOTTOM, 4);
@@ -156,9 +210,6 @@ AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_ma
 
     bottom_panel->SetSizer(bottom_sizer);
     main_sizer->Add(bottom_panel, 0, wxEXPAND);
-
-    // set sizer
-    SetSizer(main_sizer);
 
     // perform initial filter update
     update_filter();
@@ -218,34 +269,13 @@ void AddPlotDialog::rebuild_grid() {
     for (size_t filtered_idx = 0; filtered_idx < m_filtered_indices.size(); ++filtered_idx) {
         // get real index in all expressions
         size_t real_idx = m_filtered_indices[filtered_idx];
-        // get item
+        // get item at real index
         const auto& item = m_all_expressions[real_idx];
-        // chip panel fixed at 28px height
-        auto chip = new wxPanel(m_grid_container, wxID_ANY, wxDefaultPosition, wxSize(-1, 28));
-        // chip->SetBackgroundColour(item.selected ? CHIP_BG_SELECTED_COLOR : CHIP_BG_COLOR);
-        // sizer for chip contents
-        auto chip_sizer = new wxBoxSizer(wxHORIZONTAL);
-
-        auto dot = new wxPanel(chip, wxID_ANY, wxDefaultPosition, wxSize(6, 6));
-        dot->SetBackgroundColour(get_type_colour(item.type));
-
-        auto label = new wxStaticText(chip, wxID_ANY, item.name, wxDefaultPosition, wxDefaultSize, wxST_ELLIPSIZE_END);
-        // label->SetForegroundColour(item.selected ? CHIP_TEXT_SELECTED_COLOR : CHIP_TEXT_COLOR);
-        wxFont chip_font = label->GetFont();
-        chip_font.SetPointSize(12);
-        label->SetFont(chip_font);
-
-        chip_sizer->Add(dot, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 6);
-        chip_sizer->Add(label, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
-        chip->SetSizer(chip_sizer);
-
-        // bind click event
-        auto on_click = [this, real_idx](wxMouseEvent&) { toggle_expression_selection(real_idx); };
-
-        chip->Bind(wxEVT_LEFT_DOWN, on_click);
-        dot->Bind(wxEVT_LEFT_DOWN, on_click);
-        label->Bind(wxEVT_LEFT_DOWN, on_click);
-
+        // create chip panel for the expression
+        auto chip = new ChipPanel(m_grid_container, get_type_colour(item.type), item.name, item.selected);
+        // bind events
+        chip->Bind(wxEVT_COMMAND_LEFT_CLICK, [this, real_idx](wxCommandEvent&) -> void { toggle_expression_selection(real_idx); });
+        // add chip to flex grid sizer
         flex_sizer->Add(chip, 0, wxEXPAND);
     }
 

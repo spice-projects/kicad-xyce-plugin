@@ -35,8 +35,8 @@ enum
     STYLE_SPICE_COMMENT_LINE
 };
 
-const wxRegEx spice_comments_regex("^\\*.*$");
-const wxRegEx spice_directive_regex("^(\\.\\b\\w+\\b).*$");
+const wxRegEx SPICE_COMMENTS_REGEX("^\\*.*$");
+const wxRegEx SPICE_DIRECTIVE_REGEX("^(\\.\\b\\w+\\b).*$");
 
 MainWindow::MainWindow(const wxString& title) :
     wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(800, 600)) {
@@ -255,7 +255,7 @@ void MainWindow::on_menu_file_open(wxCommandEvent& event) {
                 // hide/show panels
                 m_main_sizer->Show(m_charts_panel);
                 m_main_sizer->Hide(m_netlist_editor);
-                m_main_sizer->Layout();    
+                m_main_sizer->Layout();
                 // disable the save netlist action (enabled when editor is modified)
                 CallAfter([this]() { update_netlist_editor_dirty_flag(false); });
             }
@@ -327,7 +327,7 @@ void MainWindow::on_netlist_editor_style_needed(wxStyledTextEvent& event) {
     // loop lines and apply styles
     for (auto line : lines) {
         // check if line is a comment
-        if (spice_comments_regex.Matches(line)) {
+        if (SPICE_COMMENTS_REGEX.Matches(line)) {
             // apply comment style
             m_netlist_editor->StartStyling(start_pos);
             m_netlist_editor->SetStyling(line.Length(), STYLE_SPICE_COMMENT_LINE);
@@ -337,9 +337,9 @@ void MainWindow::on_netlist_editor_style_needed(wxStyledTextEvent& event) {
             continue;
         }
         // directive
-        if (spice_directive_regex.Matches(line)) {
+        if (SPICE_DIRECTIVE_REGEX.Matches(line)) {
             // actual directive is in capture group 1
-            wxString directive = spice_directive_regex.GetMatch(line, 1);
+            wxString directive = SPICE_DIRECTIVE_REGEX.GetMatch(line, 1);
             // apply directive style
             m_netlist_editor->StartStyling(start_pos);
             m_netlist_editor->SetStyling(directive.Length(), STYLE_SPICE_DIRECTIVE);

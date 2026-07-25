@@ -44,7 +44,7 @@ private:
     void on_filter_text_changed(wxCommandEvent& event);
     void on_add_custom(wxCommandEvent& event);
     void on_ok(wxCommandEvent& event);
-    void toggle_expression_selection(size_t displayed_index);
+    void toggle_expression_selection(size_t);
     wxColour get_type_colour(const std::string& type) const;
 
     ExpressionManager* m_expressions_manager;

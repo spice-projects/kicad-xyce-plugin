@@ -347,6 +347,8 @@ std::tuple<bool, View<double>, View<double>, double, double> Chart::plot_step(Ex
     // decimate x and y values
     auto [x_np, y_np] = decimate_xy(abscissa_values, ordinate_values, m_decimate_target, DECIMATE_M4);
     // TODO: remove Inf values
+    // log information
+    spdlog::debug("Adding series for expression [{}], step: {}, original size: {}, decimated size: {}", ordinate_variant->name(), step, abscissa_values.size(), x_np.size());
     // check all values were non-finite after filtering
     if (x_np.empty() || y_np.empty())
         return {};
@@ -584,7 +586,7 @@ void Chart::redraw_all_series() {
                     ordinate_values = ordinate_values | std::views::drop(first) | std::views::take(last - first);
                 }
                 // decimate x and y values
-                auto [x, y] = decimate_xy(abscissa_values, ordinate_values, m_decimate_target, DECIMATE_NONE);
+                auto [x, y] = decimate_xy(abscissa_values, ordinate_values, m_decimate_target, DECIMATE_M4);
                 // TODO: remove Inf values
                 // log information
                 spdlog::debug("Updating series for expression [{}], step: {}, original size: {}, decimated size: {}", ordinate_variant->name(), step, abscissa_values.size(), x.size());
