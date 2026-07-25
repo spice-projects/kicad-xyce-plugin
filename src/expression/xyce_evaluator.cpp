@@ -9,14 +9,10 @@
 namespace
 {
     // determine whether the value is already a complex scalar
-    bool is_complex_scalar(const XyceValue& value) {
-        return std::holds_alternative<std::complex<double>>(value);
-    }
+    bool is_complex_scalar(const XyceValue& value) { return std::holds_alternative<std::complex<double>>(value); }
 
     // determine whether the value is a vector
-    bool is_vector_value(const XyceValue& value) {
-        return std::holds_alternative<std::vector<double>>(value) || std::holds_alternative<std::vector<std::complex<double>>>(value);
-    }
+    bool is_vector_value(const XyceValue& value) { return std::holds_alternative<std::vector<double>>(value) || std::holds_alternative<std::vector<std::complex<double>>>(value); }
 
     struct RealBroadcastInput
     {
@@ -94,8 +90,7 @@ namespace
     {
     public:
         explicit ScopedVariableBindings(EvaluationContext& context) :
-            m_context(context) {
-        }
+            m_context(context) {}
 
         void bind(std::string key, XyceValue value) {
             m_keys.push_back(key);
@@ -413,9 +408,7 @@ namespace
             return apply_binary_real(left_value, right_value, [](double lhs, double rhs) { return std::pow(lhs, rhs); });
         }
         if (expression.operator_value == BinaryOperator::MOD) {
-            return apply_binary_real(left_value, right_value, [](double lhs, double rhs) {
-                return lhs - std::floor(lhs / rhs) * rhs;
-            });
+            return apply_binary_real(left_value, right_value, [](double lhs, double rhs) { return lhs - std::floor(lhs / rhs) * rhs; });
         }
         if (expression.operator_value == BinaryOperator::EQUAL) {
             return apply_compare(left_value, right_value, [](double lhs, double rhs) { return lhs == rhs; });
@@ -640,13 +633,9 @@ namespace
         throw std::invalid_argument("Cannot extract node name from complex expression");
     }
 
-    std::string extract_node_name(const ExpressionNode& expression) {
-        return node_name_from_expr(expression);
-    }
+    std::string extract_node_name(const ExpressionNode& expression) { return node_name_from_expr(expression); }
 
-    bool is_scalar_value(const XyceValue& value) {
-        return std::holds_alternative<double>(value) || std::holds_alternative<std::complex<double>>(value);
-    }
+    bool is_scalar_value(const XyceValue& value) { return std::holds_alternative<double>(value) || std::holds_alternative<std::complex<double>>(value); }
 
     [[maybe_unused]] size_t value_size(const XyceValue& value) {
         if (std::holds_alternative<std::vector<double>>(value)) {
@@ -658,13 +647,9 @@ namespace
         return 1;
     }
 
-    [[maybe_unused]] std::vector<double> boolean_result(const std::vector<double>& values) {
-        return values;
-    }
+    [[maybe_unused]] std::vector<double> boolean_result(const std::vector<double>& values) { return values; }
 
-    [[maybe_unused]] XyceValue boolean_result(const bool value) {
-        return value ? 1.0 : 0.0;
-    }
+    [[maybe_unused]] XyceValue boolean_result(const bool value) { return value ? 1.0 : 0.0; }
 
     XyceValue truth_mask(const XyceValue& value) {
         if (std::holds_alternative<double>(value)) {
@@ -719,9 +704,7 @@ namespace
     }
 
     // apply a real-valued binary operation
-    XyceValue apply_binary_real(const XyceValue& left, const XyceValue& right, const std::function<double(double, double)>& fn) {
-        return broadcast_binary_real(left, right, fn);
-    }
+    XyceValue apply_binary_real(const XyceValue& left, const XyceValue& right, const std::function<double(double, double)>& fn) { return broadcast_binary_real(left, right, fn); }
 
     // apply a comparison and normalize the result to 0/1
     XyceValue apply_compare(const XyceValue& left, const XyceValue& right, const std::function<bool(double, double)>& fn) {
@@ -729,24 +712,16 @@ namespace
     }
 
     // apply a real elementwise helper
-    [[maybe_unused]] XyceValue apply_elementwise(const XyceValue& left, const XyceValue& right, const std::function<double(double, double)>& fn) {
-        return broadcast_binary_real(left, right, fn);
-    }
+    [[maybe_unused]] XyceValue apply_elementwise(const XyceValue& left, const XyceValue& right, const std::function<double(double, double)>& fn) { return broadcast_binary_real(left, right, fn); }
 
     // apply a complex elementwise helper
-    [[maybe_unused]] XyceValue apply_elementwise_complex(const XyceValue& left, const XyceValue& right, const std::function<std::complex<double>(std::complex<double>, std::complex<double>)>& fn) {
-        return broadcast_binary_complex(left, right, fn);
-    }
+    [[maybe_unused]] XyceValue apply_elementwise_complex(const XyceValue& left, const XyceValue& right, const std::function<std::complex<double>(std::complex<double>, std::complex<double>)>& fn) { return broadcast_binary_complex(left, right, fn); }
 
     // apply a real unary helper
-    XyceValue apply_unary_elementwise(const XyceValue& value, const std::function<double(double)>& fn) {
-        return broadcast_unary_real(value, fn);
-    }
+    XyceValue apply_unary_elementwise(const XyceValue& value, const std::function<double(double)>& fn) { return broadcast_unary_real(value, fn); }
 
     // apply a complex unary helper
-    XyceValue apply_unary_elementwise_complex(const XyceValue& value, const std::function<std::complex<double>(std::complex<double>)>& fn) {
-        return broadcast_unary_complex(value, fn);
-    }
+    XyceValue apply_unary_elementwise_complex(const XyceValue& value, const std::function<std::complex<double>(std::complex<double>)>& fn) { return broadcast_unary_complex(value, fn); }
 
     // normalize a name for case-insensitive lookups
     std::string casefold(std::string text) {
@@ -755,17 +730,10 @@ namespace
     }
 
     // keep the value in array-friendly form
-    [[maybe_unused]] XyceValue to_array(const XyceValue& value) {
-        return value;
-    }
-}
+    [[maybe_unused]] XyceValue to_array(const XyceValue& value) { return value; }
+} // namespace
 
-XyceValue evaluate_expression(
-    const ExpressionNode& expression,
-    const std::unordered_map<std::string, XyceValue>& expressions,
-    const std::unordered_map<std::string, FunctionDefinitionNode>& functions,
-    const std::unordered_map<std::string, XyceValue>& constants,
-    const std::optional<std::vector<std::pair<size_t, size_t>>>& step_slices) {
+XyceValue evaluate_expression(const ExpressionNode& expression, const std::unordered_map<std::string, XyceValue>& expressions, const std::unordered_map<std::string, FunctionDefinitionNode>& functions, const std::unordered_map<std::string, XyceValue>& constants, const std::optional<std::vector<std::pair<size_t, size_t>>>& step_slices) {
     // build the evaluation context
     EvaluationContext context;
     // normalize expression keys

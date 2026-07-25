@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <unordered_map>
@@ -9,36 +8,11 @@
 namespace
 {
     const std::unordered_map<char, TokenKind> SINGLE_CHAR_TOKENS{
-        {'(', TokenKind::LPAREN},
-        {')', TokenKind::RPAREN},
-        {'{', TokenKind::LBRACE},
-        {'}', TokenKind::RBRACE},
-        {',', TokenKind::COMMA},
-        {'?', TokenKind::QUESTION},
-        {':', TokenKind::COLON},
-        {'@', TokenKind::AT},
-        {'+', TokenKind::PLUS},
-        {'-', TokenKind::MINUS},
-        {'*', TokenKind::STAR},
-        {'/', TokenKind::SLASH},
-        {'%', TokenKind::PERCENT},
-        {'^', TokenKind::CARET},
-        {'~', TokenKind::TILDE},
-        {'!', TokenKind::BANG},
-        {'&', TokenKind::AMPERSAND},
-        {'|', TokenKind::PIPE},
-        {'<', TokenKind::LESS},
-        {'>', TokenKind::GREATER},
+        {'(', TokenKind::LPAREN}, {')', TokenKind::RPAREN}, {'{', TokenKind::LBRACE}, {'}', TokenKind::RBRACE}, {',', TokenKind::COMMA}, {'?', TokenKind::QUESTION}, {':', TokenKind::COLON}, {'@', TokenKind::AT}, {'+', TokenKind::PLUS}, {'-', TokenKind::MINUS}, {'*', TokenKind::STAR}, {'/', TokenKind::SLASH}, {'%', TokenKind::PERCENT}, {'^', TokenKind::CARET}, {'~', TokenKind::TILDE}, {'!', TokenKind::BANG}, {'&', TokenKind::AMPERSAND}, {'|', TokenKind::PIPE}, {'<', TokenKind::LESS}, {'>', TokenKind::GREATER},
     };
 
     const std::unordered_map<std::string_view, TokenKind> DOUBLE_CHAR_TOKENS{
-        {"&&", TokenKind::LOGICAL_AND},
-        {"||", TokenKind::LOGICAL_OR},
-        {"==", TokenKind::EQUAL_EQUAL},
-        {"!=", TokenKind::BANG_EQUAL},
-        {"<=", TokenKind::LESS_EQUAL},
-        {">=", TokenKind::GREATER_EQUAL},
-        {"**", TokenKind::POWER},
+        {"&&", TokenKind::LOGICAL_AND}, {"||", TokenKind::LOGICAL_OR}, {"==", TokenKind::EQUAL_EQUAL}, {"!=", TokenKind::BANG_EQUAL}, {"<=", TokenKind::LESS_EQUAL}, {">=", TokenKind::GREATER_EQUAL}, {"**", TokenKind::POWER},
     };
 
     bool is_identifier_start(const char ch) {
@@ -253,7 +227,7 @@ namespace
         // return the folded string
         return text;
     }
-}
+} // namespace
 
 ExpressionPtr XyceParser::parse_expression(const std::string& text) {
     // tokenize the input
@@ -686,13 +660,9 @@ ExpressionPtr parse_expression(const std::string& text) {
     return XyceParser{}.parse_expression(text);
 }
 
-std::vector<Token> XyceLexer::tokenize(const std::string& text) {
-    return tokenize_impl(text);
-}
+std::vector<Token> XyceLexer::tokenize(const std::string& text) { return tokenize_impl(text); }
 
-std::vector<Token> tokenize(const std::string& text) {
-    return XyceLexer{}.tokenize(text);
-}
+std::vector<Token> tokenize(const std::string& text) { return XyceLexer{}.tokenize(text); }
 
 FunctionDefinitionNode parse_function_definition(const std::string& text) {
     // parse a .func definition with a fresh parser instance

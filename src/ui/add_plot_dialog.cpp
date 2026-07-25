@@ -39,11 +39,9 @@ namespace
     {
     public:
         ChipPanel(wxWindow* parent, const wxColour& color, const std::string& label, bool selected, int radius = 5) :
-            wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(-1, 28)), m_radius(radius) {
+            wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(-1, 28)), m_selected(selected), m_radius(radius) {
             // prevent background flickering in Windows
             SetBackgroundStyle(wxBG_STYLE_PAINT);
-            // set background color based on selection state
-            SetBackgroundColour(selected ? wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT) : wxSystemSettings::GetColour(wxSYS_COLOUR_LISTBOX));
             // create sizer
             auto sizer = new wxBoxSizer(wxHORIZONTAL);
             // create color dot
@@ -54,6 +52,8 @@ namespace
             wxFont font = text_label->GetFont();
             font.SetPointSize(12);
             text_label->SetFont(font);
+            // set text color based on selection state so it remains readable in both dark and light appearances
+            text_label->SetForegroundColour(wxSystemSettings::GetColour(m_selected ? wxSYS_COLOUR_HIGHLIGHTTEXT : wxSYS_COLOUR_LISTBOXTEXT));
             // add to sizer
             sizer->Add(dot, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 6);
             sizer->Add(text_label, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
@@ -64,6 +64,7 @@ namespace
         }
 
     private:
+        bool m_selected = false;
         int m_radius = 0;
 
         void on_paint(wxPaintEvent& event) {
@@ -74,10 +75,15 @@ namespace
             if (gc) {
                 // get the size of the panel
                 wxSize size = GetClientSize();
-                // set the brush to a light gray color for the background
-                gc->SetBrush(wxBrush(wxColour(245, 245, 245)));
-                // set the pen to a slightly darker gray for the border
-                gc->SetPen(wxPen(wxColour(200, 200, 200), 1));
+                if (m_selected) {
+                    // use highlight colors for selected chips
+                    gc->SetBrush(wxBrush(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT)));
+                    gc->SetPen(wxPen(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT), 1));
+                }
+                else {
+                    // use default colors for unselected chips, with a subtle border for better visibility
+                    gc->SetPen(wxPen(wxSystemSettings::GetColour(wxSYS_COLOUR_BTNSHADOW), 1));
+                }
                 // draw a rounded rectangle with the specified radius
                 gc->DrawRoundedRectangle(1, 1, size.GetWidth() - 2, size.GetHeight() - 2, m_radius);
             }
@@ -140,35 +146,35 @@ AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_ma
     m_grid_scroller->SetSizer(scroller_sizer);
 
     // check if custom expressions are enabled
-    // if (m_allow_custom_expressions) {
-    //     auto custom_panel = new wxPanel(this, wxID_ANY);
+    if (m_allow_custom_expressions) {
+        auto custom_panel = new wxPanel(this, wxID_ANY);
 
-    //     auto custom_sizer = new wxBoxSizer(wxVERTICAL);
-    //     auto input_row_sizer = new wxBoxSizer(wxHORIZONTAL);
+        auto custom_sizer = new wxBoxSizer(wxVERTICAL);
+        auto input_row_sizer = new wxBoxSizer(wxHORIZONTAL);
 
-    //     auto expr_label = new wxStaticText(custom_panel, wxID_ANY, "Expression:");
+        auto expr_label = new wxStaticText(custom_panel, wxID_ANY, "Expression:");
 
-    //     m_custom_input = new wxTextCtrl(custom_panel, wxID_ANY, "", wxDefaultPosition, wxSize(-1, 28), wxTE_PROCESS_ENTER);
-    //     m_custom_input->SetHint("e.g. V(net1) / I(R1)");
+        m_custom_input = new wxTextCtrl(custom_panel, wxID_ANY, "", wxDefaultPosition, wxSize(-1, 28), wxTE_PROCESS_ENTER);
+        m_custom_input->SetHint("e.g. V(net1) / I(R1)");
 
-    //     m_add_button = new wxButton(custom_panel, wxID_ANY, "Add", wxDefaultPosition, wxSize(52, 28));
+        m_add_button = new wxButton(custom_panel, wxID_ANY, "Add", wxDefaultPosition, wxSize(52, 28));
 
-    //     input_row_sizer->Add(expr_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
-    //     input_row_sizer->Add(m_custom_input, 1, wxEXPAND | wxRIGHT, 6);
-    //     input_row_sizer->Add(m_add_button, 0, wxALIGN_CENTER_VERTICAL);
+        input_row_sizer->Add(expr_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
+        input_row_sizer->Add(m_custom_input, 1, wxEXPAND | wxRIGHT, 6);
+        input_row_sizer->Add(m_add_button, 0, wxALIGN_CENTER_VERTICAL);
 
-    //     custom_sizer->Add(input_row_sizer, 0, wxEXPAND | wxALL, 10);
+        custom_sizer->Add(input_row_sizer, 0, wxEXPAND | wxALL, 10);
 
-    //     // create error label
-    //     m_error_label = new wxStaticText(custom_panel, wxID_ANY, "");
-    //     custom_sizer->Add(m_error_label, 0, wxLEFT | wxRIGHT | wxBOTTOM, 6);
+        // create error label
+        m_error_label = new wxStaticText(custom_panel, wxID_ANY, "");
+        custom_sizer->Add(m_error_label, 0, wxLEFT | wxRIGHT | wxBOTTOM, 6);
 
-    //     custom_panel->SetSizer(custom_sizer);
-    //     main_sizer->Add(custom_panel, 0, wxEXPAND);
+        custom_panel->SetSizer(custom_sizer);
+        main_sizer->Add(custom_panel, 0, wxEXPAND);
 
-    //     m_add_button->Bind(wxEVT_BUTTON, &AddPlotDialog::on_add_custom, this);
-    //     m_custom_input->Bind(wxEVT_TEXT_ENTER, &AddPlotDialog::on_add_custom, this);
-    // }
+        m_add_button->Bind(wxEVT_BUTTON, &AddPlotDialog::on_add_custom, this);
+        m_custom_input->Bind(wxEVT_TEXT_ENTER, &AddPlotDialog::on_add_custom, this);
+    }
 
     // separator
     main_sizer->Add(new wxStaticLine(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxTOP | wxBOTTOM, 4);
@@ -257,14 +263,12 @@ void AddPlotDialog::update_filter() {
 void AddPlotDialog::rebuild_grid() {
     // destroy existing grid children
     m_grid_container->DestroyChildren();
-
     // create 3-column flex grid sizer with fixed row gap & column gap (cols, vgap, hgap)
     auto flex_sizer = new wxFlexGridSizer(0, 3, 6, 6);
     // allow columns to grow proportionally
     flex_sizer->AddGrowableCol(0, 1);
     flex_sizer->AddGrowableCol(1, 1);
     flex_sizer->AddGrowableCol(2, 1);
-
     // loop filtered items
     for (size_t filtered_idx = 0; filtered_idx < m_filtered_indices.size(); ++filtered_idx) {
         // get real index in all expressions
@@ -274,11 +278,14 @@ void AddPlotDialog::rebuild_grid() {
         // create chip panel for the expression
         auto chip = new ChipPanel(m_grid_container, get_type_colour(item.type), item.name, item.selected);
         // bind events
-        chip->Bind(wxEVT_COMMAND_LEFT_CLICK, [this, real_idx](wxCommandEvent&) -> void { toggle_expression_selection(real_idx); });
+        chip->Bind(wxEVT_LEFT_DOWN, [this, real_idx](wxMouseEvent&) -> void { toggle_expression_selection(real_idx); });
+        // check custom expressions are enabled
+        if (m_custom_input != nullptr)
+            chip->Bind(wxEVT_RIGHT_DOWN, [this, &item](wxMouseEvent&) -> void { m_custom_input->SetValue(m_custom_input->GetValue() + item.name); });
         // add chip to flex grid sizer
         flex_sizer->Add(chip, 0, wxEXPAND);
     }
-
+    // render items
     m_grid_container->SetSizer(flex_sizer);
     m_grid_scroller->FitInside();
     m_grid_container->Layout();

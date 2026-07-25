@@ -37,7 +37,7 @@ find_package(wxwidgets CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 
 # gather cpp sources (all platforms)
-file(GLOB_RECURSE CPP_SOURCES "src/*.cpp" "src/expression/*.cpp" "src/file/*.cpp" "src/ui/*.cpp")
+file(GLOB_RECURSE CPP_SOURCES "src/*.cpp" "src/expression/*.cpp" "src/file/*.cpp" "src/simulation_parameters/*.cpp" "src/ui/*.cpp")
 
 if(APPLE)
     # gather objective-c++ sources

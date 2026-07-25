@@ -84,8 +84,7 @@ using ExpressionPtr = std::unique_ptr<ExpressionNode>;
 struct NumberNode final : ExpressionNode
 {
     explicit NumberNode(std::string value) :
-        text(std::move(value)) {
-    }
+        text(std::move(value)) {}
 
     std::string text;
 };
@@ -93,8 +92,7 @@ struct NumberNode final : ExpressionNode
 struct IdentifierNode final : ExpressionNode
 {
     explicit IdentifierNode(std::string value) :
-        name(std::move(value)) {
-    }
+        name(std::move(value)) {}
 
     std::string name;
 };
@@ -102,8 +100,7 @@ struct IdentifierNode final : ExpressionNode
 struct FunctionCallNode final : ExpressionNode
 {
     FunctionCallNode(std::string value, std::vector<ExpressionPtr> arguments) :
-        name(std::move(value)), args(std::move(arguments)) {
-    }
+        name(std::move(value)), args(std::move(arguments)) {}
 
     std::string name;
     std::vector<ExpressionPtr> args;
@@ -112,8 +109,7 @@ struct FunctionCallNode final : ExpressionNode
 struct UnaryOperationNode final : ExpressionNode
 {
     UnaryOperationNode(UnaryOperator value, ExpressionPtr operand_value) :
-        operator_value(value), operand(std::move(operand_value)) {
-    }
+        operator_value(value), operand(std::move(operand_value)) {}
 
     UnaryOperator operator_value;
     ExpressionPtr operand;
@@ -122,8 +118,7 @@ struct UnaryOperationNode final : ExpressionNode
 struct BinaryOperationNode final : ExpressionNode
 {
     BinaryOperationNode(ExpressionPtr lhs, BinaryOperator value, ExpressionPtr rhs) :
-        left(std::move(lhs)), operator_value(value), right(std::move(rhs)) {
-    }
+        left(std::move(lhs)), operator_value(value), right(std::move(rhs)) {}
 
     ExpressionPtr left;
     BinaryOperator operator_value;
@@ -133,8 +128,7 @@ struct BinaryOperationNode final : ExpressionNode
 struct TernaryOperationNode final : ExpressionNode
 {
     TernaryOperationNode(ExpressionPtr condition_value, ExpressionPtr true_value, ExpressionPtr false_value) :
-        condition(std::move(condition_value)), if_true(std::move(true_value)), if_false(std::move(false_value)) {
-    }
+        condition(std::move(condition_value)), if_true(std::move(true_value)), if_false(std::move(false_value)) {}
 
     ExpressionPtr condition;
     ExpressionPtr if_true;
@@ -144,8 +138,7 @@ struct TernaryOperationNode final : ExpressionNode
 struct StepSelectorNode final : ExpressionNode
 {
     StepSelectorNode(ExpressionPtr value, size_t index) :
-        base(std::move(value)), step_index(index) {
-    }
+        base(std::move(value)), step_index(index) {}
 
     ExpressionPtr base;
     size_t step_index;
@@ -154,8 +147,7 @@ struct StepSelectorNode final : ExpressionNode
 struct FunctionDefinitionNode
 {
     FunctionDefinitionNode(std::string value, std::vector<std::string> parameters, ExpressionPtr value_body) :
-        name(std::move(value)), params(std::move(parameters)), body(std::move(value_body)) {
-    }
+        name(std::move(value)), params(std::move(parameters)), body(std::move(value_body)) {}
 
     std::string name;
     std::vector<std::string> params;

@@ -57,7 +57,6 @@ private:
     wxTextCtrl* m_filter_input{nullptr};
     wxScrolledWindow* m_grid_scroller{nullptr};
     wxPanel* m_grid_container{nullptr};
-    wxListBox* m_list_box{nullptr}; // Kept for unit testing compatibility / headless fallback
     wxTextCtrl* m_custom_input{nullptr};
     wxButton* m_add_button{nullptr};
     wxStaticText* m_error_label{nullptr};
