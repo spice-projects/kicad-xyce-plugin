@@ -82,4 +82,4 @@ inline VariableType parse_variable_type(const std::string& type_str) {
     return VariableType::UNKNOWN;
 }
 
-std::optional<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path& filename);
+std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::filesystem::path& filename);

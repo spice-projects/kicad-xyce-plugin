@@ -297,19 +297,23 @@ void ChartsPanel::initialize() {
         return;
     }
 
-    // create the Dear ImGui context
+    // create imgui isolated context for this panel
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImPlot::CreateContext();
-    ImGui::StyleColorsClassic();
-
-    // configure the ImGui input/output
+    ImGui::SetCurrentContext(ImGui::CreateContext());
+    ImPlot::SetCurrentContext(ImPlot::CreateContext());
+    // style
+    PlatformStyle();
+    // ImGui configuration
     ImGuiIO& io = ImGui::GetIO();
-    io.Fonts->AddFontDefault();
-
-    // configure the ImGui style
-    ImGui::GetStyle().WindowRounding = 0.0f;
-    ImGui::GetStyle().ChildRounding = 0.0f;
+    // font base size
+    const float base_size = 14.0f;
+    // add font with scaling for retina displays
+    io.Fonts->AddFontFromFileTTF(FONT_PATH, base_size * scale);
+    io.FontGlobalScale = 1.0f / (float)scale;
+    // update style
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.AntiAliasedLines = true;
+    style.AntiAliasedLinesUseTex = true;
 
     // initialize the Win32 backend
     if (!ImGui_ImplWin32_Init(hwnd)) {

@@ -1,9 +1,13 @@
 #pragma once
 
 #include <functional>
-#include <map>
+#include <set>
 #include <string>
 #include <vector>
+
+#include <wx/wxprec.h>
+
+#ifndef WX_PRECOMP
 #include <wx/button.h>
 #include <wx/dialog.h>
 #include <wx/listbox.h>
@@ -11,6 +15,7 @@
 #include <wx/scrolwin.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
+#endif
 
 #include "../expression/expression_manager.h"
 
@@ -29,7 +34,7 @@ class AddPlotDialog : public wxDialog
 public:
     AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_manager, std::vector<AnyExpression*> selected_expressions, bool allow_custom_expressions = true, std::function<bool(const AnyExpression*)> expression_filter = [](const AnyExpression*) { return true; });
 
-    [[nodiscard]] std::vector<AnyExpression*> selected_expressions() const;
+    [[nodiscard]] std::set<AnyExpression*> selected_expressions() const;
 
 private:
     friend class AddPlotDialogTest;
@@ -43,7 +48,6 @@ private:
     wxColour get_type_colour(const std::string& type) const;
 
     ExpressionManager* m_expressions_manager;
-    std::vector<AnyExpression*> m_selected_expressions;
     bool m_allow_custom_expressions;
     std::function<bool(const AnyExpression*)> m_expression_filter;
 

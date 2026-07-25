@@ -15,67 +15,71 @@
 #include "chart.h"
 #include "decimate.h"
 
-const std::vector SERIES_COLOR_PALETTE = {
-    ImVec4(247.0f / 255.0f, 127.0f / 255.0f, 0.0f / 255.0f, 1.0f), // #f77f00
-    ImVec4(58.0f / 255.0f, 134.0f / 255.0f, 1.0f, 1.0f), // #3a86ff
-    ImVec4(1.0f, 221.0f / 255.0f, 0.0f / 255.0f, 1.0f), // #ffdd00
-    ImVec4(155.0f / 255.0f, 93.0f / 255.0f, 229.0f / 255.0f, 1.0f), // #9b5de5
-    ImVec4(0.0f / 255.0f, 180.0f / 255.0f, 216.0f / 255.0f, 1.0f), // #00b4d8
-    ImVec4(1.0f, 143.0f / 255.0f, 163.0f / 255.0f, 1.0f), // #ff8fa3
-    ImVec4(128.0f / 255.0f, 1.0f, 114.0f / 255.0f, 1.0f), // #80ff72
-    ImVec4(224.0f / 255.0f, 64.0f / 255.0f, 251.0f / 255.0f, 1.0f), // #e040fb
-    ImVec4(1.0f, 67.0f / 255.0f, 101.0f / 255.0f, 1.0f), // #ff4365
-    ImVec4(0.0f / 255.0f, 245.0f / 255.0f, 212.0f / 255.0f, 1.0f), // #00f5d4
-    ImVec4(244.0f / 255.0f, 162.0f / 255.0f, 97.0f / 255.0f, 1.0f), // #f4a261
-    ImVec4(138.0f / 255.0f, 201.0f / 255.0f, 38.0f / 255.0f, 1.0f), // #8ac926
-    ImVec4(76.0f / 255.0f, 201.0f / 255.0f, 240.0f / 255.0f, 1.0f), // #4cc9f0
-    ImVec4(187.0f / 255.0f, 222.0f / 255.0f, 251.0f / 255.0f, 1.0f), // #bbdefb
-};
+namespace
+{
+    // default series color palette
+    const std::vector SERIES_COLOR_PALETTE = {
+        ImVec4(247.0f / 255.0f, 127.0f / 255.0f, 0.0f / 255.0f, 1.0f), // #f77f00
+        ImVec4(58.0f / 255.0f, 134.0f / 255.0f, 1.0f, 1.0f), // #3a86ff
+        ImVec4(1.0f, 221.0f / 255.0f, 0.0f / 255.0f, 1.0f), // #ffdd00
+        ImVec4(155.0f / 255.0f, 93.0f / 255.0f, 229.0f / 255.0f, 1.0f), // #9b5de5
+        ImVec4(0.0f / 255.0f, 180.0f / 255.0f, 216.0f / 255.0f, 1.0f), // #00b4d8
+        ImVec4(1.0f, 143.0f / 255.0f, 163.0f / 255.0f, 1.0f), // #ff8fa3
+        ImVec4(128.0f / 255.0f, 1.0f, 114.0f / 255.0f, 1.0f), // #80ff72
+        ImVec4(224.0f / 255.0f, 64.0f / 255.0f, 251.0f / 255.0f, 1.0f), // #e040fb
+        ImVec4(1.0f, 67.0f / 255.0f, 101.0f / 255.0f, 1.0f), // #ff4365
+        ImVec4(0.0f / 255.0f, 245.0f / 255.0f, 212.0f / 255.0f, 1.0f), // #00f5d4
+        ImVec4(244.0f / 255.0f, 162.0f / 255.0f, 97.0f / 255.0f, 1.0f), // #f4a261
+        ImVec4(138.0f / 255.0f, 201.0f / 255.0f, 38.0f / 255.0f, 1.0f), // #8ac926
+        ImVec4(76.0f / 255.0f, 201.0f / 255.0f, 240.0f / 255.0f, 1.0f), // #4cc9f0
+        ImVec4(187.0f / 255.0f, 222.0f / 255.0f, 251.0f / 255.0f, 1.0f), // #bbdefb
+    };
 
-constexpr ImPlotFlags PLOT_FLAGS = (ImPlotFlags_CanvasOnly ^ ImPlotFlags_NoLegend) | ImPlotFlags_NoInputs | ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect;
+    constexpr ImPlotFlags PLOT_FLAGS = (ImPlotFlags_CanvasOnly ^ ImPlotFlags_NoLegend) | ImPlotFlags_NoInputs | ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect;
 
-static int metric_formatter(const double value, char* buff, const int size, const void* data) {
-    // unit
-    const auto unit = static_cast<const char*>(data);
-    // dividers
-    static double v[] = {1000000000, 1000000, 1000, 1, 0.001, 0.000001, 0.000000001};
-    // prefixes
-    static const char* p[] = {"G", "M", "k", "", "m", "u", "n"};
-    // zero
-    if (value == 0) {
-        return snprintf(buff, size, "0 %s", unit);
+    static int metric_formatter(const double value, char* buff, const int size, const void* data) {
+        // unit
+        const auto unit = static_cast<const char*>(data);
+        // dividers
+        static double v[] = {1000000000, 1000000, 1000, 1, 0.001, 0.000001, 0.000000001};
+        // prefixes
+        static const char* p[] = {"G", "M", "k", "", "m", "u", "n"};
+        // zero
+        if (value == 0) {
+            return snprintf(buff, size, "0 %s", unit);
+        }
+        // loop scales
+        for (int i = 0; i < 7; ++i) {
+            // check we should format value with this scale
+            if (fabs(value) >= v[i])
+                return snprintf(buff, size, "%g %s%s", value / v[i], p[i], unit);
+        }
+        return snprintf(buff, size, "%g %s%s", value / v[6], p[6], unit);
     }
-    // loop scales
-    for (int i = 0; i < 7; ++i) {
-        // check we should format value with this scale
-        if (fabs(value) >= v[i])
-            return snprintf(buff, size, "%g %s%s", value / v[i], p[i], unit);
-    }
-    return snprintf(buff, size, "%g %s%s", value / v[6], p[6], unit);
-}
 
-static std::vector<Expression<double>*> get_expressions_to_plot(ExpressionManager* expression_manager, AnyExpression* expression) {
-    // nothing to do on double expressions
-    if (std::holds_alternative<Expression<double>>(*expression)) {
+    static std::vector<Expression<double>*> get_expressions_to_plot(ExpressionManager* expression_manager, AnyExpression* expression) {
+        // nothing to do on double expressions
+        if (std::holds_alternative<Expression<double>>(*expression)) {
+            // exit
+            return {&std::get<Expression<double>>(*expression)};
+        }
+        // complex expression
+        const auto& complex_expression = std::get<Expression<std::complex<double>>>(*expression);
+        // magnitude
+        auto magnitude_expression = expression_manager->evaluate(std::format("db({})", complex_expression.name()));
+        if (!magnitude_expression)
+            return {};
+        // phase
+        auto phase_expression = expression_manager->evaluate(std::format("phase({})", complex_expression.name()));
+        if (!phase_expression)
+            return {};
         // exit
-        return {&std::get<Expression<double>>(*expression)};
+        return {&std::get<Expression<double>>(*magnitude_expression), &std::get<Expression<double>>(*phase_expression)};
     }
-    // complex expression
-    const auto& complex_expression = std::get<Expression<std::complex<double>>>(*expression);
-    // magnitude
-    auto magnitude_expression = expression_manager->evaluate(std::format("db({})", complex_expression.name()));
-    if (!magnitude_expression)
-        return {};
-    // phase
-    auto phase_expression = expression_manager->evaluate(std::format("phase({})", complex_expression.name()));
-    if (!phase_expression)
-        return {};
-    // exit
-    return {&std::get<Expression<double>>(*magnitude_expression), &std::get<Expression<double>>(*phase_expression)};
-}
+} // namespace
 
-Chart::Chart(wxEvtHandler* parent, ExpressionManager* expression_manager, const StepInformation* step_information, std::string abscissa_label, const AbscissaScale abscissa_scale, const size_t decimate_target) :
-    m_parent(parent), m_expression_manager(expression_manager), m_step_information(step_information), m_abscissa_label(std::move(abscissa_label)), m_abscissa_scale(abscissa_scale), m_decimate_target(decimate_target) {
+Chart::Chart(ExpressionManager* expression_manager, const StepInformation* step_information, std::string abscissa_label, const AbscissaScale abscissa_scale, const size_t decimate_target) :
+    m_expression_manager(expression_manager), m_step_information(step_information), m_abscissa_label(std::move(abscissa_label)), m_abscissa_scale(abscissa_scale), m_decimate_target(decimate_target) {
     // abscissa unit
     m_abscissa_unit = expression_manager->abscissa().unit();
 }
@@ -83,6 +87,20 @@ Chart::Chart(wxEvtHandler* parent, ExpressionManager* expression_manager, const 
 const std::set<size_t>& Chart::selected_steps() {
     // return selected steps
     return m_selected_steps;
+}
+
+std::vector<AnyExpression*> Chart::selected_expressions() {
+    // result
+    std::vector<AnyExpression*> result;
+    // allocate vector
+    result.reserve(m_series.size());
+    // loop series
+    for (const auto& [expression, _] : m_series | std::views::values) {
+        // append expression
+        result.push_back(expression);
+    }
+    // exit
+    return result;
 }
 
 void Chart::render(const std::tuple<float, float, float, float>& selection) {
@@ -498,6 +516,16 @@ void Chart::update_zoom_window(double x_left_ratio, double x_right_ratio, double
             axis_info.plot_max_value = visual_y_max - y_bottom_ratio * visual_y_range;
         }
     }
+}
+
+void Chart::update(ExpressionManager* expression_manager, const StepInformation* step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) {
+    // update internal references
+    m_expression_manager = expression_manager;
+    m_step_information = step_information;
+    m_abscissa_label = abscissa_label;
+    m_abscissa_scale = abscissa_scale;
+    // abscissa unit
+    m_abscissa_unit = expression_manager->abscissa().unit();
 }
 
 std::pair<size_t, size_t> Chart::find_abscissa_indexes(const std::span<const double>& abscissa, double left_value, double right_value) const {

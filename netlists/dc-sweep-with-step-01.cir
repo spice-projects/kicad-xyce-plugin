@@ -1,4 +1,4 @@
-DC Sweep with Resistor Stepping for Xyce
+* DC Sweep with Resistor Stepping for Xyce
 
 .PARAM R1_VAL = 1k
 V1 1 0 DC 0V

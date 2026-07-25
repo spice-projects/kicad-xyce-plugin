@@ -9,7 +9,6 @@
 #include <utility>
 
 #include <implot.h>
-#include <wx/wx.h>
 
 #include "../step_information.h"
 #include "../expression/expression.h"
@@ -52,7 +51,7 @@ class Chart
 public:
     Chart() = delete;
 
-    Chart(wxEvtHandler* parent, ExpressionManager* expression_manager, StepInformation const* step_information, std::string abscissa_label, AbscissaScale abscissa_scale, size_t decimate_target);
+    Chart(ExpressionManager* expression_manager, StepInformation const* step_information, std::string abscissa_label, AbscissaScale abscissa_scale, size_t decimate_target);
 
     Chart(const Chart&) = delete;
 
@@ -63,6 +62,8 @@ public:
     Chart& operator=(Chart&&) noexcept = default;
 
     const std::set<size_t>& selected_steps();
+
+    std::vector<AnyExpression*> selected_expressions();
 
     void render(const std::tuple<float, float, float, float>&);
 
@@ -76,11 +77,11 @@ public:
 
     void update_zoom_window(double x_left_ratio, double x_right_ratio, double y_top_ratio, double y_bottom_ratio);
 
+    void update(ExpressionManager* expression_manager, const StepInformation* step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale);
+
     [[nodiscard]] const std::tuple<float, float, float, float>& get_plot_rect() const;
 
 private:
-    wxEvtHandler* m_parent;
-
     ExpressionManager* m_expression_manager;
     const StepInformation* m_step_information;
     std::string m_abscissa_label;

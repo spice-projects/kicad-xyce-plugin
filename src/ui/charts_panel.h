@@ -1,12 +1,14 @@
 #pragma once
 
-#include <wx/panel.h>
-#include <wx/wx.h>
+#include <wx/wxprec.h>
 
-#include "chart.h"
+#ifndef WX_PRECOMP
+#include <wx/panel.h>
+#endif
 
 #include "../expression/expression_manager.h"
 #include "../step_information.h"
+#include "chart.h"
 
 class ChartsPanel : public wxPanel
 {
@@ -15,7 +17,7 @@ public:
 
     ~ChartsPanel() override;
 
-    void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, size_t decimate_target);
+    void update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, size_t decimate_target);
 
     Chart* add_chart();
 
@@ -85,4 +87,6 @@ private:
     void on_menu_add_chart(wxCommandEvent&);
 
     void on_menu_delete_chart(wxCommandEvent&);
+
+    void on_menu_new_window(wxCommandEvent&);
 };

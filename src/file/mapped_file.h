@@ -41,11 +41,10 @@ private:
 #ifdef _WIN32
     HANDLE m_file_handle = INVALID_HANDLE_VALUE;
     HANDLE m_mapping_handle = nullptr;
-    char* m_data = nullptr;
-    std::size_t m_size = 0;
 #else
     int m_fd = -1;
-    void* m_data = nullptr;
-    std::size_t m_size = 0;
 #endif
+
+    char* m_data = nullptr;
+    std::size_t m_size = 0;
 };

@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <complex>
+#include <memory>
 #include <optional>
 #include <regex>
 #include <sys/mman.h>
@@ -7,6 +8,7 @@
 #include <unistd.h>
 
 #include <spdlog/spdlog.h>
+#include <utility>
 
 #include "../expression/expression.h"
 #include "../step_information.h"
@@ -397,20 +399,20 @@ namespace
     };
 } // namespace
 
-std::optional<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path& filename) {
+std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::filesystem::path& filename) {
     // check if file exists
     if (!std::filesystem::exists(filename))
         return {};
     // log information
     spdlog::info("Parsing Xyce RAW file: {}", filename.string());
     // create mapped file
-    MappedFile mapped_file(filename);
-    if (!mapped_file.is_valid())
+    auto mapped_file = std::make_unique<MappedFile>(filename);
+    if (!mapped_file->is_valid())
         return {};
     // get data pointer and length
-    const auto data = mapped_file.data();
-    const size_t length = mapped_file.size();
-    if (length == 0)
+    const auto data = mapped_file->data();
+    const size_t length = mapped_file->size();
+    if (!data || length == 0)
         return {};
     // initialize blocks list
     std::vector<BlockHeaderScanResult> blocks;
@@ -622,7 +624,6 @@ std::optional<XyceOutputFile> xyce_raw_file_parser(const std::filesystem::path& 
     // }
     // create expression manager
     ExpressionManager expression_manager(expressions, abscissa_indices);
-    auto shared_mapped_file = std::make_shared<MappedFile>(std::move(mapped_file));
     // return file
-    return XyceOutputFile(filename, first_block.title, first_block.is_complex, std::move(step_information), abscissa_scale, std::move(expression_manager), shared_mapped_file);
+    return std::make_shared<XyceOutputFile>(filename, first_block.title, first_block.is_complex, std::move(step_information), abscissa_scale, std::move(expression_manager), std::move(mapped_file));
 }

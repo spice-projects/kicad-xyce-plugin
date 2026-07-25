@@ -311,7 +311,7 @@ TEST(XyceRawFileTest, load_real_binary_title) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->title(), "RC Circuit");
+    ASSERT_EQ(raw.value()->title(), "RC Circuit");
 }
 
 TEST(XyceRawFileTest, load_real_binary_filename) {
@@ -322,7 +322,7 @@ TEST(XyceRawFileTest, load_real_binary_filename) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->filename(), temp_file.path());
+    ASSERT_EQ(raw.value()->filename(), temp_file.path());
 }
 
 TEST(XyceRawFileTest, load_real_binary_complex_flag_false) {
@@ -333,7 +333,7 @@ TEST(XyceRawFileTest, load_real_binary_complex_flag_false) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_FALSE(raw->is_complex());
+    ASSERT_FALSE(raw.value()->is_complex());
 }
 
 TEST(XyceRawFileTest, load_real_binary_abscissa_values) {
@@ -345,7 +345,7 @@ TEST(XyceRawFileTest, load_real_binary_abscissa_values) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    const auto& abscissa_data = raw->abscissa().step_data(0);
+    const auto& abscissa_data = raw.value()->abscissa().step_data(0);
     ASSERT_EQ(abscissa_data.size(), 3);
     ASSERT_DOUBLE_EQ(abscissa_data[0], 0.0);
     ASSERT_DOUBLE_EQ(abscissa_data[1], 1e-9);
@@ -360,7 +360,7 @@ TEST(XyceRawFileTest, load_real_binary_abscissa_scale_is_linear) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->abscissa_scale(), AbscissaScale::LINEAR);
+    ASSERT_EQ(raw.value()->abscissa_scale(), AbscissaScale::LINEAR);
 }
 
 TEST(XyceRawFileTest, load_real_binary_single_step) {
@@ -372,7 +372,7 @@ TEST(XyceRawFileTest, load_real_binary_single_step) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->step_information().length(), 1);
+    ASSERT_EQ(raw.value()->step_information().length(), 1);
 }
 
 TEST(XyceRawFileTest, load_chart_type_transient) {
@@ -383,7 +383,7 @@ TEST(XyceRawFileTest, load_chart_type_transient) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->abscissa().variable_type(), "time");
+    ASSERT_EQ(raw.value()->abscissa().variable_type(), "time");
 }
 
 TEST(XyceRawFileTest, load_chart_type_dc) {
@@ -396,7 +396,7 @@ TEST(XyceRawFileTest, load_chart_type_dc) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->abscissa().variable_type(), "voltage");
+    ASSERT_EQ(raw.value()->abscissa().variable_type(), "voltage");
 }
 
 TEST(XyceRawFileTest, load_binary_with_trailing_content_ignored) {
@@ -408,7 +408,7 @@ TEST(XyceRawFileTest, load_binary_with_trailing_content_ignored) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->abscissa().step_data(0).size(), 2);
+    ASSERT_EQ(raw.value()->abscissa().step_data(0).size(), 2);
 }
 
 TEST(XyceRawFileTest, load_skips_malformed_variable_lines) {
@@ -421,10 +421,10 @@ TEST(XyceRawFileTest, load_skips_malformed_variable_lines) {
     }
     const TempFileRAII temp_file(content);
     // act
-    auto result = xyce_raw_file_parser(temp_file.path());
+    auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
-    ASSERT_TRUE(result.has_value());
-    ASSERT_EQ(result->expression_manager().expressions().size(), 2);
+    ASSERT_TRUE(raw.has_value());
+    ASSERT_EQ(raw.value()->expression_manager().expressions().size(), 2);
 }
 
 TEST(XyceRawFileTest, load_expression_manager_contains_all_variables) {
@@ -437,9 +437,9 @@ TEST(XyceRawFileTest, load_expression_manager_contains_all_variables) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_NE(raw->expression_manager().evaluate("V(1)"), nullptr);
-    ASSERT_NE(raw->expression_manager().evaluate("I(R1)"), nullptr);
-    ASSERT_NE(raw->expression_manager().evaluate("time"), nullptr);
+    ASSERT_NE(raw.value()->expression_manager().evaluate("V(1)"), nullptr);
+    ASSERT_NE(raw.value()->expression_manager().evaluate("I(R1)"), nullptr);
+    ASSERT_NE(raw.value()->expression_manager().evaluate("time"), nullptr);
 }
 
 TEST(XyceRawFileTest, load_unknown_variable_type_still_loaded) {
@@ -452,7 +452,7 @@ TEST(XyceRawFileTest, load_unknown_variable_type_still_loaded) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_NE(raw->expression_manager().evaluate("CUSTOM_SIG"), nullptr);
+    ASSERT_NE(raw.value()->expression_manager().evaluate("CUSTOM_SIG"), nullptr);
 }
 
 TEST(XyceRawFileTest, load_step_information_abscissa_range) {
@@ -464,8 +464,8 @@ TEST(XyceRawFileTest, load_step_information_abscissa_range) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_DOUBLE_EQ(raw->step_information().step_abscissa_left_value(0), 0.0);
-    ASSERT_DOUBLE_EQ(raw->step_information().step_abscissa_right_value(0), 2e-9);
+    ASSERT_DOUBLE_EQ(raw.value()->step_information().step_abscissa_left_value(0), 0.0);
+    ASSERT_DOUBLE_EQ(raw.value()->step_information().step_abscissa_right_value(0), 2e-9);
 }
 
 TEST(XyceRawFileTest, load_utf8_encoded_header) {
@@ -476,7 +476,7 @@ TEST(XyceRawFileTest, load_utf8_encoded_header) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->title(), "RC Schéma");
+    ASSERT_EQ(raw.value()->title(), "RC Schéma");
 }
 
 // ========================================================================================
@@ -493,7 +493,7 @@ TEST(XyceRawFileTest, load_complex_binary_complex_flag_true) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_TRUE(raw->is_complex());
+    ASSERT_TRUE(raw.value()->is_complex());
 }
 
 TEST(XyceRawFileTest, load_complex_binary_mixed_case_flag_true) {
@@ -506,7 +506,7 @@ TEST(XyceRawFileTest, load_complex_binary_mixed_case_flag_true) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_TRUE(raw->is_complex());
+    ASSERT_TRUE(raw.value()->is_complex());
 }
 
 TEST(XyceRawFileTest, load_chart_type_ac) {
@@ -519,7 +519,7 @@ TEST(XyceRawFileTest, load_chart_type_ac) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->abscissa().variable_type(), "frequency");
+    ASSERT_EQ(raw.value()->abscissa().variable_type(), "frequency");
 }
 
 TEST(XyceRawFileTest, load_complex_ac_abscissa_is_frequency) {
@@ -532,7 +532,7 @@ TEST(XyceRawFileTest, load_complex_ac_abscissa_is_frequency) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    const auto& abscissa_data = raw->abscissa().step_data(0);
+    const auto& abscissa_data = raw.value()->abscissa().step_data(0);
     ASSERT_EQ(abscissa_data.size(), 3);
     ASSERT_DOUBLE_EQ(abscissa_data[0], 1e3);
     ASSERT_DOUBLE_EQ(abscissa_data[1], 1e4);
@@ -549,7 +549,7 @@ TEST(XyceRawFileTest, load_complex_ac_signal_is_complex) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    auto* v_out = evaluate_complex(raw->expression_manager(), "V(out)");
+    auto* v_out = evaluate_complex(raw.value()->expression_manager(), "V(out)");
     ASSERT_NE(v_out, nullptr);
     ASSERT_DOUBLE_EQ(v_out->step_data(0)[0].real(), 0.5);
     ASSERT_DOUBLE_EQ(v_out->step_data(0)[0].imag(), 0.5);
@@ -568,7 +568,7 @@ TEST(XyceRawFileTest, load_ascii_values_section) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    const auto& abscissa_data = raw->abscissa().step_data(0);
+    const auto& abscissa_data = raw.value()->abscissa().step_data(0);
     ASSERT_EQ(abscissa_data.size(), 3);
     ASSERT_DOUBLE_EQ(abscissa_data[0], 0.0);
     ASSERT_DOUBLE_EQ(abscissa_data[1], 1e-9);
@@ -584,7 +584,7 @@ TEST(XyceRawFileTest, load_ascii_values_variable_data_correct) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    auto* v_out = evaluate_real(raw->expression_manager(), "V(out)");
+    auto* v_out = evaluate_real(raw.value()->expression_manager(), "V(out)");
     ASSERT_NE(v_out, nullptr);
     ASSERT_DOUBLE_EQ(v_out->step_data(0)[0], 1.0);
     ASSERT_DOUBLE_EQ(v_out->step_data(0)[1], 1.5);
@@ -601,9 +601,9 @@ TEST(XyceRawFileTest, load_ascii_complex_ac) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_TRUE(raw->is_complex());
-    ASSERT_EQ(raw->abscissa().variable_type(), "frequency");
-    ASSERT_EQ(raw->abscissa().step_data(0).size(), 2);
+    ASSERT_TRUE(raw.value()->is_complex());
+    ASSERT_EQ(raw.value()->abscissa().variable_type(), "frequency");
+    ASSERT_EQ(raw.value()->abscissa().step_data(0).size(), 2);
 }
 
 TEST(XyceRawFileTest, load_ascii_no_points_zero_reads_all) {
@@ -615,7 +615,7 @@ TEST(XyceRawFileTest, load_ascii_no_points_zero_reads_all) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->abscissa().step_data(0).size(), 3);
+    ASSERT_EQ(raw.value()->abscissa().step_data(0).size(), 3);
 }
 
 TEST(XyceRawFileTest, ascii_values_with_blank_lines) {
@@ -626,7 +626,7 @@ TEST(XyceRawFileTest, ascii_values_with_blank_lines) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->abscissa().step_data(0).size(), 2);
+    ASSERT_EQ(raw.value()->abscissa().step_data(0).size(), 2);
 }
 
 // ========================================================================================
@@ -641,7 +641,7 @@ TEST(XyceRawFileTest, multi_block_step_count) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->step_information().length(), 2);
+    ASSERT_EQ(raw.value()->step_information().length(), 2);
 }
 
 TEST(XyceRawFileTest, multi_block_three_steps) {
@@ -652,7 +652,7 @@ TEST(XyceRawFileTest, multi_block_three_steps) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->step_information().length(), 3);
+    ASSERT_EQ(raw.value()->step_information().length(), 3);
 }
 
 TEST(XyceRawFileTest, multi_block_step_parameter_keys) {
@@ -663,8 +663,8 @@ TEST(XyceRawFileTest, multi_block_step_parameter_keys) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->step_information().keys().size(), 1);
-    ASSERT_EQ(raw->step_information().keys()[0], "R1_VAL");
+    ASSERT_EQ(raw.value()->step_information().keys().size(), 1);
+    ASSERT_EQ(raw.value()->step_information().keys()[0], "R1_VAL");
 }
 
 TEST(XyceRawFileTest, multi_block_step_parameter_values) {
@@ -675,9 +675,9 @@ TEST(XyceRawFileTest, multi_block_step_parameter_values) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->step_information().values().size(), 2);
-    ASSERT_DOUBLE_EQ(raw->step_information().values()[0][0], 1000.0);
-    ASSERT_DOUBLE_EQ(raw->step_information().values()[1][0], 2000.0);
+    ASSERT_EQ(raw.value()->step_information().values().size(), 2);
+    ASSERT_DOUBLE_EQ(raw.value()->step_information().values()[0][0], 1000.0);
+    ASSERT_DOUBLE_EQ(raw.value()->step_information().values()[1][0], 2000.0);
 }
 
 TEST(XyceRawFileTest, multi_block_expression_step_count) {
@@ -689,7 +689,7 @@ TEST(XyceRawFileTest, multi_block_expression_step_count) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->abscissa().step_count(), 2);
+    ASSERT_EQ(raw.value()->abscissa().step_count(), 2);
 }
 
 TEST(XyceRawFileTest, multi_block_step_data_correct_values) {
@@ -702,7 +702,7 @@ TEST(XyceRawFileTest, multi_block_step_data_correct_values) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    auto* v2_expr = evaluate_real(raw->expression_manager(), "V(2)");
+    auto* v2_expr = evaluate_real(raw.value()->expression_manager(), "V(2)");
     ASSERT_NE(v2_expr, nullptr);
     ASSERT_DOUBLE_EQ(v2_expr->step_data(0)[0], 1.0);
     ASSERT_DOUBLE_EQ(v2_expr->step_data(0)[1], 2.0);
@@ -722,9 +722,9 @@ TEST(XyceRawFileTest, multi_block_abscissa_step_data_zero_copy) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->abscissa().step_count(), 2);
-    ASSERT_EQ(raw->abscissa().step_data(0).size(), 2);
-    ASSERT_EQ(raw->abscissa().step_data(1).size(), 2);
+    ASSERT_EQ(raw.value()->abscissa().step_count(), 2);
+    ASSERT_EQ(raw.value()->abscissa().step_data(0).size(), 2);
+    ASSERT_EQ(raw.value()->abscissa().step_data(1).size(), 2);
 }
 
 TEST(XyceRawFileTest, multi_block_data_property_concatenates) {
@@ -737,7 +737,7 @@ TEST(XyceRawFileTest, multi_block_data_property_concatenates) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    auto* v2_expr = evaluate_real(raw->expression_manager(), "V(2)");
+    auto* v2_expr = evaluate_real(raw.value()->expression_manager(), "V(2)");
     ASSERT_NE(v2_expr, nullptr);
     ASSERT_EQ(v2_expr->data().size(), 4);
     ASSERT_DOUBLE_EQ(v2_expr->data()[0], 1.0);
@@ -754,7 +754,7 @@ TEST(XyceRawFileTest, multi_block_title_from_first_block) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_EQ(raw->title(), "DC Stepped Test");
+    ASSERT_EQ(raw.value()->title(), "DC Stepped Test");
 }
 
 TEST(XyceRawFileTest, multi_block_abscissa_value_ranges) {
@@ -766,8 +766,8 @@ TEST(XyceRawFileTest, multi_block_abscissa_value_ranges) {
     auto raw = xyce_raw_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(raw.has_value());
-    ASSERT_DOUBLE_EQ(raw->step_information().step_abscissa_left_value(0), 0.0);
-    ASSERT_DOUBLE_EQ(raw->step_information().step_abscissa_right_value(0), 2.0);
-    ASSERT_DOUBLE_EQ(raw->step_information().step_abscissa_left_value(1), 0.0);
-    ASSERT_DOUBLE_EQ(raw->step_information().step_abscissa_right_value(1), 2.0);
+    ASSERT_DOUBLE_EQ(raw.value()->step_information().step_abscissa_left_value(0), 0.0);
+    ASSERT_DOUBLE_EQ(raw.value()->step_information().step_abscissa_right_value(0), 2.0);
+    ASSERT_DOUBLE_EQ(raw.value()->step_information().step_abscissa_left_value(1), 0.0);
+    ASSERT_DOUBLE_EQ(raw.value()->step_information().step_abscissa_right_value(1), 2.0);
 }

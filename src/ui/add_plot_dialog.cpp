@@ -1,14 +1,19 @@
 #include <algorithm>
 #include <cctype>
-#include <iterator>
+#include <set>
 #include <string>
 #include <utility>
 
+#include <wx/wxprec.h>
+
+#ifndef WX_PRECOMP
 #include <wx/dcclient.h>
 #include <wx/graphics.h>
 #include <wx/sizer.h>
 #include <wx/statline.h>
+#endif
 
+#include "../expression/expression.h"
 #include "add_plot_dialog.h"
 
 namespace
@@ -29,7 +34,7 @@ namespace
 } // namespace
 
 AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_manager, std::vector<AnyExpression*> selected_expressions, bool allow_custom_expressions, std::function<bool(const AnyExpression*)> expression_filter) :
-    wxDialog(parent, wxID_ANY, "Select Plot Expressions", wxDefaultPosition, wxSize(560, 480), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER), m_expressions_manager(expressions_manager), m_selected_expressions(selected_expressions), m_allow_custom_expressions(allow_custom_expressions), m_expression_filter(std::move(expression_filter)) {
+    wxDialog(parent, wxID_ANY, "Select Plot Expressions", wxDefaultPosition, wxSize(560, 480), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER), m_expressions_manager(expressions_manager), m_allow_custom_expressions(allow_custom_expressions), m_expression_filter(std::move(expression_filter)) {
 
     // loop expressions
     for (AnyExpression* expression : m_expressions_manager->expressions()) {
@@ -42,7 +47,7 @@ AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_ma
             if (type.empty())
                 type = "Misc";
             // check initial selection
-            bool is_selected = (std::find(m_selected_expressions.begin(), m_selected_expressions.end(), expression) != m_selected_expressions.end());
+            bool is_selected = (std::find(selected_expressions.begin(), selected_expressions.end(), expression) != selected_expressions.end());
             // append item
             m_all_expressions.push_back({expression, name, type, is_selected});
         }
@@ -260,9 +265,16 @@ void AddPlotDialog::toggle_expression_selection(size_t real_idx) {
     }
 }
 
-std::vector<AnyExpression*> AddPlotDialog::selected_expressions() const {
-    // return selected expressions list
-    return m_selected_expressions;
+std::set<AnyExpression*> AddPlotDialog::selected_expressions() const {
+    // update selected expressions array
+    std::set<AnyExpression*> selected_expressions = {};
+    // loop all expressions and collect selected ones
+    for (const auto& item : m_all_expressions) {
+        // check if selected and expression is not null
+        if (item.selected && item.expression != nullptr)
+            selected_expressions.insert(item.expression);
+    }
+    return selected_expressions;
 }
 
 void AddPlotDialog::on_add_custom(wxCommandEvent&) {
@@ -311,14 +323,6 @@ void AddPlotDialog::on_add_custom(wxCommandEvent&) {
 }
 
 void AddPlotDialog::on_ok(wxCommandEvent& event) {
-    // update selected expressions array
-    m_selected_expressions.clear();
-    // loop all expressions and collect selected ones
-    for (const auto& item : m_all_expressions) {
-        // check if selected and expression is not null
-        if (item.selected && item.expression != nullptr)
-            m_selected_expressions.push_back(item.expression);
-    }
     // skip event to allow default handling (closing the dialog)
     event.Skip();
 }

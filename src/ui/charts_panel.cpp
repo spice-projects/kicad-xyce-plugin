@@ -1,23 +1,37 @@
+#include <wx/wxprec.h>
+
+#ifndef WX_PRECOMP
+#include <wx/dcclient.h>
+#include <wx/defs.h>
+#include <wx/event.h>
+#include <wx/menu.h>
+#include <wx/settings.h>
+#include <wx/window.h>
+#endif
+
 #include <imgui.h>
 #include <spdlog/spdlog.h>
-#include <wx/window.h>
-#include <wx/wx.h>
 
 #include "add_plot_dialog.h"
 #include "charts_panel.h"
+#include "events.h"
 
-enum
+namespace
 {
-    ID_CONTEXT_ZOOM_TO_FIT = wxID_HIGHEST + 1,
-    ID_CONTEXT_AUTORANGE,
-    ID_CONTEXT_ZOOM_ABSCISSA_EXTENT,
-    ID_CONTEXT_OPTION_2,
+    enum
+    {
+        ID_CONTEXT_ZOOM_TO_FIT = wxID_HIGHEST + 100,
+        ID_CONTEXT_AUTORANGE,
+        ID_CONTEXT_ZOOM_ABSCISSA_EXTENT,
+        ID_CONTEXT_OPTION_2,
 
-    ID_CONTEXT_ADD_REMOVE_PLOTS,
-    ID_CONTEXT_DELETE_ALL_PLOTS,
-    ID_CONTEXT_ADD_CHART,
-    ID_CONTEXT_DELETE_CHART
-};
+        ID_CONTEXT_ADD_REMOVE_PLOTS,
+        ID_CONTEXT_DELETE_ALL_PLOTS,
+        ID_CONTEXT_ADD_CHART,
+        ID_CONTEXT_DELETE_CHART,
+        ID_CONTEXT_NEW_WINDOW
+    };
+}
 
 ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
     wxPanel(parent, id, wxDefaultPosition, wxDefaultSize, wxNO_BORDER | wxFULL_REPAINT_ON_RESIZE) {
@@ -40,6 +54,7 @@ ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_delete_all_plots, this, ID_CONTEXT_DELETE_ALL_PLOTS);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_add_chart, this, ID_CONTEXT_ADD_CHART);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_delete_chart, this, ID_CONTEXT_DELETE_CHART);
+    Bind(wxEVT_MENU, &ChartsPanel::on_menu_new_window, this, ID_CONTEXT_NEW_WINDOW);
     // fetch the platform's active workspace background color
     wxColour wxBgColor = wxSystemSettings::GetColour(wxSYS_COLOUR_APPWORKSPACE);
     // convert it to ImVec4
@@ -204,6 +219,8 @@ void ChartsPanel::on_mouse_button(wxMouseEvent& event) {
         // skip event
         event.Skip();
     }
+    // skip event
+    event.Skip();
 }
 
 void ChartsPanel::on_idle(wxIdleEvent& event) {
@@ -221,13 +238,15 @@ void ChartsPanel::on_idle(wxIdleEvent& event) {
     event.Skip();
 }
 
-void ChartsPanel::on_paint(wxPaintEvent&) {
+void ChartsPanel::on_paint(wxPaintEvent& event) {
     // required call
     wxPaintDC dc(this);
     // initialize widget (only the first time)
     initialize();
     // indicate we need to render charts
     m_render_chart_frames = 1;
+    // skip event
+    event.Skip();
 }
 
 void ChartsPanel::on_size(wxSizeEvent& event) {
@@ -295,18 +314,19 @@ void ChartsPanel::on_context_menu(const wxContextMenuEvent& event) {
         // append step tool only on multiple steps (otherwise it is not useful)
         if (m_step_information->length() > 1)
             contextMenu.Append(ID_CONTEXT_OPTION_2, "Step Tool...");
-        contextMenu.Append(ID_CONTEXT_OPTION_2, "Smith Chart...");
+        // TODO: add Smith chart tool when available
+        // contextMenu.Append(ID_CONTEXT_OPTION_2, "Smith Chart...");
     }
     contextMenu.AppendSeparator();
     contextMenu.Append(ID_CONTEXT_ADD_CHART, "Add Chart");
     contextMenu.Append(ID_CONTEXT_DELETE_CHART, "Delete Chart");
     contextMenu.AppendSeparator();
-    contextMenu.Append(ID_CONTEXT_OPTION_2, "New Window");
+    contextMenu.Append(ID_CONTEXT_NEW_WINDOW, "New Window");
     // display menu (blocking)
     PopupMenu(&contextMenu, mousePosition);
 }
 
-void ChartsPanel::on_menu_zoom_to_fit(wxCommandEvent&) {
+void ChartsPanel::on_menu_zoom_to_fit(wxCommandEvent& event) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -330,9 +350,11 @@ void ChartsPanel::on_menu_zoom_to_fit(wxCommandEvent&) {
         // refresh
         refresh_charts();
     }
+    // skip event
+    event.Skip();
 }
 
-void ChartsPanel::on_menu_autorange(wxCommandEvent&) {
+void ChartsPanel::on_menu_autorange(wxCommandEvent& event) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -344,9 +366,11 @@ void ChartsPanel::on_menu_autorange(wxCommandEvent&) {
         // refresh
         refresh_charts();
     }
+    // skip event
+    event.Skip();
 }
 
-void ChartsPanel::on_menu_zoom_abscissa_extent(wxCommandEvent&) {
+void ChartsPanel::on_menu_zoom_abscissa_extent(wxCommandEvent& event) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -361,6 +385,8 @@ void ChartsPanel::on_menu_zoom_abscissa_extent(wxCommandEvent&) {
         // refresh
         refresh_charts();
     }
+    // skip event
+    event.Skip();
 }
 
 void ChartsPanel::on_menu_add_remove_plots(wxCommandEvent&) {
@@ -368,15 +394,16 @@ void ChartsPanel::on_menu_add_remove_plots(wxCommandEvent&) {
     if (m_selected_chart != nullptr) {
         // log information
         spdlog::debug("User requested add/remove plots on chart at index: {}", m_selected_chart_index);
-
-        std::vector<AnyExpression*> selected_expressions;
-        
         // create dialog
-        AddPlotDialog dialog(this, m_expression_manager, selected_expressions, false);
+        AddPlotDialog dialog(this, m_expression_manager, m_selected_chart->selected_expressions());
         // center on screen
         dialog.Centre(wxCENTER_ON_SCREEN);
         // show and wait for ok
         if (dialog.ShowModal() == wxID_OK) {
+            // update chart with selected expressions
+            m_selected_chart->plot_series(dialog.selected_expressions());
+            // refresh
+            refresh_charts();
         }
         // reset selected chart
         m_selected_chart = nullptr;
@@ -385,7 +412,7 @@ void ChartsPanel::on_menu_add_remove_plots(wxCommandEvent&) {
     }
 }
 
-void ChartsPanel::on_menu_delete_all_plots(wxCommandEvent&) {
+void ChartsPanel::on_menu_delete_all_plots(wxCommandEvent& event) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -397,9 +424,11 @@ void ChartsPanel::on_menu_delete_all_plots(wxCommandEvent&) {
         // refresh
         refresh_charts();
     }
+    // skip event
+    event.Skip();
 }
 
-void ChartsPanel::on_menu_add_chart(wxCommandEvent&) {
+void ChartsPanel::on_menu_add_chart(wxCommandEvent& event) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -411,9 +440,11 @@ void ChartsPanel::on_menu_add_chart(wxCommandEvent&) {
         // refresh
         refresh_charts();
     }
+    // skip event
+    event.Skip();
 }
 
-void ChartsPanel::on_menu_delete_chart(wxCommandEvent&) {
+void ChartsPanel::on_menu_delete_chart(wxCommandEvent& event) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -428,22 +459,47 @@ void ChartsPanel::on_menu_delete_chart(wxCommandEvent&) {
         // refresh
         refresh_charts();
     }
+    // skip event
+    event.Skip();
 }
 
-void ChartsPanel::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, const AbscissaScale abscissa_scale, const size_t decimate_target) {
+void ChartsPanel::on_menu_new_window(wxCommandEvent& event) {
+    // create the custom command event instance
+    wxCommandEvent e(wxEVT_NEW_WINDOW, GetId());
+    // set the event's event object to this panel
+    e.SetEventObject(this);
+    // fire the event up to the parent
+    GetEventHandler()->ProcessEvent(e);
+    // skip event
+    event.Skip();
+}
+
+void ChartsPanel::update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, const AbscissaScale abscissa_scale, const size_t decimate_target) {
     // update fields
     m_expression_manager = &expression_manager;
     m_step_information = &step_information;
     m_abscissa_label = abscissa_label;
     m_abscissa_scale = abscissa_scale;
     m_decimate_target = decimate_target;
+    // check charts are present, if not add one
+    if (!m_charts.empty()) {
+        // loop charts
+        for (const auto& chart : m_charts) {
+            // update chart with new information
+            chart->update(m_expression_manager, m_step_information, m_abscissa_label, m_abscissa_scale);
+        }
+    }
+    else {
+        // add a new chart with no pre-populated expressions
+        add_chart();
+    }
     // refresh
     refresh_charts();
 }
 
 Chart* ChartsPanel::add_chart() {
     // create chart and append it to vector
-    m_charts.push_back(std::make_unique<Chart>(this, m_expression_manager, m_step_information, m_abscissa_label, m_abscissa_scale, m_decimate_target));
+    m_charts.push_back(std::make_unique<Chart>(m_expression_manager, m_step_information, m_abscissa_label, m_abscissa_scale, m_decimate_target));
     // chart
     auto& chart = m_charts[m_charts.size() - 1];
     // plot series (will do nothing, but will set the correct abscissa for the zoom window)

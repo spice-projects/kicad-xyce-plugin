@@ -1,4 +1,4 @@
-#pragma once
+#include "events.h"
 
 #include <wx/wxprec.h>
 
@@ -6,4 +6,4 @@
 #include <wx/event.h>
 #endif
 
-wxDECLARE_EVENT(wxEVT_NEW_WINDOW, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_NEW_WINDOW, wxCommandEvent);

@@ -4,9 +4,9 @@
 #include <memory>
 #include <string>
 
-#include "../step_information.h"
 #include "../expression/expression.h"
 #include "../expression/expression_manager.h"
+#include "../step_information.h"
 #include "mapped_file.h"
 
 enum class AbscissaScale
@@ -25,7 +25,7 @@ public:
 
     XyceOutputFile(XyceOutputFile&&) noexcept;
 
-    XyceOutputFile(std::filesystem::path filename, std::string title, bool is_complex, StepInformation&& step_info, AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, std::shared_ptr<MappedFile> mapped_file);
+    XyceOutputFile(std::filesystem::path filename, std::string title, bool is_complex, StepInformation&& step_info, AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, std::unique_ptr<MappedFile>&& mapped_file);
 
     ~XyceOutputFile();
 
@@ -55,5 +55,5 @@ private:
     AbscissaScale m_abscissa_scale;
     ExpressionManager m_expression_manager;
 
-    std::shared_ptr<MappedFile> m_mapped_file;
+    std::unique_ptr<MappedFile> m_mapped_file;
 };

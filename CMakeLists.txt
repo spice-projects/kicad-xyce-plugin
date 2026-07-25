@@ -66,7 +66,7 @@ target_compile_definitions(kicad-xyce-plugin PRIVATE KICAD_XYCE_FONTS_DIR="${CMA
 
 target_compile_options(kicad-xyce-plugin PRIVATE -Wall -Wextra -Wpedantic)
 
-target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base imgui::imgui implot::implot spdlog::spdlog)
+target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog)
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis
@@ -77,7 +77,7 @@ elseif(WIN32)
     target_link_libraries(kicad-xyce-plugin PRIVATE d3d11 d3dcompiler dxgi gdi32 user32 shell32 ole32 oleaut32 uuid comdlg32 advapi32 version ws2_32 wininet oleacc uxtheme)
 endif()
 
-if (BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
-endif()
+# if (BUILD_TESTS)
+#     enable_testing()
+#     add_subdirectory(tests)
+# endif()

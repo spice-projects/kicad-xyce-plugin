@@ -1,4 +1,4 @@
-Simple DC Sweep Example for Xyce
+* Simple DC Sweep Example for Xyce
 
 V1 1 0 DC 0V
 R1 1 2 1k
