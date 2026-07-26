@@ -21,7 +21,7 @@ find_package(gtest CONFIG REQUIRED)
 file(GLOB_RECURSE CPP_SOURCES "../src/step_information.cpp" "../src/expression/*.cpp" "../src/file/*.cpp" "../src/simulation_parameters/*.cpp" "../src/ui/*.cpp")
 file(GLOB_RECURSE TEST_FILES "./*.cpp" "./expression/*.cpp" "./file/*.cpp" "./simulation_parameters/*.cpp"  "./ui/*.cpp")
 
-include_directories("../src" "../src/expression" "../src/file" "../src/ui")
+include_directories("../src")
 
 if(APPLE)
     # gather objective-c++ sources

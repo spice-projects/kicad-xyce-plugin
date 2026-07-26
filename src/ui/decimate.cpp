@@ -369,10 +369,10 @@ std::pair<View<double>, View<double>> decimate_xy(const std::span<const double>&
     // return vectors
     std::vector<double> x_out;
     std::vector<double> y_out;
-    // allocate size
-    x_out.resize(indices.size());
-    y_out.resize(indices.size());
-    // loop indices
+    // allocate space and populate
+    x_out.reserve(indices.size());
+    y_out.reserve(indices.size());
+    // copy the selected values from the original arrays
     for (size_t i = 0; i < indices.size(); ++i) {
         // copy value at index
         x_out.emplace_back(abscissa_values[indices[i]]);

@@ -10,8 +10,8 @@
 
 #include <gtest/gtest.h>
 
-#include "../../src/expression/xyce_evaluator.h"
-#include "../../src/expression/xyce_parser.h"
+#include "expression/xyce_evaluator.h"
+#include "expression/xyce_parser.h"
 
 namespace
 {

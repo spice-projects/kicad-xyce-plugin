@@ -5,8 +5,9 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include "../../src/expression/expression.h"
-#include "../../src/expression/expression_manager.h"
+
+#include "expression/expression.h"
+#include "expression/expression_manager.h"
 
 namespace
 {
