@@ -18,6 +18,9 @@ public:
     // serialize this instance back to a .FOUR directive string
     [[nodiscard]] std::string to_xyce_statement() const;
 
+    // equality operator
+    [[nodiscard]] bool operator==(const FourParameters& other) const;
+
     // fundamental frequency of the Fourier analysis
     std::string fundamental_frequency;
     // ordered list of output variables

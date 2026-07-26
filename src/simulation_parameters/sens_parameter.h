@@ -20,6 +20,9 @@ public:
     // serialize this instance to a list of Xyce directive strings
     [[nodiscard]] std::vector<std::string> to_xyce_directives() const;
 
+    // equality operator
+    [[nodiscard]] bool operator==(const SensParameter& other) const;
+
     // analysis context for the sensitivity directive
     std::string analysis_context;
     // objective specification mode (e.g. "objfunc", "objvars")

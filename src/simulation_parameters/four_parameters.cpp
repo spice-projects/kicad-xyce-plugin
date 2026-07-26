@@ -71,3 +71,5 @@ std::string FourParameters::to_xyce_statement() const {
     // return joined statement
     return result;
 }
+
+bool FourParameters::operator==(const FourParameters& other) const { return fundamental_frequency == other.fundamental_frequency && output_variables == other.output_variables; }

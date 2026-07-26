@@ -245,3 +245,5 @@ std::string FftParameters::to_xyce_statement() const {
     // return joined statement
     return result;
 }
+
+bool FftParameters::operator==(const FftParameters& other) const { return output_variable == other.output_variable && np == other.np && window == other.window && alfa == other.alfa && fft_format == other.fft_format && start == other.start && stop == other.stop && freq == other.freq && fmin == other.fmin && fmax == other.fmax; }

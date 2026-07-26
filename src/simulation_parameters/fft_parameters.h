@@ -17,6 +17,9 @@ public:
     // serialize this instance back to a .FFT directive string
     [[nodiscard]] std::string to_xyce_statement() const;
 
+    // equality operator
+    [[nodiscard]] bool operator==(const FftParameters& other) const;
+
     // required positional output variable
     std::string output_variable;
     // number of points (NP); empty when not specified

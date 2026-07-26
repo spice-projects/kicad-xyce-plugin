@@ -1,0 +1,230 @@
+// #include <algorithm>
+// #include <cctype>
+// #include <memory>
+// #include <set>
+// #include <string>
+// #include <vector>
+
+// #include "simulation_config.h"
+
+// // include all simulation parameter types
+// #include "ac_simulation_parameters.h"
+// #include "dc_simulation_parameters.h"
+// #include "hb_simulation_parameters.h"
+// #include "lin_simulation_parameters.h"
+// #include "noise_simulation_parameters.h"
+// #include "op_simulation_parameters.h"
+// #include "transient_simulation_parameters.h"
+
+// // normalize a string to uppercase
+// static std::string config_to_upper(std::string s) {
+//     // convert each character to upper case
+//     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
+//     // return converted string
+//     return s;
+// }
+
+// SimulationConfig::SimulationConfig(std::string analysis_type, std::unique_ptr<void> analysis, std::vector<StepParameters> steps, std::vector<DataBlock> data_blocks, OptionParameters options, std::vector<PrintParameters> unassociated_prints) :
+//     analysis_type(std::move(analysis_type)), analysis(std::move(analysis)), steps(std::move(steps)), data_blocks(std::move(data_blocks)), options(std::move(options)), unassociated_prints(std::move(unassociated_prints)) {}
+
+// StepParameters SimulationConfig::step() const {
+//     // return the first step for backward compatibility, or a disabled default
+//     if (!steps.empty()) {
+//         // return first step
+//         return steps[0];
+//     }
+//     // return disabled default
+//     return StepParameters();
+// }
+
+// SimulationConfig SimulationConfig::from_xyce_directives(const std::vector<std::string>& directives) {
+//     // init analysis result to none
+//     std::unique_ptr<void> analysis = nullptr;
+//     std::string analysis_type;
+
+//     // list of simulation parameter types in order of precedence
+//     // LinSimulationParameters MUST appear before AcSimulationParameters because
+//     // .LIN netlists also contain a .AC directive; the Lin class embeds the AC
+//     // sweep so it must claim the match first.
+//     const std::vector<std::string> simulation_types = {"LIN", "AC", "HB", "NOISE", "DC", "OP", "TRAN"};
+
+//     // iterate all registered simulation types to find a match
+//     for (const auto& type : simulation_types) {
+//         // try to parse the directive list into a specific simulation type
+//         std::unique_ptr<void> simulation_parameters = nullptr;
+
+//         if (type == "LIN") {
+//             const auto params = LinSimulationParameters::from_xyce_directives(directives);
+//             if (params.has_value()) {
+//                 simulation_parameters = std::make_unique<LinSimulationParameters>(params.value());
+//             }
+//         }
+//         else if (type == "AC") {
+//             const auto params = AcSimulationParameters::from_xyce_directives(directives);
+//             if (params.has_value()) {
+//                 simulation_parameters = std::make_unique<AcSimulationParameters>(params.value());
+//             }
+//         }
+//         else if (type == "HB") {
+//             const auto params = HbSimulationParameters::from_xyce_directives(directives);
+//             if (params.has_value()) {
+//                 simulation_parameters = std::make_unique<HbSimulationParameters>(params.value());
+//             }
+//         }
+//         else if (type == "NOISE") {
+//             const auto params = NoiseSimulationParameters::from_xyce_directives(directives);
+//             if (params.has_value()) {
+//                 simulation_parameters = std::make_unique<NoiseSimulationParameters>(params.value());
+//             }
+//         }
+//         else if (type == "DC") {
+//             const auto params = DCSimulationParameters::from_xyce_directives(directives);
+//             if (params.has_value()) {
+//                 simulation_parameters = std::make_unique<DCSimulationParameters>(params.value());
+//             }
+//         }
+//         else if (type == "OP") {
+//             const auto params = OpSimulationParameters::from_xyce_directives(directives);
+//             if (params.has_value()) {
+//                 simulation_parameters = std::make_unique<OpSimulationParameters>(params.value());
+//             }
+//         }
+//         else if (type == "TRAN") {
+//             const auto params = TransientSimulationParameters::from_xyce_directives(directives);
+//             if (params.has_value()) {
+//                 simulation_parameters = std::make_unique<TransientSimulationParameters>(params.value());
+//             }
+//         }
+
+//         // check if a match was found
+//         if (simulation_parameters) {
+//             // store the analysis parameters
+//             analysis = std::move(simulation_parameters);
+//             analysis_type = type;
+//             // stop searching once the first valid analysis is found
+//             break;
+//         }
+//     }
+
+//     // parse all step directives preserving nested loop order
+//     const auto steps = StepParameters::all_from_xyce_directives(directives);
+
+//     // parse all .DATA table blocks
+//     const auto data_blocks = DataBlock::from_xyce_directives(directives);
+
+//     // parse the structured option directives
+//     const auto options = OptionParameters::from_xyce_directives(directives);
+
+//     // init unassociated print list
+//     std::vector<PrintParameters> unassociated_prints;
+
+//     // identify all handled print types for the current analysis to avoid duplicates
+//     std::set<std::string> handled_print_types;
+
+//     // check if the analysis has print parameters already handled
+//     if (analysis) {
+//         // For now, we'll check the analysis type and mark the appropriate print type
+//         // This is a simplified version - in the full implementation, we'd need to
+//         // access the analysis object's print_parameters field
+//         if (analysis_type == "AC" || analysis_type == "LIN") {
+//             handled_print_types.insert("AC");
+//             handled_print_types.insert("AC_IC");
+//         }
+//         else if (analysis_type == "DC") {
+//             handled_print_types.insert("DC");
+//             handled_print_types.insert("HOMOTOPY");
+//         }
+//         else if (analysis_type == "TRAN") {
+//             handled_print_types.insert("TRAN");
+//             handled_print_types.insert("TRANADJOINT");
+//         }
+//         else if (analysis_type == "HB") {
+//             handled_print_types.insert("HB");
+//             handled_print_types.insert("HB_FD");
+//             handled_print_types.insert("HB_TD");
+//         }
+//         else if (analysis_type == "NOISE") {
+//             handled_print_types.insert("NOISE");
+//         }
+//     }
+
+//     // iterate all directives to find unassociated prints
+//     for (const auto& directive : directives) {
+//         // tokenize the directive
+//         std::vector<std::string> tokens;
+//         std::string current;
+//         for (const char ch : directive) {
+//             if (std::isspace(static_cast<unsigned char>(ch))) {
+//                 if (!current.empty()) {
+//                     tokens.push_back(current);
+//                     current.clear();
+//                 }
+//                 continue;
+//             }
+//             current += ch;
+//         }
+//         if (!current.empty()) {
+//             tokens.push_back(current);
+//         }
+
+//         // skip non-print or empty directives
+//         if (tokens.empty() || config_to_upper(tokens[0]) != ".PRINT") {
+//             continue;
+//         }
+
+//         // parse the print statement
+//         const auto pp = PrintParameters::from_xyce_statement(directive);
+//         if (!pp) {
+//             continue;
+//         }
+
+//         // check if print was successfully parsed and is not handled by the analysis
+//         const std::string print_type_upper = config_to_upper(pp->print_type);
+//         if (handled_print_types.find(print_type_upper) == handled_print_types.end()) {
+//             // add to unassociated list
+//             unassociated_prints.push_back(*pp);
+//         }
+//     }
+
+//     // return the combined configuration container
+//     return SimulationConfig(analysis_type, std::move(analysis), steps, data_blocks, options, unassociated_prints);
+// }
+
+// std::vector<std::string> SimulationConfig::to_xyce_directives() const {
+//     // init output directive list
+//     std::vector<std::string> directives;
+
+//     // extend with option directives
+//     const auto option_directives = options.to_xyce_directives();
+//     directives.insert(directives.end(), option_directives.begin(), option_directives.end());
+
+//     // check if an analysis is configured
+//     if (analysis) {
+//         // For now, we'll skip analysis-specific directives
+//         // In the full implementation, we'd need to call the analysis object's to_xyce_directives method
+//         // This requires type-safe access to the underlying object
+//     }
+
+//     // emit all step directives preserving the original nested loop order
+//     for (const auto& step : steps) {
+//         // extend with each step directive
+//         const auto step_directives = step.to_xyce_directives();
+//         directives.insert(directives.end(), step_directives.begin(), step_directives.end());
+//     }
+
+//     // emit all .DATA table blocks
+//     for (const auto& data_block : data_blocks) {
+//         // extend with the data block directives
+//         const auto block_directives = data_block.to_xyce_directives();
+//         directives.insert(directives.end(), block_directives.begin(), block_directives.end());
+//     }
+
+//     // extend with unassociated prints
+//     for (const auto& pp : unassociated_prints) {
+//         // append print directive string
+//         directives.push_back(pp.to_xyce_statement());
+//     }
+
+//     // return the full consolidated directive list
+//     return directives;
+// }

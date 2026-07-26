@@ -228,3 +228,5 @@ std::vector<std::string> SensParameter::to_xyce_directives() const {
     // return directive lines
     return lines;
 }
+
+bool SensParameter::operator==(const SensParameter& other) const { return analysis_context == other.analysis_context && objective_mode == other.objective_mode && objective_values == other.objective_values && parameter_list == other.parameter_list && direct == other.direct && adjoint == other.adjoint && print_parameters == other.print_parameters; }
