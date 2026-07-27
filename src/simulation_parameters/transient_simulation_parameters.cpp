@@ -1,53 +1,19 @@
-#include <algorithm>
 #include <cctype>
 #include <optional>
 #include <regex>
 #include <string>
 #include <vector>
 
+#include "../util.h"
 #include "transient_simulation_parameters.h"
-
-// normalize a string to uppercase
-static std::string tran_to_upper(std::string s) {
-    // convert each character to upper case
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
-    // return converted string
-    return s;
-}
-
-// tokenize a directive by whitespace
-static std::vector<std::string> tran_tokenize(const std::string& directive) {
-    // init token list
-    std::vector<std::string> tokens;
-    // init current token buffer
-    std::string current;
-    // iterate characters
-    for (const char ch : directive) {
-        // check whitespace splitter
-        if (std::isspace(static_cast<unsigned char>(ch))) {
-            // flush current token when non-empty
-            if (!current.empty()) {
-                tokens.push_back(current);
-                current.clear();
-            }
-            // next
-            continue;
-        }
-        // append char
-        current += ch;
-    }
-    // flush trailing token
-    if (!current.empty()) {
-        tokens.push_back(current);
-    }
-    // return tokens
-    return tokens;
-}
 
 TransientSchedulePoint::TransientSchedulePoint(std::string time_value, std::string max_time_step_value) :
     time_value(std::move(time_value)), max_time_step_value(std::move(max_time_step_value)) {}
 
-bool TransientSchedulePoint::operator==(const TransientSchedulePoint& other) const { return time_value == other.time_value && max_time_step_value == other.max_time_step_value; }
+bool TransientSchedulePoint::operator==(const TransientSchedulePoint& other) const {
+    // compare all fields for equality
+    return time_value == other.time_value && max_time_step_value == other.max_time_step_value;
+}
 
 TransientSimulationParameters::TransientSimulationParameters(std::string initial_step_value, std::string final_time_value, std::string start_time_value, std::string step_ceiling_value, std::string op_keyword, std::vector<TransientSchedulePoint> schedule_points, bool replace_ground, std::optional<PrintParameters> print_parameters, std::vector<FftParameters> fft_parameters, std::vector<FourParameters> four_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
     initial_step_value(std::move(initial_step_value)), final_time_value(std::move(final_time_value)), start_time_value(std::move(start_time_value)), step_ceiling_value(std::move(step_ceiling_value)), op_keyword(std::move(op_keyword)), schedule_points(std::move(schedule_points)), replace_ground(replace_ground), print_parameters(std::move(print_parameters)), fft_parameters(std::move(fft_parameters)), four_parameters(std::move(four_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
@@ -66,37 +32,34 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
     std::vector<FourParameters> four_parameters;
     std::vector<MeasureEntry> measure_parameters;
     std::optional<SensParameter> sensitivity;
-
     // flag indicating whether a valid directive was found
     bool found = false;
 
     // parse directives
     for (const auto& directive : directives) {
         // tokenize the directive
-        const auto tokens = tran_tokenize(directive);
-
+        const auto tokens = tokenize(directive);
         // skip empty directives
-        if (tokens.empty()) {
+        if (tokens.empty()) 
             continue;
-        }
-
-        const std::string cmd = tran_to_upper(tokens[0]);
-
+        // extract the command (first token) in uppercase
+        const std::string cmd = to_upper(tokens[0]);
         // parse print directives and retain transient-specific output config
         if (cmd == ".PRINT") {
             // parse the print statement from the directive
             const auto print_statement = PrintParameters::from_xyce_statement(directive);
-            // retain transient print parameters when found
             if (print_statement) {
-                const std::string print_type_upper = tran_to_upper(print_statement->print_type);
+                // print type
+                const std::string print_type_upper = to_upper(print_statement->print_type);
+                // retain print parameters only for transient analysis types
                 if (print_type_upper == "TRAN" || print_type_upper == "TRANADJOINT") {
                     // store the parsed print parameters
                     print_parameters = *print_statement;
+                    // next
                     continue;
                 }
             }
         }
-
         // parse fft directives
         if (cmd == ".FFT") {
             // parse the fft statement from the directive
@@ -108,7 +71,6 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
             }
             continue;
         }
-
         // parse four directives
         if (cmd == ".FOUR") {
             // parse the four statement from the directive
@@ -120,14 +82,14 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
             }
             continue;
         }
-
         // parse measure directives
         if (cmd == ".MEASURE" || cmd == ".MEAS") {
             // parse the measure statement from the directive
             const auto measure_statement = MeasureEntry::from_xyce_statement(directive);
-            // retain measure parameters when found and analysis type matches
             if (measure_statement) {
-                const std::string analysis_type_upper = tran_to_upper(measure_statement->analysis_type);
+                // type
+                const std::string analysis_type_upper = to_upper(measure_statement->analysis_type);
+                // retain measure parameters only for transient analysis types
                 if (analysis_type_upper == "TRAN" || analysis_type_upper == "TRAN_CONT") {
                     // append the parsed measure parameters
                     measure_parameters.push_back(*measure_statement);
@@ -135,22 +97,18 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
             }
             continue;
         }
-
         // handle preprocess replaceground
-        if (cmd == ".PREPROCESS" && tokens.size() > 2 && tran_to_upper(tokens[1]) == "REPLACEGROUND") {
+        if (cmd == ".PREPROCESS" && tokens.size() > 2 && to_upper(tokens[1]) == "REPLACEGROUND") {
             // set flag based on value
-            replace_ground = (tran_to_upper(tokens[2]) == "TRUE");
+            replace_ground = (to_upper(tokens[2]) == "TRUE");
+            // next
             continue;
         }
-
         // skip non-TRAN directives
-        if (cmd != ".TRAN") {
+        if (cmd != ".TRAN") 
             continue;
-        }
-
         // flag indicating a valid TRAN directive was found
         found = true;
-
         // extract schedule clause from raw directive if present
         std::string directive_without_schedule = directive;
         std::smatch schedule_match;
@@ -186,7 +144,7 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
         }
 
         // re-tokenize after schedule removal
-        const auto tokens_after_schedule = tran_tokenize(directive_without_schedule);
+        const auto tokens_after_schedule = tokenize(directive_without_schedule);
 
         // parse initial step (required, position 1)
         if (tokens_after_schedule.size() >= 2) {
@@ -201,14 +159,14 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
         // separate NOOP/UIC keywords from positional arguments
         std::vector<std::string> positional;
         for (size_t i = 3; i < tokens_after_schedule.size(); ++i) {
-            const std::string upper = tran_to_upper(tokens_after_schedule[i]);
+            const std::string upper = to_upper(tokens_after_schedule[i]);
             if (upper == "NOOP" || upper == "UIC") {
                 // capture op keyword
                 op_keyword = upper;
             }
             else {
                 // accumulate remaining positional args
-                positional.push_back(tokens_after_schedule[i]);
+                positional.push_back(std::string(tokens_after_schedule[i]));
             }
         }
 
@@ -238,71 +196,63 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
 std::vector<std::string> TransientSimulationParameters::to_xyce_directives() const {
     // init output directive list
     std::vector<std::string> directives;
-
     // prepend replaceground preprocessor directive when enabled
-    if (replace_ground) {
+    if (replace_ground)
         directives.push_back(".PREPROCESS REPLACEGROUND TRUE");
-    }
-
     // start with the transient analysis directive
     std::string tran_directive = ".TRAN " + initial_step_value + " " + final_time_value;
-
     // add start time if specified
-    if (!start_time_value.empty()) {
+    if (!start_time_value.empty())
         tran_directive += " " + start_time_value;
-    }
-
     // add step ceiling if specified
-    if (!step_ceiling_value.empty()) {
+    if (!step_ceiling_value.empty())
         tran_directive += " " + step_ceiling_value;
-    }
-
     // add NOOP/UIC keyword if specified
-    if (!op_keyword.empty()) {
+    if (!op_keyword.empty())
         tran_directive += " " + op_keyword;
-    }
-
     // add schedule points if present
     if (!schedule_points.empty()) {
+        // build schedule clause
         std::string schedule_str = " {schedule(";
+        // loop through schedule points and append as time,max_step pairs
         for (size_t i = 0; i < schedule_points.size(); ++i) {
-            if (i > 0) {
+            // add comma separator for subsequent points
+            if (i > 0)
                 schedule_str += ", ";
-            }
+            // append time and max_step values
             schedule_str += schedule_points[i].time_value + ", " + schedule_points[i].max_time_step_value;
         }
+        // close schedule clause
         schedule_str += ")}";
+        // append to the transient directive
         tran_directive += schedule_str;
     }
-
+    // append the constructed transient directive to the output list
     directives.push_back(tran_directive);
-
     // append transient print directive when configured
-    if (print_parameters) {
+    if (print_parameters)
         directives.push_back(print_parameters->to_xyce_statement());
-    }
-
     // append sensitivity directives when configured
-    // For now, skip sensitivity directives
-    // In the full implementation, this would call sensitivity->to_xyce_directives()
-
+    if (sensitivity) {
+        // retrieve sensitivity directives
+        const auto sens_directives = sensitivity->to_xyce_directives();
+        // append to the output list
+        directives.insert(directives.end(), sens_directives.begin(), sens_directives.end());
+    }
     // append fft directives
-    for (const auto& fft : fft_parameters) {
+    for (const auto& fft : fft_parameters)
         directives.push_back(fft.to_xyce_statement());
-    }
-
     // append four directives
-    for (const auto& four : four_parameters) {
+    for (const auto& four : four_parameters)
         directives.push_back(four.to_xyce_statement());
-    }
-
     // append measure directives
-    for (const auto& measure : measure_parameters) {
+    for (const auto& measure : measure_parameters)
         directives.push_back(measure.to_xyce_statement());
-    }
-
     // return the full directive list
     return directives;
 }
 
-bool TransientSimulationParameters::operator==(const TransientSimulationParameters& other) const { return initial_step_value == other.initial_step_value && final_time_value == other.final_time_value && start_time_value == other.start_time_value && step_ceiling_value == other.step_ceiling_value && op_keyword == other.op_keyword && schedule_points == other.schedule_points && replace_ground == other.replace_ground && print_parameters == other.print_parameters && fft_parameters == other.fft_parameters && four_parameters == other.four_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity; }
+bool TransientSimulationParameters::operator==(const TransientSimulationParameters& other) const {
+    // compare all fields for equality
+    return initial_step_value == other.initial_step_value && final_time_value == other.final_time_value && start_time_value == other.start_time_value && step_ceiling_value == other.step_ceiling_value && op_keyword == other.op_keyword && schedule_points == other.schedule_points && replace_ground == other.replace_ground && print_parameters == other.print_parameters && fft_parameters == other.fft_parameters && four_parameters == other.four_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
+}

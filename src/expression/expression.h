@@ -13,49 +13,40 @@ template <typename T>
 class View
 {
 public:
-    class Iterator {
+    class Iterator
+    {
     public:
-        using iterator_concept  = std::forward_iterator_tag;
+        using iterator_concept = std::forward_iterator_tag;
         using iterator_category = std::forward_iterator_tag;
-        using value_type        = T;
-        using difference_type   = std::ptrdiff_t;
-        using pointer           = const T*;
-        using reference         = const T&;
+        using value_type = T;
+        using difference_type = std::ptrdiff_t;
+        using pointer = const T*;
+        using reference = const T&;
 
-        Iterator()
-            : m_ptr(nullptr), m_stride(1) {
+        Iterator() :
+            m_ptr(nullptr), m_stride(1) {}
+
+        Iterator(const T* ptr, size_t stride) :
+            m_ptr(ptr), m_stride(stride) {}
+
+        reference operator*() const { return *m_ptr; }
+
+        pointer operator->() const { return m_ptr; }
+
+        Iterator& operator++() {
+            m_ptr += m_stride;
+            return *this;
         }
 
-        Iterator(const T* ptr, size_t stride)
-            : m_ptr(ptr), m_stride(stride) {
-        }
-
-        reference operator*() const { 
-            return *m_ptr; 
-        }
-        
-        pointer operator->() const { 
-            return m_ptr; 
-        }
-
-        Iterator& operator++() { 
-            m_ptr += m_stride; 
-            return *this; 
-        }
-        
-        Iterator operator++(int) { 
+        Iterator operator++(int) {
             Iterator tmp = *this;
-            m_ptr += m_stride; 
+            m_ptr += m_stride;
             return tmp;
         }
 
-        friend bool operator==(const Iterator& lhs, const Iterator& rhs) { 
-            return lhs.m_ptr == rhs.m_ptr; 
-        }
-        
-        friend bool operator!=(const Iterator& lhs, const Iterator& rhs) { 
-            return lhs.m_ptr != rhs.m_ptr; 
-        }
+        friend bool operator==(const Iterator& lhs, const Iterator& rhs) { return lhs.m_ptr == rhs.m_ptr; }
+
+        friend bool operator!=(const Iterator& lhs, const Iterator& rhs) { return lhs.m_ptr != rhs.m_ptr; }
 
     private:
         const T* m_ptr;
@@ -68,24 +59,21 @@ public:
 
     View(View&&) noexcept = default;
 
-    View(const T* pointer, const size_t size) 
-        : m_pointer(const_cast<T*>(pointer)), m_size(size), m_stride(1) {
-    }
+    View(const T* pointer, const size_t size) :
+        m_pointer(const_cast<T*>(pointer)), m_size(size), m_stride(1) {}
 
-    View(const T* pointer, const size_t size, const size_t stride) 
-        : m_pointer(const_cast<T*>(pointer)), m_size(size), m_stride(stride) {
-    }
+    View(const T* pointer, const size_t size, const size_t stride) :
+        m_pointer(const_cast<T*>(pointer)), m_size(size), m_stride(stride) {}
 
-    explicit View(std::vector<T>& vector)
-        : m_stride(1), m_data(std::move(vector)) {
+    explicit View(std::vector<T>& vector) :
+        m_stride(1), m_data(std::move(vector)) {
         // pointer to vector data
         m_pointer = m_data.data();
         m_size = m_data.size();
     }
 
-    explicit View(std::span<const T> span) 
-        : m_pointer(const_cast<T*>(span.data())), m_size(span.size()), m_stride(1) {
-    }
+    explicit View(std::span<const T> span) :
+        m_pointer(const_cast<T*>(span.data())), m_size(span.size()), m_stride(1) {}
 
     ~View() = default;
 
@@ -93,30 +81,20 @@ public:
 
     View& operator=(View&&) noexcept = default;
 
-    const T& operator [](const size_t index) const {
+    const T& operator[](const size_t index) const {
         // value at index
         return m_pointer[index * m_stride];
     }
 
-    [[nodiscard]] size_t size() const {
-        return m_size;
-    }
+    [[nodiscard]] size_t size() const { return m_size; }
 
-    [[nodiscard]] const T* data() const {
-        return m_pointer;
-    }
+    [[nodiscard]] const T* data() const { return m_pointer; }
 
-    [[nodiscard]] bool empty() const {
-        return m_size == 0;
-    }
+    [[nodiscard]] bool empty() const { return m_size == 0; }
 
-    Iterator begin() const { 
-        return Iterator(m_pointer, m_stride); 
-    }
-    
-    Iterator end() const { 
-        return Iterator(m_pointer + (m_size * m_stride), m_stride); 
-    }
+    Iterator begin() const { return Iterator(m_pointer, m_stride); }
+
+    Iterator end() const { return Iterator(m_pointer + (m_size * m_stride), m_stride); }
 
 private:
     T* m_pointer;
@@ -136,13 +114,11 @@ public:
 
     Expression(Expression&&) noexcept = default;
 
-    Expression(std::string name, std::vector<View<T>>& steps, std::string unit, std::string source = "", std::string variable_type = "")
-        : m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)) {
-    }
+    Expression(std::string name, std::vector<View<T>>& steps, std::string unit, std::string source = "", std::string variable_type = "") :
+        m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)) {}
 
-    Expression(std::string name, std::vector<T>& data, std::vector<std::span<const T>>& steps, std::string unit, std::string source = "", std::string variable_type = "")
-        : m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)), m_cached_data(std::move(data)) {
-    }
+    Expression(std::string name, std::vector<T>& data, std::vector<std::span<const T>>& steps, std::string unit, std::string source = "", std::string variable_type = "") :
+        m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)), m_cached_data(std::move(data)) {}
 
     ~Expression() = default;
 
@@ -150,21 +126,13 @@ public:
 
     Expression& operator=(Expression&&) noexcept = default;
 
-    [[nodiscard]] const std::string& name() const {
-        return m_name;
-    }
+    [[nodiscard]] const std::string& name() const { return m_name; }
 
-    [[nodiscard]] const std::string& unit() const {
-        return m_unit;
-    }
+    [[nodiscard]] const std::string& unit() const { return m_unit; }
 
-    [[nodiscard]] const std::string& source() const {
-        return m_source;
-    }
+    [[nodiscard]] const std::string& source() const { return m_source; }
 
-    [[nodiscard]] const std::string& variable_type() const {
-        return m_variable_type;
-    }
+    [[nodiscard]] const std::string& variable_type() const { return m_variable_type; }
 
     [[nodiscard]] size_t step_count() const {
         return std::visit([](auto&& v) { return v.size(); }, m_steps);

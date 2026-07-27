@@ -1,17 +1,9 @@
-#include <algorithm>
 #include <cctype>
 #include <string>
 #include <vector>
 
+#include "../util.h"
 #include "option_parameters.h"
-
-// normalize a string to uppercase
-static std::string option_to_upper(std::string s) {
-    // convert each character to upper case
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
-    // return converted string
-    return s;
-}
 
 // parse a series of option tokens into a normalized map
 static std::map<std::string, std::string> parse_option_tokens(const std::vector<std::string>& tokens) {
@@ -25,13 +17,13 @@ static std::map<std::string, std::string> parse_option_tokens(const std::vector<
         // split key/value pairs and normalize keys to uppercase
         const auto eq_pos = token.find('=');
         if (eq_pos != std::string::npos) {
-            const std::string key = option_to_upper(token.substr(0, eq_pos));
+            const std::string key = to_upper(token.substr(0, eq_pos));
             const std::string val = token.substr(eq_pos + 1);
             options[key] = val;
             continue;
         }
         // support flag-style options without an explicit value
-        options[option_to_upper(token)] = "";
+        options[to_upper(token)] = "";
     }
     return options;
 }
@@ -71,12 +63,12 @@ OptionParameters OptionParameters::from_xyce_directives(const std::vector<std::s
         }
 
         // handle only .OPTIONS directives
-        if (option_to_upper(tokens[0]) != ".OPTIONS" || tokens.size() <= 1) {
+        if (to_upper(tokens[0]) != ".OPTIONS" || tokens.size() <= 1) {
             continue;
         }
 
         // normalize the package name
-        const std::string package = option_to_upper(tokens[1]);
+        const std::string package = to_upper(tokens[1]);
 
         if (package == "DEVICE") {
             device = parse_option_tokens(std::vector<std::string>(tokens.begin() + 2, tokens.end()));
@@ -136,4 +128,7 @@ std::vector<std::string> OptionParameters::to_xyce_directives() const {
     return directives;
 }
 
-bool OptionParameters::operator==(const OptionParameters& other) const { return device == other.device && timeint == other.timeint && nonlin == other.nonlin && linsol == other.linsol; }
+bool OptionParameters::operator==(const OptionParameters& other) const {
+    // compare all fields for equality
+    return device == other.device && timeint == other.timeint && nonlin == other.nonlin && linsol == other.linsol;
+}

@@ -196,4 +196,7 @@ std::vector<std::string> DataBlock::to_xyce_directives() const {
     return lines;
 }
 
-bool DataBlock::operator==(const DataBlock& other) const { return name == other.name && parameters == other.parameters && records == other.records; }
+bool DataBlock::operator==(const DataBlock& other) const {
+    // compare all fields for equality
+    return name == other.name && parameters == other.parameters && records == other.records;
+}

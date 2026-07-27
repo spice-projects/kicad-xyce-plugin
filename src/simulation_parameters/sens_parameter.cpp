@@ -1,85 +1,10 @@
-#include <algorithm>
 #include <cctype>
-#include <sstream>
+#include <ranges>
 #include <string>
 #include <vector>
 
+#include "../util.h"
 #include "sens_parameter.h"
-
-// normalize a string to lowercase
-static std::string sens_to_lower(std::string s) {
-    // convert each character to lower case
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
-    // return converted string
-    return s;
-}
-
-// normalize a string to uppercase
-static std::string sens_to_upper(std::string s) {
-    // convert each character to upper case
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
-    // return converted string
-    return s;
-}
-
-// split a string by a delimiter character
-static std::vector<std::string> split_by(const std::string& s, char delim) {
-    // init result list
-    std::vector<std::string> parts;
-    // use stringstream for splitting
-    std::stringstream ss(s);
-    std::string part;
-    // extract each part
-    while (std::getline(ss, part, delim)) {
-        // add part to list
-        parts.push_back(part);
-    }
-    // return parts
-    return parts;
-}
-
-// strip brace characters from a string
-static std::string strip_braces(const std::string& s) {
-    // init result
-    std::string result;
-    // append non-brace characters
-    for (const char ch : s) {
-        if (ch != '{' && ch != '}') {
-            result += ch;
-        }
-    }
-    // return stripped string
-    return result;
-}
-
-// tokenize a directive by whitespace
-static std::vector<std::string> tokenize_directive(const std::string& directive) {
-    // init token list
-    std::vector<std::string> tokens;
-    // init current token buffer
-    std::string current;
-    // iterate characters
-    for (const char ch : directive) {
-        // check whitespace splitter
-        if (std::isspace(static_cast<unsigned char>(ch))) {
-            // flush current token when non-empty
-            if (!current.empty()) {
-                tokens.push_back(current);
-                current.clear();
-            }
-            // next
-            continue;
-        }
-        // append char
-        current += ch;
-    }
-    // flush trailing token
-    if (!current.empty()) {
-        tokens.push_back(current);
-    }
-    // return tokens
-    return tokens;
-}
 
 SensParameter::SensParameter(std::string analysis_context, std::string objective_mode, std::vector<std::string> objective_values, std::vector<std::string> parameter_list, bool direct, bool adjoint, std::optional<PrintParameters> print_parameters) :
     analysis_context(std::move(analysis_context)), objective_mode(std::move(objective_mode)), objective_values(std::move(objective_values)), parameter_list(std::move(parameter_list)), direct(direct), adjoint(adjoint), print_parameters(std::move(print_parameters)) {}
@@ -104,14 +29,14 @@ std::optional<SensParameter> SensParameter::from_xyce_directives(const std::vect
     // iterate provided directives
     for (const auto& directive : directives) {
         // tokenize directive
-        const auto tokens = tokenize_directive(directive);
+        const auto tokens = tokenize(directive);
         // skip empty directives
         if (tokens.empty()) {
             // continue to next iteration
             continue;
         }
         // extract command keyword
-        const auto cmd = sens_to_upper(tokens[0]);
+        const auto cmd = to_upper(tokens[0]);
         // check for sens command
         if (cmd == ".SENS") {
             // set found flag
@@ -126,16 +51,23 @@ std::optional<SensParameter> SensParameter::from_xyce_directives(const std::vect
                     continue;
                 }
                 // split key and value
-                const std::string key = sens_to_lower(token.substr(0, eq_pos));
-                const std::string val = token.substr(eq_pos + 1);
+                const std::string key = to_lower(token.substr(0, eq_pos));
+                const auto val = token.substr(eq_pos + 1);
                 // check for objective modes
                 if (key == "objfunc" || key == "objvars" || key == "acobjfunc") {
                     // set objective mode
                     objective_mode = key;
                     // parse and clean values by stripping braces and splitting by comma
-                    const auto parts = split_by(strip_braces(val), ',');
+                    const auto parts = split_by(strip_chars(val, "{}"), ',');
                     // store objective values
-                    objective_values = parts;
+                    for (const auto& part : parts) {
+                        // trim whitespace
+                        const auto start = part.find_first_not_of(" \t");
+                        const auto end = part.find_last_not_of(" \t");
+                        if (start != std::string::npos) {
+                            objective_values.push_back(std::string(part.substr(start, end - start + 1)));
+                        }
+                    }
                 }
                 // check for parameters
                 else if (key == "param") {
@@ -149,18 +81,18 @@ std::optional<SensParameter> SensParameter::from_xyce_directives(const std::vect
                         const auto end = part.find_last_not_of(" \t");
                         if (start != std::string::npos) {
                             // add trimmed part
-                            parameter_list.push_back(part.substr(start, end - start + 1));
+                            parameter_list.push_back(std::string(part.substr(start, end - start + 1)));
                         }
                     }
                 }
             }
         }
         // check for sensitivity options
-        if (cmd == ".OPTIONS" && tokens.size() > 1 && sens_to_upper(tokens[1]) == "SENSITIVITY") {
+        if (cmd == ".OPTIONS" && tokens.size() > 1 && to_upper(tokens[1]) == "SENSITIVITY") {
             // iterate over tokens
             for (size_t i = 2; i < tokens.size(); ++i) {
                 const auto& token = tokens[i];
-                const auto lower_token = sens_to_lower(token);
+                const auto lower_token = to_lower(token);
                 // check direct method
                 if (lower_token.substr(0, 7) == "direct=") {
                     // set direct flag
@@ -174,7 +106,7 @@ std::optional<SensParameter> SensParameter::from_xyce_directives(const std::vect
             }
         }
         // check for print directive
-        if (cmd == ".PRINT" && tokens.size() > 1 && sens_to_upper(tokens[1]) == "SENS") {
+        if (cmd == ".PRINT" && tokens.size() > 1 && to_upper(tokens[1]) == "SENS") {
             // create print parameters
             print_parameters = PrintParameters::from_xyce_statement(directive);
         }
@@ -229,4 +161,7 @@ std::vector<std::string> SensParameter::to_xyce_directives() const {
     return lines;
 }
 
-bool SensParameter::operator==(const SensParameter& other) const { return analysis_context == other.analysis_context && objective_mode == other.objective_mode && objective_values == other.objective_values && parameter_list == other.parameter_list && direct == other.direct && adjoint == other.adjoint && print_parameters == other.print_parameters; }
+bool SensParameter::operator==(const SensParameter& other) const {
+    // compare all fields for equality
+    return analysis_context == other.analysis_context && objective_mode == other.objective_mode && objective_values == other.objective_values && parameter_list == other.parameter_list && direct == other.direct && adjoint == other.adjoint && print_parameters == other.print_parameters;
+}

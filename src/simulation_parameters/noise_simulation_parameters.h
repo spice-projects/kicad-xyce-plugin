@@ -28,7 +28,7 @@ class NoiseSimulationParameters
 {
 public:
     // construct a noise simulation parameters instance from individual fields
-    NoiseSimulationParameters(std::string output_node, std::string ref_node, std::string source_name, std::string start_freq_value, std::string end_freq_value, std::string num_points_value, std::string sweep_type, std::vector<DeviceNoiseOperator> device_noise_operators, bool replace_ground, std::optional<PrintParameters> print_parameters);
+    NoiseSimulationParameters(std::string output_node, std::string ref_node, std::string source_name, std::string start_freq_value, std::string end_freq_value, std::string num_points_value, std::string sweep_type, std::vector<DeviceNoiseOperator> device_noise_operators, std::string data_table_name, bool replace_ground, std::optional<PrintParameters> print_parameters);
 
     // parse all directives into a NoiseSimulationParameters instance;
     // returns nullopt when no .NOISE directive is found
@@ -52,10 +52,12 @@ public:
     std::string end_freq_value;
     // number of points (required)
     std::string num_points_value;
-    // sweep type (LIN, OCT, DEC)
+    // sweep type (LIN, OCT, DEC, DATA)
     std::string sweep_type;
     // device noise operators
     std::vector<DeviceNoiseOperator> device_noise_operators;
+    // data table name (DATA sweep only)
+    std::string data_table_name;
     // whether to apply replaceground preprocessing
     bool replace_ground;
     // optional print parameters

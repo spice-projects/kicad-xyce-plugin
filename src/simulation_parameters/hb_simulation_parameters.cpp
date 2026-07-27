@@ -1,47 +1,10 @@
-#include <algorithm>
 #include <cctype>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "../util.h"
 #include "hb_simulation_parameters.h"
-
-// normalize a string to uppercase
-static std::string hb_to_upper(std::string s) {
-    // convert each character to upper case
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
-    // return converted string
-    return s;
-}
-
-// tokenize a directive by whitespace
-static std::vector<std::string> hb_tokenize(const std::string& directive) {
-    // init token list
-    std::vector<std::string> tokens;
-    // init current token buffer
-    std::string current;
-    // iterate characters
-    for (const char ch : directive) {
-        // check whitespace splitter
-        if (std::isspace(static_cast<unsigned char>(ch))) {
-            // flush current token when non-empty
-            if (!current.empty()) {
-                tokens.push_back(current);
-                current.clear();
-            }
-            // next
-            continue;
-        }
-        // append char
-        current += ch;
-    }
-    // flush trailing token
-    if (!current.empty()) {
-        tokens.push_back(current);
-    }
-    // return tokens
-    return tokens;
-}
 
 HbSimulationParameters::HbSimulationParameters(std::vector<std::string> frequencies, std::vector<int> harmonics, std::optional<int> tahb, std::optional<std::string> selectharms, std::optional<int> startup_periods, bool replace_ground, std::optional<PrintParameters> print_parameters, std::map<std::string, std::string> nonlin_options, std::map<std::string, std::string> linsol_options) :
     frequencies(std::move(frequencies)), harmonics(std::move(harmonics)), tahb(std::move(tahb)), selectharms(std::move(selectharms)), startup_periods(std::move(startup_periods)), replace_ground(replace_ground), print_parameters(std::move(print_parameters)), nonlin_options(std::move(nonlin_options)), linsol_options(std::move(linsol_options)) {}
@@ -64,14 +27,14 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
     // parse directives
     for (const auto& directive : directives) {
         // tokenize the directive
-        const auto tokens = hb_tokenize(directive);
+        const auto tokens = tokenize(directive);
 
         // skip empty directives
         if (tokens.empty()) {
             continue;
         }
 
-        const std::string cmd = hb_to_upper(tokens[0]);
+        const std::string cmd = to_upper(tokens[0]);
 
         // parse print directives and retain hb-specific output config
         if (cmd == ".PRINT") {
@@ -79,7 +42,7 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
             const auto print_statement = PrintParameters::from_xyce_statement(directive);
             // retain hb print parameters when found
             if (print_statement) {
-                const std::string print_type_upper = hb_to_upper(print_statement->print_type);
+                const std::string print_type_upper = to_upper(print_statement->print_type);
                 if (print_type_upper == "HB" || print_type_upper == "HB_FD" || print_type_upper == "HB_TD") {
                     // store the parsed print parameters
                     print_parameters = *print_statement;
@@ -89,16 +52,16 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
         }
 
         // handle preprocess replaceground
-        if (cmd == ".PREPROCESS" && tokens.size() > 2 && hb_to_upper(tokens[1]) == "REPLACEGROUND") {
+        if (cmd == ".PREPROCESS" && tokens.size() > 2 && to_upper(tokens[1]) == "REPLACEGROUND") {
             // set replace_ground based on the third token
-            replace_ground = (hb_to_upper(tokens[2]) == "TRUE");
+            replace_ground = (to_upper(tokens[2]) == "TRUE");
             continue;
         }
 
         // handle .OPTIONS
         if (cmd == ".OPTIONS" && tokens.size() > 1) {
             // get package
-            const std::string pkg = hb_to_upper(tokens[1]);
+            const std::string pkg = to_upper(tokens[1]);
 
             // handle HBINT
             if (pkg == "HBINT") {
@@ -109,8 +72,8 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
                     const auto eq_pos = token.find('=');
                     if (eq_pos != std::string::npos) {
                         // split key and value
-                        const std::string key = hb_to_upper(token.substr(0, eq_pos));
-                        const std::string val = token.substr(eq_pos + 1);
+                        const auto key = to_upper(token.substr(0, eq_pos));
+                        const auto val = token.substr(eq_pos + 1);
 
                         // handle NUMFREQ
                         if (key == "NUMFREQ") {
@@ -146,7 +109,7 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
                         else if (key == "TAHB") {
                             // parse integer
                             try {
-                                tahb = std::stoi(val);
+                                tahb = std::stoi(std::string(val));
                             }
                             catch (...) {
                                 // ignore
@@ -161,7 +124,7 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
                         else if (key == "STARTUPPERIODS") {
                             // parse integer
                             try {
-                                startup_periods = std::stoi(val);
+                                startup_periods = std::stoi(std::string(val));
                             }
                             catch (...) {
                                 // ignore
@@ -181,10 +144,10 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
                     const auto eq_pos = token.find('=');
                     if (eq_pos != std::string::npos) {
                         // split key and value
-                        const std::string key = token.substr(0, eq_pos);
-                        const std::string val = token.substr(eq_pos + 1);
+                        const auto key = token.substr(0, eq_pos);
+                        const auto val = token.substr(eq_pos + 1);
                         // store (uppercase key)
-                        nonlin_options[hb_to_upper(key)] = val;
+                        nonlin_options[to_upper(key)] = val;
                     }
                 }
                 continue;
@@ -199,10 +162,10 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
                     const auto eq_pos = token.find('=');
                     if (eq_pos != std::string::npos) {
                         // split key and value
-                        const std::string key = token.substr(0, eq_pos);
-                        const std::string val = token.substr(eq_pos + 1);
+                        const auto key = token.substr(0, eq_pos);
+                        const auto val = token.substr(eq_pos + 1);
                         // store (uppercase key)
-                        linsol_options[hb_to_upper(key)] = val;
+                        linsol_options[to_upper(key)] = val;
                     }
                 }
                 continue;
@@ -219,7 +182,7 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
 
         // collect all fundamental frequencies from remaining tokens
         for (size_t i = 1; i < tokens.size(); ++i) {
-            frequencies.push_back(tokens[i]);
+            frequencies.push_back(std::string(tokens[i]));
         }
     }
 
@@ -314,7 +277,7 @@ std::vector<std::string> HbSimulationParameters::to_xyce_directives() const {
 
     // append hb print directive when configured
     if (print_parameters) {
-        const std::string print_type_upper = hb_to_upper(print_parameters->print_type);
+        const std::string print_type_upper = to_upper(print_parameters->print_type);
         if (print_type_upper == "HB" || print_type_upper == "HB_FD" || print_type_upper == "HB_TD") {
             directives.push_back(print_parameters->to_xyce_statement());
         }
@@ -324,4 +287,7 @@ std::vector<std::string> HbSimulationParameters::to_xyce_directives() const {
     return directives;
 }
 
-bool HbSimulationParameters::operator==(const HbSimulationParameters& other) const { return frequencies == other.frequencies && harmonics == other.harmonics && tahb == other.tahb && selectharms == other.selectharms && startup_periods == other.startup_periods && replace_ground == other.replace_ground && print_parameters == other.print_parameters && nonlin_options == other.nonlin_options && linsol_options == other.linsol_options; }
+bool HbSimulationParameters::operator==(const HbSimulationParameters& other) const {
+    // compare all fields for equality
+    return frequencies == other.frequencies && harmonics == other.harmonics && tahb == other.tahb && selectharms == other.selectharms && startup_periods == other.startup_periods && replace_ground == other.replace_ground && print_parameters == other.print_parameters && nonlin_options == other.nonlin_options && linsol_options == other.linsol_options;
+}

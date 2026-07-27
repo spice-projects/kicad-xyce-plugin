@@ -56,8 +56,7 @@ elseif (LINUX)
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 endif()
 
-add_executable(kicad-xyce-plugin ${SOURCE_FILES}
-    src/simulation_parameters/measure_parameters.cpp)
+add_executable(kicad-xyce-plugin ${SOURCE_FILES})
 
 if(WIN32)
     set_target_properties(kicad-xyce-plugin PROPERTIES WIN32_EXECUTABLE TRUE)
@@ -78,7 +77,7 @@ elseif(WIN32)
     target_link_libraries(kicad-xyce-plugin PRIVATE d3d11 d3dcompiler dxgi gdi32 user32 shell32 ole32 oleaut32 uuid comdlg32 advapi32 version ws2_32 wininet oleacc uxtheme)
 endif()
 
-# if (BUILD_TESTS)
-#     enable_testing()
-#     add_subdirectory(tests)
-# endif()
+if (BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

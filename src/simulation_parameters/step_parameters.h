@@ -23,10 +23,13 @@ public:
 
     // parse the first .STEP directive from the list;
     // returns a disabled default when no .STEP directive is found
-    [[nodiscard]] static StepParameters from_xyce_directives(const std::vector<std::string>& directives);
+    [[nodiscard]] static std::optional<StepParameters> from_xyce_directives(const std::vector<std::string>& directives);
 
     // serialize this instance to a list of Xyce directive strings
     [[nodiscard]] std::vector<std::string> to_xyce_directives() const;
+
+    // equality operator
+    [[nodiscard]] bool operator==(const StepParameters& other) const;
 
     // sweep mode: "LIN", "DEC", "OCT", "LIST", "DATA"
     std::string sweep_mode;

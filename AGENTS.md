@@ -1,0 +1,37 @@
+# AGENTS.md
+
+## Language
+
+- C++23
+- Use RAII
+- Avoid raw owning pointers
+- Prefer std::span/std::string_view for non-owning views
+- Preserve existing architecture unless explicitly requested
+
+## Build & Unit Tests
+
+- Build system: `cmake`
+  - Configure: `cmake --preset vcpkg`
+  - Build: `cmake --build --preset vcpkg`
+- Unit Tests, avoid running unit tests using `ctest`. Execute unit tests by executing the process: `./.build-debug/tests/kicad-xyce-plugin-tests`
+- Dependencies: `vcpkg`
+
+## Workflow
+
+Before editing:
+1. Search for existing implementations
+2. Understand ownership and lifetime
+3. Use the same code style as existing code, including code comment style
+4. Make minimal changes
+
+After editing:
+1. Build the project
+2. Fix compiler warnings/errors
+3. Summarize changed files
+4. Do not execute unit tests unless explicitly asked
+
+## Architecture
+
+- wxWidgets owns application lifecycle
+- Rendering components should remain independent where possible
+- Avoid unnecessary dependency coupling

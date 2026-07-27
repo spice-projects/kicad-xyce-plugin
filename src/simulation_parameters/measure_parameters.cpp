@@ -1,18 +1,22 @@
-#include <algorithm>
 #include <cctype>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "../util.h"
 #include "measure_parameters.h"
 
-// normalize a string to uppercase
-static std::string measure_to_upper(std::string s) {
-    // convert each character to upper case
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
-    // return converted string
-    return s;
-}
+namespace
+{
+    // analisis types allowed for measure directives
+    const std::string ALLOWED_ANALYSIS_TYPES[8] = {"TRAN", "AC", "DC", "NOISE", "TRAN_CONT", "AC_CONT", "DC_CONT", "NOISE_CONT"};
+
+    // measure type aliases for normalization
+    const std::pair<std::string, std::string> MEASURE_TYPE_ALIASES[3] = {{"DERIVATIVE", "DERIV"}, {"INTEGRAL", "INTEG"}, {"PARAM", "EQN"}};
+
+    // allowed measure types for validation
+    const std::string ALLOWED_MEASURE_TYPES[] = {"AVG", "DERIV", "DUTY", "EQN", "ERR", "ERR1", "ERR2", "ERROR", "FIND", "FOUR", "FREQ", "INTEG", "MAX", "MIN", "OFF_TIME", "ON_TIME", "PP", "RMS", "WHEN", "ENOB", "SFDR", "SNDR", "SNR", "THD"};
+} // namespace
 
 // tokenize a measure statement by whitespace, respecting braces
 static std::vector<std::string> measure_tokenize(const std::string& statement) {
@@ -56,9 +60,8 @@ static std::vector<std::string> measure_tokenize(const std::string& statement) {
         current += ch;
     }
     // check trailing token
-    if (!current.empty()) {
+    if (!current.empty())
         tokens.push_back(current);
-    }
     // return tokens
     return tokens;
 }
@@ -70,105 +73,100 @@ MeasureEntry::MeasureEntry(std::string analysis_type, std::string result_name, s
 std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string& statement) {
     // parse tokens
     const auto tokens = measure_tokenize(statement);
-
     // reject statements that are too short
     if (tokens.size() < 4) {
         // return none
         return std::nullopt;
     }
-
     // normalize command
-    const std::string cmd = measure_to_upper(tokens[0]);
-
+    const std::string cmd = to_upper(tokens[0]);
     // check for .MEASURE or .MEAS
     if (cmd != ".MEASURE" && cmd != ".MEAS") {
         // return none
         return std::nullopt;
     }
-
     // parse analysis type and result name
-    const std::string analysis_type = measure_to_upper(tokens[1]);
+    const std::string analysis_type = to_upper(tokens[1]);
     const std::string result_name = tokens[2];
-
-    // validate analysis type
-    const std::vector<std::string> allowed_analysis_types = {"TRAN", "AC", "DC", "NOISE", "TRAN_CONT", "AC_CONT", "DC_CONT", "NOISE_CONT"};
+    // flag indicating whether the analysis type is valid
     bool analysis_type_valid = false;
-    for (const auto& allowed : allowed_analysis_types) {
+    // loop allowd analysis types
+    for (const auto& allowed : ALLOWED_ANALYSIS_TYPES) {
+        // check for match
         if (analysis_type == allowed) {
+            // set flag and break
             analysis_type_valid = true;
             break;
         }
     }
+    // reject invalid analysis types
     if (!analysis_type_valid) {
         // return none
         return std::nullopt;
     }
-
     // check for FFT keyword
     size_t idx = 3;
-    if (measure_to_upper(tokens[idx]) == "FFT") {
+    if (to_upper(tokens[idx]) == "FFT") {
+        // skip FFT token
         idx++;
-        if (idx >= tokens.size()) {
+        // check for end of tokens
+        if (idx >= tokens.size())
             return std::nullopt;
-        }
     }
-
     // determine measure type
-    std::string measure_type_raw = measure_to_upper(tokens[idx]);
+    std::string measure_type_raw = to_upper(tokens[idx]);
     idx++;
-
     // resolve aliases
     std::string measure_type_upper = measure_type_raw;
-    const std::vector<std::pair<std::string, std::string>> measure_type_aliases = {{"DERIVATIVE", "DERIV"}, {"INTEGRAL", "INTEG"}, {"PARAM", "EQN"}};
-    for (const auto& [alias, normalized] : measure_type_aliases) {
+    // loop aliases
+    for (const auto& [alias, normalized] : MEASURE_TYPE_ALIASES) {
+        // check for alias match
         if (measure_type_upper == alias) {
             measure_type_upper = normalized;
             break;
         }
     }
-
     // check for TRIG keyword (special case)
     std::string measure_type;
-    if (measure_type_upper == "TRIG") {
+    if (measure_type_upper == "TRIG")
         measure_type = "TRIG";
-    }
     // check for other keywords
     else {
-        const std::vector<std::string> allowed_measure_types = {"AVG", "DERIV", "DUTY", "EQN", "ERR", "ERR1", "ERR2", "ERROR", "FIND", "FOUR", "FREQ", "INTEG", "MAX", "MIN", "OFF_TIME", "ON_TIME", "PP", "RMS", "WHEN", "ENOB", "SFDR", "SNDR", "SNR", "THD"};
+        // flag indicating whether the measure type is valid
         bool found = false;
-        for (const auto& allowed : allowed_measure_types) {
+        // loop allowed measure types
+        for (const auto& allowed : ALLOWED_MEASURE_TYPES) {
+            // check for match
             if (measure_type_upper == allowed) {
                 measure_type = measure_type_upper;
                 found = true;
                 break;
             }
         }
-        if (!found) {
+        // reject invalid measure types
+        if (!found)
             return std::nullopt;
-        }
     }
-
     // init fields
     MeasureEntry entry;
     entry.analysis_type = analysis_type;
     entry.result_name = result_name;
     entry.measure_type = measure_type;
-
     // handle TRIG-TARG syntax
     if (measure_type == "TRIG") {
         // parse TRIG clause
-        auto parse_clause = [&](size_t start_idx, const std::string& /* prefix */) -> std::pair<size_t, MeasureEntry> {
+        auto parse_clause = [&](size_t start_idx, const std::string&) -> std::pair<size_t, MeasureEntry> {
+            // init index and clause entry
             size_t c_idx = start_idx;
             MeasureEntry clause_entry;
-
             // check for AT form (AT=<value>)
-            if (c_idx < tokens.size() && measure_to_upper(tokens[c_idx]).substr(0, 3) == "AT=") {
+            if (c_idx < tokens.size() && to_upper(tokens[c_idx]).substr(0, 3) == "AT=") {
                 // set at value
                 const auto& token = tokens[c_idx];
                 const size_t eq_pos = token.find('=');
-                if (eq_pos != std::string::npos) {
+                // check for equals sign
+                if (eq_pos != std::string::npos)
                     clause_entry.trig_at_val = token.substr(eq_pos + 1);
-                }
                 // advance index
                 c_idx++;
             }
@@ -176,9 +174,9 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
             else if (c_idx < tokens.size()) {
                 // split variable and condition
                 const auto& token = tokens[c_idx];
-
                 // check for equals sign in token
                 const size_t eq_pos = token.find('=');
+                // check for variable=condition form
                 if (eq_pos != std::string::npos) {
                     // variable=condition form
                     clause_entry.trig_variable = token.substr(0, eq_pos);
@@ -190,15 +188,17 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
                 }
                 // advance index
                 c_idx++;
-
                 // parse qualifiers
                 while (c_idx < tokens.size()) {
+                    // check for qualifier with equals sign
                     const auto& qual_token = tokens[c_idx];
                     const size_t qual_eq_pos = qual_token.find('=');
+                    // check for known qualifiers
                     if (qual_eq_pos != std::string::npos) {
-                        const std::string qual_key = measure_to_upper(qual_token.substr(0, qual_eq_pos));
+                        // split qualifier key and value
+                        const std::string qual_key = to_upper(qual_token.substr(0, qual_eq_pos));
                         const std::string qual_val = qual_token.substr(qual_eq_pos + 1);
-
+                        // 
                         if (qual_key == "TD") {
                             clause_entry.trig_td = qual_val;
                         }
@@ -218,7 +218,6 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
                     c_idx++;
                 }
             }
-
             return {c_idx, clause_entry};
         };
 
@@ -238,7 +237,7 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
         entry.trig_at_val = trig_fields.trig_at_val;
 
         // parse TARG clause
-        if (idx < tokens.size() && measure_to_upper(tokens[idx]) == "TARG") {
+        if (idx < tokens.size() && to_upper(tokens[idx]) == "TARG") {
             idx++;
             size_t targ_idx;
             MeasureEntry targ_fields;
@@ -261,7 +260,7 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
             const auto& token = tokens[i];
             const size_t eq_pos = token.find('=');
             if (eq_pos != std::string::npos) {
-                const std::string key = measure_to_upper(token.substr(0, eq_pos));
+                const std::string key = to_upper(token.substr(0, eq_pos));
                 const std::string val = token.substr(eq_pos + 1);
 
                 if (key == "MINVAL") {
@@ -331,7 +330,7 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
             const auto& token = tokens[i];
 
             // check for WHEN keyword
-            if (measure_to_upper(token) == "WHEN" && i + 1 < tokens.size()) {
+            if (to_upper(token) == "WHEN" && i + 1 < tokens.size()) {
                 // set when variable
                 entry.when_variable = tokens[i + 1];
                 i++;
@@ -359,7 +358,7 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
             const size_t eq_pos = token.find('=');
             if (eq_pos != std::string::npos) {
                 // split key and value
-                const std::string key = measure_to_upper(token.substr(0, eq_pos));
+                const std::string key = to_upper(token.substr(0, eq_pos));
                 const std::string val = token.substr(eq_pos + 1);
 
                 // map FROM
@@ -747,4 +746,7 @@ std::string MeasureEntry::to_xyce_statement() const {
     return result;
 }
 
-bool MeasureEntry::operator==(const MeasureEntry& other) const { return analysis_type == other.analysis_type && result_name == other.result_name && measure_type == other.measure_type && variable == other.variable && from_val == other.from_val && to_val == other.to_val && td_val == other.td_val && rise_val == other.rise_val && fall_val == other.fall_val && cross_val == other.cross_val && minval == other.minval && default_val == other.default_val && precision == other.precision && print_val == other.print_val && at_val == other.at_val && on_val == other.on_val && off_val == other.off_val && rfc_level == other.rfc_level && output == other.output && min_thresh == other.min_thresh && max_thresh == other.max_thresh && frac_max == other.frac_max && when_variable == other.when_variable && when_condition == other.when_condition && variable2 == other.variable2 && trig_variable == other.trig_variable && trig_condition == other.trig_condition && trig_val == other.trig_val && trig_frac_max == other.trig_frac_max && trig_td == other.trig_td && trig_rise == other.trig_rise && trig_fall == other.trig_fall && trig_cross == other.trig_cross && trig_at_val == other.trig_at_val && targ_variable == other.targ_variable && targ_condition == other.targ_condition && targ_val == other.targ_val && targ_frac_max == other.targ_frac_max && targ_td == other.targ_td && targ_rise == other.targ_rise && targ_fall == other.targ_fall && targ_cross == other.targ_cross && targ_at_val == other.targ_at_val && error_file == other.error_file && indepvarcol == other.indepvarcol && depvarcol == other.depvarcol && comp_function == other.comp_function && numfreq == other.numfreq && gridsize == other.gridsize && binsiz == other.binsiz && maxfreq == other.maxfreq && minfreq == other.minfreq && nbharm == other.nbharm && goal == other.goal && weight == other.weight; }
+bool MeasureEntry::operator==(const MeasureEntry& other) const {
+    // compare all fields for equality
+    return analysis_type == other.analysis_type && result_name == other.result_name && measure_type == other.measure_type && variable == other.variable && from_val == other.from_val && to_val == other.to_val && td_val == other.td_val && rise_val == other.rise_val && fall_val == other.fall_val && cross_val == other.cross_val && minval == other.minval && default_val == other.default_val && precision == other.precision && print_val == other.print_val && at_val == other.at_val && on_val == other.on_val && off_val == other.off_val && rfc_level == other.rfc_level && output == other.output && min_thresh == other.min_thresh && max_thresh == other.max_thresh && frac_max == other.frac_max && when_variable == other.when_variable && when_condition == other.when_condition && variable2 == other.variable2 && trig_variable == other.trig_variable && trig_condition == other.trig_condition && trig_val == other.trig_val && trig_frac_max == other.trig_frac_max && trig_td == other.trig_td && trig_rise == other.trig_rise && trig_fall == other.trig_fall && trig_cross == other.trig_cross && trig_at_val == other.trig_at_val && targ_variable == other.targ_variable && targ_condition == other.targ_condition && targ_val == other.targ_val && targ_frac_max == other.targ_frac_max && targ_td == other.targ_td && targ_rise == other.targ_rise && targ_fall == other.targ_fall && targ_cross == other.targ_cross && targ_at_val == other.targ_at_val && error_file == other.error_file && indepvarcol == other.indepvarcol && depvarcol == other.depvarcol && comp_function == other.comp_function && numfreq == other.numfreq && gridsize == other.gridsize && binsiz == other.binsiz && maxfreq == other.maxfreq && minfreq == other.minfreq && nbharm == other.nbharm && goal == other.goal && weight == other.weight;
+}

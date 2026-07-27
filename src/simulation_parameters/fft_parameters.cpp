@@ -1,9 +1,9 @@
-#include <algorithm>
 #include <cctype>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "../util.h"
 #include "fft_parameters.h"
 
 // init allowed window values from the reference guide
@@ -16,14 +16,6 @@ static const std::set<std::string> FFT_ALLOWED_FORMAT_VALUES = {
     "NORM",
     "UNORM",
 };
-
-// normalize a string to uppercase
-static std::string fft_to_upper(std::string s) {
-    // convert each character to upper case
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
-    // return converted string
-    return s;
-}
 
 // tokenize a .FFT statement respecting brace-enclosed expressions
 static std::vector<std::string> tokenize_fft_statement(const std::string& fft_statement) {
@@ -86,7 +78,7 @@ std::optional<FftParameters> FftParameters::from_xyce_statement(const std::strin
     // parse tokens
     const auto tokens = tokenize_fft_statement(fft_statement);
     // reject non-fft statements
-    if (tokens.size() < 2 || fft_to_upper(tokens[0]) != ".FFT") {
+    if (tokens.size() < 2 || to_upper(tokens[0]) != ".FFT") {
         // return none
         return std::nullopt;
     }
@@ -117,7 +109,7 @@ std::optional<FftParameters> FftParameters::from_xyce_statement(const std::strin
         const auto eq_pos = token.find('=');
         if (eq_pos != std::string::npos) {
             // split key and value
-            const std::string key = fft_to_upper(token.substr(0, eq_pos));
+            const std::string key = to_upper(token.substr(0, eq_pos));
             const std::string val = token.substr(eq_pos + 1);
             // map np
             if (key == "NP") {
@@ -127,7 +119,7 @@ std::optional<FftParameters> FftParameters::from_xyce_statement(const std::strin
             // map window
             else if (key == "WINDOW") {
                 // normalize window
-                const std::string norm_window = fft_to_upper(val);
+                const std::string norm_window = to_upper(val);
                 // validate window
                 if (FFT_ALLOWED_WINDOW_VALUES.count(norm_window)) {
                     // set window
@@ -143,7 +135,7 @@ std::optional<FftParameters> FftParameters::from_xyce_statement(const std::strin
             // map format
             else if (key == "FORMAT") {
                 // normalize format
-                const std::string norm_format = fft_to_upper(val);
+                const std::string norm_format = to_upper(val);
                 // validate format
                 if (FFT_ALLOWED_FORMAT_VALUES.count(norm_format)) {
                     // set format
@@ -246,4 +238,7 @@ std::string FftParameters::to_xyce_statement() const {
     return result;
 }
 
-bool FftParameters::operator==(const FftParameters& other) const { return output_variable == other.output_variable && np == other.np && window == other.window && alfa == other.alfa && fft_format == other.fft_format && start == other.start && stop == other.stop && freq == other.freq && fmin == other.fmin && fmax == other.fmax; }
+bool FftParameters::operator==(const FftParameters& other) const {
+    // compare all fields for equality
+    return output_variable == other.output_variable && np == other.np && window == other.window && alfa == other.alfa && fft_format == other.fft_format && start == other.start && stop == other.stop && freq == other.freq && fmin == other.fmin && fmax == other.fmax;
+}

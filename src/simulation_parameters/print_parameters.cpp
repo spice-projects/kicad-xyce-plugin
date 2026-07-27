@@ -1,42 +1,22 @@
-#include <algorithm>
 #include <cctype>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "../util.h"
 #include "print_parameters.h"
 
 // init allowed generic print option keys
-static const std::set<std::string> COMMON_OPTION_KEYS = {
-    "FORMAT", "FILE", "WIDTH", "PRECISION", "FILTER", "DELIMITER", "TIMESCALEFACTOR",
-};
+static const std::set<std::string> COMMON_OPTION_KEYS = {"FORMAT", "FILE", "WIDTH", "PRECISION", "FILTER", "DELIMITER", "TIMESCALEFACTOR", "HEADINGS"};
 
 // init allowed sampling-specific print option keys
-static const std::set<std::string> SAMPLE_OPTION_KEYS = {
-    "OUTPUT_SAMPLE_STATS",
-    "OUTPUT_ALL_SAMPLES",
-};
+static const std::set<std::string> SAMPLE_OPTION_KEYS = {"OUTPUT_SAMPLE_STATS", "OUTPUT_ALL_SAMPLES"};
 
 // init known print types with sample-specific options
-static const std::set<std::string> SAMPLE_PRINT_TYPES = {
-    "ES",
-    "PCE",
-    "SAMPLING",
-    "TRANADJOINT",
-};
+static const std::set<std::string> SAMPLE_PRINT_TYPES = {"ES", "PCE", "SAMPLING", "TRANADJOINT"};
 
 // init allowed format values from the reference guide
-static const std::set<std::string> ALLOWED_FORMAT_VALUES = {
-    "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT",
-};
-
-// normalize a string to uppercase in-place
-static std::string to_upper(std::string s) {
-    // convert each character to upper case
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
-    // return converted string
-    return s;
-}
+static const std::set<std::string> ALLOWED_FORMAT_VALUES = {"STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"};
 
 // check whether a character is a valid identifier character (alpha, digit, or underscore)
 static bool is_valid_key_char(char c, bool is_first) {
@@ -214,20 +194,20 @@ std::optional<PrintParameters> PrintParameters::from_xyce_statement(const std::s
                 // skip unsupported option
                 continue;
             }
-            // map format option
-            if (option_key == "FORMAT") {
-                // normalize format candidate
-                const std::string normalized_format = to_upper(option_value);
-                // validate format value
-                if (!ALLOWED_FORMAT_VALUES.count(normalized_format)) {
-                    // skip invalid format
+                // map format option
+                if (option_key == "FORMAT") {
+                    // normalize format candidate
+                    const std::string normalized_format = to_upper(option_value);
+                    // validate format value
+                    if (!ALLOWED_FORMAT_VALUES.count(normalized_format)) {
+                        // skip invalid format
+                        continue;
+                    }
+                    // store format (preserve original case from input)
+                    print_format = option_value;
+                    // next
                     continue;
                 }
-                // store format
-                print_format = normalized_format;
-                // next
-                continue;
-            }
             // map file option
             if (option_key == "FILE") {
                 // store file
@@ -259,32 +239,27 @@ std::string PrintParameters::to_xyce_statement() const {
     // init token list
     std::vector<std::string> tokens = {".PRINT", print_type};
     // append format option
-    if (!print_format.empty()) {
+    if (!print_format.empty())
         tokens.push_back("FORMAT=" + print_format);
-    }
     // append file option
-    if (!print_file.empty()) {
+    if (!print_file.empty())
         tokens.push_back("FILE=" + print_file);
-    }
     // append extra options
-    for (const auto& opt : extra_options) {
+    for (const auto& opt : extra_options)
         tokens.push_back(opt);
-    }
     // append output variables
-    for (const auto& var : output_variables) {
+    for (const auto& var : output_variables)
         tokens.push_back(var);
-    }
     // build joined statement
     std::string result;
+    // loop tokens and join with spaces
     for (size_t i = 0; i < tokens.size(); ++i) {
         // add separator
-        if (i > 0) {
+        if (i > 0)
             result += ' ';
-        }
         // add token
         result += tokens[i];
     }
-    // return joined statement
     return result;
 }
 

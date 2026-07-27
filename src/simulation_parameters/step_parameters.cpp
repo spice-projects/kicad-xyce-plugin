@@ -1,48 +1,11 @@
-#include <algorithm>
 #include <cctype>
 #include <optional>
 #include <regex>
 #include <string>
 #include <vector>
 
+#include "../util.h"
 #include "step_parameters.h"
-
-// normalize a string to uppercase
-static std::string step_to_upper(std::string s) {
-    // convert each character to upper case
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
-    // return converted string
-    return s;
-}
-
-// tokenize a directive by whitespace
-static std::vector<std::string> step_tokenize(const std::string& directive) {
-    // init token list
-    std::vector<std::string> tokens;
-    // init current token buffer
-    std::string current;
-    // iterate characters
-    for (const char ch : directive) {
-        // check whitespace splitter
-        if (std::isspace(static_cast<unsigned char>(ch))) {
-            // flush current token when non-empty
-            if (!current.empty()) {
-                tokens.push_back(current);
-                current.clear();
-            }
-            // next
-            continue;
-        }
-        // append char
-        current += ch;
-    }
-    // flush trailing token
-    if (!current.empty()) {
-        tokens.push_back(current);
-    }
-    // return tokens
-    return tokens;
-}
 
 // normalize spaces around equals sign in a directive string
 static std::string normalize_equals(const std::string& directive) {
@@ -62,14 +25,14 @@ std::optional<StepParameters> StepParameters::from_single_directive(const std::s
     // normalize spaces around equals sign
     const std::string normalized = normalize_equals(directive);
     // tokenize the normalized directive
-    const auto tokens = step_tokenize(normalized);
+    const auto tokens = tokenize(normalized);
     // skip empty or malformed directives
     if (tokens.empty()) {
         // return none
         return std::nullopt;
     }
     // only process .STEP directives
-    if (step_to_upper(tokens[0]) != ".STEP") {
+    if (to_upper(tokens[0]) != ".STEP") {
         // return none
         return std::nullopt;
     }
@@ -91,7 +54,7 @@ std::optional<StepParameters> StepParameters::from_single_directive(const std::s
     std::string data_table_name;
     // handle data-driven sweep syntax: .STEP DATA=<tablename>
     if (tokens.size() == 2) {
-        const auto upper2 = step_to_upper(tokens[1]);
+        const auto upper2 = to_upper(tokens[1]);
         if (upper2.substr(0, 5) == "DATA=" && tokens[1].find('=') != std::string::npos) {
             // set data sweep mode
             sweep_mode = "DATA";
@@ -107,7 +70,7 @@ std::optional<StepParameters> StepParameters::from_single_directive(const std::s
         return std::nullopt;
     }
     // capture the second token for mode detection
-    const std::string second = step_to_upper(tokens[1]);
+    const std::string second = to_upper(tokens[1]);
     // handle decade or octave log sweeps: .STEP DEC|OCT var start stop points
     if (second == "DEC" || second == "OCT") {
         // set the log sweep mode
@@ -127,15 +90,14 @@ std::optional<StepParameters> StepParameters::from_single_directive(const std::s
         return StepParameters(sweep_mode, variable, start, stop, step_val, points, list_values, data_table_name, true);
     }
     // handle explicit list sweeps: .STEP var LIST val [val ...]
-    if (tokens.size() >= 3 && step_to_upper(tokens[2]) == "LIST") {
+    if (tokens.size() >= 3 && to_upper(tokens[2]) == "LIST") {
         // set list sweep mode
         sweep_mode = "LIST";
         // capture sweep variable name
         variable = tokens[1];
         // capture all subsequent tokens as list values
-        for (size_t i = 3; i < tokens.size(); ++i) {
-            list_values.push_back(tokens[i]);
-        }
+        for (size_t i = 3; i < tokens.size(); ++i)
+            list_values.push_back(std::string(tokens[i]));
         // return populated instance
         return StepParameters(sweep_mode, variable, start, stop, step_val, points, list_values, data_table_name, true);
     }
@@ -187,7 +149,7 @@ std::vector<StepParameters> StepParameters::all_from_xyce_directives(const std::
     return results;
 }
 
-StepParameters StepParameters::from_xyce_directives(const std::vector<std::string>& directives) {
+std::optional<StepParameters> StepParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // parse all step directives and return the first, or a disabled default
     const auto all_steps = all_from_xyce_directives(directives);
     // return first step if any are found
@@ -231,4 +193,9 @@ std::vector<std::string> StepParameters::to_xyce_directives() const {
     }
     // return the directive as a single-item list
     return {directive};
+}
+
+bool StepParameters::operator==(const StepParameters& other) const {
+    // compare all fields for equality
+    return sweep_mode == other.sweep_mode && variable == other.variable && start == other.start && stop == other.stop && step == other.step && points == other.points && list_values == other.list_values && data_table_name == other.data_table_name && enabled == other.enabled;
 }

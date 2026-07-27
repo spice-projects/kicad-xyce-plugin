@@ -322,7 +322,7 @@ void Chart::auto_range() {
         axis_info.plot_min_value = axis_info.min_value - delta;
         axis_info.plot_max_value = axis_info.max_value + delta;
         // log information
-        spdlog::debug("Auto range for axis {} (unit: '{}'): min = {}, max = {}", axis_info.axis, axis_info.unit.empty() ? "<no unit>" : axis_info.unit, axis_info.plot_min_value, axis_info.plot_max_value);
+        spdlog::debug("Auto range for Y{} axis (unit: '{}'): min = {}, max = {}", axis_info.axis - ImAxis_Y1 + 1, axis_info.unit.empty() ? "<no unit>" : axis_info.unit, axis_info.plot_min_value, axis_info.plot_max_value);
     }
 }
 
@@ -394,7 +394,7 @@ int Chart::get_y_axis(const std::string& unit) {
     // check we have an available axis
     if (available) {
         // log information
-        spdlog::debug("Creating Y axis for measurement type: {}", unit.empty() ? "<no unit>" : unit);
+        spdlog::debug("Creating Y{} axis for measurement type: {}", available->axis - ImAxis_Y1 + 1, unit.empty() ? "<no unit>" : unit);
         // use it
         available->plots = 1;
         available->unit = unit;
@@ -418,10 +418,12 @@ bool Chart::release_y_axis(const int axis) {
             // check axis is no longer in use
             if (axis_info.plots == 0) {
                 // log information
-                spdlog::debug("Releasing Y axis for measurement type: {}", axis_info.unit.empty() ? "<no unit>" : axis_info.unit);
+                spdlog::debug("Releasing Y{} axis", axis_info.axis - ImAxis_Y1 + 1);
                 // reset plot range
                 axis_info.plot_min_value = 0.0;
                 axis_info.plot_max_value = 1.0;
+                // reset unit
+                axis_info.unit = "";
                 // remove it from chart
                 return true;
             }

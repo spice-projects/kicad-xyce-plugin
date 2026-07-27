@@ -18,7 +18,7 @@ find_package(wxwidgets CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(gtest CONFIG REQUIRED)
 
-file(GLOB_RECURSE CPP_SOURCES "../src/step_information.cpp" "../src/expression/*.cpp" "../src/file/*.cpp" "../src/simulation_parameters/*.cpp" "../src/ui/*.cpp")
+file(GLOB_RECURSE CPP_SOURCES "../src/step_information.cpp" "../src/util.cpp" "../src/expression/*.cpp" "../src/file/*.cpp" "../src/simulation_parameters/*.cpp" "../src/ui/*.cpp")
 file(GLOB_RECURSE TEST_FILES "./*.cpp" "./expression/*.cpp" "./file/*.cpp" "./simulation_parameters/*.cpp"  "./ui/*.cpp")
 
 include_directories("../src")
@@ -67,3 +67,4 @@ target_compile_options(kicad-xyce-plugin-tests PRIVATE -Wall -Wextra -Wpedantic)
 # auto-discover Gtests as Ctests
 include(GoogleTest)
 gtest_discover_tests(kicad-xyce-plugin-tests)
+# add_test(NAME AllGoogleTests COMMAND kicad-xyce-plugin-tests)

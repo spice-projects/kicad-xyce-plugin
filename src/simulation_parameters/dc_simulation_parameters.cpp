@@ -1,47 +1,10 @@
-#include <algorithm>
 #include <cctype>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "../util.h"
 #include "dc_simulation_parameters.h"
-
-// normalize a string to uppercase
-static std::string dc_to_upper(std::string s) {
-    // convert each character to upper case
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
-    // return converted string
-    return s;
-}
-
-// tokenize a directive by whitespace
-static std::vector<std::string> dc_tokenize(const std::string& directive) {
-    // init token list
-    std::vector<std::string> tokens;
-    // init current token buffer
-    std::string current;
-    // iterate characters
-    for (const char ch : directive) {
-        // check whitespace splitter
-        if (std::isspace(static_cast<unsigned char>(ch))) {
-            // flush current token when non-empty
-            if (!current.empty()) {
-                tokens.push_back(current);
-                current.clear();
-            }
-            // next
-            continue;
-        }
-        // append char
-        current += ch;
-    }
-    // flush trailing token
-    if (!current.empty()) {
-        tokens.push_back(current);
-    }
-    // return tokens
-    return tokens;
-}
 
 DCSimulationParameters::DCSimulationParameters(std::string sweep_mode, std::string primary_variable, std::string start, std::string stop, std::string step, std::string points, std::vector<std::string> list_values, std::string data_table_name, std::string secondary_variable, std::string secondary_start, std::string secondary_stop, std::string secondary_step, std::string secondary_points, bool replace_ground, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
     sweep_mode(std::move(sweep_mode)), primary_variable(std::move(primary_variable)), start(std::move(start)), stop(std::move(stop)), step(std::move(step)), points(std::move(points)), list_values(std::move(list_values)), data_table_name(std::move(data_table_name)), secondary_variable(std::move(secondary_variable)), secondary_start(std::move(secondary_start)), secondary_stop(std::move(secondary_stop)), secondary_step(std::move(secondary_step)), secondary_points(std::move(secondary_points)), replace_ground(replace_ground), print_parameters(std::move(print_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
@@ -72,14 +35,14 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
     // parse directives
     for (const auto& directive : directives) {
         // tokenize the directive
-        const auto tokens = dc_tokenize(directive);
+        const auto tokens = tokenize(directive);
 
         // skip empty directives
         if (tokens.empty()) {
             continue;
         }
 
-        const std::string cmd = dc_to_upper(tokens[0]);
+        const std::string cmd = to_upper(tokens[0]);
 
         // parse print directives and retain dc-specific output config
         if (cmd == ".PRINT") {
@@ -87,7 +50,7 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
             const auto print_statement = PrintParameters::from_xyce_statement(directive);
             // retain dc print parameters when found
             if (print_statement) {
-                const std::string print_type_upper = dc_to_upper(print_statement->print_type);
+                const std::string print_type_upper = to_upper(print_statement->print_type);
                 if (print_type_upper == "DC" || print_type_upper == "HOMOTOPY") {
                     // store the parsed print parameters
                     print_parameters = *print_statement;
@@ -97,9 +60,9 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
         }
 
         // handle preprocess replaceground
-        if (cmd == ".PREPROCESS" && tokens.size() > 2 && dc_to_upper(tokens[1]) == "REPLACEGROUND") {
+        if (cmd == ".PREPROCESS" && tokens.size() > 2 && to_upper(tokens[1]) == "REPLACEGROUND") {
             // set replace_ground based on the third token
-            replace_ground = (dc_to_upper(tokens[2]) == "TRUE");
+            replace_ground = (to_upper(tokens[2]) == "TRUE");
             continue;
         }
 
@@ -109,7 +72,7 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
             const auto measure_statement = MeasureEntry::from_xyce_statement(directive);
             // retain measure parameters when found and analysis type matches
             if (measure_statement) {
-                const std::string analysis_type_upper = dc_to_upper(measure_statement->analysis_type);
+                const std::string analysis_type_upper = to_upper(measure_statement->analysis_type);
                 if (analysis_type_upper == "DC" || analysis_type_upper == "DC_CONT") {
                     // append the parsed measure parameters
                     measure_parameters.push_back(*measure_statement);
@@ -127,7 +90,7 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
         found = true;
 
         // handle DATA sweep: .DC DATA=<tablename>
-        if (tokens.size() == 2 && tokens[1].find('=') != std::string::npos && dc_to_upper(tokens[1].substr(0, 5)) == "DATA=") {
+        if (tokens.size() == 2 && tokens[1].find('=') != std::string::npos && to_upper(tokens[1].substr(0, 5)) == "DATA=") {
             // set sweep mode and data table name
             sweep_mode = "DATA";
             data_table_name = tokens[1].substr(5);
@@ -138,7 +101,7 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
             continue;
         }
 
-        const std::string second = dc_to_upper(tokens[1]);
+        const std::string second = to_upper(tokens[1]);
 
         // detect decade or octave log sweep: .DC DEC|OCT var start stop points
         if (second == "DEC" || second == "OCT") {
@@ -151,7 +114,7 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
                 points = tokens[5];
             }
             // optional secondary sweep: MODE var2 start2 stop2 points2
-            if (tokens.size() >= 11 && (dc_to_upper(tokens[6]) == "DEC" || dc_to_upper(tokens[6]) == "OCT")) {
+            if (tokens.size() >= 11 && (to_upper(tokens[6]) == "DEC" || to_upper(tokens[6]) == "OCT")) {
                 secondary_variable = tokens[7];
                 secondary_start = tokens[8];
                 secondary_stop = tokens[9];
@@ -161,12 +124,12 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
         }
 
         // detect LIST sweep: .DC var LIST val [val ...]
-        if (tokens.size() >= 3 && dc_to_upper(tokens[2]) == "LIST") {
+        if (tokens.size() >= 3 && to_upper(tokens[2]) == "LIST") {
             // set sweep mode, primary variable, and list values
             sweep_mode = "LIST";
             primary_variable = tokens[1];
             for (size_t i = 3; i < tokens.size(); ++i) {
-                list_values.push_back(tokens[i]);
+                list_values.push_back(std::string(tokens[i]));
             }
             continue;
         }
@@ -241,7 +204,7 @@ std::vector<std::string> DCSimulationParameters::to_xyce_directives() const {
         }
     }
     else if (sweep_mode == "LIN") {
-        dc_directive += " LIN " + primary_variable + " " + start + " " + stop + " " + step;
+        dc_directive += " " + primary_variable + " " + start + " " + stop + " " + step;
         if (!secondary_variable.empty()) {
             dc_directive += " " + secondary_variable + " " + secondary_start + " " + secondary_stop + " " + secondary_step;
         }
@@ -262,8 +225,10 @@ std::vector<std::string> DCSimulationParameters::to_xyce_directives() const {
     }
 
     // append sensitivity directives when configured
-    // For now, skip sensitivity directives
-    // In the full implementation, this would call sensitivity->to_xyce_directives()
+    if (sensitivity) {
+        const auto sens_directives = sensitivity->to_xyce_directives();
+        directives.insert(directives.end(), sens_directives.begin(), sens_directives.end());
+    }
 
     // append measure directives
     for (const auto& measure : measure_parameters) {
@@ -274,4 +239,7 @@ std::vector<std::string> DCSimulationParameters::to_xyce_directives() const {
     return directives;
 }
 
-bool DCSimulationParameters::operator==(const DCSimulationParameters& other) const { return sweep_mode == other.sweep_mode && primary_variable == other.primary_variable && start == other.start && stop == other.stop && step == other.step && points == other.points && list_values == other.list_values && data_table_name == other.data_table_name && secondary_variable == other.secondary_variable && secondary_start == other.secondary_start && secondary_stop == other.secondary_stop && secondary_step == other.secondary_step && secondary_points == other.secondary_points && replace_ground == other.replace_ground && print_parameters == other.print_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity; }
+bool DCSimulationParameters::operator==(const DCSimulationParameters& other) const {
+    // compare all fields for equality
+    return sweep_mode == other.sweep_mode && primary_variable == other.primary_variable && start == other.start && stop == other.stop && step == other.step && points == other.points && list_values == other.list_values && data_table_name == other.data_table_name && secondary_variable == other.secondary_variable && secondary_start == other.secondary_start && secondary_stop == other.secondary_stop && secondary_step == other.secondary_step && secondary_points == other.secondary_points && replace_ground == other.replace_ground && print_parameters == other.print_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
+}

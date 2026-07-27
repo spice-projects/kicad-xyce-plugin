@@ -1,35 +1,39 @@
-#include <algorithm>
 #include <cctype>
 #include <string>
 #include <vector>
 
+#include "../util.h"
 #include "four_parameters.h"
-
-// normalize a string to uppercase
-static std::string four_to_upper(std::string s) {
-    // convert each character to upper case
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
-    // return converted string
-    return s;
-}
 
 FourParameters::FourParameters(std::string fundamental_frequency, std::vector<std::string> output_variables) :
     fundamental_frequency(std::move(fundamental_frequency)), output_variables(std::move(output_variables)) {}
 
 std::optional<FourParameters> FourParameters::from_xyce_statement(const std::string& four_statement) {
-    // tokenize the directive (simple whitespace split)
+    // tokenize the directive respecting brace-enclosed expressions
     std::vector<std::string> tokens;
     std::string current;
+    int brace_depth = 0;
     // iterate characters
     for (const char ch : four_statement) {
-        // check whitespace splitter
-        if (std::isspace(static_cast<unsigned char>(ch))) {
+        // check opening brace
+        if (ch == '{') {
+            current += ch;
+            ++brace_depth;
+            continue;
+        }
+        // check closing brace
+        if (ch == '}') {
+            current += ch;
+            --brace_depth;
+            continue;
+        }
+        // check whitespace splitter when not inside braces
+        if (std::isspace(static_cast<unsigned char>(ch)) && brace_depth == 0) {
             // flush current token when non-empty
             if (!current.empty()) {
                 tokens.push_back(current);
                 current.clear();
             }
-            // next
             continue;
         }
         // append char
@@ -40,7 +44,7 @@ std::optional<FourParameters> FourParameters::from_xyce_statement(const std::str
         tokens.push_back(current);
     }
     // reject non-four statements
-    if (tokens.size() < 3 || four_to_upper(tokens[0]) != ".FOUR") {
+    if (tokens.size() < 3 || to_upper(tokens[0]) != ".FOUR") {
         return std::nullopt;
     }
     // fundamental frequency is the second token
@@ -72,4 +76,7 @@ std::string FourParameters::to_xyce_statement() const {
     return result;
 }
 
-bool FourParameters::operator==(const FourParameters& other) const { return fundamental_frequency == other.fundamental_frequency && output_variables == other.output_variables; }
+bool FourParameters::operator==(const FourParameters& other) const {
+    // compare all fields for equality
+    return fundamental_frequency == other.fundamental_frequency && output_variables == other.output_variables;
+}

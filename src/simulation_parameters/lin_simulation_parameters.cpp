@@ -1,47 +1,10 @@
-#include <algorithm>
 #include <cctype>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "../util.h"
 #include "lin_simulation_parameters.h"
-
-// normalize a string to uppercase
-static std::string lin_to_upper(std::string s) {
-    // convert each character to upper case
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
-    // return converted string
-    return s;
-}
-
-// tokenize a directive by whitespace
-static std::vector<std::string> lin_tokenize(const std::string& directive) {
-    // init token list
-    std::vector<std::string> tokens;
-    // init current token buffer
-    std::string current;
-    // iterate characters
-    for (const char ch : directive) {
-        // check whitespace splitter
-        if (std::isspace(static_cast<unsigned char>(ch))) {
-            // flush current token when non-empty
-            if (!current.empty()) {
-                tokens.push_back(current);
-                current.clear();
-            }
-            // next
-            continue;
-        }
-        // append char
-        current += ch;
-    }
-    // flush trailing token
-    if (!current.empty()) {
-        tokens.push_back(current);
-    }
-    // return tokens
-    return tokens;
-}
 
 LinSimulationParameters::LinSimulationParameters(bool sparcalc, std::string format, std::string lintype, std::string dataformat, std::string file, std::string width, std::string precision, std::string sweep_mode, std::string points, std::string start, std::string end, std::string data_table_name, bool replace_ground, std::optional<PrintParameters> print_parameters) :
     sparcalc(sparcalc), format(std::move(format)), lintype(std::move(lintype)), dataformat(std::move(dataformat)), file(std::move(file)), width(std::move(width)), precision(std::move(precision)), sweep_mode(std::move(sweep_mode)), points(std::move(points)), start(std::move(start)), end(std::move(end)), data_table_name(std::move(data_table_name)), replace_ground(replace_ground), print_parameters(std::move(print_parameters)) {}
@@ -60,7 +23,7 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
     std::string start;
     std::string end;
     std::string data_table_name;
-    bool replace_ground = false;
+    bool replace_ground = true;
     std::optional<PrintParameters> print_parameters;
 
     // flag indicating whether a valid directive was found
@@ -69,14 +32,14 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
     // parse directives
     for (const auto& directive : directives) {
         // tokenize the directive
-        const auto tokens = lin_tokenize(directive);
+        const auto tokens = tokenize(directive);
 
         // skip empty directives
         if (tokens.empty()) {
             continue;
         }
 
-        const std::string cmd = lin_to_upper(tokens[0]);
+        const std::string cmd = to_upper(tokens[0]);
 
         // parse print directives and retain lin-specific output config
         if (cmd == ".PRINT") {
@@ -84,7 +47,7 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
             const auto print_statement = PrintParameters::from_xyce_statement(directive);
             // retain ac print parameters when found
             if (print_statement) {
-                const std::string print_type_upper = lin_to_upper(print_statement->print_type);
+                const std::string print_type_upper = to_upper(print_statement->print_type);
                 if (print_type_upper == "AC") {
                     // store the parsed print parameters
                     print_parameters = *print_statement;
@@ -94,9 +57,9 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
         }
 
         // handle preprocess replaceground
-        if (cmd == ".PREPROCESS" && tokens.size() > 2 && lin_to_upper(tokens[1]) == "REPLACEGROUND") {
+        if (cmd == ".PREPROCESS" && tokens.size() > 2 && to_upper(tokens[1]) == "REPLACEGROUND") {
             // set replace_ground based on the third token
-            replace_ground = (lin_to_upper(tokens[2]) == "TRUE");
+            replace_ground = (to_upper(tokens[2]) == "TRUE");
             continue;
         }
 
@@ -106,7 +69,7 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
                 continue;
             }
 
-            const std::string second = lin_to_upper(tokens[1]);
+            const std::string second = to_upper(tokens[1]);
 
             // handle DATA sweep: .AC DATA=<tablename>
             if (second.substr(0, 5) == "DATA=" && second.find('=') != std::string::npos) {
@@ -160,7 +123,7 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
         for (size_t i = 1; i < tokens.size(); ++i) {
             const auto& token = tokens[i];
             // normalize the token for case-insensitive key detection
-            const std::string upper = lin_to_upper(token);
+            const std::string upper = to_upper(token);
 
             // skip tokens without an equals sign
             if (upper.find('=') == std::string::npos) {
@@ -169,26 +132,26 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
 
             // split key and value at the first equals sign
             const auto eq_pos = token.find('=');
-            const std::string key = token.substr(0, eq_pos);
-            const std::string val = token.substr(eq_pos + 1);
+            const auto key = token.substr(0, eq_pos);
+            const auto val = token.substr(eq_pos + 1);
 
-            const std::string key_upper = lin_to_upper(key);
+            const std::string key_upper = to_upper(key);
 
             if (key_upper == "SPARCALC") {
                 // set sparcalc from the value
-                sparcalc = (lin_to_upper(val) == "1" || lin_to_upper(val) == "TRUE" || lin_to_upper(val) == "YES");
+                sparcalc = (to_upper(val) == "1" || to_upper(val) == "TRUE" || to_upper(val) == "YES");
             }
             else if (key_upper == "FORMAT") {
                 // set the output format
-                format = lin_to_upper(val);
+                format = to_upper(val);
             }
             else if (key_upper == "TYPE") {
                 // set the s-parameter type
-                lintype = lin_to_upper(val);
+                lintype = to_upper(val);
             }
             else if (key_upper == "DATAFORMAT") {
                 // set the data format
-                dataformat = lin_to_upper(val);
+                dataformat = to_upper(val);
             }
             else if (key_upper == "FILE") {
                 // set the output file name
@@ -263,7 +226,7 @@ std::vector<std::string> LinSimulationParameters::to_xyce_directives() const {
 
     // append ac print directive when configured
     if (print_parameters) {
-        const std::string print_type_upper = lin_to_upper(print_parameters->print_type);
+        const std::string print_type_upper = to_upper(print_parameters->print_type);
         if (print_type_upper == "AC") {
             directives.push_back(print_parameters->to_xyce_statement());
         }
@@ -273,4 +236,7 @@ std::vector<std::string> LinSimulationParameters::to_xyce_directives() const {
     return directives;
 }
 
-bool LinSimulationParameters::operator==(const LinSimulationParameters& other) const { return sparcalc == other.sparcalc && format == other.format && lintype == other.lintype && dataformat == other.dataformat && file == other.file && width == other.width && precision == other.precision && sweep_mode == other.sweep_mode && points == other.points && start == other.start && end == other.end && data_table_name == other.data_table_name && replace_ground == other.replace_ground && print_parameters == other.print_parameters; }
+bool LinSimulationParameters::operator==(const LinSimulationParameters& other) const {
+    // compare all fields for equality
+    return sparcalc == other.sparcalc && format == other.format && lintype == other.lintype && dataformat == other.dataformat && file == other.file && width == other.width && precision == other.precision && sweep_mode == other.sweep_mode && points == other.points && start == other.start && end == other.end && data_table_name == other.data_table_name && replace_ground == other.replace_ground && print_parameters == other.print_parameters;
+}
