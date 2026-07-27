@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <sstream>
 #include <vector>
 
@@ -6,7 +5,6 @@
 
 #ifndef WX_PRECOMP
 #include <wx/button.h>
-#include <wx/settings.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #endif
@@ -14,9 +12,9 @@
 #include "step_tool_dialog.h"
 
 StepToolDialog::StepToolDialog(wxWindow* parent, const StepInformation* step_information, const std::set<size_t>& selected_steps) :
-    wxDialog(parent, wxID_ANY, "Step Tool", wxDefaultPosition, wxSize(640, 430), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER), m_step_information(step_information), m_selected_steps(selected_steps) {
+    wxDialog(parent, wxID_ANY, "Step Tool", wxDefaultPosition, wxSize(550, 400), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER), m_step_information(step_information), m_selected_steps(selected_steps) {
     // set minimum size
-    SetMinSize(wxSize(560, 400));
+    SetMinSize(wxSize(550, 400));
     // create main vertical sizer
     auto main_sizer = new wxBoxSizer(wxVERTICAL);
     SetSizer(main_sizer);
@@ -46,7 +44,7 @@ StepToolDialog::StepToolDialog(wxWindow* parent, const StepInformation* step_inf
     actions_sizer->Add(m_selection_count_label, 0, wxCENTER, 0);
     main_sizer->Add(actions_sizer, 0, wxALL, 12);
     // create list view for steps
-    m_step_list = new wxListView(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_NO_HEADER | wxBORDER_THEME);
+    m_step_list = new wxListView(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxBORDER_THEME);
     m_step_list->EnableCheckBoxes(true);
     // add checkbox column
     m_step_list->AppendColumn("", wxLIST_FORMAT_LEFT, 60);

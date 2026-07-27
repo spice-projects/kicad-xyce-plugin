@@ -16,6 +16,7 @@
 #endif
 
 #include "../expression/expression.h"
+#include "../util.h"
 #include "add_plot_dialog.h"
 
 namespace
@@ -27,13 +28,6 @@ namespace
     const wxColour TIME_COLOR(0xba, 0x68, 0xc8);
     const wxColour POWER_COLOR(0xff, 0xb7, 0x4d);
     const wxColour MISC_COLOR(0x3a, 0x3d, 0x4a);
-
-    std::string to_lower(std::string s) {
-        // convert string to lower case
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
-        // exit
-        return s;
-    }
 
     class ChipPanel : public wxPanel
     {
