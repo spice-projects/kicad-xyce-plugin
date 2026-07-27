@@ -15,6 +15,7 @@
 #include "add_plot_dialog.h"
 #include "charts_panel.h"
 #include "events.h"
+#include "step_tool_dialog.h"
 
 namespace
 {
@@ -27,6 +28,7 @@ namespace
 
         ID_CONTEXT_ADD_REMOVE_PLOTS,
         ID_CONTEXT_DELETE_ALL_PLOTS,
+        ID_CONTEXT_STEP_TOOL,
         ID_CONTEXT_ADD_CHART,
         ID_CONTEXT_DELETE_CHART,
         ID_CONTEXT_NEW_WINDOW
@@ -52,6 +54,7 @@ ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_zoom_abscissa_extent, this, ID_CONTEXT_ZOOM_ABSCISSA_EXTENT);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_add_remove_plots, this, ID_CONTEXT_ADD_REMOVE_PLOTS);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_delete_all_plots, this, ID_CONTEXT_DELETE_ALL_PLOTS);
+    Bind(wxEVT_MENU, &ChartsPanel::on_menu_step_tool, this, ID_CONTEXT_STEP_TOOL);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_add_chart, this, ID_CONTEXT_ADD_CHART);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_delete_chart, this, ID_CONTEXT_DELETE_CHART);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_new_window, this, ID_CONTEXT_NEW_WINDOW);
@@ -313,7 +316,7 @@ void ChartsPanel::on_context_menu(const wxContextMenuEvent& event) {
         }
         // append step tool only on multiple steps (otherwise it is not useful)
         if (m_step_information->length() > 1)
-            contextMenu.Append(ID_CONTEXT_OPTION_2, "Step Tool...");
+            contextMenu.Append(ID_CONTEXT_STEP_TOOL, "Step Tool...");
         // TODO: add Smith chart tool when available
         // contextMenu.Append(ID_CONTEXT_OPTION_2, "Smith Chart...");
     }
@@ -389,7 +392,7 @@ void ChartsPanel::on_menu_zoom_abscissa_extent(wxCommandEvent& event) {
     event.Skip();
 }
 
-void ChartsPanel::on_menu_add_remove_plots(wxCommandEvent&) {
+void ChartsPanel::on_menu_add_remove_plots(wxCommandEvent& event) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -407,9 +410,9 @@ void ChartsPanel::on_menu_add_remove_plots(wxCommandEvent&) {
         }
         // reset selected chart
         m_selected_chart = nullptr;
-        // refresh
-        refresh_charts();
     }
+    // skip event
+    event.Skip();
 }
 
 void ChartsPanel::on_menu_delete_all_plots(wxCommandEvent& event) {
@@ -423,6 +426,27 @@ void ChartsPanel::on_menu_delete_all_plots(wxCommandEvent& event) {
         m_selected_chart = nullptr;
         // refresh
         refresh_charts();
+    }
+    // skip event
+    event.Skip();
+}
+
+void ChartsPanel::on_menu_step_tool(wxCommandEvent& event) {
+    // check we have a selected chart
+    if (m_selected_chart != nullptr) {
+        // log information
+        spdlog::debug("User requested step tool on chart at index: {}", m_selected_chart_index);
+        // create dialog
+        StepToolDialog dialog(this, m_step_information, m_selected_chart->selected_steps());
+        // center on screen
+        dialog.Centre(wxCENTER_ON_SCREEN);
+        // show and wait for ok
+        if (dialog.ShowModal() == wxID_OK) {
+            // refresh
+            refresh_charts();
+        }
+        // reset selected chart
+        m_selected_chart = nullptr;
     }
     // skip event
     event.Skip();

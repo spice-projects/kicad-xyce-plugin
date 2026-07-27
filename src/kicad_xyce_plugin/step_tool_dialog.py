@@ -1,17 +1,36 @@
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QUrl, Slot
-from PySide6.QtGui import QColor
+from PySide6.QtCore import QUrl, Slot
+from PySide6.QtGui import QColor, QPalette
+from PySide6.QtQml import qmlRegisterSingletonInstance
 from PySide6.QtQuick import QQuickView
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QDialog, QVBoxLayout, QWidget
 
 from .xyce_raw_file import StepInformation
 
 logger = logging.getLogger(__name__)
 
 _QML_FILE = Path(__file__).parent / "step_tool_dialog.qml"
-_BG = "#1a1b1e"
+
+
+class _ThemeColors:
+
+    def __init__(self):
+        palette = QApplication.palette()
+        self.background = palette.color(QPalette.ColorRole.Window).name()
+        self.alternate_base = palette.color(QPalette.ColorRole.AlternateBase).name()
+        self.text = palette.color(QPalette.ColorRole.WindowText).name()
+        self.button = palette.color(QPalette.ColorRole.Button).name()
+        self.button_text = palette.color(QPalette.ColorRole.ButtonText).name()
+        self.highlight = palette.color(QPalette.ColorRole.Highlight).name()
+        self.highlighted_text = palette.color(QPalette.ColorRole.HighlightedText).name()
+        self.mid = palette.color(QPalette.ColorRole.Mid).name()
+        self.midlight = palette.color(QPalette.ColorRole.Midlight).name()
+        self.dark = palette.color(QPalette.ColorRole.Dark).name()
+        self.mid = palette.color(QPalette.ColorRole.Mid).name()
+        self.disabled_text = palette.color(QPalette.ColorRole.Disabled, QPalette.ColorGroup.Disabled).name()
+        self.tool_tip_base = palette.color(QPalette.ColorRole.ToolTipBase).name()
 
 
 class StepToolDialog(QDialog):
@@ -28,11 +47,27 @@ class StepToolDialog(QDialog):
             step_rows.append({"stepIndex": step_index, "values": [str(value) for value in row_values]})
         # store selected steps
         self._selected_steps: set[int] = selected_steps
+        # compute system theme colors
+        theme = _ThemeColors()
         # context properties consumed by QML
         self._ctx_properties = {
             "parameterNames": parameter_names,
             "stepRows": step_rows,
             "initialSelectedSteps": sorted(selected_steps),
+            "themeColors": {
+                "background": theme.background,
+                "alternateBase": theme.alternate_base,
+                "text": theme.text,
+                "button": theme.button,
+                "buttonText": theme.button_text,
+                "highlight": theme.highlight,
+                "highlightedText": theme.highlighted_text,
+                "mid": theme.mid,
+                "midlight": theme.midlight,
+                "dark": theme.dark,
+                "disabledText": theme.disabled_text,
+                "toolTipBase": theme.tool_tip_base,
+            },
         }
         # window setup
         self.setWindowTitle("Step Tool")
@@ -44,7 +79,7 @@ class StepToolDialog(QDialog):
         self._qml_view = QQuickView()
         self._qml_view.statusChanged.connect(self._on_qml_ready)
         self._qml_view.setResizeMode(QQuickView.ResizeMode.SizeRootObjectToView)
-        self._qml_view.setColor(QColor(_BG))
+        self._qml_view.setColor(QColor(theme.background))
         self._qml_view.setSource(QUrl.fromLocalFile(str(_QML_FILE)))
         # embed QML view into dialog
         container = QWidget.createWindowContainer(self._qml_view, self)

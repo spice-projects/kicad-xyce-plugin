@@ -21,7 +21,7 @@
 Before editing:
 1. Search for existing implementations
 2. Understand ownership and lifetime
-3. Use the same code style as existing code, including code comment style
+3. Follow conventions in `STYLE-GUIDE.md` and the surrounding code
 4. Make minimal changes
 
 After editing:

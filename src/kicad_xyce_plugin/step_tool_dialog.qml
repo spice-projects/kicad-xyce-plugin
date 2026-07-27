@@ -10,6 +10,7 @@ Item {
     property var stepRows: []
     property var initialSelectedSteps: []
     property var selectedState: ({})
+    property var themeColors: ({})
     readonly property int maxVisibleColumns: 3
     readonly property var displayedParameterNames: parameterNames.slice(0, maxVisibleColumns)
     readonly property real headerHeight: 28
@@ -27,6 +28,12 @@ Item {
     signal selectionChanged(int stepIndex, bool selected)
     signal dialogAccepted(var selectedSteps)
     signal dialogRejected()
+
+    // helper to resolve theme color with fallback
+    function tc(name, fallback) {
+        var val = root.themeColors[name]
+        return val !== undefined ? val : fallback
+    }
 
     function initialize() {
         // build selection map from the initial selected-step list
@@ -82,7 +89,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "#1a1b1e"
+        color: root.tc("background", "#1a1b1e")
     }
 
     Column {
@@ -104,7 +111,7 @@ Item {
             id: titleLabel
 
             text: "Step Tool"
-            color: "#dce8f8"
+            color: root.tc("text", "#dce8f8")
             font.pixelSize: 18
             font.bold: true
         }
@@ -113,7 +120,7 @@ Item {
             id: subtitleLabel
 
             text: "Select one or more parameter combinations to keep active for this chart"
-            color: "#8f98ab"
+            color: root.tc("disabledText", "#8f98ab")
             font.pixelSize: 12
         }
 
@@ -123,8 +130,8 @@ Item {
             width: parent.width
             height: 32
             radius: 4
-            color: "#20232b"
-            border.color: "#303544"
+            color: root.tc("alternateBase", "#20232b")
+            border.color: root.tc("mid", "#303544")
             border.width: 1
 
             Row {
@@ -134,23 +141,35 @@ Item {
 
                 SmallButton {
                     text: "Select All"
+                    textColor: root.tc("text", "#cfd7e8")
+                    bgColor: root.tc("button", "#2c303b")
+                    hoverColor: root.tc("midlight", "#3a3f4d")
+                    borderColor: root.tc("mid", "#4b5365")
                     onClicked: root.setSelectionForAll(true)
                 }
 
                 SmallButton {
                     text: "Clear All"
+                    textColor: root.tc("text", "#cfd7e8")
+                    bgColor: root.tc("button", "#2c303b")
+                    hoverColor: root.tc("midlight", "#3a3f4d")
+                    borderColor: root.tc("mid", "#4b5365")
                     onClicked: root.setSelectionForAll(false)
                 }
 
                 SmallButton {
                     text: "Invert"
+                    textColor: root.tc("text", "#cfd7e8")
+                    bgColor: root.tc("button", "#2c303b")
+                    hoverColor: root.tc("midlight", "#3a3f4d")
+                    borderColor: root.tc("mid", "#4b5365")
                     onClicked: root.invertSelectionForAll()
                 }
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Selected " + root.selectedCount() + " / " + root.stepRows.length
-                    color: "#9ca7bd"
+                    color: root.tc("disabledText", "#9ca7bd")
                     font.pixelSize: 12
                 }
             }
@@ -161,8 +180,8 @@ Item {
             width: parent.width
             height: Math.max(root.headerHeight + root.rowHeight + 14, contentColumn.height - titleLabel.height - subtitleLabel.height - actionsBar.height - (contentColumn.spacing * 3))
             radius: 6
-            color: "#20232b"
-            border.color: "#303544"
+            color: root.tc("alternateBase", "#20232b")
+            border.color: root.tc("mid", "#303544")
             border.width: 1
 
             Column {
@@ -173,7 +192,7 @@ Item {
                 Rectangle {
                     width: parent.width
                     height: root.headerHeight
-                    color: "#252a34"
+                    color: root.tc("mid", "#252a34")
                     radius: 4
 
                     Row {
@@ -186,7 +205,7 @@ Item {
                             width: root.selectorWidth
                             height: parent.height
                             text: "Selected"
-                            color: "#9ca7bd"
+                            color: root.tc("text", "#9ca7bd")
                             font.pixelSize: 11
                             font.bold: true
                             verticalAlignment: Text.AlignVCenter
@@ -200,7 +219,7 @@ Item {
                                 width: root.valueColumnWidth
                                 height: parent.height
                                 text: modelData
-                                color: "#9ca7bd"
+                                color: root.tc("text", "#9ca7bd")
                                 font.pixelSize: 11
                                 font.bold: true
                                 verticalAlignment: Text.AlignVCenter
@@ -217,7 +236,7 @@ Item {
                         width: 1
                         height: parent.height - 8
                         anchors.verticalCenter: parent.verticalCenter
-                        color: "#3a4255"
+                        color: root.tc("dark", "#3a4255")
                     }
 
                     Repeater {
@@ -229,7 +248,7 @@ Item {
                             width: 1
                             height: parent.height - 8
                             anchors.verticalCenter: parent.verticalCenter
-                            color: "#3a4255"
+                            color: root.tc("dark", "#3a4255")
                         }
                     }
 
@@ -238,13 +257,13 @@ Item {
                         width: 1
                         height: parent.height - 8
                         anchors.verticalCenter: parent.verticalCenter
-                        color: "#3a4255"
+                        color: root.tc("dark", "#3a4255")
                     }
 
                     Rectangle {
                         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
                         height: 1
-                        color: "#333b4d"
+                        color: root.tc("dark", "#333b4d")
                     }
                 }
 
@@ -267,7 +286,7 @@ Item {
 
                         width: rowsView.width
                         height: root.rowHeight
-                        color: rowDelegate.index % 2 === 0 ? "#222733" : "#202636"
+                        color: rowDelegate.index % 2 === 0 ? root.tc("alternateBase", "#222733") : root.tc("background", "#202636")
                         radius: 0
 
                         Row {
@@ -288,14 +307,14 @@ Item {
                                     width: 16
                                     height: 16
                                     radius: 3
-                                    color: rowDelegate.selected ? "#3a79bf" : "#2a2e39"
-                                    border.color: rowDelegate.selected ? "#8ec2ff" : "#4a5060"
+                                    color: rowDelegate.selected ? root.tc("highlight", "#3a79bf") : root.tc("button", "#2a2e39")
+                                    border.color: rowDelegate.selected ? root.tc("highlight", "#8ec2ff") : root.tc("mid", "#4a5060")
                                     border.width: 1
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: rowDelegate.selected ? "\u2713" : ""
-                                        color: "#ffffff"
+                                        color: root.tc("highlightedText", "#ffffff")
                                         font.pixelSize: 11
                                         font.bold: true
                                     }
@@ -323,7 +342,7 @@ Item {
                                     width: root.valueColumnWidth
                                     height: parent.height
                                     text: modelData
-                                    color: "#b8c1d2"
+                                    color: root.tc("text", "#b8c1d2")
                                     font.pixelSize: 12
                                     verticalAlignment: Text.AlignVCenter
                                     horizontalAlignment: Text.AlignRight
@@ -339,7 +358,7 @@ Item {
                             width: 1
                             height: parent.height - 6
                             anchors.verticalCenter: parent.verticalCenter
-                            color: "#343c4f"
+                            color: root.tc("dark", "#343c4f")
                         }
 
                         Repeater {
@@ -351,7 +370,7 @@ Item {
                                 width: 1
                                 height: parent.height - 6
                                 anchors.verticalCenter: parent.verticalCenter
-                                color: "#343c4f"
+                                color: root.tc("dark", "#343c4f")
                             }
                         }
 
@@ -360,13 +379,13 @@ Item {
                             width: 1
                             height: parent.height - 6
                             anchors.verticalCenter: parent.verticalCenter
-                            color: "#343c4f"
+                            color: root.tc("dark", "#343c4f")
                         }
 
                         Rectangle {
                             anchors { left: parent.left; right: parent.right; top: parent.top }
                             height: 1
-                            color: "#2a3142"
+                            color: root.tc("dark", "#2a3142")
                             visible: rowDelegate.index > 0
                         }
                     }
@@ -381,12 +400,12 @@ Item {
 
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
         height: 44
-        color: "#16171e"
+        color: root.tc("dark", "#16171e")
 
         Rectangle {
             anchors { top: parent.top; left: parent.left; right: parent.right }
             height: 1
-            color: "#3a3d4a"
+            color: root.tc("mid", "#3a3d4a")
         }
 
         Row {
@@ -396,12 +415,20 @@ Item {
             ActionButton {
                 text: "Cancel"
                 primary: false
+                textColor: root.tc("buttonText", "#b0b8c8")
+                bgColor: root.tc("button", "#23252e")
+                hoverColor: root.tc("midlight", "#2e3040")
+                borderColor: root.tc("mid", "#3a3d4a")
                 onClicked: root.dialogRejected()
             }
 
             ActionButton {
                 text: "Apply"
                 primary: true
+                textColor: root.tc("highlightedText", "#ffffff")
+                bgColor: root.tc("highlight", "#2a5090")
+                hoverColor: "#3a6aaa"
+                borderColor: root.tc("highlight", "#5b9bd5")
                 onClicked: root.dialogAccepted(root.selectedStepIndices())
             }
         }
@@ -411,21 +438,25 @@ Item {
         id: smallBtn
 
         required property string text
+        property string textColor: "#cfd7e8"
+        property string bgColor: "#2c303b"
+        property string hoverColor: "#3a3f4d"
+        property string borderColor: "#4b5365"
 
         signal clicked()
 
         width: label.implicitWidth + 20
         height: 20
         radius: 10
-        color: mouse.containsMouse ? "#3a3f4d" : "#2c303b"
-        border.color: "#4b5365"
+        color: mouse.containsMouse ? hoverColor : bgColor
+        border.color: borderColor
         border.width: 1
 
         Text {
             id: label
             anchors.centerIn: parent
             text: smallBtn.text
-            color: "#cfd7e8"
+            color: textColor
             font.pixelSize: 11
         }
 
@@ -442,20 +473,24 @@ Item {
 
         required property string text
         required property bool primary
+        property string textColor: "#ffffff"
+        property string bgColor: "#23252e"
+        property string hoverColor: "#2e3040"
+        property string borderColor: "#3a3d4a"
 
         signal clicked()
 
         width: 88
         height: 28
         radius: 4
-        color: actionBtn.primary ? (mouse.containsMouse ? "#3a6aaa" : "#2a5090") : (mouse.containsMouse ? "#2e3040" : "#23252e")
-        border.color: actionBtn.primary ? "#5b9bd5" : "#3a3d4a"
+        color: actionBtn.primary ? (mouse.containsMouse ? "#3a6aaa" : bgColor) : (mouse.containsMouse ? hoverColor : bgColor)
+        border.color: borderColor
         border.width: 1
 
         Text {
             anchors.centerIn: parent
             text: actionBtn.text
-            color: actionBtn.primary ? "#ffffff" : "#b0b8c8"
+            color: textColor
             font.pixelSize: 12
             font.bold: actionBtn.primary
         }

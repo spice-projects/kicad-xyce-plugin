@@ -84,6 +84,8 @@ private:
 
     void on_menu_delete_all_plots(wxCommandEvent&);
 
+    void on_menu_step_tool(wxCommandEvent&);
+    
     void on_menu_add_chart(wxCommandEvent&);
 
     void on_menu_delete_chart(wxCommandEvent&);
