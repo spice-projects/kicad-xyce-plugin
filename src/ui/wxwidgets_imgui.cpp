@@ -1,7 +1,13 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
-#include <wx/wx.h>
+#include <implot.h>
+#include <wx/wxprec.h>
+
+#ifndef WX_PRECOMP
+#include <wx/colour.h>
+#include <wx/settings.h>
+#endif
 
 #include "wxwidgets_imgui.h"
 
@@ -29,7 +35,7 @@ namespace
         // return a new ImVec4 with the same RGB values but with the specified alpha value
         return ImVec4(color.x, color.y, color.z, alpha);
     }
-}
+} // namespace
 
 void PlatformStyle(ImGuiStyle* dst) {
     // get default style if not provided
@@ -109,4 +115,23 @@ void PlatformStyle(ImGuiStyle* dst) {
     colors[ImGuiCol_NavWindowingHighlight] = with_alpha(highlight_text, 0.70f);
     colors[ImGuiCol_NavWindowingDimBg] = with_alpha(panel_bg, 0.20f);
     colors[ImGuiCol_ModalWindowDimBg] = with_alpha(panel_bg, 0.35f);
+
+    // ImPlot colors
+    ImVec4* plot_colors = ImPlot::GetStyle().Colors;
+    plot_colors[ImPlotCol_FrameBg] = colors[ImGuiCol_FrameBg];
+    plot_colors[ImPlotCol_PlotBg] = colors[ImGuiCol_WindowBg];
+    plot_colors[ImPlotCol_PlotBorder] = colors[ImGuiCol_Border];
+    plot_colors[ImPlotCol_LegendBg] = plot_colors[ImPlotCol_FrameBg];
+    plot_colors[ImPlotCol_LegendBorder] = plot_colors[ImPlotCol_FrameBg];
+    plot_colors[ImPlotCol_LegendText] = window_text;
+    plot_colors[ImPlotCol_TitleText] = window_text;
+    plot_colors[ImPlotCol_InlayText] = window_text;
+    plot_colors[ImPlotCol_AxisText] = window_text;
+    plot_colors[ImPlotCol_AxisGrid] = with_alpha(window_text, 0.25f);
+    plot_colors[ImPlotCol_AxisTick] = plot_colors[ImPlotCol_AxisGrid];
+    plot_colors[ImPlotCol_AxisBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    plot_colors[ImPlotCol_AxisBgHovered] = colors[ImGuiCol_ButtonHovered];
+    plot_colors[ImPlotCol_AxisBgActive] = colors[ImGuiCol_ButtonActive];
+    plot_colors[ImPlotCol_Selection] = ImVec4(1.00f, 1.00f, 0.00f, 0.50f);
+    plot_colors[ImPlotCol_Crosshairs] = colors[ImGuiCol_Border];
 }

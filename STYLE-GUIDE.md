@@ -89,7 +89,7 @@ This document defines the code style preferences for this project.
 
 ### Structure — Arrange / Act / Assert
 
-- Test bodies are divided into sections marked with lowercase comments:
+- Every test **must** use the `arrange, act, assert` format with explicit section-comment markers
   ```cpp
   // arrange
   ...
