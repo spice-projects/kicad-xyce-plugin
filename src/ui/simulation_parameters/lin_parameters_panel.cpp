@@ -13,11 +13,11 @@
 #include <wx/textctrl.h>
 #endif
 
-#include "../../simulation_parameters/lin_simulation_parameters.h"
 #include "global_settings_panel.h"
 #include "lin_parameters_panel.h"
 #include "print_section_panel.h"
 #include "simulation_card.h"
+#include "simulation_parameters/lin_simulation_parameters.h"
 
 namespace
 {

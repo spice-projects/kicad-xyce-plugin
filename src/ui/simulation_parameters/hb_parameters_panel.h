@@ -4,6 +4,7 @@
 
 #ifndef WX_PRECOMP
 #include <wx/panel.h>
+#include <wx/choice.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
@@ -33,8 +34,8 @@ private:
 
     wxTextCtrl* m_frequencies_text = nullptr;
     wxTextCtrl* m_harmonics_text = nullptr;
-    wxTextCtrl* m_tahb_text = nullptr;
-    wxTextCtrl* m_selectharms_text = nullptr;
+    wxChoice* m_tahb_choice = nullptr;
+    wxChoice* m_selectharms_choice = nullptr;
     wxTextCtrl* m_startup_periods_text = nullptr;
     wxTextCtrl* m_nonlin_options_text = nullptr;
     wxTextCtrl* m_linsol_options_text = nullptr;

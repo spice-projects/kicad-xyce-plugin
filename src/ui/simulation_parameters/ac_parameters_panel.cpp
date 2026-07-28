@@ -1,3 +1,4 @@
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -12,11 +13,31 @@
 #include <wx/textctrl.h>
 #endif
 
-#include "../../simulation_parameters/ac_simulation_parameters.h"
 #include "ac_parameters_panel.h"
 #include "global_settings_panel.h"
 #include "print_section_panel.h"
 #include "simulation_card.h"
+#include "simulation_parameters/ac_simulation_parameters.h"
+
+namespace
+{
+    // split multi-line text into non-empty trimmed lines
+    [[nodiscard]] std::vector<std::string> parse_lines(const wxString& text) {
+        std::vector<std::string> lines;
+        std::istringstream stream(std::string(text.ToUTF8()));
+        std::string line;
+        while (std::getline(stream, line)) {
+            size_t start = line.find_first_not_of(" \t\r");
+            if (start == std::string::npos)
+                continue;
+            size_t end = line.find_last_not_of(" \t\r");
+            line = line.substr(start, end - start + 1);
+            if (!line.empty())
+                lines.push_back(std::move(line));
+        }
+        return lines;
+    }
+} // namespace
 
 AcParametersPanel::AcParametersPanel(wxWindow* parent) :
     wxPanel(parent) {
@@ -75,6 +96,12 @@ AcParametersPanel::AcParametersPanel(wxWindow* parent) :
 
     content_sizer->Add(field_grid, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
 
+    // .MEASURE multi-line text
+    auto* measure_label = new wxStaticText(content, wxID_ANY, ".MEASURE directives (one per line)");
+    content_sizer->Add(measure_label, 0, wxBOTTOM, FromDIP(4));
+    m_measure_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(FromDIP(300), FromDIP(60)), wxTE_MULTILINE);
+    content_sizer->Add(m_measure_text, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
+
     // --- print section ---
     // print section with AC print types and both BJT/FET leads available
     m_print_section = new PrintSectionPanel(content, "AC", {"AC", "AC_IC"}, true, true, true);
@@ -108,7 +135,19 @@ AcSimulationParameters AcParametersPanel::build_ac_parameters() const {
     // read print parameters from print section
     std::optional<PrintParameters> print_params = m_print_section->build_print_parameters();
 
-    return AcSimulationParameters(std::move(sweep_mode), std::move(points), std::move(start), std::move(end), std::move(data_table), replace_ground, std::move(print_params), {}, std::nullopt);
+    // parse .MEASURE directives (one per line)
+    std::vector<MeasureEntry> measure_params;
+    {
+        auto lines = parse_lines(m_measure_text->GetValue());
+        for (const auto& line : lines) {
+            auto parsed = MeasureEntry::from_xyce_statement(line);
+            if (parsed) {
+                measure_params.push_back(std::move(*parsed));
+            }
+        }
+    }
+
+    return AcSimulationParameters(std::move(sweep_mode), std::move(points), std::move(start), std::move(end), std::move(data_table), replace_ground, std::move(print_params), std::move(measure_params), std::nullopt);
 }
 
 void AcParametersPanel::apply(const AcSimulationParameters& params) {
@@ -133,6 +172,17 @@ void AcParametersPanel::apply(const AcSimulationParameters& params) {
 
     // restore print parameters (BJT and FET leads both always relevant for AC)
     m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, true, true);
+
+    // restore .MEASURE directives
+    {
+        wxString text;
+        for (size_t i = 0; i < params.measure_parameters.size(); ++i) {
+            if (i > 0)
+                text += "\n";
+            text += wxString::FromUTF8(params.measure_parameters[i].to_xyce_statement());
+        }
+        m_measure_text->SetValue(text);
+    }
 }
 
 GlobalSettingsPanel* AcParametersPanel::get_global_settings() const { return m_global_settings; }

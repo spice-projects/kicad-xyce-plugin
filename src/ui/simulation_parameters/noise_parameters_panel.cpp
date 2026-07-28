@@ -14,11 +14,11 @@
 #include <wx/tokenzr.h>
 #endif
 
-#include "../../simulation_parameters/noise_simulation_parameters.h"
 #include "global_settings_panel.h"
 #include "noise_parameters_panel.h"
 #include "print_section_panel.h"
 #include "simulation_card.h"
+#include "simulation_parameters/noise_simulation_parameters.h"
 
 namespace
 {

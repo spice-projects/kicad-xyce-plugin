@@ -9,6 +9,7 @@
 #endif
 
 #include "charts_panel.h"
+#include "../simulation_parameters/simulation_config.h"
 
 class MainWindow : public wxFrame
 {
@@ -29,6 +30,8 @@ private:
 
     std::optional<std::shared_ptr<XyceOutputFile>> m_xyce_raw_file;
     std::filesystem::path m_xyce_netlist_file;
+
+    SimulationConfig m_simulation_config;
 
     void on_system_colour_changed(wxSysColourChangedEvent&);
 

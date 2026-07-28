@@ -20,6 +20,7 @@
 #include "events.h"
 #include "icon_manager.h"
 #include "main_window.h"
+#include "simulation_parameters/simulation_parameters_dialog.h"
 
 enum
 {
@@ -39,7 +40,7 @@ const wxRegEx SPICE_COMMENTS_REGEX("^\\*.*$");
 const wxRegEx SPICE_DIRECTIVE_REGEX("^(\\.\\b\\w+\\b).*$");
 
 MainWindow::MainWindow(const wxString& title) :
-    wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(800, 600)) {
+    wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(800, 600)), m_simulation_config(SimulationConfig::from_xyce_directives({})) {
     // create menubar/toolbar/statusbar
     create_menubar();
     create_toolbar();
@@ -144,6 +145,9 @@ void MainWindow::create_menubar() {
 
     // tools / view simulation output
     tools_menu->Append(wxID_ANY, "&View Simulation Output\tCtrl-Alt-V", "View Simulation Output");
+
+    // tools / configure simulation (matches toolbar action)
+    tools_menu->Append(wxID_CONFIGURE_SIMULATION, "&Configure Simulation...\tCtrl-Shift-S", "Configure simulation parameters");
 
     // tools / configuration
     tools_menu->Append(wxID_ANY, "&Configuration\tCtrl-Alt-C", "Configure Xyce Plugin");
@@ -294,6 +298,28 @@ void MainWindow::on_show_netlist(wxCommandEvent& event) {
 }
 
 void MainWindow::on_configure_simulation(wxCommandEvent& event) {
+    // parse netlist editor content for initial config
+    if (m_netlist_editor && !m_netlist_editor->GetText().IsEmpty()) {
+        // netlist text
+        auto netlist = m_netlist_editor->GetText();
+        // split into lines
+        wxArrayString lines = wxSplit(netlist, '\n');
+        // directives vector
+        std::vector<std::string> directives;
+        // reserve space for directives
+        directives.reserve(lines.size());
+        // loop lines and extract directives
+        for (const auto& line : lines)
+            directives.push_back(line.ToStdString());
+        // build simulation config from directives
+        m_simulation_config = SimulationConfig::from_xyce_directives(directives);
+    }
+    // create dialog with current config
+    SimulationParametersDialog dialog(this, m_simulation_config);
+    // show modal
+    if (dialog.ShowModal() == wxID_OK) {
+        m_simulation_config = dialog.get_config();
+    }
     // skip event
     event.Skip();
 }

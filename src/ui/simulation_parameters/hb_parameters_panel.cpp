@@ -1,5 +1,4 @@
 #include <map>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -7,6 +6,7 @@
 
 #ifndef WX_PRECOMP
 #include <wx/arrstr.h>
+#include <wx/choice.h>
 #include <wx/settings.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
@@ -14,11 +14,11 @@
 #include <wx/tokenzr.h>
 #endif
 
-#include "../../simulation_parameters/hb_simulation_parameters.h"
 #include "global_settings_panel.h"
 #include "hb_parameters_panel.h"
 #include "print_section_panel.h"
 #include "simulation_card.h"
+#include "simulation_parameters/hb_simulation_parameters.h"
 
 namespace
 {
@@ -74,8 +74,8 @@ HbParametersPanel::HbParametersPanel(wxWindow* parent) :
     auto* content = m_card->get_content();
     auto* content_sizer = new wxBoxSizer(wxVERTICAL);
 
-    // print section with HB print types and both BJT/FET leads available
-    m_print_section = new PrintSectionPanel(content, "HB", {"HB", "HB_FD", "HB_TD"}, true, true, true);
+    // print section with HB print types only
+    m_print_section = new PrintSectionPanel(content, "HB", {"HB", "HB_FD", "HB_TD"}, false, false, true);
     content_sizer->Add(m_print_section, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
 
     // --- frequency configuration ---
@@ -100,16 +100,32 @@ HbParametersPanel::HbParametersPanel(wxWindow* parent) :
     // TAHB (transient analysis horizon) row
     auto* tahb_label = new wxStaticText(content, wxID_ANY, "TAHB");
     field_grid->Add(tahb_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_tahb_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
-    m_tahb_text->SetHint("transient analysis horizon");
-    field_grid->Add(m_tahb_text, 0, wxEXPAND, 0);
+    wxArrayString tahb_choices;
+    tahb_choices.Add("(None)");
+    tahb_choices.Add("0 (off)");
+    tahb_choices.Add("1 (auto)");
+    tahb_choices.Add("2");
+    tahb_choices.Add("5");
+    tahb_choices.Add("10");
+    tahb_choices.Add("20");
+    m_tahb_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, tahb_choices);
+    m_tahb_choice->SetSelection(0);
+    field_grid->Add(m_tahb_choice, 0, wxEXPAND, 0);
 
     // SELECTHARMS row
     auto* selharms_label = new wxStaticText(content, wxID_ANY, "SELECTHARMS");
     field_grid->Add(selharms_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_selectharms_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
-    m_selectharms_text->SetHint("selective harmonics");
-    field_grid->Add(m_selectharms_text, 0, wxEXPAND, 0);
+    wxArrayString selharms_choices;
+    selharms_choices.Add("(None)");
+    selharms_choices.Add("ALL");
+    selharms_choices.Add("1");
+    selharms_choices.Add("2");
+    selharms_choices.Add("3");
+    selharms_choices.Add("5");
+    selharms_choices.Add("10");
+    m_selectharms_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, selharms_choices);
+    m_selectharms_choice->SetSelection(0);
+    field_grid->Add(m_selectharms_choice, 0, wxEXPAND, 0);
 
     // startup periods row
     auto* startup_label = new wxStaticText(content, wxID_ANY, "Startup periods");
@@ -172,21 +188,24 @@ HbSimulationParameters HbParametersPanel::build_hb_parameters() const {
         }
     }
 
-    // read optional TAHB value
+    // read optional TAHB value from choice
     std::optional<int> tahb;
-    wxString tahb_val = m_tahb_text->GetValue().Trim(true).Trim(false);
-    if (!tahb_val.IsEmpty()) {
-        long val;
-        if (tahb_val.ToLong(&val)) {
-            tahb = static_cast<int>(val);
+    {
+        static const std::vector<std::optional<int>> TAHB_VALUES = {std::nullopt, 0, 1, 2, 5, 10, 20};
+        int sel = m_tahb_choice->GetSelection();
+        if (sel != wxNOT_FOUND && sel < static_cast<int>(TAHB_VALUES.size())) {
+            tahb = TAHB_VALUES[sel];
         }
     }
 
-    // read optional SELECTHARMS value
+    // read optional SELECTHARMS value from choice
     std::optional<std::string> selectharms;
-    wxString sel_val = m_selectharms_text->GetValue().Trim(true).Trim(false);
-    if (!sel_val.IsEmpty()) {
-        selectharms = std::string(sel_val.ToUTF8());
+    {
+        static const std::vector<std::optional<std::string>> SELHARMS_VALUES = {std::nullopt, std::string("ALL"), std::string("1"), std::string("2"), std::string("3"), std::string("5"), std::string("10")};
+        int sel = m_selectharms_choice->GetSelection();
+        if (sel != wxNOT_FOUND && sel < static_cast<int>(SELHARMS_VALUES.size())) {
+            selectharms = SELHARMS_VALUES[sel];
+        }
     }
 
     // read optional startup periods value
@@ -235,20 +254,41 @@ void HbParametersPanel::apply(const HbSimulationParameters& params) {
     }
     m_harmonics_text->SetValue(harms_text);
 
-    // restore TAHB or clear if not set
+    // restore TAHB from choice
     if (params.tahb.has_value()) {
-        m_tahb_text->SetValue(wxString::Format("%d", *params.tahb));
+        int tahb_val = *params.tahb;
+        int tahb_index = 0;
+        if (tahb_val == 0)
+            tahb_index = 1;
+        else if (tahb_val == 1)
+            tahb_index = 2;
+        else if (tahb_val == 2)
+            tahb_index = 3;
+        else if (tahb_val == 5)
+            tahb_index = 4;
+        else if (tahb_val == 10)
+            tahb_index = 5;
+        else if (tahb_val == 20)
+            tahb_index = 6;
+        m_tahb_choice->SetSelection(tahb_index);
     }
     else {
-        m_tahb_text->SetValue(wxEmptyString);
+        m_tahb_choice->SetSelection(0);
     }
 
-    // restore SELECTHARMS or clear if not set
+    // restore SELECTHARMS from choice
     if (params.selectharms.has_value()) {
-        m_selectharms_text->SetValue(wxString::FromUTF8(*params.selectharms));
+        wxString sel = wxString::FromUTF8(*params.selectharms).Upper();
+        int sel_index = m_selectharms_choice->FindString(sel);
+        if (sel_index != wxNOT_FOUND) {
+            m_selectharms_choice->SetSelection(sel_index);
+        }
+        else {
+            m_selectharms_choice->SetSelection(0);
+        }
     }
     else {
-        m_selectharms_text->SetValue(wxEmptyString);
+        m_selectharms_choice->SetSelection(0);
     }
 
     // restore startup periods or clear if not set
@@ -263,8 +303,8 @@ void HbParametersPanel::apply(const HbSimulationParameters& params) {
     m_nonlin_options_text->SetValue(format_options_text(params.nonlin_options));
     m_linsol_options_text->SetValue(format_options_text(params.linsol_options));
 
-    // restore print parameters (BJT and FET leads both always relevant for HB)
-    m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, true, true);
+    // restore print parameters (no power, no BJT/FET for HB)
+    m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, false, false);
 
     // restore replace ground
     m_global_settings->set_replace_ground(params.replace_ground);

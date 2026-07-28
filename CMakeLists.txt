@@ -39,6 +39,9 @@ find_package(spdlog CONFIG REQUIRED)
 # gather cpp sources (all platforms)
 file(GLOB_RECURSE CPP_SOURCES "src/*.cpp")
 
+# include should be relative to src
+include_directories("src")
+
 if(APPLE)
     # gather objective-c++ sources
     file(GLOB_RECURSE PLATFORM_SOURCES "src/*.osx.mm")

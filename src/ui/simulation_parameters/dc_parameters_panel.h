@@ -45,4 +45,6 @@ private:
     wxTextCtrl* m_secondary_stop_text = nullptr;
     wxTextCtrl* m_secondary_step_text = nullptr;
     wxTextCtrl* m_secondary_points_text = nullptr;
+
+    wxTextCtrl* m_measure_text = nullptr;
 };

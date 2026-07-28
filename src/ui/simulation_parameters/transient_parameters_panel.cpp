@@ -9,18 +9,36 @@
 #include <wx/choice.h>
 #include <wx/settings.h>
 #include <wx/sizer.h>
+#include <wx/statline.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
 #endif
 
-#include "../../simulation_parameters/transient_simulation_parameters.h"
 #include "global_settings_panel.h"
 #include "print_section_panel.h"
 #include "simulation_card.h"
+#include "simulation_parameters/transient_simulation_parameters.h"
 #include "transient_parameters_panel.h"
 
 namespace
 {
+    // split multi-line text into non-empty trimmed lines
+    [[nodiscard]] std::vector<std::string> parse_lines(const wxString& text) {
+        std::vector<std::string> lines;
+        std::istringstream stream(std::string(text.ToUTF8()));
+        std::string line;
+        while (std::getline(stream, line)) {
+            size_t start = line.find_first_not_of(" \t\r");
+            if (start == std::string::npos)
+                continue;
+            size_t end = line.find_last_not_of(" \t\r");
+            line = line.substr(start, end - start + 1);
+            if (!line.empty())
+                lines.push_back(std::move(line));
+        }
+        return lines;
+    }
+
     // OP keyword display labels mapped to model values (index 0 is the empty/none option)
     static const std::vector<wxString> OP_KEYWORD_LABELS = {"(None)", "NOOP", "UIC"};
 
@@ -100,15 +118,11 @@ TransientParametersPanel::TransientParametersPanel(wxWindow* parent) :
     wxPanel(parent) {
     // outer vertical sizer for the whole panel
     auto* outer_sizer = new wxBoxSizer(wxVERTICAL);
-
     // simulation card wrapping all controls
     m_card = new SimulationCard(this, "Transient Analysis");
+    // content sizer for the card
     auto* content = m_card->get_content();
     auto* content_sizer = new wxBoxSizer(wxVERTICAL);
-
-    // global settings panel with replace-ground checkbox
-    m_global_settings = new GlobalSettingsPanel(content);
-    content_sizer->Add(m_global_settings, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
 
     // transient fields grid: 2 columns (label | control)
     auto* field_grid = new wxFlexGridSizer(2, FromDIP(8), FromDIP(12));
@@ -157,9 +171,46 @@ TransientParametersPanel::TransientParametersPanel(wxWindow* parent) :
     m_schedule_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(FromDIP(300), FromDIP(60)), wxTE_MULTILINE);
     content_sizer->Add(m_schedule_text, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
 
+    // separator
+    content_sizer->Add(new wxStaticLine(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+
     // print section with transient print types and both BJT/FET leads available
     m_print_section = new PrintSectionPanel(content, "TRAN", {"TRAN", "TRANADJOINT"}, true, true, true);
-    content_sizer->Add(m_print_section, 0, wxEXPAND, 0);
+    content_sizer->Add(m_print_section, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
+
+    // separator
+    content_sizer->Add(new wxStaticLine(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+
+    // .FFT multi-line text
+    auto* fft_label = new wxStaticText(content, wxID_ANY, ".FFT directives (one per line)");
+    content_sizer->Add(fft_label, 0, wxBOTTOM, FromDIP(4));
+    m_fft_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(FromDIP(300), FromDIP(60)), wxTE_MULTILINE);
+    content_sizer->Add(m_fft_text, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
+
+    // separator
+    content_sizer->Add(new wxStaticLine(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+
+    // .FOUR multi-line text
+    auto* four_label = new wxStaticText(content, wxID_ANY, ".FOUR directives (one per line)");
+    content_sizer->Add(four_label, 0, wxBOTTOM, FromDIP(4));
+    m_four_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(FromDIP(300), FromDIP(60)), wxTE_MULTILINE);
+    content_sizer->Add(m_four_text, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
+
+    // separator
+    content_sizer->Add(new wxStaticLine(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+
+    // .MEASURE multi-line text
+    auto* measure_label = new wxStaticText(content, wxID_ANY, ".MEASURE directives (one per line)");
+    content_sizer->Add(measure_label, 0, wxBOTTOM, FromDIP(4));
+    m_measure_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(FromDIP(300), FromDIP(60)), wxTE_MULTILINE);
+    content_sizer->Add(m_measure_text, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
+
+    // separator
+    content_sizer->Add(new wxStaticLine(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxBOTTOM, FromDIP(10));
+
+    // global settings panel with replace-ground checkbox
+    m_global_settings = new GlobalSettingsPanel(content);
+    content_sizer->Add(m_global_settings, 0, wxEXPAND | wxBOTTOM, FromDIP(12));
 
     // attach content sizer and card to outer layout
     content->SetSizer(content_sizer);
@@ -184,13 +235,49 @@ TransientSimulationParameters TransientParametersPanel::build_transient_paramete
     // parse schedule points from multi-line text
     auto schedule_points = parse_schedule_text(m_schedule_text->GetValue());
 
+    // parse .FFT directives (one per line)
+    std::vector<FftParameters> fft_params;
+    {
+        auto lines = parse_lines(m_fft_text->GetValue());
+        for (const auto& line : lines) {
+            auto parsed = FftParameters::from_xyce_statement(line);
+            if (parsed) {
+                fft_params.push_back(std::move(*parsed));
+            }
+        }
+    }
+
+    // parse .FOUR directives (one per line)
+    std::vector<FourParameters> four_params;
+    {
+        auto lines = parse_lines(m_four_text->GetValue());
+        for (const auto& line : lines) {
+            auto parsed = FourParameters::from_xyce_statement(line);
+            if (parsed) {
+                four_params.push_back(std::move(*parsed));
+            }
+        }
+    }
+
+    // parse .MEASURE directives (one per line)
+    std::vector<MeasureEntry> measure_params;
+    {
+        auto lines = parse_lines(m_measure_text->GetValue());
+        for (const auto& line : lines) {
+            auto parsed = MeasureEntry::from_xyce_statement(line);
+            if (parsed) {
+                measure_params.push_back(std::move(*parsed));
+            }
+        }
+    }
+
     // read replace ground from global settings
     bool replace_ground = m_global_settings->get_replace_ground();
 
     // read print parameters from print section
     std::optional<PrintParameters> print_params = m_print_section->build_print_parameters();
     // create parameters
-    return TransientSimulationParameters(std::move(initial_step), std::move(final_time), std::move(start_time), std::move(step_ceiling), std::move(op_keyword), std::move(schedule_points), replace_ground, std::move(print_params), {}, {}, {}, std::nullopt);
+    return TransientSimulationParameters(std::move(initial_step), std::move(final_time), std::move(start_time), std::move(step_ceiling), std::move(op_keyword), std::move(schedule_points), replace_ground, std::move(print_params), std::move(fft_params), std::move(four_params), std::move(measure_params), std::nullopt);
 }
 
 void TransientParametersPanel::apply(const TransientSimulationParameters& params) {
@@ -205,6 +292,39 @@ void TransientParametersPanel::apply(const TransientSimulationParameters& params
 
     // restore schedule points
     m_schedule_text->SetValue(format_schedule_text(params.schedule_points));
+
+    // restore .FFT directives
+    {
+        wxString text;
+        for (size_t i = 0; i < params.fft_parameters.size(); ++i) {
+            if (i > 0)
+                text += "\n";
+            text += wxString::FromUTF8(params.fft_parameters[i].to_xyce_statement());
+        }
+        m_fft_text->SetValue(text);
+    }
+
+    // restore .FOUR directives
+    {
+        wxString text;
+        for (size_t i = 0; i < params.four_parameters.size(); ++i) {
+            if (i > 0)
+                text += "\n";
+            text += wxString::FromUTF8(params.four_parameters[i].to_xyce_statement());
+        }
+        m_four_text->SetValue(text);
+    }
+
+    // restore .MEASURE directives
+    {
+        wxString text;
+        for (size_t i = 0; i < params.measure_parameters.size(); ++i) {
+            if (i > 0)
+                text += "\n";
+            text += wxString::FromUTF8(params.measure_parameters[i].to_xyce_statement());
+        }
+        m_measure_text->SetValue(text);
+    }
 
     // restore replace ground
     m_global_settings->set_replace_ground(params.replace_ground);

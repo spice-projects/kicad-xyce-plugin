@@ -41,4 +41,6 @@ private:
     wxTextCtrl* m_start_text = nullptr;
     wxTextCtrl* m_end_text = nullptr;
     wxTextCtrl* m_data_table_text = nullptr;
+
+    wxTextCtrl* m_measure_text = nullptr;
 };

@@ -16,9 +16,9 @@ This document defines the code style preferences for this project.
 ### Braces
 
 - Class definitions: opening brace on its own line
-- Function definitions: opening brace on its own line (except small single-line accessors)
+- Function definitions: opening brace on the same line as the signature
 - Control structures (`if`, `for`, `while`): opening brace on the same line
-- Always use braces for control structures, even single-line bodies
+- Braces required unless the body is a single line (no braces for single-line bodies); if a comment makes the body span two lines, braces are required
 
 ### Naming
 
@@ -26,7 +26,7 @@ This document defines the code style preferences for this project.
 - Functions and variables: `snake_case`
 - Member variables: `m_` prefix with snake_case
 - Template parameters: `T`, `U`, `Key`, `Value`
-- Constants: `kCamelCase` or uppercase for enum values
+- Constants: `UPPER_SNAKE_CASE` for file-scope constants and enum values
 
 ### Includes
 

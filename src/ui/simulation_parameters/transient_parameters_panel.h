@@ -43,4 +43,8 @@ private:
     wxTextCtrl* m_step_ceiling_text = nullptr;
     wxChoice* m_op_keyword_choice = nullptr;
     wxTextCtrl* m_schedule_text = nullptr;
+
+    wxTextCtrl* m_fft_text = nullptr;
+    wxTextCtrl* m_four_text = nullptr;
+    wxTextCtrl* m_measure_text = nullptr;
 };

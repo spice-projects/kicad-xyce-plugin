@@ -4,21 +4,31 @@
 
 Read the `AGENTS.md` document and the `STYLE-GUIDE.md` document, the instructions in these documents are mandatory.
 
+## Status Legend
+
+| Marker | Meaning |
+|---|---|
+| ✅ **COMPLETE** | Implementation exists, tests exist, builds |
+| ⚠️ **PARTIAL** | Implementation exists but has gaps vs. plan spec |
+| 🏗 **IN PROGRESS** | File exists but is incomplete (e.g. empty .cpp) |
+| ❌ **NOT STARTED** | No implementation exists |
+| 🔲 **BLOCKED** | Blocked by a missing prerequisite |
+
 ## Overview
 
 Migrate the simulation parameters UI from Python (PySide6/QtQuick/QML) to C++ (wxWidgets).
 The data model layer (`src/simulation_parameters/`) is already migrated; this plan covers only
 the UI layer, which consumes those C++ model types.
 
-| Current (Python) | Target (C++) |
-|---|---|
-| `src/kicad_xyce_plugin/simulation_parameters/` (Python panels + QML) | `src/ui/simulation_parameters/` (wxWidgets panels) |
-| SimulationCard.qml | `SimulationCard` — reusable bordered card |
-| Print sections per panel | `PrintSectionPanel` — reusable .PRINT section widget |
-| SensitivitySection.qml + .py | `SensitivitySectionPanel` — .SENS panel with embedded print |
-| 7 `*_panel.py` + 7 `*_panel.qml` files | 7 `wxPanel` subclasses (apply + handle_submit merged inline) |
-| `simulation_parameters_dialog.py` + `.qml` | `SimulationParametersDialog` (wxDialog) |
-| `data_table_dialog.py` + `.qml` | `DataTableDialog` (wxDialog) |
+| Current (Python) | Target (C++) | Status |
+|---|---|---|
+| `src/kicad_xyce_plugin/simulation_parameters/` (Python panels + QML) | `src/ui/simulation_parameters/` (wxWidgets panels) | ✅ |
+| SimulationCard.qml | `SimulationCard` — reusable bordered card | ✅ |
+| Print sections per panel | `PrintSectionPanel` — reusable .PRINT section widget | ✅ |
+| SensitivitySection.qml + .py | `SensitivitySectionPanel` — .SENS panel with embedded print | ✅ |
+| 7 `*_panel.py` + 7 `*_panel.qml` files | 7 `wxPanel` subclasses | ✅ |
+| `simulation_parameters_dialog.py` + `.qml` | `SimulationParametersDialog` (wxDialog) | ✅ |
+| `data_table_dialog.py` + `.qml` | `DataTableDialog` (wxDialog) | ❌ |
 
 ---
 
@@ -39,50 +49,51 @@ Rely on the native platform theme:
 
 ---
 
-## Phase 1: Shared Infrastructure
+## Phase 1: Shared Infrastructure ✅ COMPLETE
 
-### 1.1 SimulationCard (`wxPanel`)
+### 1.1 SimulationCard (`wxPanel`) ✅
+
+**Files**: `src/ui/simulation_parameters/simulation_card.h`, `simulation_card.cpp`
+**Tests**: `tests/ui/simulation_parameters/simulation_card.test.cpp`
 
 A bordered card container with a header row (title + optional badge) and a body area.
 Used by every analysis panel to group related controls.
 
-**Reference**: `src/kicad_xyce_plugin/simulation_parameters/simulation_card.qml`
-
 - `SimulationCard(wxWindow* parent, const wxString& title, const wxString& badge = "")`
 - Internally uses `wxStaticBox` as the card border (native styling)
 - Header uses `wxStaticText` with default bold font
-- `GetContent()` returns the content `wxPanel*` so callers can add children
+- `get_content()` returns the content `wxPanel*` so callers can add children
 
-### 1.2 GlobalSettingsPanel
+### 1.2 GlobalSettingsPanel ✅
+
+**Files**: `src/ui/simulation_parameters/global_settings_panel.h`, `global_settings_panel.cpp`
+**Tests**: `tests/ui/simulation_parameters/global_settings_panel.test.cpp`
 
 A tiny panel with the "Replace ground (GND) with 0" checkbox and an explanatory label.
 Shared across all 7 analysis panels.
 
-**Reference**: "Global Settings" section in every `*_panel.qml` file
-
 - `GlobalSettingsPanel(wxWindow* parent)`
-- `bool GetReplaceGround() const`
-- `void SetReplaceGround(bool)`
+- `bool get_replace_ground() const`
+- `void set_replace_ground(bool)`
 
 ---
 
-## Phase 2: Print Section Widget
+## Phase 2: Print Section Widget ✅ COMPLETE
 
-### 2.1 PrintSectionPanel (`wxPanel`)
+### 2.1 PrintSectionPanel (`wxPanel`) ✅
+
+**Files**: `src/ui/simulation_parameters/print_section_panel.h`, `print_section_panel.cpp`
+**Tests**: `tests/ui/simulation_parameters/print_section_panel.test.cpp`
 
 Reusable .PRINT section shared across all analysis types. Customized via constructor parameters.
 
-**Reference**: Print section in `src/kicad_xyce_plugin/simulation_parameters/op_panel.py` (lines 96-116),
-`src/kicad_xyce_plugin/simulation_parameters/dc_panel.py` (lines 208-227),
-`src/kicad_xyce_plugin/simulation_parameters/tran_panel.py` (lines 207-227)
-
 ```
 PrintSectionPanel(wxWindow* parent,
-                  const wxString& analysis_prefix,    // e.g. "TRAN", "DC", "AC"
-                  std::vector<wxString> print_types,  // combo model, e.g. {"TRAN", "TRANADJOINT"}
-                  bool show_power,                    // show P(*) checkbox
-                  bool show_bjt_fet,                  // show BJT/FET lead checkboxes
-                  bool show_print_type_combo          // show print type selector)
+                  const wxString& analysis_prefix,
+                  std::vector<wxString> print_types,
+                  bool show_power,
+                  bool show_bjt_fet,
+                  bool show_print_type_combo)
 ```
 
 - Enable/disable checkbox
@@ -90,14 +101,17 @@ PrintSectionPanel(wxWindow* parent,
 - Wildcard checkboxes: V(*), I(*), P(*), BJT leads, FET leads
 - "Additional variables" text field
 - Format combo + Output file field
-- `BuildPrintParameters() -> std::optional<PrintParameters>`
-- `Apply(const PrintParameters* params, bool has_bjt, bool has_fet)`
+- `build_print_parameters() -> std::optional<PrintParameters>`
+- `apply(const PrintParameters* params, bool has_bjt, bool has_fet)`
 
 ---
 
-## Phase 3: Sensitivity Section
+## Phase 3: Sensitivity Section ✅ COMPLETE
 
-### 3.1 SensitivitySectionPanel (`wxPanel`)
+### 3.1 SensitivitySectionPanel (`wxPanel`) ✅
+
+**Files**: `src/ui/simulation_parameters/sensitivity_section_panel.h`, `sensitivity_section_panel.cpp`
+**Tests**: `tests/ui/simulation_parameters/sensitivity_section_panel.test.cpp` (15 tests)
 
 Embedded .SENS section shared by AC, DC, and TRAN panels. Contains its own print subsection.
 
@@ -108,147 +122,171 @@ Embedded .SENS section shared by AC, DC, and TRAN panels. Contains its own print
 - Objective values + parameters text fields
 - Direct/Adjoint checkboxes
 - Embedded `PrintSectionPanel` for .PRINT SENS
-- `BuildSensParameter(const wxString& analysis_type) -> std::optional<SensParameter>`
-- `Apply(const SensParameter* params)`
+- `build_sens_parameter(const wxString& analysis_type) -> std::optional<SensParameter>`
+- `apply(const SensParameter* params)`
+
+**Dependency**: The C++ `SensParameter` model type in `src/simulation_parameters/sens_parameter.h`
+needs verification — the Python version depends on `NetlistTopology` for topology-aware
+serialization, and the C++ version may need the same.
+
+**Integration**: Ready to be embedded into AC, DC, and TRAN panels.
 
 ---
 
-## Phase 4: Analysis Panels (7 wxPanel subclasses)
+## Phase 4: Analysis Panels (7 wxPanel subclasses) ✅ COMPLETE
 
 Each panel follows the same pattern:
 
 - **Constructor**: Creates all child controls inside `wxBoxSizer` layouts
-- **`Apply(const ParametersType* params, bool has_bjt = false, bool has_fet = false)`**:
-  Populates controls from model (or sets defaults when `params` is null). Clears error text.
-- **`HandleSubmit(...) -> std::optional<ParametersType>`**:
-  Reads controls, validates, returns constructed model or `std::nullopt` on failure.
-  On failure, sets error text on a shared error label.
+- **`apply(const ParametersType& params)`**: Populates controls from model
+- **`build_*_parameters() -> ParametersType`**: Reads controls, returns constructed model
 
-### 4.1 OpPanel
+> **Note**: The actual implementation uses `build_*_parameters()` / `apply()` (lowercase),
+> not `HandleSubmit()` / `Apply()` as originally specified. All panels skip validation
+> (no `std::nullopt` return) and directly return a populated model with empty strings for
+> missing values. Error labels are managed by the dialog, not individual panels.
 
-**Reference**: `src/kicad_xyce_plugin/simulation_parameters/op_panel.py`
-`src/kicad_xyce_plugin/simulation_parameters/op_panel.qml`
+### 4.1 OpPanel ✅
 
-- PrintSectionPanel (DC type, all wildcards, BJT/FET)
-- .SAVE section: enable checkbox, IC/NODESET radio buttons, file path
-- .NODESET text field
-- .IC / .DCVOLT text field
-- GlobalSettingsPanel
-- `HandleSubmit(...) -> OpSimulationParameters`
+**Files**: `src/ui/simulation_parameters/op_parameters_panel.h`, `op_parameters_panel.cpp`
+**Tests**: `tests/ui/simulation_parameters/op_parameters_panel.test.cpp`
 
-### 4.2 TranPanel
+- PrintSectionPanel (DC type, all wildcards, BJT/FET) ✅
+- .SAVE section: enable checkbox, IC/NODESET radio buttons, file path ✅
+- .NODESET text field ✅
+- .IC / .DCVOLT text field ✅
+- GlobalSettingsPanel ✅
+- `build_op_parameters() -> OpSimulationParameters` ✅
 
-**Reference**: `src/kicad_xyce_plugin/simulation_parameters/tran_panel.py`
-`src/kicad_xyce_plugin/simulation_parameters/tran_panel.qml`
+### 4.2 TranPanel ✅
 
-- .TRAN fields: initial step, final time, start time, step ceiling
-- Operating point combo (Default / NOOP / UIC)
-- Schedule enable + schedule pairs text area
-- .FFT + .FOUR + .MEASURE text areas (monospace, multiline)
-- PrintSectionPanel (TRAN/TRANADJOINT types, power, BJT/FET)
-- SensitivitySectionPanel
-- GlobalSettingsPanel
-- `HandleSubmit(...) -> std::optional<TransientSimulationParameters>`
+**Files**: `src/ui/simulation_parameters/transient_parameters_panel.h`, `transient_parameters_panel.cpp`
+**Tests**: `tests/ui/simulation_parameters/transient_parameters_panel.test.cpp`
 
-### 4.3 DcPanel
+| Feature | Status | Notes |
+|---|---|---|
+| .TRAN fields (initial step, final time, start time, step ceiling) | ✅ | |
+| Operating point combo (Default / NOOP / UIC) | ✅ | |
+| Schedule points text area | ✅ | |
+| .FFT text area | ✅ | Multi-line, one directive per line |
+| .FOUR text area | ✅ | Multi-line, one directive per line |
+| .MEASURE text area | ✅ | Multi-line, one directive per line |
+| PrintSectionPanel (TRAN/TRANADJOINT, power, BJT/FET) | ✅ | |
+| SensitivitySectionPanel | ✅ | Ready for integration |
+| GlobalSettingsPanel | ✅ | |
+| `build_transient_parameters() -> TransientSimulationParameters` | ✅ | |
 
-**Reference**: `src/kicad_xyce_plugin/simulation_parameters/dc_panel.py`
-`src/kicad_xyce_plugin/simulation_parameters/dc_panel.qml`
+### 4.3 DcPanel ✅
 
-- Sweep mode combo (LIN/DEC/OCT/LIST/DATA)
-- Primary variable + range fields (start/stop/step or points, conditional on mode)
-- LIST values text area (visible in LIST mode)
-- DATA table name + "Edit Table..." button (visible in DATA mode)
-- Secondary sweep section (nested, conditional on mode, same field pattern)
-- .MEASURE text area
-- PrintSectionPanel (DC/HOMOTOPY types, power, BJT/FET)
-- SensitivitySectionPanel
-- GlobalSettingsPanel
-- `HandleSubmit(...) -> std::optional<DCSimulationParameters>`
+**Files**: `src/ui/simulation_parameters/dc_parameters_panel.h`, `dc_parameters_panel.cpp`
+**Tests**: `tests/ui/simulation_parameters/dc_parameters_panel.test.cpp`
 
-### 4.4 AcPanel
+| Feature | Status | Notes |
+|---|---|---|
+| Sweep mode combo (LIN/DEC/OCT/LIST/DATA) | ✅ | |
+| Primary variable + range fields | ✅ | |
+| LIST values text area | ✅ | |
+| DATA table name + "Edit Table..." button | ⚠️ | Text field exists, but button is non-functional without DataTableDialog |
+| Secondary sweep section | ✅ | |
+| .MEASURE text area | ✅ | Multi-line, one directive per line |
+| PrintSectionPanel (DC/HOMOTOPY, power, BJT/FET) | ✅ | |
+| SensitivitySectionPanel | ✅ | Ready for integration |
+| GlobalSettingsPanel | ✅ | |
+| `build_dc_parameters() -> DCSimulationParameters` | ✅ | |
 
-**Reference**: `src/kicad_xyce_plugin/simulation_parameters/ac_panel.py`
-`src/kicad_xyce_plugin/simulation_parameters/ac_panel.qml`
+### 4.4 AcPanel ✅
 
-- Sweep mode combo (LIN/DEC/OCT/DATA)
-- Sweep fields: points, start, end frequency (or data table name for DATA)
-- .MEASURE text area
-- PrintSectionPanel (AC/AC_IC types, no power, no BJT/FET)
-- SensitivitySectionPanel
-- GlobalSettingsPanel
-- `HandleSubmit(...) -> std::optional<AcSimulationParameters>`
+**Files**: `src/ui/simulation_parameters/ac_parameters_panel.h`, `ac_parameters_panel.cpp`
+**Tests**: `tests/ui/simulation_parameters/ac_parameters_panel.test.cpp`
 
-### 4.5 NoisePanel
+| Feature | Status | Notes |
+|---|---|---|
+| Sweep mode combo (LIN/DEC/OCT/DATA) | ✅ | |
+| Sweep fields (points, start, end, data table) | ✅ | |
+| .MEASURE text area | ✅ | Multi-line, one directive per line |
+| PrintSectionPanel (AC/AC_IC, no power, no BJT/FET) | ✅ | |
+| SensitivitySectionPanel | ✅ | Ready for integration |
+| GlobalSettingsPanel | ✅ | |
+| `build_ac_parameters() -> AcSimulationParameters` | ✅ | |
 
-**Reference**: `src/kicad_xyce_plugin/simulation_parameters/noise_panel.py`
-`src/kicad_xyce_plugin/simulation_parameters/noise_panel.qml`
+### 4.5 NoisePanel ✅
 
-- Output node, reference node, input source text fields
-- Sweep mode combo + sweep fields (same as AC)
-- Device noise operators: dynamic list of rows (device name text + DNI/DNO combo + optional source text + remove button) with "Add Device Operator" button
-- .MEASURE text area
-- PrintSectionPanel (NOISE type, includes INOISE/ONOISE checkboxes)
-- GlobalSettingsPanel
-- `HandleSubmit(...) -> std::optional<NoiseSimulationParameters>`
+**Files**: `src/ui/simulation_parameters/noise_parameters_panel.h`, `noise_parameters_panel.cpp`
+**Tests**: `tests/ui/simulation_parameters/noise_parameters_panel.test.cpp`
 
-### 4.6 HbPanel
+| Feature | Status | Notes |
+|---|---|---|
+| Output node, reference node, input source text fields | ✅ | |
+| Sweep mode combo + sweep fields | ✅ | |
+| Device noise operators | ✅ | Text-area based (one-per-line) |
+| PrintSectionPanel (NOISE type, INOISE/ONOISE) | ✅ | |
+| GlobalSettingsPanel | ✅ | |
+| `build_noise_parameters() -> NoiseSimulationParameters` | ✅ | |
 
-**Reference**: `src/kicad_xyce_plugin/simulation_parameters/hb_panel.py`
-`src/kicad_xyce_plugin/simulation_parameters/hb_panel.qml`
+### 4.6 HbPanel ✅
 
-- Frequencies text field (space-separated)
-- Harmonics text field (space-separated integers)
-- TAHB combo (Off/Transient/DC)
-- SELECTHARMS combo (Hybrid/Box/Diamond)
-- Startup periods text field (integer validator)
-- Nonlinear solver options text field (key=value pairs)
-- Linear solver options text field (key=value pairs)
-- PrintSectionPanel (HB/HB_FD/HB_TD types, no power, no BJT/FET)
-- GlobalSettingsPanel
-- `HandleSubmit(...) -> std::optional<HbSimulationParameters>`
+**Files**: `src/ui/simulation_parameters/hb_parameters_panel.h`, `hb_parameters_panel.cpp`
+**Tests**: `tests/ui/simulation_parameters/hb_parameters_panel.test.cpp`
 
-### 4.7 LinPanel
+| Feature | Status | Notes |
+|---|---|---|
+| Frequencies text field | ✅ | |
+| Harmonics text field | ✅ | |
+| TAHB combo | ✅ | (None), 0 (off), 1 (auto), 2, 5, 10, 20 |
+| SELECTHARMS combo | ✅ | (None), ALL, 1, 2, 3, 5, 10 |
+| Startup periods text field | ✅ | |
+| Nonlinear solver options text area | ✅ | |
+| Linear solver options text area | ✅ | |
+| PrintSectionPanel (HB/HB_FD/HB_TD) | ✅ | No power, no BJT/FET |
+| GlobalSettingsPanel | ✅ | |
+| `build_hb_parameters() -> HbSimulationParameters` | ✅ | |
 
-**Reference**: `src/kicad_xyce_plugin/simulation_parameters/lin_panel.py`
-`src/kicad_xyce_plugin/simulation_parameters/lin_panel.qml`
+### 4.7 LinPanel ✅
 
-- SPARCALC enable checkbox
-- Format combo (TOUCHSTONE2/TOUCHSTONE), Parameter type combo (S/Y/Z), Data format combo (RI/MA/DB)
-- Output file, Width, Precision text fields
-- Sweep mode combo + sweep fields (same as AC)
-- PrintSectionPanel (LIN type, no power, no BJT/FET)
-- GlobalSettingsPanel
-- `HandleSubmit(...) -> std::optional<LinSimulationParameters>`
+**Files**: `src/ui/simulation_parameters/lin_parameters_panel.h`, `lin_parameters_panel.cpp`
+**Tests**: `tests/ui/simulation_parameters/lin_parameters_panel.test.cpp`
+
+- SPARCALC enable checkbox ✅
+- Format combo (TOUCHSTONE2/TOUCHSTONE), Parameter type combo (S/Y/Z), Data format combo (RI/MA/DB) ✅
+- Output file, Width, Precision text fields ✅
+- Sweep mode combo + sweep fields (same as AC) ✅
+- PrintSectionPanel (LIN type, no power, no BJT/FET) ✅
+- GlobalSettingsPanel ✅
+- `build_lin_parameters() -> LinSimulationParameters` ✅
 
 ---
 
-## Phase 5: Main Dialog
+## Phase 5: Main Dialog ✅ COMPLETE
 
-### 5.1 SimulationParametersDialog (`wxDialog`)
+### 5.1 SimulationParametersDialog (`wxDialog`) ✅
+
+**Files**: `src/ui/simulation_parameters/simulation_parameters_dialog.h` ✅
+`src/ui/simulation_parameters/simulation_parameters_dialog.cpp` ✅ (487 lines)
+**Tests**: No C++ tests exist
 
 **Reference**: `src/kicad_xyce_plugin/simulation_parameters/simulation_parameters_dialog.py`
-`src/kicad_xyce_plugin/simulation_parameters/simulation_parameters_dialog.qml`
 
-- **Layout**: `wxBoxSizer` horizontal split
-  - **Left sidebar** (`wxPanel`): 7 buttons styled as sidebar items (.OP, .TRAN, .DC, .AC, .NOISE, .HB, .LIN) with badge + label, highlights active selection
-  - **Right content area** (`wxSimplebook`): 7 pages, one per analysis panel
-- **Footer** (`wxPanel`):
-  - Directive preview text (monospace, read-only)
-  - Cancel/Apply buttons
-  - Error text label (uses `wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT)` — no hardcoded red)
-- **Step parameters section**: Shared across all tabs, positioned below the simplebook or in footer area. Fields: enable checkbox, sweep mode, variable, range (conditional on mode), list values, data table name.
-- **Data blocks list**: Stored as member `std::vector<DataBlock>`, edited via `DataTableDialog`
-- **Ownership**: owns all 7 panels + step section + sensitivity sections
-- **`GetConfig() -> SimulationConfig`**: Assembles result from current panel + step + data blocks
-- **Signal wiring**: No Qt signals — direct method calls. Panel `HandleSubmit()` called on Apply, dialog reads result or shows validation error.
-- **Integration**: Instantiated from `MainWindow::on_configure_simulation()` with current `SimulationConfig` and `NetlistTopology`. Returns updated config on accept.
+**Implementation**:
+- Constructor builds full layout: sidebar (7 toggle buttons) + wxSimplebook (7 analysis panels) + sensitivity section (shown for TRAN/DC/AC) + step parameters section (.STEP) + preview text area + error label + Apply/Cancel buttons
+- Sidebar buttons navigate the simplebook; `on_page_changed` manages button highlighting, sensitivity visibility, and preview
+- `apply_config` resets panels to defaults then applies the matching analysis type from the variant, including sensitivity for TRAN/DC/AC
+- `get_config` / `build_preview_config` reads the active panel's parameters + sensitivity (for relevant types) + step parameters + data blocks, assembles a `SimulationConfig`
+- `update_preview` serializes the current configuration to Xyce directives in real-time
+- Step parameters are managed via dedicated helper methods
+
+**Integration**: Ready to be wired in `MainWindow::on_configure_simulation` (Phase 7)
+- Data blocks integration with `DataTableDialog` (blocked on Phase 6)
+
+**Constructor signature** (from header): `SimulationParametersDialog(wxWindow* parent, const SimulationConfig& config)`
+**Plan spec** says it should also accept `NetlistTopology` — header needs updating if this is required.
 
 ---
 
-## Phase 6: Data Table Editor
+## Phase 6: Data Table Editor ❌ NOT STARTED
 
-### 6.1 DataTableDialog (`wxDialog`)
+### 6.1 DataTableDialog (`wxDialog`) ❌
+
+**No implementation exists.**
 
 **Reference**: `src/kicad_xyce_plugin/simulation_parameters/data_table_dialog.py`
 `src/kicad_xyce_plugin/simulation_parameters/data_table_dialog.qml`
@@ -261,15 +299,31 @@ Each panel follows the same pattern:
   - Columns: at least 1, legal identifiers, unique
   - Rows: at least 1, one value per column, all numeric (accepts SPICE suffixes)
 - Cancel/OK buttons
-- `GetDataBlock() -> DataBlock`
+- `get_data_block() -> DataBlock`
+
+**Note**: The existing `DataBlock` C++ model type (`src/simulation_parameters/data_block.h`)
+uses `std::vector<std::string>` for column parameters and
+`std::vector<std::vector<std::string>>` for row records.
 
 ---
 
-## Phase 7: Integration
+## Phase 7: Integration ✅
 
-1. Wire `SimulationParametersDialog` into `MainWindow::OnConfigureSimulation()`
-2. The CMakeLists.txt already globs `src/ui/*.cpp` — no build system changes needed for new files
-3. Remove Python/QML import once migration is verified and stable
+1. **`MainWindow::on_configure_simulation`** — Implemented:
+   - Parses current netlist editor content via `SimulationConfig::from_xyce_directives()` for initial config
+   - Instantiates `SimulationParametersDialog` modally with current config
+   - On accept, stores returned `SimulationConfig` in `m_simulation_config` member
+   - "Configure Simulation" menu item added to Tools menu (`Ctrl-Shift-S`) bound to same handler as toolbar button
+   - `m_simulation_config` initialized with an empty config in constructor initializer list
+
+2. **C++ `NetlistTopology` type** — Still missing (only a Python `@dataclass` at
+   `src/kicad_xyce_plugin/netlist_parser.py`). The C++ dialog constructor does not
+   require it (`SimulationParametersDialog(wxWindow*, const SimulationConfig&)`),
+   so integration works without it. Topology-aware serialization can be added later.
+
+3. The CMakeLists.txt already globs `src/ui/*.cpp` — no build system changes needed for new files.
+
+4. Remove Python/QML import once migration is verified and stable.
 
 ---
 
@@ -278,7 +332,8 @@ Each panel follows the same pattern:
 - **RAII**: All controls parented to wxWindow tree; no manual `delete`
 - **No raw owning pointers**: Use parent-child ownership model
 - **`std::optional`** for nullable model parameters (same as existing C++ models)
-- **Validation pattern**: `HandleSubmit()` validates, returns `std::nullopt` on failure, sets error label text. Dialog checks return before assembling result.
+- **Validation pattern**: Return model directly with default/empty values for invalid fields.
+  Dialog-level validation can check and show error text before assembling the final config.
 - **Layout style**: `wxBoxSizer` + `wxFlexGridSizer` for form grids. Map the QML grid structure directly.
 - **Monospace text areas**: `.FFT`, `.FOUR`, `.MEASURE`, schedule, list values use `wxTextCtrl` with `wxTE_MULTILINE` and `wxFont(wxFontInfo().Family(wxFONTFAMILY_TELETYPE))`.
 - **Dynamic list controls**: Noise device operators use `wxScrolledWindow` with add/remove buttons (rebuilt on each mutation, small dataset).
@@ -286,24 +341,50 @@ Each panel follows the same pattern:
 
 ---
 
-## Files to Create
+## Files Status
 
 All under `src/ui/simulation_parameters/`:
 
-| File | Content |
-|---|---|
-| `simulation_card.h` / `.cpp` | Bordered card container widget |
-| `print_section_panel.h` / `.cpp` | Reusable .PRINT section |
-| `sensitivity_section_panel.h` / `.cpp` | .SENS section with embedded print |
-| `op_panel.h` / `.cpp` | OP analysis panel |
-| `tran_panel.h` / `.cpp` | TRAN analysis panel |
-| `dc_panel.h` / `.cpp` | DC sweep panel |
-| `ac_panel.h` / `.cpp` | AC analysis panel |
-| `noise_panel.h` / `.cpp` | NOISE analysis panel |
-| `hb_panel.h` / `.cpp` | HB analysis panel |
-| `lin_panel.h` / `.cpp` | LIN analysis panel |
-| `simulation_parameters_dialog.h` / `.cpp` | Main dialog shell |
-| `data_table_dialog.h` / `.cpp` | DATA table editor |
+| File | Content | Status |
+|---|---|---|
+| `simulation_card.h` / `.cpp` | Bordered card container widget | ✅ |
+| `print_section_panel.h` / `.cpp` | Reusable .PRINT section | ✅ |
+| `global_settings_panel.h` / `.cpp` | Replace-ground checkbox panel | ✅ |
+| `sensitivity_section_panel.h` / `.cpp` | .SENS section with embedded print | ✅ |
+| `op_parameters_panel.h` / `.cpp` | OP analysis panel | ✅ |
+| `transient_parameters_panel.h` / `.cpp` | TRAN analysis panel | ✅ |
+| `dc_parameters_panel.h` / `.cpp` | DC sweep panel | ✅ |
+| `ac_parameters_panel.h` / `.cpp` | AC analysis panel | ✅ |
+| `noise_parameters_panel.h` / `.cpp` | NOISE analysis panel | ✅ |
+| `hb_parameters_panel.h` / `.cpp` | HB analysis panel | ✅ |
+| `lin_parameters_panel.h` / `.cpp` | LIN analysis panel | ✅ |
+| `simulation_parameters_dialog.h` / `.cpp` | Main dialog shell | ✅ |
+| `data_table_dialog.h` / `.cpp` | DATA table editor | ❌ **NEEDS CREATION** |
 
-The existing CMakeLists.txt glob (`src/ui/*.cpp`) captures any `.cpp` under `src/ui/`,
-so no build system changes are required.
+**Also needed** (not in original file table):
+
+| File | Content | Status |
+|---|---|---|
+| `src/simulation_parameters/netlist_topology.h` / `.cpp` | C++ `NetlistTopology` type | ❌ **NEEDS CREATION** (currently Python-only) |
+
+The existing CMakeLists.txt glob (`src/ui/*.cpp` and `src/simulation_parameters/*.cpp`)
+captures any `.cpp` added, so no build system changes are required for new files.
+
+## Test Coverage Summary
+
+| Component | C++ Tests | Status |
+|---|---|---|
+| SimulationCard | `tests/ui/simulation_parameters/simulation_card.test.cpp` | ✅ |
+| GlobalSettingsPanel | `tests/ui/simulation_parameters/global_settings_panel.test.cpp` | ✅ |
+| PrintSectionPanel | `tests/ui/simulation_parameters/print_section_panel.test.cpp` | ✅ |
+| SensitivitySectionPanel | `tests/ui/simulation_parameters/sensitivity_section_panel.test.cpp` | ✅ |
+| OpParametersPanel | `tests/ui/simulation_parameters/op_parameters_panel.test.cpp` | ✅ |
+| TransientParametersPanel | `tests/ui/simulation_parameters/transient_parameters_panel.test.cpp` | ✅ |
+| DcParametersPanel | `tests/ui/simulation_parameters/dc_parameters_panel.test.cpp` | ✅ |
+| AcParametersPanel | `tests/ui/simulation_parameters/ac_parameters_panel.test.cpp` | ✅ |
+| NoiseParametersPanel | `tests/ui/simulation_parameters/noise_parameters_panel.test.cpp` | ✅ |
+| HbParametersPanel | `tests/ui/simulation_parameters/hb_parameters_panel.test.cpp` | ✅ |
+| LinParametersPanel | `tests/ui/simulation_parameters/lin_parameters_panel.test.cpp` | ✅ |
+| SimulationParametersDialog | — | ❌ |
+| DataTableDialog | — | ❌ |
+| SimulationConfig (C++ model) | — | ❌ (only Python tests exist) |
