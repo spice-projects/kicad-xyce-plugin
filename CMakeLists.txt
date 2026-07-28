@@ -37,21 +37,21 @@ find_package(wxwidgets CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 
 # gather cpp sources (all platforms)
-file(GLOB_RECURSE CPP_SOURCES "src/*.cpp" "src/expression/*.cpp" "src/file/*.cpp" "src/simulation_parameters/*.cpp" "src/ui/*.cpp")
+file(GLOB_RECURSE CPP_SOURCES "src/*.cpp")
 
 if(APPLE)
     # gather objective-c++ sources
-    file(GLOB_RECURSE PLATFORM_SOURCES "src/*.osx.mm" "src/ui/*.osx.mm")
+    file(GLOB_RECURSE PLATFORM_SOURCES "src/*.osx.mm")
     # combine remaining cpp sources with .mm sources
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 elseif (WIN32)
     # gather win32 sources
-    file(GLOB_RECURSE PLATFORM_SOURCES "src/*.win32.c++" "src/ui/*.win32.c++")
+    file(GLOB_RECURSE PLATFORM_SOURCES "src/*.win32.c++")
     # combine remaining cpp sources with .mm sources
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 elseif (LINUX)
     # gather linux sources
-    file(GLOB_RECURSE PLATFORM_SOURCES "src/*.linux.c++" "src/ui/*.linux.c++")
+    file(GLOB_RECURSE PLATFORM_SOURCES "src/*.linux.c++")
     # combine remaining cpp sources with .mm sources
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 endif()

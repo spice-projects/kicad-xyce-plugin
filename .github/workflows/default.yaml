@@ -68,4 +68,4 @@ jobs:
       - name: Run C++ Tests
         if: ${{ matrix.build_enabled }}
         run: |
-          ctest --test-dir .build-debug --output-on-failure
+          ./.build-debug/tests/kicad-xyce-plugin-tests

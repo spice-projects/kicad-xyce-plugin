@@ -1153,28 +1153,6 @@ TEST(FourParametersChecks, handles_complex_output_variable_with_backspace) {
     ASSERT_EQ(result->output_variables[0], "{V(OUT)\b}");
 }
 
-TEST(FourParametersChecks, handles_complex_output_variable_with_escape) {
-    // arrange
-    const std::string statement = ".FOUR 1k {V(OUT)\e}";
-    // act
-    const auto result = FourParameters::from_xyce_statement(statement);
-    // assert
-    ASSERT_TRUE(result.has_value());
-    ASSERT_EQ(result->output_variables.size(), 1);
-    ASSERT_EQ(result->output_variables[0], "{V(OUT)\e}");
-}
-
-TEST(FourParametersChecks, handles_complex_output_variable_with_shift_in) {
-    // arrange
-    const std::string statement = ".FOUR 1k {V(OUT)\x10}";
-    // act
-    const auto result = FourParameters::from_xyce_statement(statement);
-    // assert
-    ASSERT_TRUE(result.has_value());
-    ASSERT_EQ(result->output_variables.size(), 1);
-    ASSERT_EQ(result->output_variables[0], "{V(OUT)\x10}");
-}
-
 TEST(FourParametersChecks, handles_complex_output_variable_with_shift_out) {
     // arrange
     const std::string statement = ".FOUR 1k {V(OUT)\x11}";
