@@ -1,7 +1,12 @@
 #include <gtest/gtest.h>
+
+#include <wx/wxprec.h>
+
+#ifndef WX_PRECOMP
 #include <wx/frame.h>
 #include <wx/panel.h>
 #include <wx/stattext.h>
+#endif
 
 #include "ui/simulation_parameters/simulation_card.h"
 

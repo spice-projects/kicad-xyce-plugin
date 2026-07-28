@@ -1,11 +1,15 @@
 #include <set>
-#include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
+
+#include <wx/wxprec.h>
+
+#ifndef WX_PRECOMP
 #include <wx/button.h>
 #include <wx/listctrl.h>
 #include <wx/stattext.h>
+#endif
 
 #include "step_information.h"
 #include "ui/step_tool_dialog.h"

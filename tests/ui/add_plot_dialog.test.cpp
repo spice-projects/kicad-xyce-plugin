@@ -4,9 +4,14 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+
+#include <wx/wxprec.h>
+
+#ifndef WX_PRECOMP
 #include <wx/app.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
+#endif
 
 #include "ui/add_plot_dialog.h"
 

@@ -1,7 +1,12 @@
 #include <gtest/gtest.h>
+
+#include <wx/wxprec.h>
+
+#ifndef WX_PRECOMP
 #include <wx/checkbox.h>
 #include <wx/frame.h>
 #include <wx/panel.h>
+#endif
 
 #include "ui/simulation_parameters/global_settings_panel.h"
 
