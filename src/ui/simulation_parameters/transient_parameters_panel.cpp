@@ -189,12 +189,8 @@ TransientSimulationParameters TransientParametersPanel::build_transient_paramete
 
     // read print parameters from print section
     std::optional<PrintParameters> print_params = m_print_section->build_print_parameters();
-
-    return TransientSimulationParameters(std::move(initial_step), std::move(final_time), std::move(start_time), std::move(step_ceiling), std::move(op_keyword), std::move(schedule_points), replace_ground, std::move(print_params), {}, // fft_parameters — empty (not managed by this panel)
-                                         {}, // four_parameters — empty
-                                         {}, // measure_parameters — empty
-                                         std::nullopt // sensitivity — not managed
-    );
+    // create parameters
+    return TransientSimulationParameters(std::move(initial_step), std::move(final_time), std::move(start_time), std::move(step_ceiling), std::move(op_keyword), std::move(schedule_points), replace_ground, std::move(print_params), {}, {}, {}, std::nullopt);
 }
 
 void TransientParametersPanel::apply(const TransientSimulationParameters& params) {

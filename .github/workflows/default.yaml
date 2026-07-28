@@ -21,7 +21,7 @@ jobs:
           - os: macos-latest
             build_enabled: true
           - os: windows-latest
-            build_enabled: false
+            build_enabled: true
           - os: ubuntu-latest
             build_enabled: false
 
@@ -57,14 +57,14 @@ jobs:
       - name: Configure CMake
         if: ${{ matrix.build_enabled }}
         run: |
-          cmake --preset vcpkg
+          cmake --preset release
 
       - name: Build C++ Target
         if: ${{ matrix.build_enabled }}
         run: |
-          cmake --build --preset vcpkg
+          cmake --build --preset release
 
       # - name: Run C++ Tests
       #   if: ${{ matrix.build_enabled }}
       #   run: |
-      #     ./.build-debug/tests/kicad-xyce-plugin-tests
+      #     ./.build-release/tests/kicad-xyce-plugin-tests

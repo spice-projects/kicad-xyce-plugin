@@ -203,22 +203,13 @@ OpSimulationParameters OpParametersPanel::build_op_parameters() const {
         save_type = "NODESET";
     }
     std::string save_file = std::string(m_save_file_text->GetValue().ToUTF8());
-
     // parse nodeset and IC entries from text controls
     auto nodeset_entries = parse_nodeset_text(m_nodeset_text->GetValue());
     auto ic_entries = parse_ic_text(m_ic_text->GetValue());
-
     // read replace ground from global settings
     bool replace_ground = m_global_settings->get_replace_ground();
-
     // legacy DC print fields are left at defaults since print_parameters takes priority
-    return OpSimulationParameters(print_params.has_value(), // print_dc_enabled
-                                  false, // print_dc_all_nodes (legacy)
-                                  false, // print_dc_all_currents (legacy)
-                                  {}, // print_dc_specific_variables (legacy)
-                                  "", // print_dc_format (legacy)
-                                  "", // print_dc_file (legacy)
-                                  save_enabled, save_type, save_file, std::move(nodeset_entries), std::move(ic_entries), replace_ground, std::move(print_params));
+    return OpSimulationParameters(print_params.has_value(), false, false, {}, "", "", save_enabled, save_type, save_file, std::move(nodeset_entries), std::move(ic_entries), replace_ground, std::move(print_params));
 }
 
 void OpParametersPanel::apply(const OpSimulationParameters& params) {

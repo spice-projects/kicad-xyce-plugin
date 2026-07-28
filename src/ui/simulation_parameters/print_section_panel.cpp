@@ -238,10 +238,9 @@ std::optional<PrintParameters> PrintSectionPanel::build_print_parameters() const
     if (fmt_sel > 0 && fmt_sel < static_cast<int>(FORMAT_VALUES.size())) {
         print_format = FORMAT_VALUES[fmt_sel];
     }
-
     // read the output file path
     wxString print_file = m_output_file_text->GetValue().Trim(true).Trim(false);
-
+    // create parameters
     return PrintParameters(std::string(print_type.ToUTF8()), std::string(print_format.ToUTF8()), std::string(print_file.ToUTF8()), std::move(output_vars), {});
 }
 

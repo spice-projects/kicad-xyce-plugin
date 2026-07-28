@@ -4,11 +4,11 @@
 #include <string>
 #include <utility>
 
-#include <wx/event.h>
 #include <wx/wxprec.h>
 
 #ifndef WX_PRECOMP
 #include <wx/dcclient.h>
+#include <wx/event.h>
 #include <wx/graphics.h>
 #include <wx/settings.h>
 #include <wx/sizer.h>
@@ -50,6 +50,7 @@ namespace
                 }
             });
         }
+
     private:
         wxColour m_color;
     };
@@ -80,8 +81,14 @@ namespace
             // add paint event handler
             Bind(wxEVT_PAINT, &ChipPanel::on_paint, this);
             // hover event handlers for visual feedback
-            Bind(wxEVT_ENTER_WINDOW, [this](wxMouseEvent&) { m_hovered = true; Refresh(); });
-            Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent&) { m_hovered = false; Refresh(); });
+            Bind(wxEVT_ENTER_WINDOW, [this](wxMouseEvent&) {
+                m_hovered = true;
+                Refresh();
+            });
+            Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent&) {
+                m_hovered = false;
+                Refresh();
+            });
         }
 
     private:
@@ -233,7 +240,7 @@ AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_ma
     // perform initial filter update
     update_filter();
     // event handlers
-    m_filter_input->Bind(wxEVT_TEXT, &AddPlotDialog::on_filter_text_changed, this);    
+    m_filter_input->Bind(wxEVT_TEXT, &AddPlotDialog::on_filter_text_changed, this);
     Bind(wxEVT_BUTTON, &AddPlotDialog::on_ok, this, wxID_OK);
 }
 

@@ -92,6 +92,7 @@ coverage.xml
 .idea
 cmake-*
 .build-debug
+.build-release
 
 /kicad-icons
 *.raw

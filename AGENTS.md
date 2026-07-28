@@ -11,8 +11,8 @@
 ## Build & Unit Tests
 
 - Build system: `cmake`
-  - Configure: `cmake --preset vcpkg`
-  - Build: `cmake --build --preset vcpkg`
+  - Configure: `cmake --preset debug`
+  - Build: `cmake --build --preset debug`
 - Unit Tests, avoid running unit tests using `ctest`. Execute unit tests by executing the process: `./.build-debug/tests/kicad-xyce-plugin-tests`
 - Unit tests must be self-contained: no helper functions, no test utilities, no external fixtures
 - Dependencies: `vcpkg`
