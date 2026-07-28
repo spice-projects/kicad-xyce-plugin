@@ -16,8 +16,8 @@
 #include <wx/textctrl.h>
 #endif
 
-#include "simulation_parameters/print_parameters.h"
 #include "print_section_panel.h"
+#include "simulation_parameters/print_parameters.h"
 
 namespace
 {
@@ -92,21 +92,22 @@ PrintSectionPanel::PrintSectionPanel(wxWindow* parent, const wxString& analysis_
     m_enable_checkbox->SetFont(enable_font);
     outer_sizer->Add(m_enable_checkbox, 0, wxALL, 0);
     // container for all controls gated by the enable checkbox
-    auto* body = new wxPanel(this, wxID_ANY);
+    m_body = new wxPanel(this, wxID_ANY);
+    // body sizer
     auto* body_sizer = new wxBoxSizer(wxVERTICAL);
     // print type combo row (conditional)
     if (m_show_print_type_combo && !m_print_types.empty()) {
         // horizontal sizer
         auto* type_row = new wxBoxSizer(wxHORIZONTAL);
         // print type
-        auto* type_label = new wxStaticText(body, wxID_ANY, "Print type");
+        auto* type_label = new wxStaticText(m_body, wxID_ANY, "Print type");
         type_row->Add(type_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
         // populate the choice with the provided print types
         wxArrayString type_choices;
         for (const auto& pt : m_print_types) {
             type_choices.Add(pt);
         }
-        m_print_type_choice = new wxChoice(body, wxID_ANY, wxDefaultPosition, wxDefaultSize, type_choices);
+        m_print_type_choice = new wxChoice(m_body, wxID_ANY, wxDefaultPosition, wxDefaultSize, type_choices);
         m_print_type_choice->SetSelection(0);
         type_row->Add(m_print_type_choice, 0, wxALL, 0);
         // add row
@@ -114,21 +115,21 @@ PrintSectionPanel::PrintSectionPanel(wxWindow* parent, const wxString& analysis_
     }
     // wildcard checkbox row
     auto* wildcard_row = new wxBoxSizer(wxHORIZONTAL);
-    m_all_nodes_checkbox = new wxCheckBox(body, wxID_ANY, "All voltages V(*)");
+    m_all_nodes_checkbox = new wxCheckBox(m_body, wxID_ANY, "All voltages V(*)");
     wildcard_row->Add(m_all_nodes_checkbox, 0, wxRIGHT, FromDIP(16));
-    m_all_currents_checkbox = new wxCheckBox(body, wxID_ANY, "All currents I(*)");
+    m_all_currents_checkbox = new wxCheckBox(m_body, wxID_ANY, "All currents I(*)");
     wildcard_row->Add(m_all_currents_checkbox, 0, wxRIGHT, FromDIP(16));
     if (m_show_power) {
-        m_power_checkbox = new wxCheckBox(body, wxID_ANY, "Power P(*)");
+        m_power_checkbox = new wxCheckBox(m_body, wxID_ANY, "Power P(*)");
         wildcard_row->Add(m_power_checkbox, 0, wxRIGHT, FromDIP(16));
     }
     body_sizer->Add(wildcard_row, 0, wxLEFT | wxTOP, FromDIP(12));
     // BJT/FET lead checkbox row (conditional)
     if (m_show_bjt_fet) {
         auto* lead_row = new wxBoxSizer(wxHORIZONTAL);
-        m_bjt_leads_checkbox = new wxCheckBox(body, wxID_ANY, "BJT leads");
+        m_bjt_leads_checkbox = new wxCheckBox(m_body, wxID_ANY, "BJT leads");
         lead_row->Add(m_bjt_leads_checkbox, 0, wxRIGHT, FromDIP(16));
-        m_fet_leads_checkbox = new wxCheckBox(body, wxID_ANY, "FET leads");
+        m_fet_leads_checkbox = new wxCheckBox(m_body, wxID_ANY, "FET leads");
         lead_row->Add(m_fet_leads_checkbox, 0, wxRIGHT, FromDIP(16));
         body_sizer->Add(lead_row, 0, wxLEFT | wxTOP, FromDIP(12));
     }
@@ -136,38 +137,46 @@ PrintSectionPanel::PrintSectionPanel(wxWindow* parent, const wxString& analysis_
     auto* detail_grid = new wxFlexGridSizer(2, FromDIP(8), FromDIP(12));
     detail_grid->AddGrowableCol(1, 1);
     // additional variables row
-    auto* vars_label = new wxStaticText(body, wxID_ANY, "Additional variables");
+    auto* vars_label = new wxStaticText(m_body, wxID_ANY, "Additional variables");
     detail_grid->Add(vars_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_specific_vars_text = new wxTextCtrl(body, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_specific_vars_text = new wxTextCtrl(m_body, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     detail_grid->Add(m_specific_vars_text, 0, wxEXPAND, 0);
     // format combo row
-    auto* format_label = new wxStaticText(body, wxID_ANY, "Format");
+    auto* format_label = new wxStaticText(m_body, wxID_ANY, "Format");
     detail_grid->Add(format_label, 0, wxALIGN_CENTER_VERTICAL, 0);
     wxArrayString format_choices;
     for (const auto& fmt : FORMAT_MODEL) {
         format_choices.Add(fmt);
     }
-    m_format_choice = new wxChoice(body, wxID_ANY, wxDefaultPosition, wxDefaultSize, format_choices);
+    m_format_choice = new wxChoice(m_body, wxID_ANY, wxDefaultPosition, wxDefaultSize, format_choices);
     m_format_choice->SetSelection(0);
     detail_grid->Add(m_format_choice, 0, wxEXPAND, 0);
     // output file row
-    auto* file_label = new wxStaticText(body, wxID_ANY, "Output file");
+    auto* file_label = new wxStaticText(m_body, wxID_ANY, "Output file");
     detail_grid->Add(file_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_output_file_text = new wxTextCtrl(body, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_output_file_text = new wxTextCtrl(m_body, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     detail_grid->Add(m_output_file_text, 0, wxEXPAND, 0);
-
     body_sizer->Add(detail_grid, 0, wxEXPAND | wxLEFT | wxTOP, FromDIP(12));
-    body->SetSizer(body_sizer);
-
-    // add body to outer sizer and indent it to align under the checkbox
-    outer_sizer->Add(body, 1, wxEXPAND | wxLEFT, FromDIP(28));
-
+    // set the body sizer and layout
+    m_body->SetSizer(body_sizer);
+    // add m_body to outer sizer and indent it to align under the checkbox
+    outer_sizer->Add(m_body, 1, wxEXPAND | wxLEFT, FromDIP(28));
+    // panel sizer
     SetSizer(outer_sizer);
+    // disable all controls at the end to have the visual effect
+    m_body->Enable(false);
+    // handlers
+    m_enable_checkbox->Bind(wxEVT_CHECKBOX, &PrintSectionPanel::on_enable_toggle, this);
+}
+
+void PrintSectionPanel::on_enable_toggle(wxCommandEvent& event) {
+    // gate all child controls on the enable checkbox state
+    m_body->Enable(event.IsChecked());
 }
 
 std::optional<PrintParameters> PrintSectionPanel::build_print_parameters() const {
     // return none when the print section is disabled
-    if (!m_enable_checkbox->GetValue()) 
+    if (!m_enable_checkbox->GetValue())
         return std::nullopt;
     // collect output variable tokens from all enabled checkboxes
     std::vector<std::string> output_vars;
@@ -189,7 +198,7 @@ std::optional<PrintParameters> PrintSectionPanel::build_print_parameters() const
         // loop bjt wildcards
         for (const auto& wc : BJT_WILDCARDS) {
             // skip when the wildcard is already present
-            if (std::find(output_vars.begin(), output_vars.end(), wc) == output_vars.end()) 
+            if (std::find(output_vars.begin(), output_vars.end(), wc) == output_vars.end())
                 output_vars.push_back(wc);
         }
     }
@@ -198,7 +207,7 @@ std::optional<PrintParameters> PrintSectionPanel::build_print_parameters() const
         // loop FET wildcards
         for (const auto& wc : FET_WILDCARDS) {
             // skip when the wildcard is already present
-            if (std::find(output_vars.begin(), output_vars.end(), wc) == output_vars.end()) 
+            if (std::find(output_vars.begin(), output_vars.end(), wc) == output_vars.end())
                 output_vars.push_back(wc);
         }
     }
@@ -248,9 +257,12 @@ std::optional<PrintParameters> PrintSectionPanel::build_print_parameters() const
 }
 
 void PrintSectionPanel::apply(const PrintParameters* params, bool has_bjt, bool has_fet) {
+    // disable the print section and reset controls to defaults
+    m_enable_checkbox->SetValue(params != nullptr);
+    // disable the body controls
+    m_body->Enable(params != nullptr);
+    // conditional logic to either clear controls or restore from saved parameters
     if (!params) {
-        // disable the print section and reset controls to defaults
-        m_enable_checkbox->SetValue(false);
         // clear the all-nodes checkbox
         m_all_nodes_checkbox->SetValue(false);
         // clear the all-currents checkbox
@@ -285,13 +297,8 @@ void PrintSectionPanel::apply(const PrintParameters* params, bool has_bjt, bool 
         }
         return;
     }
-
-    // enable the print section and restore from saved parameters
-    m_enable_checkbox->SetValue(true);
-
     // index saved output variables for quick wildcard lookup
     auto var_set = make_variable_set(params->output_variables);
-
     // restore the all-nodes wildcard checkbox
     m_all_nodes_checkbox->SetValue(var_set.count("V(*)") > 0);
     // restore the all-currents wildcard checkbox
@@ -300,15 +307,16 @@ void PrintSectionPanel::apply(const PrintParameters* params, bool has_bjt, bool 
         // restore the power wildcard checkbox
         m_power_checkbox->SetValue(var_set.count("P(*)") > 0);
     }
-
     // restore lead current checkboxes and visibility
     if (m_show_bjt_fet) {
+        // restore the BJT checkbox visibility and state
         if (m_bjt_leads_checkbox) {
             // update the BJT lead checkbox visibility
             m_bjt_leads_checkbox->Show(has_bjt);
             // restore the BJT lead checkbox state
             m_bjt_leads_checkbox->SetValue(has_any_wildcard(var_set, {"IC(*)", "IE(*)"}));
         }
+        // restore the FET checkbox visibility and state
         if (m_fet_leads_checkbox) {
             // update the FET lead checkbox visibility
             m_fet_leads_checkbox->Show(has_fet);
@@ -316,9 +324,9 @@ void PrintSectionPanel::apply(const PrintParameters* params, bool has_bjt, bool 
             m_fet_leads_checkbox->SetValue(has_any_wildcard(var_set, {"ID(*)", "IG(*)"}));
         }
     }
-
     // collect non-wildcard tokens for the specific variables text
     std::vector<std::string> specific_tokens;
+    // loop variables
     for (const auto& v : params->output_variables) {
         // skip tokens that match known wildcards
         if (WILDCARD_TOKENS.count(v) == 0) {
@@ -327,14 +335,11 @@ void PrintSectionPanel::apply(const PrintParameters* params, bool has_bjt, bool 
         }
     }
     m_specific_vars_text->SetValue(join_tokens(specific_tokens));
-
     // restore the format combo by matching the format string
     wxString fmt_str = wxString::FromUTF8(params->print_format);
     m_format_choice->SetSelection(format_index_for_string(fmt_str));
-
     // restore the output file path
     m_output_file_text->SetValue(wxString::FromUTF8(params->print_file));
-
     // restore the print type combo by matching the type string
     if (m_print_type_choice) {
         wxString type_str = wxString::FromUTF8(params->print_type);
@@ -349,7 +354,6 @@ void PrintSectionPanel::apply(const PrintParameters* params, bool has_bjt, bool 
         }
         m_print_type_choice->SetSelection(type_index);
     }
-
     // re-layout since control visibility may have changed
     Layout();
 }

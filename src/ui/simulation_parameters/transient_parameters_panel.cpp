@@ -48,9 +48,8 @@ namespace
     // resolve the combo index for a given OP keyword string; returns 0 when not found
     [[nodiscard]] int op_keyword_index_for_string(const wxString& keyword) {
         auto it = std::find(OP_KEYWORD_VALUES.begin(), OP_KEYWORD_VALUES.end(), keyword.Upper());
-        if (it == OP_KEYWORD_VALUES.end()) {
+        if (it == OP_KEYWORD_VALUES.end())
             return 0;
-        }
         return static_cast<int>(std::distance(OP_KEYWORD_VALUES.begin(), it));
     }
 
@@ -63,31 +62,26 @@ namespace
         while (std::getline(stream, line)) {
             // trim leading and trailing whitespace
             size_t start = line.find_first_not_of(" \t\r");
-            if (start == std::string::npos) {
+            if (start == std::string::npos)
                 continue;
-            }
             size_t end = line.find_last_not_of(" \t\r");
             line = line.substr(start, end - start + 1);
-            if (line.empty()) {
+            if (line.empty())
                 continue;
-            }
             // split on the first comma
             auto comma_pos = line.find(',');
-            if (comma_pos == std::string::npos) {
+            if (comma_pos == std::string::npos)
                 continue;
-            }
             std::string time_part = line.substr(0, comma_pos);
             std::string step_part = line.substr(comma_pos + 1);
             // trim each part
             auto trim = [](std::string& s) {
                 size_t b = s.find_first_not_of(" \t\r");
                 size_t e = s.find_last_not_of(" \t\r");
-                if (b == std::string::npos) {
+                if (b == std::string::npos)
                     s.clear();
-                }
-                else {
+                else
                     s = s.substr(b, e - b + 1);
-                }
             };
             trim(time_part);
             trim(step_part);
@@ -100,9 +94,8 @@ namespace
 
     // format schedule points as multi-line text, one "time, max_step" per line
     [[nodiscard]] wxString format_schedule_text(const std::vector<TransientSchedulePoint>& points) {
-        if (points.empty()) {
+        if (points.empty())
             return wxEmptyString;
-        }
         wxString result;
         for (size_t i = 0; i < points.size(); ++i) {
             if (i > 0) {

@@ -37,6 +37,8 @@ public:
     void apply(const PrintParameters* params, bool has_bjt, bool has_fet);
 
 private:
+    void on_enable_toggle(wxCommandEvent& event);
+
     wxString m_analysis_prefix;
     std::vector<wxString> m_print_types;
     bool m_show_power;
@@ -44,6 +46,7 @@ private:
     bool m_show_print_type_combo;
 
     wxCheckBox* m_enable_checkbox = nullptr;
+    wxPanel* m_body = nullptr;
     wxChoice* m_print_type_choice = nullptr;
     wxCheckBox* m_all_nodes_checkbox = nullptr;
     wxCheckBox* m_all_currents_checkbox = nullptr;

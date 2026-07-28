@@ -59,7 +59,7 @@ This document defines the code style preferences for this project.
 ### Line Breaks
 
 - One blank line between function definitions
-- One blank line between sections inside a function
+- A maximum of one blank line between sections inside a function
 - One blank line between include sections
 
 ### Misc

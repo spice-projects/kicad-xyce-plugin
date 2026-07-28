@@ -85,10 +85,79 @@ namespace
 // ========================================================================================
 
 TEST_F(PrintSectionPanelTest, default_state_is_disabled) {
-    // arrange / act
+    // arrange
     PrintSectionPanel panel(m_parent, "DC", {"DC"}, false, false, false);
+    auto* v_cb = find_cb_by_label(panel, "V(*)");
+    ASSERT_NE(v_cb, nullptr);
     // assert
     ASSERT_FALSE(panel.build_print_parameters().has_value());
+    ASSERT_FALSE(v_cb->IsEnabled());
+}
+
+TEST_F(PrintSectionPanelTest, enable_checkbox_enables_controls) {
+    // arrange
+    PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
+    auto* cb = find_cb_by_label(panel, "Enable");
+    ASSERT_NE(cb, nullptr);
+    auto* v_cb = find_cb_by_label(panel, "V(*)");
+    ASSERT_NE(v_cb, nullptr);
+    ASSERT_FALSE(v_cb->IsEnabled());
+    // act — simulate checking the enable checkbox
+    cb->SetValue(true);
+    wxCommandEvent evt(wxEVT_CHECKBOX, cb->GetId());
+    evt.SetInt(1);
+    cb->GetEventHandler()->ProcessEvent(evt);
+    // assert
+    ASSERT_TRUE(v_cb->IsEnabled());
+}
+
+TEST_F(PrintSectionPanelTest, disable_checkbox_disables_controls) {
+    // arrange
+    PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
+    auto* cb = find_cb_by_label(panel, "Enable");
+    ASSERT_NE(cb, nullptr);
+    auto* v_cb = find_cb_by_label(panel, "V(*)");
+    ASSERT_NE(v_cb, nullptr);
+    // enable first
+    cb->SetValue(true);
+    wxCommandEvent evt_on(wxEVT_CHECKBOX, cb->GetId());
+    evt_on.SetInt(1);
+    cb->GetEventHandler()->ProcessEvent(evt_on);
+    ASSERT_TRUE(v_cb->IsEnabled());
+    // act — simulate unchecking the enable checkbox
+    cb->SetValue(false);
+    wxCommandEvent evt_off(wxEVT_CHECKBOX, cb->GetId());
+    evt_off.SetInt(0);
+    cb->GetEventHandler()->ProcessEvent(evt_off);
+    // assert
+    ASSERT_FALSE(v_cb->IsEnabled());
+}
+
+TEST_F(PrintSectionPanelTest, apply_enables_controls) {
+    // arrange — apply with valid params enables the body
+    PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
+    auto* v_cb = find_cb_by_label(panel, "V(*)");
+    ASSERT_NE(v_cb, nullptr);
+    ASSERT_FALSE(v_cb->IsEnabled());
+    auto pp = PrintParameters("TRAN", "", "", {}, {});
+    // act
+    panel.apply(&pp, false, false);
+    // assert
+    ASSERT_TRUE(v_cb->IsEnabled());
+}
+
+TEST_F(PrintSectionPanelTest, apply_nullptr_disables_controls) {
+    // arrange
+    PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
+    auto pp = PrintParameters("TRAN", "", "", {}, {});
+    panel.apply(&pp, false, false);
+    auto* v_cb = find_cb_by_label(panel, "V(*)");
+    ASSERT_NE(v_cb, nullptr);
+    ASSERT_TRUE(v_cb->IsEnabled());
+    // act
+    panel.apply(nullptr, false, false);
+    // assert
+    ASSERT_FALSE(v_cb->IsEnabled());
 }
 
 TEST_F(PrintSectionPanelTest, without_bjt_fet_no_lead_checkboxes) {

@@ -69,7 +69,7 @@ TEST_F(HbParametersPanelTest, build_after_apply_returns_same_values) {
     std::map<std::string, std::string> linsol_opts;
     linsol_opts["METHOD"] = "KINSOL";
     auto print_params = PrintParameters("HB_FD", "CSV", "hb.csv", {"V(1)", "I(V1)"}, {});
-    HbSimulationParameters input({"1e6", "2e6"}, {5, 7, 9}, 100, "1,3,5", 10, true, print_params, nonlin_opts, linsol_opts);
+    HbSimulationParameters input({"1e6", "2e6"}, {5, 7, 9}, 10, "ALL", 10, true, print_params, nonlin_opts, linsol_opts);
     // act
     panel.apply(input);
     auto result = panel.build_hb_parameters();
@@ -82,9 +82,9 @@ TEST_F(HbParametersPanelTest, build_after_apply_returns_same_values) {
     EXPECT_EQ(result.harmonics[1], 7);
     EXPECT_EQ(result.harmonics[2], 9);
     ASSERT_TRUE(result.tahb.has_value());
-    EXPECT_EQ(*result.tahb, 100);
+    EXPECT_EQ(*result.tahb, 10);
     ASSERT_TRUE(result.selectharms.has_value());
-    EXPECT_EQ(*result.selectharms, "1,3,5");
+    EXPECT_EQ(*result.selectharms, "ALL");
     ASSERT_TRUE(result.startup_periods.has_value());
     EXPECT_EQ(*result.startup_periods, 10);
     EXPECT_TRUE(result.replace_ground);
