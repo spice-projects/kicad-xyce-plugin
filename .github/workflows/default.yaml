@@ -27,6 +27,9 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    env:
+      VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
+
     steps:
       - name: Checkout repository
         if: ${{ matrix.build_enabled }}
@@ -35,6 +38,15 @@ jobs:
       - name: Setup Ninja
         if: ${{ matrix.build_enabled }}
         uses: llvm/actions/install-ninja@main
+
+      - name: Restore vcpkg binary cache
+        if: ${{ matrix.build_enabled }}
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.vcpkg-cache
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
 
       - name: Setup vcpkg
         if: ${{ matrix.build_enabled }}
