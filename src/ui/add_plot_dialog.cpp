@@ -85,11 +85,20 @@ namespace
             event.Skip();
         }
     };
+
+    struct LegendItem
+    {
+        std::string label;
+        wxColour color;
+    };
+
+    LegendItem LEGEND_ITEMS[] = {{"Voltage", VOLTAGE_COLOR}, {"Current", CURRENT_COLOR}, {"Freq", FREQ_COLOR}, {"Time", TIME_COLOR}, {"Power", POWER_COLOR}, {"Misc", MISC_COLOR}};
 } // namespace
 
 AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_manager, std::vector<AnyExpression*> selected_expressions, bool allow_custom_expressions, std::function<bool(const AnyExpression*)> expression_filter) :
-    wxDialog(parent, wxID_ANY, "Select Plot Expressions", wxDefaultPosition, wxSize(560, 480), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER), m_expressions_manager(expressions_manager), m_allow_custom_expressions(allow_custom_expressions), m_expression_filter(std::move(expression_filter)) {
-
+    wxDialog(parent, wxID_ANY, "Select Plot Expressions", wxDefaultPosition, wxSize(600, 550), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER), m_expressions_manager(expressions_manager), m_allow_custom_expressions(allow_custom_expressions), m_expression_filter(std::move(expression_filter)) {
+    // min size
+    SetMinSize(wxSize(600, 550));
     // loop expressions
     for (AnyExpression* expression : m_expressions_manager->expressions()) {
         // check filter
@@ -106,115 +115,92 @@ AddPlotDialog::AddPlotDialog(wxWindow* parent, ExpressionManager* expressions_ma
             m_all_expressions.push_back({expression, name, type, is_selected});
         }
     }
-
     // create main vertical sizer
     auto main_sizer = new wxBoxSizer(wxVERTICAL);
     SetSizer(main_sizer);
-
     // create title label
     auto title_text = new wxStaticText(this, wxID_ANY, "Select one or more expressions to plot:");
     wxFont title_font = title_text->GetFont();
     title_font.SetPointSize(12);
     title_text->SetFont(title_font);
-    main_sizer->Add(title_text, 0, wxTOP | wxLEFT | wxRIGHT, 12);
-
+    main_sizer->Add(title_text, 0, wxTOP | wxLEFT | wxRIGHT, 8);
     // create search filter input
     m_filter_input = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxSize(-1, 28));
     m_filter_input->SetHint("Filter expressions...");
-    main_sizer->Add(m_filter_input, 0, wxEXPAND | wxALL, 10);
-    m_filter_input->Bind(wxEVT_TEXT, &AddPlotDialog::on_filter_text_changed, this);
-
+    main_sizer->Add(m_filter_input, 0, wxEXPAND | wxALL, 4);
     // separator
-    main_sizer->Add(new wxStaticLine(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxTOP | wxBOTTOM, 4);
-
+    main_sizer->Add(new wxStaticLine(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxBOTTOM, 2);
     // create scrollable window for grid
     m_grid_scroller = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
     m_grid_scroller->SetScrollRate(0, 10);
     main_sizer->Add(m_grid_scroller, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
-
     // create grid container panel
     m_grid_container = new wxPanel(m_grid_scroller, wxID_ANY);
-
+    // create sizer for scroller
     auto scroller_sizer = new wxBoxSizer(wxVERTICAL);
     scroller_sizer->Add(m_grid_container, 0, wxEXPAND);
     m_grid_scroller->SetSizer(scroller_sizer);
-
     // check if custom expressions are enabled
     if (m_allow_custom_expressions) {
+        // separator
+        main_sizer->Add(new wxStaticLine(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxTOP, 2);
+        // create custom expression input panel
         auto custom_panel = new wxPanel(this, wxID_ANY);
-
+        // panel sizer
         auto custom_sizer = new wxBoxSizer(wxVERTICAL);
+        custom_panel->SetSizer(custom_sizer);
+        // row sizer for input and button
         auto input_row_sizer = new wxBoxSizer(wxHORIZONTAL);
-
+        // label
         auto expr_label = new wxStaticText(custom_panel, wxID_ANY, "Expression:");
-
+        input_row_sizer->Add(expr_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
+        // input
         m_custom_input = new wxTextCtrl(custom_panel, wxID_ANY, "", wxDefaultPosition, wxSize(-1, 28), wxTE_PROCESS_ENTER);
         m_custom_input->SetHint("e.g. V(net1) / I(R1)");
-
-        m_add_button = new wxButton(custom_panel, wxID_ANY, "Add", wxDefaultPosition, wxSize(52, 28));
-
-        input_row_sizer->Add(expr_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
         input_row_sizer->Add(m_custom_input, 1, wxEXPAND | wxRIGHT, 6);
+        // button
+        m_add_button = new wxButton(custom_panel, wxID_ANY, "Add", wxDefaultPosition, wxSize(52, 28));
         input_row_sizer->Add(m_add_button, 0, wxALIGN_CENTER_VERTICAL);
-
-        custom_sizer->Add(input_row_sizer, 0, wxEXPAND | wxALL, 10);
-
+        // append input row sizer to custom sizer with padding
+        custom_sizer->Add(input_row_sizer, 0, wxEXPAND | wxALL, 6);
         // create error label
         m_error_label = new wxStaticText(custom_panel, wxID_ANY, "");
-        custom_sizer->Add(m_error_label, 0, wxLEFT | wxRIGHT | wxBOTTOM, 6);
-
-        custom_panel->SetSizer(custom_sizer);
+        custom_sizer->Add(m_error_label, 0, wxLEFT | wxRIGHT | wxBOTTOM, 2);
+        m_error_label->Show(false);
+        custom_sizer->Show(m_error_label, false);
+        // append custom panel to main sizer with padding
         main_sizer->Add(custom_panel, 0, wxEXPAND);
-
+        // bind events for adding custom expressions
         m_add_button->Bind(wxEVT_BUTTON, &AddPlotDialog::on_add_custom, this);
         m_custom_input->Bind(wxEVT_TEXT_ENTER, &AddPlotDialog::on_add_custom, this);
     }
-
     // separator
-    main_sizer->Add(new wxStaticLine(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxTOP | wxBOTTOM, 4);
-
-    // create bottom panel for legend and action buttons
-    auto bottom_panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 50));
-    auto bottom_sizer = new wxBoxSizer(wxHORIZONTAL);
-
-    // create legend horizontal sizer
+    main_sizer->Add(new wxStaticLine(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL), 0, wxEXPAND | wxTOP, 2);
+    // legend panel
+    auto legend_panel = new wxPanel(this, wxID_ANY);
+    main_sizer->Add(legend_panel, 0, wxEXPAND | wxLEFT, 12);
+    // legend sizer
     auto legend_sizer = new wxBoxSizer(wxHORIZONTAL);
-    struct LegendItem
-    {
-        std::string label;
-        wxColour color;
-    };
-    std::vector<LegendItem> legend_items = {{"Voltage", VOLTAGE_COLOR}, {"Current", CURRENT_COLOR}, {"Freq", FREQ_COLOR}, {"Time", TIME_COLOR}, {"Power", POWER_COLOR}, {"Misc", MISC_COLOR}};
-
-    for (const auto& item : legend_items) {
-        auto dot = new wxPanel(bottom_panel, wxID_ANY, wxDefaultPosition, wxSize(6, 6));
+    legend_panel->SetSizer(legend_sizer);
+    // legend items
+    for (const auto& item : LEGEND_ITEMS) {
+        // create color dot
+        auto dot = new wxPanel(legend_panel, wxID_ANY, wxDefaultPosition, wxSize(6, 6));
         dot->SetBackgroundColour(item.color);
-        auto lbl = new wxStaticText(bottom_panel, wxID_ANY, item.label);
+        legend_sizer->Add(dot, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+        // label for the legend item
+        auto lbl = new wxStaticText(legend_panel, wxID_ANY, item.label);
         wxFont legend_font = lbl->GetFont();
         legend_font.SetPointSize(9);
-        lbl->SetFont(legend_font);
-
-        legend_sizer->Add(dot, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+        lbl->SetFont(legend_font);       
         legend_sizer->Add(lbl, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
     }
-
-    bottom_sizer->Add(legend_sizer, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, 12);
-
-    // create cancel and ok buttons
-    auto cancel_btn = new wxButton(bottom_panel, wxID_CANCEL, "Cancel", wxDefaultPosition, wxSize(80, 28));
-
-    auto ok_btn = new wxButton(bottom_panel, wxID_OK, "OK", wxDefaultPosition, wxSize(80, 28));
-
-    bottom_sizer->Add(cancel_btn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
-    bottom_sizer->Add(ok_btn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
-
-    bottom_panel->SetSizer(bottom_sizer);
-    main_sizer->Add(bottom_panel, 0, wxEXPAND);
-
+    // create standard OK/Cancel button sizer using platform conventions
+    main_sizer->Add(CreateButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 12);
     // perform initial filter update
     update_filter();
-
-    // bind ok button event
+    // event handlers
+    m_filter_input->Bind(wxEVT_TEXT, &AddPlotDialog::on_filter_text_changed, this);    
     Bind(wxEVT_BUTTON, &AddPlotDialog::on_ok, this, wxID_OK);
 }
 
@@ -320,9 +306,13 @@ void AddPlotDialog::on_add_custom(wxCommandEvent&) {
     std::string text = input_wx.ToStdString();
     // evaluate expression
     AnyExpression* expression = m_expressions_manager->evaluate(text, text);
+    auto* error_sizer = m_error_label->GetContainingSizer();
     if (expression == nullptr) {
         // show error message
         m_error_label->SetLabel("Invalid expression");
+        m_error_label->Show(true);
+        if (error_sizer != nullptr)
+            error_sizer->Show(m_error_label, true);
         // refresh layout
         Layout();
         // exit
@@ -330,6 +320,9 @@ void AddPlotDialog::on_add_custom(wxCommandEvent&) {
     }
     // reset error message
     m_error_label->SetLabel("");
+    m_error_label->Show(false);
+    if (error_sizer != nullptr)
+        error_sizer->Show(m_error_label, false);
     // refresh layout
     Layout();
     // search existing item
