@@ -137,15 +137,8 @@ SimulationParametersDialog::SimulationParametersDialog(wxWindow* parent, const S
     // main vertical sizer for the entire dialog
     auto* main_sizer = new wxBoxSizer(wxVERTICAL);
 
-    // scrollable container for the sidebar/book, sensitivity section, and step
-    // parameters box so their content stays reachable even when the dialog is
-    // resized smaller than the combined content height
-    m_scroll_window = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL | wxBORDER_NONE);
-    m_scroll_window->SetScrollRate(0, FromDIP(10));
-    auto* scroll_sizer = new wxBoxSizer(wxVERTICAL);
-
     // --- top area: TabbedPanel (sidebar + content pages) ---
-    m_tabbed_panel = new TabbedPanel(m_scroll_window);
+    m_tabbed_panel = new TabbedPanel(this);
     // .op
     m_tabbed_panel->add_tab(".OP", create_op_parameters_panel(m_tabbed_panel));
     // .tran
@@ -164,12 +157,7 @@ SimulationParametersDialog::SimulationParametersDialog(wxWindow* parent, const S
     // notify the dialog when the page changes
     m_tabbed_panel->Bind(wxEVT_BOOKCTRL_PAGE_CHANGED, [this](wxCommandEvent& evt) { on_page_changed(evt); });
 
-    scroll_sizer->Add(m_tabbed_panel, 1, wxEXPAND);
-
-    // attach the scroll sizer and add the scroll window to the main layout;
-    // it grows to fill available space and scrolls when content overflows
-    m_scroll_window->SetSizer(scroll_sizer);
-    main_sizer->Add(m_scroll_window, 1, wxEXPAND);
+    main_sizer->Add(m_tabbed_panel, 1, wxEXPAND);
 
     // error label + buttons
     auto* footer_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -213,11 +201,6 @@ SimulationParametersDialog::SimulationParametersDialog(wxWindow* parent, const S
     m_tabbed_panel->set_selection(initial_page);
 
     Layout();
-    m_scroll_window->FitInside();
-    // re-layout the scroll window's content now that FitInside() may have
-    // shown/resized the vertical scrollbar; otherwise content is sized for
-    // the pre-scrollbar width and overruns into the scrollbar on the right
-    m_scroll_window->Layout();
     Refresh();
 }
 
@@ -359,14 +342,6 @@ wxPanel* SimulationParametersDialog::create_lin_parameters_panel(wxWindow* paren
 void SimulationParametersDialog::on_page_changed(wxCommandEvent&) {
     int page = m_tabbed_panel->get_selection();
     m_analysis_type = std::string(PAGE_ANALYSIS_TYPES[page].ToUTF8());
-
-    m_scroll_window->Layout();
-    // recompute the virtual (scrollable) size since different tabs may have
-    // different content heights
-    m_scroll_window->FitInside();
-    // re-layout again since FitInside() may have shown/hidden the vertical
-    // scrollbar, changing the width available to the content
-    m_scroll_window->Layout();
     Layout();
 }
 

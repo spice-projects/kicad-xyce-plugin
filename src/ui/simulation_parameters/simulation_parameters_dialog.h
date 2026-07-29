@@ -53,11 +53,6 @@ private:
 
     [[nodiscard]] SimulationConfig build_preview_config() const;
 
-    // scrollable container for the tabbed panel, sensitivity section, and step
-    // parameters so their content is always reachable even when the dialog is
-    // too small to show everything at once
-    wxScrolledWindow* m_scroll_window = nullptr;
-
     // tabbed panel with sidebar toggle buttons and pages
     TabbedPanel* m_tabbed_panel = nullptr;
 
