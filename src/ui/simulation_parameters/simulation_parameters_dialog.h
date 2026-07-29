@@ -41,10 +41,6 @@ public:
 private:
     void on_page_changed(wxCommandEvent& event);
 
-    void on_apply(wxCommandEvent& event);
-
-    void on_cancel(wxCommandEvent& event);
-
     void apply_config(const SimulationConfig& config);
 
     [[nodiscard]] SimulationConfig build_preview_config() const;

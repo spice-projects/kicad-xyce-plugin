@@ -261,14 +261,9 @@ SimulationParametersDialog::SimulationParametersDialog(wxWindow* parent, const S
     m_error_label->SetForegroundColour(wxColour("#CC0000"));
     footer_sizer->Add(m_error_label, 1, wxALIGN_CENTER_VERTICAL, 0);
 
-    auto* cancel_btn = new wxButton(this, wxID_CANCEL, "Cancel");
-    cancel_btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent& evt) { on_cancel(evt); });
-    footer_sizer->Add(cancel_btn, 0, wxLEFT, FromDIP(8));
-
-    auto* apply_btn = new wxButton(this, wxID_OK, "Apply");
-    apply_btn->SetDefault();
-    apply_btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent& evt) { on_apply(evt); });
-    footer_sizer->Add(apply_btn, 0, wxLEFT, FromDIP(8));
+    auto* button_sizer = CreateStdDialogButtonSizer(wxAPPLY | wxCANCEL);
+    Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { EndModal(wxID_OK); }, wxID_APPLY);
+    footer_sizer->Add(button_sizer, 0, wxLEFT, FromDIP(8));
 
     main_sizer->Add(footer_sizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
 
@@ -334,16 +329,6 @@ void SimulationParametersDialog::on_page_changed(wxCommandEvent&) {
     Layout();
 }
 
-void SimulationParametersDialog::on_apply(wxCommandEvent&) {
-    try {
-        EndModal(wxID_OK);
-    }
-    catch (const std::exception& e) {
-        m_error_label->SetLabel(wxString::FromUTF8(e.what()));
-    }
-}
-
-void SimulationParametersDialog::on_cancel(wxCommandEvent&) { EndModal(wxID_CANCEL); }
 
 SimulationConfig SimulationParametersDialog::build_preview_config() const {
     int page = m_simplebook->GetSelection();
