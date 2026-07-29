@@ -37,66 +37,112 @@
 #include "simulation_parameters_dialog.h"
 #include "transient_parameters_panel.h"
 
+class TabbedPanel : public wxPanel
+{
+public:
+    explicit TabbedPanel(wxWindow* parent) :
+        wxPanel(parent) {
+        // main horizontal layout: sidebar on the left, content area on the right
+        m_main_sizer = new wxBoxSizer(wxHORIZONTAL);
+        // vertical sidebar holding toggle buttons for each tab
+        m_sidebar_sizer = new wxBoxSizer(wxVERTICAL);
+        m_main_sizer->Add(m_sidebar_sizer, 0, wxEXPAND | wxLEFT | wxTOP | wxBOTTOM, FromDIP(8));
+        // top padding above the first toggle button
+        m_sidebar_sizer->Add(0, FromDIP(8), 0, 0);
+        // content area that shows the selected page
+        m_simplebook = new wxSimplebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
+        m_main_sizer->Add(m_simplebook, 1, wxEXPAND | wxALL, FromDIP(8));
+        // set the main sizer for this panel
+        SetSizer(m_main_sizer);
+    }
+
+    wxToggleButton* add_tab(const wxString& label, wxWindow* page) {
+        // sidebar toggle button for this tab
+        auto* btn = new wxToggleButton(this, wxID_ANY, label, wxDefaultPosition, wxSize(FromDIP(72), FromDIP(36)));
+        btn->SetMinSize(wxSize(FromDIP(72), FromDIP(36)));
+        m_sidebar_sizer->Add(btn, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(4));
+        // wrap the page in a scrollable container so content can scroll vertically when the dialog is too short
+        auto* scroll = new wxScrolledWindow(m_simplebook, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL | wxBORDER_NONE);
+        scroll->SetScrollRate(0, FromDIP(10));
+        auto* scroll_sizer = new wxBoxSizer(wxVERTICAL);
+        page->Reparent(scroll);
+        // add the page to the scrollable container and let it expand to fill the available width
+        scroll_sizer->Add(page, 1, wxEXPAND);
+        scroll->SetSizer(scroll_sizer);
+        scroll->FitInside();
+        // register the button and page at the current index
+        size_t index = m_sidebar_buttons.size();
+        m_sidebar_buttons.push_back(btn);
+        m_simplebook->AddPage(scroll, label);
+        // switch to this tab on click, deselect all others, and notify parent
+        btn->Bind(wxEVT_TOGGLEBUTTON, [this, index](wxCommandEvent&) {
+            // toggle the selected button on and all others off
+            for (size_t j = 0; j < m_sidebar_buttons.size(); ++j)
+                m_sidebar_buttons[j]->SetValue(j == index);
+            // show the corresponding page
+            m_simplebook->SetSelection(static_cast<int>(index));
+            // create event and send to parent
+            wxCommandEvent event(wxEVT_BOOKCTRL_PAGE_CHANGED, GetId());
+            event.SetInt(static_cast<int>(index));
+            event.SetEventObject(this);
+            ProcessEvent(event);
+        });
+        return btn;
+    }
+
+    [[nodiscard]] int get_selection() const { return m_simplebook->GetSelection(); }
+
+    void set_selection(size_t index) {
+        // validate index and switch to the corresponding tab if valid
+        if (index < m_sidebar_buttons.size()) {
+            // toggle the selected button on and all others off
+            for (size_t j = 0; j < m_sidebar_buttons.size(); ++j)
+                m_sidebar_buttons[j]->SetValue(j == index);
+            // show the corresponding page
+            m_simplebook->SetSelection(static_cast<int>(index));
+            // create event
+            wxCommandEvent event(wxEVT_BOOKCTRL_PAGE_CHANGED, GetId());
+            event.SetInt(static_cast<int>(index));
+            event.SetEventObject(this);
+            // send event to parent
+            ProcessEvent(event);
+        }
+    }
+
+private:
+    wxBoxSizer* m_main_sizer = nullptr;
+    wxBoxSizer* m_sidebar_sizer = nullptr;
+    wxSimplebook* m_simplebook = nullptr;
+    std::vector<wxToggleButton*> m_sidebar_buttons;
+};
+
+class SensitivityAwarePanel : public wxPanel
+{
+public:
+    SensitivityAwarePanel(wxWindow* parent, wxWindow* inner_panel) :
+        wxPanel(parent) {
+        // vertical stack: inner panel on top, sensitivity section below
+        auto* sizer = new wxBoxSizer(wxVERTICAL);
+        // reparent the inner simulation panel into this wrapper
+        inner_panel->Reparent(this);
+        // let the inner panel grow to fill available horizontal space
+        sizer->Add(inner_panel, 1, wxEXPAND);
+        // sensitivity section sits below the inner panel
+        m_sensitivity = new SensitivitySectionPanel(this);
+        sizer->Add(m_sensitivity, 0, wxEXPAND | wxTOP, FromDIP(8));
+        // attach the sizer
+        SetSizer(sizer);
+    }
+
+    [[nodiscard]] SensitivitySectionPanel* get_sensitivity() const { return m_sensitivity; }
+
+private:
+    // embedded sensitivity controls for this tab
+    SensitivitySectionPanel* m_sensitivity = nullptr;
+};
+
 namespace
 {
-    class TabbedPanel : public wxPanel
-    {
-    public:
-        explicit TabbedPanel(wxWindow* parent) :
-            wxPanel(parent) {
-            // main horizontal layout: sidebar on the left, content area on the right
-            m_main_sizer = new wxBoxSizer(wxHORIZONTAL);
-            // vertical sidebar holding toggle buttons for each tab
-            m_sidebar_sizer = new wxBoxSizer(wxVERTICAL);
-            m_main_sizer->Add(m_sidebar_sizer, 0, wxEXPAND | wxLEFT | wxTOP | wxBOTTOM, FromDIP(8));
-            // top padding above the first toggle button
-            m_sidebar_sizer->Add(0, FromDIP(8), 0, 0);
-            // content area that shows the selected page
-            m_simplebook = new wxSimplebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
-            m_main_sizer->Add(m_simplebook, 1, wxEXPAND | wxALL, FromDIP(8));
-            // set the main sizer for this panel
-            SetSizer(m_main_sizer);
-        }
-
-        wxToggleButton* add_tab(const wxString& label, wxWindow* page) {
-            // sidebar toggle button for this tab
-            auto* btn = new wxToggleButton(this, wxID_ANY, label, wxDefaultPosition, wxSize(FromDIP(72), FromDIP(36)));
-            btn->SetMinSize(wxSize(FromDIP(72), FromDIP(36)));
-            m_sidebar_sizer->Add(btn, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(4));
-            // register the button and page at the current index
-            size_t index = m_sidebar_buttons.size();
-            m_sidebar_buttons.push_back(btn);
-            m_simplebook->AddPage(page, label);
-            // switch to this tab on click, deselect all others
-            btn->Bind(wxEVT_TOGGLEBUTTON, [this, index](wxCommandEvent&) {
-                for (size_t j = 0; j < m_sidebar_buttons.size(); ++j) {
-                    m_sidebar_buttons[j]->SetValue(j == index);
-                }
-                m_simplebook->SetSelection(static_cast<int>(index));
-            });
-            return btn;
-        }
-
-        [[nodiscard]] int get_selection() const { return m_simplebook->GetSelection(); }
-
-        void set_selection(size_t index) {
-            // validate index and switch to the corresponding tab if valid
-            if (index < m_sidebar_buttons.size()) {
-                // toggle the selected button on and all others off
-                for (size_t j = 0; j < m_sidebar_buttons.size(); ++j)
-                    m_sidebar_buttons[j]->SetValue(j == index);
-                // show the corresponding page
-                m_simplebook->SetSelection(static_cast<int>(index));
-            }
-        }
-
-    private:
-        wxBoxSizer* m_main_sizer = nullptr;
-        wxBoxSizer* m_sidebar_sizer = nullptr;
-        wxSimplebook* m_simplebook = nullptr;
-        std::vector<wxToggleButton*> m_sidebar_buttons;
-    };
-
     // page indices matching sidebar button order
     static constexpr int PAGE_OP = 0;
     static constexpr int PAGE_TRAN = 1;
@@ -108,9 +154,6 @@ namespace
 
     // analysis type strings for each page
     static const std::vector<wxString> PAGE_ANALYSIS_TYPES = {"OP", "TRAN", "DC", "AC", "NOISE", "HB", "LIN"};
-
-    // analysis types that support sensitivity section
-    static constexpr bool PAGE_HAS_SENSITIVITY[] = {false, true, true, true, false, false, false};
 
     // sweep mode choices for step parameters
     static const std::vector<wxString> STEP_SWEEP_MODES = {"LIN", "DEC", "OCT", "LIST", "DATA"};
@@ -157,75 +200,27 @@ SimulationParametersDialog::SimulationParametersDialog(wxWindow* parent, const S
     m_scroll_window->SetScrollRate(0, FromDIP(10));
     auto* scroll_sizer = new wxBoxSizer(wxVERTICAL);
 
-    // --- top area: sidebar + simplebook ---
-    auto* top_sizer = new wxBoxSizer(wxHORIZONTAL);
-
-    // sidebar with toggle buttons
-    auto* sidebar_sizer = new wxBoxSizer(wxVERTICAL);
-    sidebar_sizer->Add(0, FromDIP(8), 0, 0);
-
-    auto add_sidebar_button = [&](const wxString& label, wxToggleButton*& btn) {
-        btn = new wxToggleButton(m_scroll_window, wxID_ANY, label, wxDefaultPosition, wxSize(FromDIP(72), FromDIP(36)));
-        btn->SetMinSize(wxSize(FromDIP(72), FromDIP(36)));
-        sidebar_sizer->Add(btn, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(4));
-        m_sidebar_buttons.push_back(btn);
-        btn->Bind(wxEVT_TOGGLEBUTTON, [this, label](wxCommandEvent& evt) {
-            // find the page index for this button
-            for (size_t i = 0; i < PAGE_ANALYSIS_TYPES.size(); ++i) {
-                if (PAGE_ANALYSIS_TYPES[i] == label) {
-                    // toggle this button on, all others off
-                    for (size_t j = 0; j < m_sidebar_buttons.size(); ++j) {
-                        m_sidebar_buttons[j]->SetValue(j == i);
-                    }
-                    m_simplebook->SetSelection(static_cast<int>(i));
-                    on_page_changed(evt);
-                    break;
-                }
-            }
-        });
-    };
-
-    add_sidebar_button(".OP", m_op_button);
-    add_sidebar_button(".TRAN", m_tran_button);
-    add_sidebar_button(".DC", m_dc_button);
-    add_sidebar_button(".AC", m_ac_button);
-    add_sidebar_button(".NOISE", m_noise_button);
-    add_sidebar_button(".HB", m_hb_button);
-    add_sidebar_button(".LIN", m_lin_button);
-
-    sidebar_sizer->AddStretchSpacer();
-    top_sizer->Add(sidebar_sizer, 0, wxEXPAND | wxLEFT | wxTOP | wxBOTTOM, FromDIP(8));
-
-    // simplebook with analysis panels
-    m_simplebook = new wxSimplebook(m_scroll_window, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
+    // --- top area: TabbedPanel (sidebar + content pages) ---
+    m_tabbed_panel = new TabbedPanel(m_scroll_window);
     // .op
-    m_op_panel = new OpParametersPanel(m_simplebook);
-    m_simplebook->AddPage(m_op_panel, "OP");
+    m_tabbed_panel->add_tab(".OP", create_op_parameters_panel(m_tabbed_panel));
     // .tran
-    m_tran_panel = new TransientParametersPanel(m_simplebook);
-    m_simplebook->AddPage(m_tran_panel, "TRAN");
+    m_tabbed_panel->add_tab(".TRAN", create_transient_parameters_panel(m_tabbed_panel));
     // .dc
-    m_dc_panel = new DcParametersPanel(m_simplebook);
-    m_simplebook->AddPage(m_dc_panel, "DC");
+    m_tabbed_panel->add_tab(".DC", create_dc_parameters_panel(m_tabbed_panel));
     // .ac
-    m_ac_panel = new AcParametersPanel(m_simplebook);
-    m_simplebook->AddPage(m_ac_panel, "AC");
+    m_tabbed_panel->add_tab(".AC", create_ac_parameters_panel(m_tabbed_panel));
     // .noise
-    m_noise_panel = new NoiseParametersPanel(m_simplebook);
-    m_simplebook->AddPage(m_noise_panel, "NOISE");
+    m_tabbed_panel->add_tab(".NOISE", create_noise_parameters_panel(m_tabbed_panel));
     // .hb
-    m_hb_panel = new HbParametersPanel(m_simplebook);
-    m_simplebook->AddPage(m_hb_panel, "HB");
+    m_tabbed_panel->add_tab(".HB", create_hb_parameters_panel(m_tabbed_panel));
     // .lin
-    m_lin_panel = new LinParametersPanel(m_simplebook);
-    m_simplebook->AddPage(m_lin_panel, "LIN");
+    m_tabbed_panel->add_tab(".LIN", create_lin_parameters_panel(m_tabbed_panel));
 
-    top_sizer->Add(m_simplebook, 1, wxEXPAND | wxALL, FromDIP(8));
+    // notify the dialog when the page changes
+    m_tabbed_panel->Bind(wxEVT_BOOKCTRL_PAGE_CHANGED, [this](wxCommandEvent& evt) { on_page_changed(evt); });
 
-    scroll_sizer->Add(top_sizer, 1, wxEXPAND);
-
-    // --- sensitivity section (shown for TRAN/DC/AC only) ---
-    m_sensitivity_section = new SensitivitySectionPanel(m_scroll_window);
+    scroll_sizer->Add(m_tabbed_panel, 1, wxEXPAND);
 
     // --- step parameters section ---
     auto* step_box = new wxStaticBoxSizer(wxVERTICAL, m_scroll_window, "Step Parameters (.STEP)");
@@ -298,16 +293,7 @@ SimulationParametersDialog::SimulationParametersDialog(wxWindow* parent, const S
     step_sizer->Add(step_grid, 0, wxEXPAND | wxLEFT, FromDIP(16));
     step_box->Add(step_sizer, 0, wxEXPAND | wxALL, FromDIP(8));
 
-    // wrap sensitivity and step sections in a horizontal sizer with a left
-    // spacer matching the sidebar width so they align with the simplebook
-    // page content instead of starting at the far left edge
-    auto* content_row = new wxBoxSizer(wxHORIZONTAL);
-    content_row->Add(FromDIP(96), 0, 0, 0); // sidebar width + padding offset
-    auto* content_col = new wxBoxSizer(wxVERTICAL);
-    content_col->Add(m_sensitivity_section, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
-    content_col->Add(step_box, 0, wxEXPAND);
-    content_row->Add(content_col, 1, wxEXPAND);
-    scroll_sizer->Add(content_row, 0, wxEXPAND | wxRIGHT | wxBOTTOM, FromDIP(8));
+    scroll_sizer->Add(step_box, 0, wxEXPAND | wxRIGHT | wxBOTTOM, FromDIP(8));
 
     // attach the scroll sizer and add the scroll window to the main layout;
     // it grows to fill available space and scrolls when content overflows
@@ -353,14 +339,7 @@ SimulationParametersDialog::SimulationParametersDialog(wxWindow* parent, const S
         initial_page = PAGE_LIN;
     }
 
-    m_simplebook->SetSelection(initial_page);
-    for (size_t i = 0; i < m_sidebar_buttons.size(); ++i) {
-        m_sidebar_buttons[i]->SetValue(static_cast<int>(i) == initial_page);
-    }
-
-    // fire initial page-changed setup
-    wxCommandEvent dummy;
-    on_page_changed(dummy);
+    m_tabbed_panel->set_selection(initial_page);
 
     Layout();
     m_scroll_window->FitInside();
@@ -371,17 +350,62 @@ SimulationParametersDialog::SimulationParametersDialog(wxWindow* parent, const S
     Refresh();
 }
 
+wxPanel* SimulationParametersDialog::create_transient_parameters_panel(wxWindow* parent) {
+    m_tran_panel = new TransientParametersPanel(parent);
+    auto* wrapper = new SensitivityAwarePanel(parent, m_tran_panel);
+    m_tran_sensitivity = wrapper->get_sensitivity();
+    return wrapper;
+}
+
+wxPanel* SimulationParametersDialog::create_op_parameters_panel(wxWindow* parent) {
+    // create panel
+    m_op_panel = new OpParametersPanel(parent);
+    // exit
+    return m_op_panel;
+}
+
+wxPanel* SimulationParametersDialog::create_dc_parameters_panel(wxWindow* parent) {
+    m_dc_panel = new DcParametersPanel(parent);
+    auto* wrapper = new SensitivityAwarePanel(parent, m_dc_panel);
+    m_dc_sensitivity = wrapper->get_sensitivity();
+    return wrapper;
+}
+
+wxPanel* SimulationParametersDialog::create_ac_parameters_panel(wxWindow* parent) {
+    m_ac_panel = new AcParametersPanel(parent);
+    auto* wrapper = new SensitivityAwarePanel(parent, m_ac_panel);
+    m_ac_sensitivity = wrapper->get_sensitivity();
+    return wrapper;
+}
+
+wxPanel* SimulationParametersDialog::create_noise_parameters_panel(wxWindow* parent) {
+    // create panel
+    m_noise_panel = new NoiseParametersPanel(parent);
+    // exit
+    return m_noise_panel;
+}
+
+wxPanel* SimulationParametersDialog::create_hb_parameters_panel(wxWindow* parent) {
+    // create panel
+    m_hb_panel = new HbParametersPanel(parent);
+    // exit
+    return m_hb_panel;
+}
+
+wxPanel* SimulationParametersDialog::create_lin_parameters_panel(wxWindow* parent) {
+    // create panel
+    m_lin_panel = new LinParametersPanel(parent);
+    // exit
+    return m_lin_panel;
+}
+
 void SimulationParametersDialog::on_page_changed(wxCommandEvent&) {
-    int page = m_simplebook->GetSelection();
+    int page = m_tabbed_panel->get_selection();
     m_analysis_type = std::string(PAGE_ANALYSIS_TYPES[page].ToUTF8());
 
-    // show/hide sensitivity section based on current page
-    bool show_sensitivity = (page >= 0 && page < 7 && PAGE_HAS_SENSITIVITY[page]);
-    m_sensitivity_section->Show(show_sensitivity);
-
     m_scroll_window->Layout();
-    // recompute the virtual (scrollable) size since showing/hiding the
-    // sensitivity section changes the total content height
+    // recompute the virtual (scrollable) size since different tabs may have
+    // different content heights
     m_scroll_window->FitInside();
     // re-layout again since FitInside() may have shown/hidden the vertical
     // scrollbar, changing the width available to the content
@@ -390,7 +414,7 @@ void SimulationParametersDialog::on_page_changed(wxCommandEvent&) {
 }
 
 SimulationConfig SimulationParametersDialog::build_preview_config() const {
-    int page = m_simplebook->GetSelection();
+    int page = m_tabbed_panel->get_selection();
     std::string analysis_type = std::string(PAGE_ANALYSIS_TYPES[page].ToUTF8());
     std::variant<std::monostate, AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, TransientSimulationParameters> analysis = std::monostate{};
 
@@ -400,21 +424,21 @@ SimulationConfig SimulationParametersDialog::build_preview_config() const {
         break;
     case PAGE_TRAN: {
         auto params = m_tran_panel->build_transient_parameters();
-        auto sens = m_sensitivity_section->build_sens_parameter("TRAN");
+        auto sens = m_tran_sensitivity->build_sens_parameter("TRAN");
         params.sensitivity = std::move(sens);
         analysis = std::move(params);
         break;
     }
     case PAGE_DC: {
         auto params = m_dc_panel->build_dc_parameters();
-        auto sens = m_sensitivity_section->build_sens_parameter("DC");
+        auto sens = m_dc_sensitivity->build_sens_parameter("DC");
         params.sensitivity = std::move(sens);
         analysis = std::move(params);
         break;
     }
     case PAGE_AC: {
         auto params = m_ac_panel->build_ac_parameters();
-        auto sens = m_sensitivity_section->build_sens_parameter("AC");
+        auto sens = m_ac_sensitivity->build_sens_parameter("AC");
         params.sensitivity = std::move(sens);
         analysis = std::move(params);
         break;
@@ -488,8 +512,10 @@ void SimulationParametersDialog::apply_config(const SimulationConfig& config) {
     m_hb_panel->apply(HbSimulationParameters({}, {}, std::nullopt, std::nullopt, std::nullopt, false, std::nullopt, {}, {}));
     m_lin_panel->apply(LinSimulationParameters(false, "", "", "", "", "", "", "", "", "", "", "", false, std::nullopt));
 
-    // reset sensitivity section
-    m_sensitivity_section->apply(nullptr);
+    // reset per-tab sensitivity sections
+    m_tran_sensitivity->apply(nullptr);
+    m_dc_sensitivity->apply(nullptr);
+    m_ac_sensitivity->apply(nullptr);
 
     // apply the matching analysis type
     if (std::holds_alternative<OpSimulationParameters>(config.analysis)) {
@@ -499,21 +525,21 @@ void SimulationParametersDialog::apply_config(const SimulationConfig& config) {
         const auto& params = std::get<TransientSimulationParameters>(config.analysis);
         m_tran_panel->apply(params);
         if (params.sensitivity) {
-            m_sensitivity_section->apply(&*params.sensitivity);
+            m_tran_sensitivity->apply(&*params.sensitivity);
         }
     }
     else if (std::holds_alternative<DCSimulationParameters>(config.analysis)) {
         const auto& params = std::get<DCSimulationParameters>(config.analysis);
         m_dc_panel->apply(params);
         if (params.sensitivity) {
-            m_sensitivity_section->apply(&*params.sensitivity);
+            m_dc_sensitivity->apply(&*params.sensitivity);
         }
     }
     else if (std::holds_alternative<AcSimulationParameters>(config.analysis)) {
         const auto& params = std::get<AcSimulationParameters>(config.analysis);
         m_ac_panel->apply(params);
         if (params.sensitivity) {
-            m_sensitivity_section->apply(&*params.sensitivity);
+            m_ac_sensitivity->apply(&*params.sensitivity);
         }
     }
     else if (std::holds_alternative<NoiseSimulationParameters>(config.analysis)) {
