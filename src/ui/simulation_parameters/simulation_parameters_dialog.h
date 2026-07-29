@@ -26,6 +26,7 @@
 #include "noise_parameters_panel.h"
 #include "op_parameters_panel.h"
 #include "sensitivity_section_panel.h"
+#include "step_parameters_panel.h"
 #include "transient_parameters_panel.h"
 
 class TabbedPanel;
@@ -52,10 +53,6 @@ private:
 
     [[nodiscard]] SimulationConfig build_preview_config() const;
 
-    [[nodiscard]] StepParameters read_step_parameters() const;
-
-    void apply_step_parameters(const StepParameters& params);
-
     // scrollable container for the tabbed panel, sensitivity section, and step
     // parameters so their content is always reachable even when the dialog is
     // too small to show everything at once
@@ -78,16 +75,14 @@ private:
     SensitivitySectionPanel* m_dc_sensitivity = nullptr;
     SensitivitySectionPanel* m_ac_sensitivity = nullptr;
 
-    // step parameters section
-    wxCheckBox* m_step_enable_cb = nullptr;
-    wxChoice* m_step_sweep_mode_choice = nullptr;
-    wxTextCtrl* m_step_variable_text = nullptr;
-    wxTextCtrl* m_step_start_text = nullptr;
-    wxTextCtrl* m_step_stop_text = nullptr;
-    wxTextCtrl* m_step_step_text = nullptr;
-    wxTextCtrl* m_step_points_text = nullptr;
-    wxTextCtrl* m_step_list_values_text = nullptr;
-    wxTextCtrl* m_step_data_table_text = nullptr;
+    // step parameters per tab
+    StepParametersPanel* m_op_step_params = nullptr;
+    StepParametersPanel* m_tran_step_params = nullptr;
+    StepParametersPanel* m_dc_step_params = nullptr;
+    StepParametersPanel* m_ac_step_params = nullptr;
+    StepParametersPanel* m_noise_step_params = nullptr;
+    StepParametersPanel* m_hb_step_params = nullptr;
+    StepParametersPanel* m_lin_step_params = nullptr;
 
     // footer
     wxStaticText* m_error_label = nullptr;

@@ -37,6 +37,22 @@
 #include "simulation_parameters_dialog.h"
 #include "transient_parameters_panel.h"
 
+namespace
+{
+    // page indices matching sidebar button order
+    static constexpr int PAGE_OP = 0;
+    static constexpr int PAGE_TRAN = 1;
+    static constexpr int PAGE_DC = 2;
+    static constexpr int PAGE_AC = 3;
+    static constexpr int PAGE_NOISE = 4;
+    static constexpr int PAGE_HB = 5;
+    static constexpr int PAGE_LIN = 6;
+
+    // analysis type strings for each page
+    static const std::vector<wxString> PAGE_ANALYSIS_TYPES = {"OP", "TRAN", "DC", "AC", "NOISE", "HB", "LIN"};
+
+} // namespace
+
 class TabbedPanel : public wxPanel
 {
 public:
@@ -116,78 +132,6 @@ private:
     std::vector<wxToggleButton*> m_sidebar_buttons;
 };
 
-class SensitivityAwarePanel : public wxPanel
-{
-public:
-    SensitivityAwarePanel(wxWindow* parent, wxWindow* inner_panel) :
-        wxPanel(parent) {
-        // vertical stack: inner panel on top, sensitivity section below
-        auto* sizer = new wxBoxSizer(wxVERTICAL);
-        // reparent the inner simulation panel into this wrapper
-        inner_panel->Reparent(this);
-        // let the inner panel grow to fill available horizontal space
-        sizer->Add(inner_panel, 1, wxEXPAND);
-        // sensitivity section sits below the inner panel
-        m_sensitivity = new SensitivitySectionPanel(this);
-        sizer->Add(m_sensitivity, 0, wxEXPAND | wxTOP, FromDIP(8));
-        // attach the sizer
-        SetSizer(sizer);
-    }
-
-    [[nodiscard]] SensitivitySectionPanel* get_sensitivity() const { return m_sensitivity; }
-
-private:
-    // embedded sensitivity controls for this tab
-    SensitivitySectionPanel* m_sensitivity = nullptr;
-};
-
-namespace
-{
-    // page indices matching sidebar button order
-    static constexpr int PAGE_OP = 0;
-    static constexpr int PAGE_TRAN = 1;
-    static constexpr int PAGE_DC = 2;
-    static constexpr int PAGE_AC = 3;
-    static constexpr int PAGE_NOISE = 4;
-    static constexpr int PAGE_HB = 5;
-    static constexpr int PAGE_LIN = 6;
-
-    // analysis type strings for each page
-    static const std::vector<wxString> PAGE_ANALYSIS_TYPES = {"OP", "TRAN", "DC", "AC", "NOISE", "HB", "LIN"};
-
-    // sweep mode choices for step parameters
-    static const std::vector<wxString> STEP_SWEEP_MODES = {"LIN", "DEC", "OCT", "LIST", "DATA"};
-
-    // parse space-separated list values into strings
-    [[nodiscard]] std::vector<std::string> parse_list_values(const wxString& text) {
-        std::vector<std::string> values;
-        wxString trimmed = wxString(text).Trim(true).Trim(false);
-        if (trimmed.IsEmpty()) {
-            return values;
-        }
-        wxStringTokenizer tokenizer(trimmed, " \t\r\n");
-        while (tokenizer.HasMoreTokens()) {
-            values.push_back(std::string(tokenizer.GetNextToken().ToUTF8()));
-        }
-        return values;
-    }
-
-    // format strings as space-separated text
-    [[nodiscard]] wxString format_list_values(const std::vector<std::string>& items) {
-        if (items.empty()) {
-            return wxEmptyString;
-        }
-        wxString result;
-        for (size_t i = 0; i < items.size(); ++i) {
-            if (i > 0) {
-                result += " ";
-            }
-            result += wxString::FromUTF8(items[i]);
-        }
-        return result;
-    }
-} // namespace
-
 SimulationParametersDialog::SimulationParametersDialog(wxWindow* parent, const SimulationConfig& config) :
     wxDialog(parent, wxID_ANY, "Xyce Simulation", wxDefaultPosition, wxSize(960, 720), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER) {
     // main vertical sizer for the entire dialog
@@ -221,79 +165,6 @@ SimulationParametersDialog::SimulationParametersDialog(wxWindow* parent, const S
     m_tabbed_panel->Bind(wxEVT_BOOKCTRL_PAGE_CHANGED, [this](wxCommandEvent& evt) { on_page_changed(evt); });
 
     scroll_sizer->Add(m_tabbed_panel, 1, wxEXPAND);
-
-    // --- step parameters section ---
-    auto* step_box = new wxStaticBoxSizer(wxVERTICAL, m_scroll_window, "Step Parameters (.STEP)");
-    auto* step_panel = step_box->GetStaticBox();
-    auto* step_sizer = new wxBoxSizer(wxVERTICAL);
-
-    // enable checkbox
-    m_step_enable_cb = new wxCheckBox(step_panel, wxID_ANY, "Enable step sweep");
-    step_sizer->Add(m_step_enable_cb, 0, wxBOTTOM, FromDIP(4));
-
-    // step field grid: 2 columns (label | control)
-    auto* step_grid = new wxFlexGridSizer(2, FromDIP(8), FromDIP(8));
-    step_grid->AddGrowableCol(1, 1);
-
-    // sweep mode row
-    auto* mode_label = new wxStaticText(step_panel, wxID_ANY, "Sweep mode");
-    step_grid->Add(mode_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    wxArrayString mode_choices;
-    for (const auto& mode : STEP_SWEEP_MODES) {
-        mode_choices.Add(mode);
-    }
-    m_step_sweep_mode_choice = new wxChoice(step_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, mode_choices);
-    m_step_sweep_mode_choice->SetSelection(0);
-    step_grid->Add(m_step_sweep_mode_choice, 0, wxEXPAND, 0);
-
-    // variable row
-    auto* var_label = new wxStaticText(step_panel, wxID_ANY, "Variable");
-    step_grid->Add(var_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_step_variable_text = new wxTextCtrl(step_panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
-    m_step_variable_text->SetHint("e.g. TEMP");
-    step_grid->Add(m_step_variable_text, 0, wxEXPAND, 0);
-
-    // start row
-    auto* start_label = new wxStaticText(step_panel, wxID_ANY, "Start");
-    step_grid->Add(start_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_step_start_text = new wxTextCtrl(step_panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
-    step_grid->Add(m_step_start_text, 0, wxEXPAND, 0);
-
-    // stop row
-    auto* stop_label = new wxStaticText(step_panel, wxID_ANY, "Stop");
-    step_grid->Add(stop_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_step_stop_text = new wxTextCtrl(step_panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
-    step_grid->Add(m_step_stop_text, 0, wxEXPAND, 0);
-
-    // step row
-    auto* step_label = new wxStaticText(step_panel, wxID_ANY, "Step");
-    step_grid->Add(step_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_step_step_text = new wxTextCtrl(step_panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
-    step_grid->Add(m_step_step_text, 0, wxEXPAND, 0);
-
-    // points row
-    auto* points_label = new wxStaticText(step_panel, wxID_ANY, "Points");
-    step_grid->Add(points_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_step_points_text = new wxTextCtrl(step_panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
-    step_grid->Add(m_step_points_text, 0, wxEXPAND, 0);
-
-    // list values row
-    auto* list_vals_label = new wxStaticText(step_panel, wxID_ANY, "List values");
-    step_grid->Add(list_vals_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_step_list_values_text = new wxTextCtrl(step_panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
-    m_step_list_values_text->SetHint("space-separated");
-    step_grid->Add(m_step_list_values_text, 0, wxEXPAND, 0);
-
-    // data table row
-    auto* data_table_label = new wxStaticText(step_panel, wxID_ANY, "Data table");
-    step_grid->Add(data_table_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_step_data_table_text = new wxTextCtrl(step_panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
-    step_grid->Add(m_step_data_table_text, 0, wxEXPAND, 0);
-
-    step_sizer->Add(step_grid, 0, wxEXPAND | wxLEFT, FromDIP(16));
-    step_box->Add(step_sizer, 0, wxEXPAND | wxALL, FromDIP(8));
-
-    scroll_sizer->Add(step_box, 0, wxEXPAND | wxRIGHT | wxBOTTOM, FromDIP(8));
 
     // attach the scroll sizer and add the scroll window to the main layout;
     // it grows to fill available space and scrolls when content overflows
@@ -351,52 +222,138 @@ SimulationParametersDialog::SimulationParametersDialog(wxWindow* parent, const S
 }
 
 wxPanel* SimulationParametersDialog::create_transient_parameters_panel(wxWindow* parent) {
+    // page
+    auto* page = new wxPanel(parent);
+    // resizer
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+    // simuation panel
     m_tran_panel = new TransientParametersPanel(parent);
-    auto* wrapper = new SensitivityAwarePanel(parent, m_tran_panel);
-    m_tran_sensitivity = wrapper->get_sensitivity();
-    return wrapper;
+    m_tran_panel->Reparent(page);
+    sizer->Add(m_tran_panel, 1, wxEXPAND);
+    // sensitivity section for TRAN
+    m_tran_sensitivity = new SensitivitySectionPanel(page);
+    sizer->Add(m_tran_sensitivity, 0, wxEXPAND | wxTOP, FromDIP(8));
+    // step parameters section for this tab
+    m_tran_step_params = new StepParametersPanel(page);
+    sizer->Add(m_tran_step_params, 0, wxEXPAND | wxTOP, FromDIP(8));
+    // set resizer for the page
+    page->SetSizer(sizer);
+    // exit
+    return page;
 }
 
 wxPanel* SimulationParametersDialog::create_op_parameters_panel(wxWindow* parent) {
-    // create panel
+    // page
+    auto* page = new wxPanel(parent);
+    // resizer
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+    // op parameters panel
     m_op_panel = new OpParametersPanel(parent);
+    m_op_panel->Reparent(page);
+    sizer->Add(m_op_panel, 1, wxEXPAND);
+    // step parameters section for this tab
+    m_op_step_params = new StepParametersPanel(page);
+    sizer->Add(m_op_step_params, 0, wxEXPAND | wxTOP, FromDIP(8));
+    // set resizer for the page
+    page->SetSizer(sizer);
     // exit
-    return m_op_panel;
+    return page;
 }
 
 wxPanel* SimulationParametersDialog::create_dc_parameters_panel(wxWindow* parent) {
+    // page
+    auto* page = new wxPanel(parent);
+    // resizer
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+    // dc parameters panel
     m_dc_panel = new DcParametersPanel(parent);
-    auto* wrapper = new SensitivityAwarePanel(parent, m_dc_panel);
-    m_dc_sensitivity = wrapper->get_sensitivity();
-    return wrapper;
+    m_dc_panel->Reparent(page);
+    sizer->Add(m_dc_panel, 1, wxEXPAND);
+    // sensitivity section for DC
+    m_dc_sensitivity = new SensitivitySectionPanel(page);
+    sizer->Add(m_dc_sensitivity, 0, wxEXPAND | wxTOP, FromDIP(8));
+    // step parameters section for this tab
+    m_dc_step_params = new StepParametersPanel(page);
+    sizer->Add(m_dc_step_params, 0, wxEXPAND | wxTOP, FromDIP(8));
+    // set resizer for the page
+    page->SetSizer(sizer);
+    // exit
+    return page;
 }
 
 wxPanel* SimulationParametersDialog::create_ac_parameters_panel(wxWindow* parent) {
+    // page
+    auto* page = new wxPanel(parent);
+    // resizer
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+    // ac parameters panel
     m_ac_panel = new AcParametersPanel(parent);
-    auto* wrapper = new SensitivityAwarePanel(parent, m_ac_panel);
-    m_ac_sensitivity = wrapper->get_sensitivity();
-    return wrapper;
+    m_ac_panel->Reparent(page);
+    sizer->Add(m_ac_panel, 1, wxEXPAND);
+    // sensitivity section for AC
+    m_ac_sensitivity = new SensitivitySectionPanel(page);
+    sizer->Add(m_ac_sensitivity, 0, wxEXPAND | wxTOP, FromDIP(8));
+    // step parameters section for this tab
+    m_ac_step_params = new StepParametersPanel(page);
+    sizer->Add(m_ac_step_params, 0, wxEXPAND | wxTOP, FromDIP(8));
+    // set resizer for the page
+    page->SetSizer(sizer);
+    // exit
+    return page;
 }
 
 wxPanel* SimulationParametersDialog::create_noise_parameters_panel(wxWindow* parent) {
-    // create panel
+    // page
+    auto* page = new wxPanel(parent);
+    // resizer
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+    // noise parameters panel
     m_noise_panel = new NoiseParametersPanel(parent);
+    m_noise_panel->Reparent(page);
+    sizer->Add(m_noise_panel, 1, wxEXPAND);
+    // step parameters section for this tab
+    m_noise_step_params = new StepParametersPanel(page);
+    sizer->Add(m_noise_step_params, 0, wxEXPAND | wxTOP, FromDIP(8));
+    // set resizer for the page
+    page->SetSizer(sizer);
     // exit
-    return m_noise_panel;
+    return page;
 }
 
 wxPanel* SimulationParametersDialog::create_hb_parameters_panel(wxWindow* parent) {
-    // create panel
+    // page
+    auto* page = new wxPanel(parent);
+    // resizer
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+    // hb parameters panel
     m_hb_panel = new HbParametersPanel(parent);
+    m_hb_panel->Reparent(page);
+    sizer->Add(m_hb_panel, 1, wxEXPAND);
+    // step parameters section for this tab
+    m_hb_step_params = new StepParametersPanel(page);
+    sizer->Add(m_hb_step_params, 0, wxEXPAND | wxTOP, FromDIP(8));
+    // set resizer for the page
+    page->SetSizer(sizer);
     // exit
-    return m_hb_panel;
+    return page;
 }
 
 wxPanel* SimulationParametersDialog::create_lin_parameters_panel(wxWindow* parent) {
-    // create panel
+    // page
+    auto* page = new wxPanel(parent);
+    // resizer
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+    // lin parameters panel
     m_lin_panel = new LinParametersPanel(parent);
+    m_lin_panel->Reparent(page);
+    sizer->Add(m_lin_panel, 1, wxEXPAND);
+    // step parameters section for this tab
+    m_lin_step_params = new StepParametersPanel(page);
+    sizer->Add(m_lin_step_params, 0, wxEXPAND | wxTOP, FromDIP(8));
+    // set resizer for the page
+    page->SetSizer(sizer);
     // exit
-    return m_lin_panel;
+    return page;
 }
 
 void SimulationParametersDialog::on_page_changed(wxCommandEvent&) {
@@ -417,16 +374,26 @@ SimulationConfig SimulationParametersDialog::build_preview_config() const {
     int page = m_tabbed_panel->get_selection();
     std::string analysis_type = std::string(PAGE_ANALYSIS_TYPES[page].ToUTF8());
     std::variant<std::monostate, AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, TransientSimulationParameters> analysis = std::monostate{};
+    // collect step parameters from the currently selected tab
+    std::vector<StepParameters> steps;
 
     switch (page) {
     case PAGE_OP:
         analysis = m_op_panel->build_op_parameters();
+        {
+            auto step = m_op_step_params->build_step_parameters();
+            if (step.enabled)
+                steps.push_back(std::move(step));
+        }
         break;
     case PAGE_TRAN: {
         auto params = m_tran_panel->build_transient_parameters();
         auto sens = m_tran_sensitivity->build_sens_parameter("TRAN");
         params.sensitivity = std::move(sens);
         analysis = std::move(params);
+        auto step = m_tran_step_params->build_step_parameters();
+        if (step.enabled)
+            steps.push_back(std::move(step));
         break;
     }
     case PAGE_DC: {
@@ -434,6 +401,9 @@ SimulationConfig SimulationParametersDialog::build_preview_config() const {
         auto sens = m_dc_sensitivity->build_sens_parameter("DC");
         params.sensitivity = std::move(sens);
         analysis = std::move(params);
+        auto step = m_dc_step_params->build_step_parameters();
+        if (step.enabled)
+            steps.push_back(std::move(step));
         break;
     }
     case PAGE_AC: {
@@ -441,65 +411,38 @@ SimulationConfig SimulationParametersDialog::build_preview_config() const {
         auto sens = m_ac_sensitivity->build_sens_parameter("AC");
         params.sensitivity = std::move(sens);
         analysis = std::move(params);
+        auto step = m_ac_step_params->build_step_parameters();
+        if (step.enabled)
+            steps.push_back(std::move(step));
         break;
     }
     case PAGE_NOISE:
         analysis = m_noise_panel->build_noise_parameters();
+        {
+            auto step = m_noise_step_params->build_step_parameters();
+            if (step.enabled)
+                steps.push_back(std::move(step));
+        }
         break;
     case PAGE_HB:
         analysis = m_hb_panel->build_hb_parameters();
+        {
+            auto step = m_hb_step_params->build_step_parameters();
+            if (step.enabled)
+                steps.push_back(std::move(step));
+        }
         break;
     case PAGE_LIN:
         analysis = m_lin_panel->build_lin_parameters();
+        {
+            auto step = m_lin_step_params->build_step_parameters();
+            if (step.enabled)
+                steps.push_back(std::move(step));
+        }
         break;
     }
 
-    // read step parameters
-    std::vector<StepParameters> steps;
-    StepParameters current_step = read_step_parameters();
-    if (current_step.enabled) {
-        steps.push_back(std::move(current_step));
-    }
-
     return SimulationConfig(std::move(analysis_type), std::move(analysis), std::move(steps), m_data_blocks, OptionParameters({}, {}, {}, {}), {});
-}
-
-StepParameters SimulationParametersDialog::read_step_parameters() const {
-    bool enabled = m_step_enable_cb->GetValue();
-    std::string sweep_mode;
-    int sel = m_step_sweep_mode_choice->GetSelection();
-    if (sel != wxNOT_FOUND && sel < static_cast<int>(STEP_SWEEP_MODES.size())) {
-        sweep_mode = std::string(STEP_SWEEP_MODES[sel].ToUTF8());
-    }
-    std::string variable = std::string(m_step_variable_text->GetValue().ToUTF8());
-    std::string start = std::string(m_step_start_text->GetValue().ToUTF8());
-    std::string stop = std::string(m_step_stop_text->GetValue().ToUTF8());
-    std::string step = std::string(m_step_step_text->GetValue().ToUTF8());
-    std::string points = std::string(m_step_points_text->GetValue().ToUTF8());
-    std::vector<std::string> list_values = parse_list_values(m_step_list_values_text->GetValue());
-    std::string data_table_name = std::string(m_step_data_table_text->GetValue().ToUTF8());
-    return StepParameters(std::move(sweep_mode), std::move(variable), std::move(start), std::move(stop), std::move(step), std::move(points), std::move(list_values), std::move(data_table_name), enabled);
-}
-
-void SimulationParametersDialog::apply_step_parameters(const StepParameters& params) {
-    m_step_enable_cb->SetValue(params.enabled);
-
-    // restore sweep mode
-    int mode_index = m_step_sweep_mode_choice->FindString(wxString::FromUTF8(params.sweep_mode));
-    if (mode_index != wxNOT_FOUND) {
-        m_step_sweep_mode_choice->SetSelection(mode_index);
-    }
-    else {
-        m_step_sweep_mode_choice->SetSelection(0);
-    }
-
-    m_step_variable_text->SetValue(wxString::FromUTF8(params.variable));
-    m_step_start_text->SetValue(wxString::FromUTF8(params.start));
-    m_step_stop_text->SetValue(wxString::FromUTF8(params.stop));
-    m_step_step_text->SetValue(wxString::FromUTF8(params.step));
-    m_step_points_text->SetValue(wxString::FromUTF8(params.points));
-    m_step_list_values_text->SetValue(format_list_values(params.list_values));
-    m_step_data_table_text->SetValue(wxString::FromUTF8(params.data_table_name));
 }
 
 void SimulationParametersDialog::apply_config(const SimulationConfig& config) {
@@ -517,9 +460,20 @@ void SimulationParametersDialog::apply_config(const SimulationConfig& config) {
     m_dc_sensitivity->apply(nullptr);
     m_ac_sensitivity->apply(nullptr);
 
+    // reset per-tab step parameters
+    m_op_step_params->apply(StepParameters());
+    m_tran_step_params->apply(StepParameters());
+    m_dc_step_params->apply(StepParameters());
+    m_ac_step_params->apply(StepParameters());
+    m_noise_step_params->apply(StepParameters());
+    m_hb_step_params->apply(StepParameters());
+    m_lin_step_params->apply(StepParameters());
+
     // apply the matching analysis type
     if (std::holds_alternative<OpSimulationParameters>(config.analysis)) {
         m_op_panel->apply(std::get<OpSimulationParameters>(config.analysis));
+        if (!config.steps.empty())
+            m_op_step_params->apply(config.steps[0]);
     }
     else if (std::holds_alternative<TransientSimulationParameters>(config.analysis)) {
         const auto& params = std::get<TransientSimulationParameters>(config.analysis);
@@ -527,6 +481,8 @@ void SimulationParametersDialog::apply_config(const SimulationConfig& config) {
         if (params.sensitivity) {
             m_tran_sensitivity->apply(&*params.sensitivity);
         }
+        if (!config.steps.empty())
+            m_tran_step_params->apply(config.steps[0]);
     }
     else if (std::holds_alternative<DCSimulationParameters>(config.analysis)) {
         const auto& params = std::get<DCSimulationParameters>(config.analysis);
@@ -534,6 +490,8 @@ void SimulationParametersDialog::apply_config(const SimulationConfig& config) {
         if (params.sensitivity) {
             m_dc_sensitivity->apply(&*params.sensitivity);
         }
+        if (!config.steps.empty())
+            m_dc_step_params->apply(config.steps[0]);
     }
     else if (std::holds_alternative<AcSimulationParameters>(config.analysis)) {
         const auto& params = std::get<AcSimulationParameters>(config.analysis);
@@ -541,23 +499,23 @@ void SimulationParametersDialog::apply_config(const SimulationConfig& config) {
         if (params.sensitivity) {
             m_ac_sensitivity->apply(&*params.sensitivity);
         }
+        if (!config.steps.empty())
+            m_ac_step_params->apply(config.steps[0]);
     }
     else if (std::holds_alternative<NoiseSimulationParameters>(config.analysis)) {
         m_noise_panel->apply(std::get<NoiseSimulationParameters>(config.analysis));
+        if (!config.steps.empty())
+            m_noise_step_params->apply(config.steps[0]);
     }
     else if (std::holds_alternative<HbSimulationParameters>(config.analysis)) {
         m_hb_panel->apply(std::get<HbSimulationParameters>(config.analysis));
+        if (!config.steps.empty())
+            m_hb_step_params->apply(config.steps[0]);
     }
     else if (std::holds_alternative<LinSimulationParameters>(config.analysis)) {
         m_lin_panel->apply(std::get<LinSimulationParameters>(config.analysis));
-    }
-
-    // apply step parameters (use first step or disabled default)
-    if (!config.steps.empty()) {
-        apply_step_parameters(config.steps[0]);
-    }
-    else {
-        apply_step_parameters(StepParameters());
+        if (!config.steps.empty())
+            m_lin_step_params->apply(config.steps[0]);
     }
 
     // store data blocks
