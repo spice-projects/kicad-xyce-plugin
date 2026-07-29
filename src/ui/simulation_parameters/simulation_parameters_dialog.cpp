@@ -7,8 +7,10 @@
 #include <wx/arrstr.h>
 #include <wx/checkbox.h>
 #include <wx/choice.h>
+#include <wx/panel.h>
 #include <wx/scrolwin.h>
 #include <wx/settings.h>
+#include <wx/simplebook.h>
 #include <wx/sizer.h>
 #include <wx/statbox.h>
 #include <wx/stattext.h>
@@ -37,6 +39,64 @@
 
 namespace
 {
+    class TabbedPanel : public wxPanel
+    {
+    public:
+        explicit TabbedPanel(wxWindow* parent) :
+            wxPanel(parent) {
+            // main horizontal layout: sidebar on the left, content area on the right
+            m_main_sizer = new wxBoxSizer(wxHORIZONTAL);
+            // vertical sidebar holding toggle buttons for each tab
+            m_sidebar_sizer = new wxBoxSizer(wxVERTICAL);
+            m_main_sizer->Add(m_sidebar_sizer, 0, wxEXPAND | wxLEFT | wxTOP | wxBOTTOM, FromDIP(8));
+            // top padding above the first toggle button
+            m_sidebar_sizer->Add(0, FromDIP(8), 0, 0);
+            // content area that shows the selected page
+            m_simplebook = new wxSimplebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
+            m_main_sizer->Add(m_simplebook, 1, wxEXPAND | wxALL, FromDIP(8));
+            // set the main sizer for this panel
+            SetSizer(m_main_sizer);
+        }
+
+        wxToggleButton* add_tab(const wxString& label, wxWindow* page) {
+            // sidebar toggle button for this tab
+            auto* btn = new wxToggleButton(this, wxID_ANY, label, wxDefaultPosition, wxSize(FromDIP(72), FromDIP(36)));
+            btn->SetMinSize(wxSize(FromDIP(72), FromDIP(36)));
+            m_sidebar_sizer->Add(btn, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(4));
+            // register the button and page at the current index
+            size_t index = m_sidebar_buttons.size();
+            m_sidebar_buttons.push_back(btn);
+            m_simplebook->AddPage(page, label);
+            // switch to this tab on click, deselect all others
+            btn->Bind(wxEVT_TOGGLEBUTTON, [this, index](wxCommandEvent&) {
+                for (size_t j = 0; j < m_sidebar_buttons.size(); ++j) {
+                    m_sidebar_buttons[j]->SetValue(j == index);
+                }
+                m_simplebook->SetSelection(static_cast<int>(index));
+            });
+            return btn;
+        }
+
+        [[nodiscard]] int get_selection() const { return m_simplebook->GetSelection(); }
+
+        void set_selection(size_t index) {
+            // validate index and switch to the corresponding tab if valid
+            if (index < m_sidebar_buttons.size()) {
+                // toggle the selected button on and all others off
+                for (size_t j = 0; j < m_sidebar_buttons.size(); ++j)
+                    m_sidebar_buttons[j]->SetValue(j == index);
+                // show the corresponding page
+                m_simplebook->SetSelection(static_cast<int>(index));
+            }
+        }
+
+    private:
+        wxBoxSizer* m_main_sizer = nullptr;
+        wxBoxSizer* m_sidebar_sizer = nullptr;
+        wxSimplebook* m_simplebook = nullptr;
+        std::vector<wxToggleButton*> m_sidebar_buttons;
+    };
+
     // page indices matching sidebar button order
     static constexpr int PAGE_OP = 0;
     static constexpr int PAGE_TRAN = 1;
@@ -328,7 +388,6 @@ void SimulationParametersDialog::on_page_changed(wxCommandEvent&) {
     m_scroll_window->Layout();
     Layout();
 }
-
 
 SimulationConfig SimulationParametersDialog::build_preview_config() const {
     int page = m_simplebook->GetSelection();
