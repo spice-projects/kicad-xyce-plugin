@@ -3,12 +3,10 @@
 #include <memory>
 #include <optional>
 #include <regex>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <unistd.h>
+#include <utility>
 
 #include <spdlog/spdlog.h>
-#include <utility>
 
 #include "../expression/expression.h"
 #include "../step_information.h"
