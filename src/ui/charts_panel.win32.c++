@@ -1,13 +1,10 @@
 #ifndef NOMINMAX
-// disable min/max macros
 #define NOMINMAX
 #endif
 #ifndef WIN32_LEAN_AND_MEAN
-// disable extra Windows APIs
 #define WIN32_LEAN_AND_MEAN
 #endif
 
-// include the standard library headers
 #include <algorithm>
 #include <d3d11.h>
 #include <dxgi.h>
@@ -17,12 +14,13 @@
 #include <implot.h>
 #include <memory>
 #include <spdlog/spdlog.h>
-#include <unordered_map>
 #include <windows.h>
 #include <wx/wx.h>
 
-// include the charts panel header
 #include "charts_panel.h"
+#include "wxwidgets_imgui.h"
+
+static constexpr const char* FONT_PATH = KICAD_XYCE_FONTS_DIR "\\Inter-Regular.ttf";
 
 struct ChartsPanelRenderContext
 {
@@ -431,19 +429,19 @@ void ChartsPanel::render_frame(const std::function<void()>& renderer) {
     context.swap_chain->Present(1, 0);
 }
 
-void ChartsPanel::update_bounds() {
+bool ChartsPanel::update_bounds() {
     // check the native window handle
     const auto hwnd = reinterpret_cast<HWND>(m_charts_panel);
     if (!hwnd)
-        return;
-
+        return false;
     // lookup the render context
     auto it = s_render_contexts.find(hwnd);
     if (it == s_render_contexts.end())
-        return;
-
+        return false;
     // resize the render target if needed
     resize_render_target(*it->second);
+    // exit
+    return true;
 }
 
 void ChartsPanel::display_changed() {

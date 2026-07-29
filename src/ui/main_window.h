@@ -6,10 +6,11 @@
 #include <wx/frame.h>
 #include <wx/sizer.h>
 #include <wx/stc/stc.h>
+#include <wx/tbarbase.h>
 #endif
 
-#include "charts_panel.h"
 #include "../simulation_parameters/simulation_config.h"
+#include "charts_panel.h"
 
 class MainWindow : public wxFrame
 {
