@@ -6,13 +6,14 @@
 #endif
 
 #include <algorithm>
+#include <memory>
+
 #include <d3d11.h>
 #include <dxgi.h>
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
 #include <imgui_impl_win32.h>
 #include <implot.h>
-#include <memory>
 #include <spdlog/spdlog.h>
 #include <windows.h>
 #include <wx/wx.h>
@@ -186,7 +187,8 @@ static bool resize_render_target(ChartsPanelRenderContext& context) {
 }
 
 void ChartsPanel::initialize() {
-    // check the native window handle
+    // get the native window handle
+    m_charts_panel = GetHandle();
     const auto hwnd = reinterpret_cast<HWND>(m_charts_panel);
     if (!hwnd)
         return;
@@ -301,13 +303,18 @@ void ChartsPanel::initialize() {
     ImPlot::SetCurrentContext(ImPlot::CreateContext());
     // style
     PlatformStyle();
+    // DPI scaling for high-DPI displays
+    HDC hdc = GetDC(hwnd);
+    const float scale = GetDeviceCaps(hdc, LOGPIXELSX) / 96.0f;
+    ReleaseDC(hwnd, hdc);
+
     // ImGui configuration
     ImGuiIO& io = ImGui::GetIO();
     // font base size
     const float base_size = 14.0f;
-    // add font with scaling for retina displays
+    // add font with DPI-aware scaling
     io.Fonts->AddFontFromFileTTF(FONT_PATH, base_size * scale);
-    io.FontGlobalScale = 1.0f / (float)scale;
+    io.FontGlobalScale = 1.0f / scale;
     // update style
     ImGuiStyle& style = ImGui::GetStyle();
     style.AntiAliasedLines = true;
@@ -345,8 +352,6 @@ void ChartsPanel::initialize() {
 
     // mark the render context as initialized
     context.initialized = true;
-    // store the native window handle in the panel
-    m_charts_panel = hwnd;
 }
 
 void ChartsPanel::terminate() {
@@ -394,13 +399,12 @@ void ChartsPanel::render_frame(const std::function<void()>& renderer) {
     // resize the render target if needed
     resize_render_target(context);
 
-    // define the clear color
-    const float clear_color[4] = {0.15f, 0.15f, 0.15f, 1.0f};
     // get the render target view
     ID3D11RenderTargetView* render_target_view = context.render_target_view;
     // bind the render target
     context.device_context->OMSetRenderTargets(1, &render_target_view, nullptr);
-    // clear the render target
+    // clear the render target with the panel background color
+    const float clear_color[4] = {m_background_color.x, m_background_color.y, m_background_color.z, m_background_color.w};
     context.device_context->ClearRenderTargetView(context.render_target_view, clear_color);
 
     // start a new ImGui frame
@@ -408,12 +412,16 @@ void ChartsPanel::render_frame(const std::function<void()>& renderer) {
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    // get the panel size
-    const wxSize client_size = GetSize();
+    // get the panel client size
+    const wxSize client_size = GetClientSize();
+    // DPI scaling for high-DPI displays
+    HDC hdc = GetDC(hwnd);
+    const float dpi_scale = GetDeviceCaps(hdc, LOGPIXELSX) / 96.0f;
+    ReleaseDC(hwnd, hdc);
     // configure the ImGui IO size
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(static_cast<float>(client_size.x), static_cast<float>(client_size.y));
-    io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+    io.DisplayFramebufferScale = ImVec2(dpi_scale, dpi_scale);
 
     // set the next window position and size
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
@@ -425,8 +433,8 @@ void ChartsPanel::render_frame(const std::function<void()>& renderer) {
     // render the ImGui frame
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-    // present the swap chain
-    context.swap_chain->Present(1, 0);
+    // present the swap chain without waiting for v-sync
+    context.swap_chain->Present(0, 0);
 }
 
 bool ChartsPanel::update_bounds() {
