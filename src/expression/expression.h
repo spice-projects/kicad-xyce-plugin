@@ -9,100 +9,104 @@
 #include <variant>
 #include <vector>
 
-template <typename T>
-class View
-{
-public:
-    class Iterator
-    {
-    public:
-        using iterator_concept = std::forward_iterator_tag;
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = T;
-        using difference_type = std::ptrdiff_t;
-        using pointer = const T*;
-        using reference = const T&;
+#include "view.h"
 
-        Iterator() :
-            m_ptr(nullptr), m_stride(1) {}
+// template <typename T>
+// class View
+// {
+// public:
+//     class Iterator
+//     {
+//     public:
+//         using iterator_concept = std::forward_iterator_tag;
+//         using iterator_category = std::forward_iterator_tag;
+//         using value_type = T;
+//         using difference_type = std::ptrdiff_t;
+//         using pointer = const T*;
+//         using reference = const T&;
 
-        Iterator(const T* ptr, size_t stride) :
-            m_ptr(ptr), m_stride(stride) {}
+//         Iterator() :
+//             m_ptr(nullptr), m_stride(1) {}
 
-        reference operator*() const { return *m_ptr; }
+//         Iterator(const T* ptr, size_t stride) :
+//             m_ptr(ptr), m_stride(stride) {}
 
-        pointer operator->() const { return m_ptr; }
+//         reference operator*() const { return *m_ptr; }
 
-        Iterator& operator++() {
-            m_ptr += m_stride;
-            return *this;
-        }
+//         pointer operator->() const { return m_ptr; }
 
-        Iterator operator++(int) {
-            Iterator tmp = *this;
-            m_ptr += m_stride;
-            return tmp;
-        }
+//         Iterator& operator++() {
+//             m_ptr += m_stride;
+//             return *this;
+//         }
 
-        friend bool operator==(const Iterator& lhs, const Iterator& rhs) { return lhs.m_ptr == rhs.m_ptr; }
+//         Iterator operator++(int) {
+//             Iterator tmp = *this;
+//             m_ptr += m_stride;
+//             return tmp;
+//         }
 
-        friend bool operator!=(const Iterator& lhs, const Iterator& rhs) { return lhs.m_ptr != rhs.m_ptr; }
+//         friend bool operator==(const Iterator& lhs, const Iterator& rhs) { return lhs.m_ptr == rhs.m_ptr; }
 
-    private:
-        const T* m_ptr;
-        size_t m_stride;
-    };
+//         friend bool operator!=(const Iterator& lhs, const Iterator& rhs) { return lhs.m_ptr != rhs.m_ptr; }
 
-    View() = default;
+//     private:
+//         const T* m_ptr;
+//         size_t m_stride;
+//     };
 
-    View(const View&) = delete;
+//     View() = default;
 
-    View(View&&) noexcept = default;
+//     View(const View&) = delete;
 
-    View(const T* pointer, const size_t size) :
-        m_pointer(const_cast<T*>(pointer)), m_size(size), m_stride(1) {}
+//     View(View&&) noexcept = default;
 
-    View(const T* pointer, const size_t size, const size_t stride) :
-        m_pointer(const_cast<T*>(pointer)), m_size(size), m_stride(stride) {}
+//     View(const T* pointer, const size_t size) :
+//         m_pointer(const_cast<T*>(pointer)), m_size(size), m_stride(1) {}
 
-    explicit View(std::vector<T>& vector) :
-        m_stride(1), m_data(std::move(vector)) {
-        // pointer to vector data
-        m_pointer = m_data.data();
-        m_size = m_data.size();
-    }
+//     View(const T* pointer, const size_t size, const size_t stride) :
+//         m_pointer(const_cast<T*>(pointer)), m_size(size), m_stride(stride) {}
 
-    explicit View(std::span<const T> span) :
-        m_pointer(const_cast<T*>(span.data())), m_size(span.size()), m_stride(1) {}
+//     explicit View(std::vector<T>& vector) :
+//         m_stride(1), m_data(std::move(vector)) {
+//         // pointer to vector data
+//         m_pointer = m_data.data();
+//         m_size = m_data.size();
+//     }
 
-    ~View() = default;
+//     explicit View(std::span<const T> span) :
+//         m_pointer(const_cast<T*>(span.data())), m_size(span.size()), m_stride(1) {}
 
-    View& operator=(const View&) = delete;
+//     ~View() = default;
 
-    View& operator=(View&&) noexcept = default;
+//     View& operator=(const View&) = delete;
 
-    const T& operator[](const size_t index) const {
-        // value at index
-        return m_pointer[index * m_stride];
-    }
+//     View& operator=(View&&) noexcept = default;
 
-    [[nodiscard]] size_t size() const { return m_size; }
+//     const T& operator[](const size_t index) const {
+//         // value at index
+//         return m_pointer[index * m_stride];
+//     }
 
-    [[nodiscard]] const T* data() const { return m_pointer; }
+//     [[nodiscard]] size_t size() const { return m_size; }
 
-    [[nodiscard]] bool empty() const { return m_size == 0; }
+//     [[nodiscard]] const T* data() const { return m_pointer; }
 
-    Iterator begin() const { return Iterator(m_pointer, m_stride); }
+//     [[nodiscard]] const size_t stride() const { return m_stride; }
 
-    Iterator end() const { return Iterator(m_pointer + (m_size * m_stride), m_stride); }
+//     [[nodiscard]] bool empty() const { return m_size == 0; }
 
-private:
-    T* m_pointer;
-    size_t m_size;
-    size_t m_stride;
+//     Iterator begin() const { return Iterator(m_pointer, m_stride); }
 
-    std::vector<T> m_data;
-};
+//     Iterator end() const { return Iterator(m_pointer + (m_size * m_stride), m_stride); }
+
+// private:
+//     T* m_pointer;
+//     size_t m_size;
+//     size_t m_stride;
+
+//     std::vector<T> m_data;
+// };
 
 template <typename T>
 class Expression
@@ -119,6 +123,37 @@ public:
 
     Expression(std::string name, std::vector<T>& data, std::vector<std::span<const T>>& steps, std::string unit, std::string source = "", std::string variable_type = "") :
         m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)), m_cached_data(std::move(data)) {}
+
+    Expression(std::string name, View<T>&& view, std::vector<std::pair<size_t, size_t>>& step_slices, std::string unit, std::string source = "", std::string variable_type = "") :
+        m_name(std::move(name)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)) {
+        // check view does not own data
+        if (view.m_data.empty()) {
+            // data vector
+            std::vector<T> data;
+            // reserve space for data
+            data.reserve(view.size());
+            // copy data from view to internal vector
+            for (auto it = view.begin(); it != view.end(); ++it)
+                data.push_back(*it);
+            // move data
+            m_cached_data = std::move(data);
+        }
+        else {
+            // move data from view to internal vector
+            m_cached_data = std::move(view.m_data);
+        }
+        // steps
+        std::vector<View<T>> steps;
+        // reserve space for steps
+        steps.reserve(step_slices.size());
+        // data pointer
+        auto ptr = std::get<std::vector<T>>(m_cached_data).data();
+        // populate steps from slices
+        for (const auto& [start, end] : step_slices)
+            steps.emplace_back(ptr + start, end - start);
+        // assign steps
+        m_steps = std::move(steps);
+    }
 
     ~Expression() = default;
 

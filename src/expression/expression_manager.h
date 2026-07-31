@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "expression.h"
+#include "xyce_evaluator.h"
+#include "xyce_parser.h"
 
 class ExpressionManager
 {
@@ -36,10 +38,31 @@ public:
 
     [[nodiscard]] AnyExpression* evaluate(const std::string& expression, const std::optional<std::string>& name = std::nullopt);
 
+    [[nodiscard]] std::string infer_unit(const std::string& expression);
+
 private:
     std::deque<AnyExpression> m_expressions;
     std::vector<std::pair<size_t, size_t>> m_step_slices;
     std::unordered_map<std::string, size_t> m_context;
+    XyceParser m_parser;
 
-    static std::string casefold(std::string str);
+    AnyExpression* build_expression(XyceValue& value, const std::string& name, const std::string& unit);
+
+    XyceValue rematerialize(XyceValue& value, const ExpressionNode& ast);
+
+    template <typename T>
+    void fill_step_spans(const std::vector<T>& data, std::vector<std::span<const T>>& spans) {
+        // check there are multiple steps
+        if (m_step_slices.size() > 1) {
+            // reserve the number of spans
+            spans.reserve(m_step_slices.size());
+            // create a span for each step slice
+            for (const auto& [start, end] : m_step_slices)
+                spans.emplace_back(data.data() + start, end - start);
+        }
+        else {
+            // single step, create a span for the entire data vector
+            spans.emplace_back(data);
+        }
+    }
 };

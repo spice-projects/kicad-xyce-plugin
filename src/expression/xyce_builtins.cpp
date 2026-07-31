@@ -4,54 +4,14 @@
 #include <numbers>
 #include <stdexcept>
 #include <type_traits>
+#include <vector>
 
+#include "view.h"
 #include "xyce_evaluator.h"
+#include "xyce_value.h"
 
 namespace
 {
-    // read the scalar value from a builtin argument
-    template <typename T>
-    T scalar_value(const XyceValue& value) {
-        // processor
-        auto l = []<typename T0>(T0& arg) -> T {
-            // actual parameter type
-            using TX = std::decay_t<T0>;
-            // real scalar
-            if constexpr (std::is_same_v<T, double>) {
-                // scalar double
-                if constexpr (std::is_same_v<TX, double>) {
-                    return arg;
-                }
-                else if constexpr (std::is_same_v<TX, std::complex<double>>) {
-                    return arg.real();
-                }
-                else if constexpr (std::is_same_v<TX, std::vector<double>>) {
-                    return arg.at(0);
-                }
-                else {
-                    return arg.at(0).real();
-                }
-            }
-            // complex scalar
-            else if constexpr (std::is_same_v<TX, double>) {
-                return T(arg, 0.0);
-            }
-            // scalar complex
-            else if constexpr (std::is_same_v<TX, std::complex<double>>) {
-                return arg;
-            }
-            // vector<double>
-            else if constexpr (std::is_same_v<TX, std::vector<double>>) {
-                return T(arg.at(0), 0.0);
-            }
-            else {
-                return arg.at(0);
-            }
-        };
-        // exit
-        return std::visit(l, value);
-    }
-
     // fail when a builtin receives the wrong arity
     void expect_arity(const std::string& name, const std::vector<XyceValue>& args, const size_t count) {
         if (args.size() != count) {
@@ -66,86 +26,42 @@ namespace
         }
     }
 
-    // normalize a value to a real vector for broadcasting
-    std::vector<double> to_real_vector(const XyceValue& value) {
-        // processor
-        auto l = []<typename T0>(T0& arg) -> std::vector<double> {
-            // actual parameter type
-            using TX = std::decay_t<T0>;
-            // scalar double
-            if constexpr (std::is_same_v<TX, double>) {
-                return {arg};
-            }
-            // scalar complex
-            else if constexpr (std::is_same_v<TX, std::complex<double>>) {
-                return {arg.real()};
-            }
-            // vector<double>
-            else if constexpr (std::is_same_v<TX, std::vector<double>>) {
-                return arg;
-            }
-            // vector<complex>
-            else {
-                // create output vector
-                std::vector<double> out;
-                out.reserve(arg.size());
-                // append real values
-                std::ranges::transform(arg.begin(), arg.end(), std::back_inserter(out), [](auto v) { return v.real(); });
-                // exit
-                return out;
-            }
-        };
-        // exit
-        return std::visit(l, value);
-    }
-
-    // tell whether the value should be treated as a vector
-    bool is_vector(const XyceValue& value) {
-        // processor
-        auto l = []<typename T0>(T0&) {
-            // actual parameter type
-            using TX = std::decay_t<T0>;
-            // vector<?>
-            if constexpr (std::is_same_v<TX, std::vector<double>> || std::is_same_v<TX, std::vector<std::complex<double>>>) {
-                return true;
-            }
-            return false;
-        };
-        // exit
-        return std::visit(l, value);
-    }
-
     // collapse a complex scalar to a real when possible
     XyceValue make_scalar(const std::complex<double>& value) {
         // convert to real if imaginary part is very small
         if (std::abs(value.imag()) < 1e-15) {
+            // real part only
             return value.real();
         }
         return value;
     }
 
     // collapse a complex vector to a real vector when possible
-    XyceValue make_vector(const std::vector<std::complex<double>>& values) {
+    XyceValue make_vector(std::shared_ptr<View<std::complex<double>>> values) {
         // execution flag
         bool all_real = true;
-        // check we can eliminate the imaginary part
-        for (const auto& value : values) {
+        // lop values
+        for (const auto& value : *values) {
+            // check we can eliminate the imaginary part
             if (std::abs(value.imag()) >= 1e-15) {
+                // reset flag and exit loop
                 all_real = false;
                 break;
             }
         }
         // we can convert vector
         if (all_real) {
-            // allocate vector
+            // vector
             std::vector<double> out;
-            out.reserve(values.size());
-            // transform data
-            std::ranges::transform(values.begin(), values.end(), std::back_inserter(out), [](auto v) { return v.real(); });
+            // allocate space
+            out.reserve(values->size());
+            // loop view, append real values
+            for (const auto& v : *values)
+                out.emplace_back(v.real());
             // exit
-            return out;
+            return std::make_shared<View<double>>(out);
         }
-        return values;
+        return {values};
     }
 
     // apply a unary real function across a scalar or vector
@@ -154,28 +70,40 @@ namespace
         auto l = [&fn]<typename T0>(T0& arg) -> XyceValue {
             // actual parameter type
             using TX = std::decay_t<T0>;
-            // vector<double>
-            if constexpr (std::is_same_v<TX, std::vector<double>>) {
-                // create and allocate output vector
-                std::vector<double> out;
-                out.reserve(arg.size());
-                // append mapped values
-                std::ranges::transform(arg.begin(), arg.end(), std::back_inserter(out), fn);
-                // exit
-                return out;
+            // double
+            if constexpr (std::is_same_v<TX, double>) {
+                // apply fn
+                return fn(arg);
             }
-            // vector<complex>
-            if constexpr (std::is_same_v<TX, std::vector<std::complex<double>>>) {
-                // create and allocate output vector
-                std::vector<double> out;
-                out.reserve(arg.size());
-                // append mapped values
-                std::ranges::transform(arg.begin(), arg.end(), std::back_inserter(out), [&fn](auto v) { return fn(v.real()); });
-                // exit
-                return out;
+            // complex
+            if constexpr (std::is_same_v<TX, std::complex<double>>) {
+                // apply fn
+                return fn(arg.real());
             }
-            // scalar
-            return fn(scalar_value<double>(arg));
+            // View<double>
+            if constexpr (std::is_same_v<TX, std::shared_ptr<View<double>>>) {
+                // vector
+                std::vector<double> out;
+                // allocate space
+                out.reserve(arg->size());
+                // append mapped values
+                std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), fn);
+                // exit
+                return std::make_shared<View<double>>(out);
+            }
+            // View<complex>
+            if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
+                // vector
+                std::vector<double> out;
+                // allocate space
+                out.reserve(arg->size());
+                // append mapped values
+                std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [&fn](auto v) { return fn(v.real()); });
+                // exit
+                return std::make_shared<View<double>>(out);
+            }
+            // not possible value type
+            throw std::invalid_argument("unsupported type");
         };
         // exit
         return std::visit(l, value);
@@ -187,28 +115,40 @@ namespace
         auto l = [&fn]<typename T0>(T0& arg) -> XyceValue {
             // actual parameter type
             using TX = std::decay_t<T0>;
-            // vector<double>
-            if constexpr (std::is_same_v<TX, std::vector<double>>) {
-                // create and allocate output vector
-                std::vector<std::complex<double>> out;
-                out.reserve(arg.size());
-                // append mapped values
-                std::ranges::transform(arg.begin(), arg.end(), std::back_inserter(out), [&fn](auto v) { return fn(std::complex<double>(v, 0.0)); });
-                // exit
-                return make_vector(out);
+            // double
+            if constexpr (std::is_same_v<TX, double>) {
+                // apply fn
+                return make_scalar(fn(std::complex<double>(arg, 0.0)));
             }
-            // vector<complex>
-            if constexpr (std::is_same_v<TX, std::vector<std::complex<double>>>) {
-                // create and allocate output vector
-                std::vector<std::complex<double>> out;
-                out.reserve(arg.size());
-                // append mapped values
-                std::ranges::transform(arg.begin(), arg.end(), std::back_inserter(out), fn);
-                // exit
-                return make_vector(out);
+            // complex
+            if constexpr (std::is_same_v<TX, std::complex<double>>) {
+                // apply fn
+                return make_scalar(fn(arg));
             }
-            // scalar
-            return make_scalar(fn(scalar_value<std::complex<double>>(arg)));
+            // View<double>
+            if constexpr (std::is_same_v<TX, std::shared_ptr<View<double>>>) {
+                // vector
+                std::vector<std::complex<double>> out;
+                // allocate space
+                out.reserve(arg->size());
+                // append mapped values
+                std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [&fn](auto v) { return fn(std::complex<double>(v, 0.0)); });
+                // exit
+                return make_vector(std::make_shared<View<std::complex<double>>>(out));
+            }
+            // View<complex>
+            if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
+                // vector
+                std::vector<std::complex<double>> out;
+                // allocate space
+                out.reserve(arg->size());
+                // append mapped values
+                std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), fn);
+                // exit
+                return make_vector(std::make_shared<View<std::complex<double>>>(out));
+            }
+            // not possible value type
+            throw std::invalid_argument("unsupported type");
         };
         // exit
         return std::visit(l, value);
@@ -222,25 +162,27 @@ namespace
         auto l = []<typename T0>(T0& arg) -> XyceValue {
             // actual parameter type
             using TX = std::decay_t<T0>;
-            // vector<double>
-            if constexpr (std::is_same_v<TX, std::vector<double>>) {
-                // create and allocate output vector
+            // View<double>
+            if constexpr (std::is_same_v<TX, std::shared_ptr<View<double>>>) {
+                // vector
                 std::vector<double> out;
-                out.reserve(arg.size());
+                // allocate space
+                out.reserve(arg->size());
                 // append absolute values
-                std::ranges::transform(arg.begin(), arg.end(), std::back_inserter(out), [](auto v) { return std::abs(v); });
+                std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto v) { return std::abs(v); });
                 // exit
-                return out;
+                return std::make_shared<View<double>>(out);
             }
             // vector<complex>
-            else if constexpr (std::is_same_v<TX, std::vector<std::complex<double>>>) {
-                // create and allocate output vector
+            else if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
+                // vector
                 std::vector<double> out;
-                out.reserve(arg.size());
+                // allocate space
+                out.reserve(arg->size());
                 // append absolute values
-                std::ranges::transform(arg.begin(), arg.end(), std::back_inserter(out), [](auto v) { return std::abs(v); });
+                std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto v) { return std::abs(v); });
                 // exit
-                return out;
+                return std::make_shared<View<double>>(out);
             }
             // scalar
             else
@@ -294,17 +236,18 @@ namespace
             // actual parameter type
             using TX = std::decay_t<T0>;
             // vector<complex>
-            if constexpr (std::is_same_v<TX, std::vector<std::complex<double>>>) {
-                // create and allocate output vector
+            if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
+                // vector
                 std::vector<double> out;
-                out.reserve(arg.size());
+                // allocate space
+                out.reserve(arg->size());
                 // append real values
-                std::ranges::transform(arg.begin(), arg.end(), std::back_inserter(out), [](auto v) { return v.real(); });
+                std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto v) { return v.real(); });
                 // exit
-                return out;
+                return std::make_shared<View<double>>(out);
             }
             // vector<double>
-            if constexpr (std::is_same_v<TX, std::vector<double>>)
+            if constexpr (std::is_same_v<TX, std::shared_ptr<View<double>>>)
                 return arg;
             // scalar
             return scalar_value<double>(arg);
@@ -321,19 +264,24 @@ namespace
         auto l = []<typename T0>(T0& arg) -> XyceValue {
             // actual parameter type
             using TX = std::decay_t<T0>;
-            // vector<complex>
-            if constexpr (std::is_same_v<TX, std::vector<std::complex<double>>>) {
-                // create and allocate output vector
+            // View<complex>
+            if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
+                // vector
                 std::vector<double> out;
-                out.reserve(arg.size());
+                // allocate space
+                out.reserve(arg->size());
                 // append imag values
-                std::ranges::transform(arg.begin(), arg.end(), std::back_inserter(out), [](auto v) { return v.imag(); });
+                std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto v) { return v.imag(); });
                 // exit
-                return out;
+                return std::make_shared<View<double>>(out);
             }
-            // vector<double>
-            if constexpr (std::is_same_v<TX, std::vector<double>>)
-                return std::vector<double>(arg.size(), 0.0);
+            // View<double>
+            if constexpr (std::is_same_v<TX, std::shared_ptr<View<double>>>) {
+                // create vector with zeros
+                auto v = std::vector<double>(arg->size(), 0.0);
+                // create view (owning the vector)
+                return std::make_shared<View<double>>(v);
+            }
             // scalar
             if constexpr (std::is_same_v<TX, std::complex<double>>) {
                 return arg.imag();
@@ -352,25 +300,27 @@ namespace
         auto l = []<typename T0>(T0& arg) -> XyceValue {
             // actual parameter type
             using TX = std::decay_t<T0>;
-            // vector<complex>
-            if constexpr (std::is_same_v<TX, std::vector<std::complex<double>>>) {
-                // create and allocate output vector
+            // View<complex>
+            if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
+                // vector
                 std::vector<double> out;
-                out.reserve(arg.size());
+                // allocate space
+                out.reserve(arg->size());
                 // append angle values
-                std::ranges::transform(arg.begin(), arg.end(), std::back_inserter(out), [](auto v) { return std::arg(v) * 180.0 / std::numbers::pi; });
+                std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto v) { return std::arg(v) * 180.0 / std::numbers::pi; });
                 // exit
-                return out;
+                return std::make_shared<View<double>>(out);
             }
-            // vector<double>
-            else if constexpr (std::is_same_v<TX, std::vector<double>>) {
-                // create and allocate output vector
+            // View<double>
+            else if constexpr (std::is_same_v<TX, std::shared_ptr<View<double>>>) {
+                // vector
                 std::vector<double> out;
-                out.reserve(arg.size());
+                // allocate space
+                out.reserve(arg->size());
                 // append angle values
-                std::ranges::transform(arg.begin(), arg.end(), std::back_inserter(out), [](auto v) { return std::arg(std::complex<double>(v, 0.0)) * 180.0 / std::numbers::pi; });
+                std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto v) { return v >= 0.0 ? 0 : 180.0; });
                 // exit
-                return out;
+                return std::make_shared<View<double>>(out);
             }
             // complex
             else if constexpr (std::is_same_v<TX, std::complex<double>>) {
@@ -378,7 +328,7 @@ namespace
             }
             // double
             else {
-                return std::arg(std::complex<double>(arg, 0.0)) * 180.0 / std::numbers::pi;
+                return arg >= 0.0 ? 0 : 180.0;
             }
         };
         // exit
@@ -522,7 +472,7 @@ namespace
     XyceValue builtin_sqr(const std::vector<XyceValue>& args) {
         // one value argument
         expect_arity("sqr", args, 1);
-        // apply function, returns vector or scalar
+        // scalar argument
         const auto x = scalar_value<double>(args[0]);
         // multiply values
         return x * x;
@@ -532,7 +482,9 @@ namespace
     XyceValue builtin_sgn(const std::vector<XyceValue>& args) {
         // one value argument
         expect_arity("sgn", args, 1);
+        // scalar argument
         const auto x = scalar_value<double>(args[0]);
+        // sign
         return (x > 0.0) - (x < 0.0);
     }
 
@@ -540,8 +492,10 @@ namespace
     XyceValue builtin_sign(const std::vector<XyceValue>& args) {
         // two values argument
         expect_arity("sign", args, 2);
+        // scalar arguments
         const auto x = std::abs(scalar_value<double>(args[0]));
         const auto y = scalar_value<double>(args[1]);
+        // return y >= 0.0 ? x : -x;
         return y < 0.0 ? -x : x;
     }
 
@@ -549,7 +503,7 @@ namespace
     XyceValue builtin_uramp(const std::vector<XyceValue>& args) {
         // one value argument
         expect_arity("uramp", args, 1);
-        // apply function, returns vector or scalar
+        // max(arg, 0)
         return std::max(scalar_value<double>(args[0]), 0.0);
     }
 
@@ -557,7 +511,7 @@ namespace
     XyceValue builtin_stp(const std::vector<XyceValue>& args) {
         // one value argument
         expect_arity("stp", args, 1);
-        // apply function, returns vector or scalar
+        // return 1.0 if arg > 0, else 0.0
         return scalar_value<double>(args[0]) > 0.0 ? 1.0 : 0.0;
     }
 
@@ -565,7 +519,7 @@ namespace
     XyceValue builtin_round(const std::vector<XyceValue>& args) {
         // one value argument
         expect_arity("round", args, 1);
-        // apply function, returns vector or scalar
+        // round
         return std::round(scalar_value<double>(args[0]));
     }
 
@@ -573,7 +527,7 @@ namespace
     XyceValue builtin_nint(const std::vector<XyceValue>& args) {
         // one value argument
         expect_arity("nint", args, 1);
-        // apply function, returns vector or scalar
+        // round
         return std::round(scalar_value<double>(args[0]));
     }
 
@@ -581,7 +535,7 @@ namespace
     XyceValue builtin_floor(const std::vector<XyceValue>& args) {
         // one value argument
         expect_arity("floor", args, 1);
-        // apply function, returns vector or scalar
+        // floor
         return std::floor(scalar_value<double>(args[0]));
     }
 
@@ -589,7 +543,7 @@ namespace
     XyceValue builtin_ceil(const std::vector<XyceValue>& args) {
         // one value argument
         expect_arity("ceil", args, 1);
-        // apply function, returns vector or scalar
+        // ceiling
         return std::ceil(scalar_value<double>(args[0]));
     }
 
@@ -597,82 +551,103 @@ namespace
     XyceValue builtin_int(const std::vector<XyceValue>& args) {
         // one value argument
         expect_arity("int", args, 1);
-        // apply function, returns vector or scalar
+        // truncate
         return std::trunc(scalar_value<double>(args[0]));
     }
 
     // power builtin
     XyceValue builtin_pow(const std::vector<XyceValue>& args) {
+        // two value arguments
         expect_arity("pow", args, 2);
+        // arg0 ^ arg1
         return std::pow(scalar_value<double>(args[0]), scalar_value<double>(args[1]));
     }
 
     // absolute-power builtin
     XyceValue builtin_pwr(const std::vector<XyceValue>& args) {
+        // two value arguments
         expect_arity("pwr", args, 2);
+        // abs(arg0) ^ arg1
         return std::pow(std::abs(scalar_value<double>(args[0])), scalar_value<double>(args[1]));
     }
 
     // signed-power builtin
     XyceValue builtin_pwrs(const std::vector<XyceValue>& args) {
+        // two value arguments
         expect_arity("pwrs", args, 2);
+        // scalar arguments
         const auto x = scalar_value<double>(args[0]);
         const auto y = scalar_value<double>(args[1]);
+        // return sign(x) * abs(x)^y
         return (x < 0.0 ? -1.0 : 1.0) * std::pow(std::abs(x), y);
     }
 
     // floating remainder builtin
     XyceValue builtin_fmod(const std::vector<XyceValue>& args) {
+        // two value arguments
         expect_arity("fmod", args, 2);
+        // floating remainder
         return std::fmod(scalar_value<double>(args[0]), scalar_value<double>(args[1]));
     }
 
     // minimum builtin
     XyceValue builtin_min(const std::vector<XyceValue>& args) {
+        // at least one value argument
         expect_min_arity("min", args, 1);
+        // first argument is the initial minimum
         auto result = scalar_value<double>(args[0]);
-        for (size_t i = 1; i < args.size(); ++i) {
+        // loop other arguments, updating the minimum
+        for (size_t i = 1; i < args.size(); ++i)
             result = std::min(result, scalar_value<double>(args[i]));
-        }
+        // exit
         return result;
     }
 
     // maximum builtin
     XyceValue builtin_max(const std::vector<XyceValue>& args) {
+        // at least one value argument
         expect_min_arity("max", args, 1);
+        // first argument is the initial maximum
         auto result = scalar_value<double>(args[0]);
-        for (size_t i = 1; i < args.size(); ++i) {
+        // loop other arguments, updating the maximum
+        for (size_t i = 1; i < args.size(); ++i)
             result = std::max(result, scalar_value<double>(args[i]));
-        }
+        // exit
         return result;
     }
 
     // clamp builtin
     XyceValue builtin_limit(const std::vector<XyceValue>& args) {
+        // three value arguments
         expect_arity("limit", args, 3);
+        // clamp the first argument between the second and third arguments
         return std::clamp(scalar_value<double>(args[0]), scalar_value<double>(args[1]), scalar_value<double>(args[2]));
     }
 
     // conditional builtin
     XyceValue builtin_if(const std::vector<XyceValue>& args) {
+        // three value arguments
         expect_arity("if", args, 3);
-        if (!is_vector(args[0]) && !is_vector(args[1]) && !is_vector(args[2])) {
+        // if all arguments are scalars, return a scalar
+        if (!is_vector(args[0]) && !is_vector(args[1]) && !is_vector(args[2]))
             return scalar_value<double>(args[0]) != 0.0 ? args[1] : args[2];
-        }
-
+        // convert all arguments to real vectors for broadcasting
         const auto condition = to_real_vector(args[0]);
         const auto if_true = to_real_vector(args[1]);
         const auto if_false = to_real_vector(args[2]);
-
+        // output vector
         std::vector<double> out;
-        out.reserve(condition.size());
-        for (size_t index = 0; index < condition.size(); ++index) {
-            const auto t = if_true.size() == 1 ? if_true[0] : if_true.at(index);
-            const auto f = if_false.size() == 1 ? if_false[0] : if_false.at(index);
-            out.push_back(condition[index] != 0.0 ? t : f);
+        // allocate space
+        out.reserve(condition->size());
+        // loop over condition, broadcasting if necessary
+        for (size_t index = 0; index < condition->size(); ++index) {
+            // true and false values
+            const auto t = if_true->size() == 1 ? if_true->operator[](0) : if_true->operator[](index);
+            const auto f = if_false->size() == 1 ? if_false->operator[](0) : if_false->operator[](index);
+            // append value based on condition
+            out.push_back(condition->operator[](index) != 0.0 ? t : f);
         }
-
-        return out;
+        return std::make_shared<View<double>>(out);
     }
 
     // derivative builtin placeholder

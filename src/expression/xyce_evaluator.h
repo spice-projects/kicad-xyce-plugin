@@ -1,16 +1,13 @@
 #pragma once
 
-#include <complex>
 #include <functional>
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <variant>
 #include <vector>
 
 #include "xyce_parser.h"
-
-using XyceValue = std::variant<double, std::complex<double>, std::vector<double>, std::vector<std::complex<double>>>;
+#include "xyce_value.h"
 
 using BuiltinCallable = std::function<XyceValue(const std::vector<XyceValue>&)>;
 

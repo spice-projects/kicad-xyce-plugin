@@ -46,7 +46,6 @@ This document defines the code style preferences for this project.
 - Format: `// comment text` (starts with lowercase letter, no period)
 - Every non-trivial statement gets its own comment line above it — including statements inside `if` blocks, loops, and other control structures
 - No docstring format; use plain `//` comments
-- Section separator comment style: `// ========================================================================================` when grouping related blocks
 
 ### Classes
 
@@ -99,15 +98,11 @@ This document defines the code style preferences for this project.
   ...
   ```
 - `// arrange / act` is also acceptable when setup and execution are a single step
-- Separate each section with a single blank line for readability
-- All test methods should be self-contained whenever possible
+- Do not separate each section with blank lines
+- All test methods should be self-contained whenever possible, avoid utility functions
 
 ### Assertions
 
 - Use `ASSERT_*` and `EXPECT_*` macros from Google Test, not `assert`
 - Prefer `ASSERT_EQ`, `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_THROW`
 - Use one assertion per line and group related assertions together without blank lines between them
-
-### Section Separators
-
-- Use the `// ========================================================================================` banner to separate groups of related tests
