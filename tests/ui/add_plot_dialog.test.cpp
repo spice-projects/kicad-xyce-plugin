@@ -117,7 +117,7 @@ TEST(AddPlotDialogChecks, add_custom_adds_and_selects_valid_expression) {
 TEST(AddPlotDialogChecks, add_custom_sets_error_for_invalid_expression) {
     // arrange
     std::vector<AnyExpression> expressions;
-    std::vector<std::pair<size_t, size_t>> slices;
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
     ExpressionManager manager(expressions, slices);
     AddPlotDialog dialog(nullptr, &manager, {});
     // act

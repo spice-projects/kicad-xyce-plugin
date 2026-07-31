@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "expression.h"
-#include "xyce_evaluator.h"
 #include "xyce_parser.h"
+#include "xyce_value.h"
 
 class ExpressionManager
 {
@@ -56,9 +56,11 @@ private:
         if (m_step_slices.size() > 1) {
             // reserve the number of spans
             spans.reserve(m_step_slices.size());
+            // pointer
+            auto ptr = data.data();
             // create a span for each step slice
             for (const auto& [start, end] : m_step_slices)
-                spans.emplace_back(data.data() + start, end - start);
+                spans.emplace_back(ptr + start, end - start);
         }
         else {
             // single step, create a span for the entire data vector

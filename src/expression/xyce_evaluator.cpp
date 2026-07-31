@@ -327,12 +327,12 @@ namespace
             // evaluate right, extract type
             const auto right_value = evaluate(*expression.right, context, call_stack);
             const auto right_is_scalar = is_scalar(right_value);
-            // shortcut if right is scalar and false
-            if (right_is_scalar && scalar_value<double>(right_value) == 0.0)
+            // shortcut if right is scalar and true
+            if (right_is_scalar && scalar_value<double>(right_value) != 0.0)
                 return 1.0;
-            // easiest case: both are scalars, return 1.0 since both are non-zero
+            // easiest case: both are scalars, return 0.0 since both are zero
             if (left_is_scalar && right_is_scalar)
-                return 1.0;
+                return 0.0;
             // at least one value is a vector
             return broadcast_binary_real(left_value, right_value, [](double lhs, double rhs) { return (lhs != 0.0 || rhs != 0.0) ? 1.0 : 0.0; });
         }
@@ -454,33 +454,17 @@ namespace
     }
 
     XyceValue evaluate_ternary(const TernaryOperationNode& expression, EvaluationContext& context, const std::vector<std::string>& call_stack) {
-        // // evaluate the condition value
-        // const auto condition = evaluate(*expression.condition, context, call_stack);
-        // // branch for scalar conditions
-        // if (is_scalar(condition)) {
-        //     // check condition is non zero (real)
-        //     return scalar_value<double>(condition) != 0.0 ? evaluate(*expression.if_true, context, call_stack) : evaluate(*expression.if_false, context, call_stack);
-        // }
-        // // evaluate both branches
-        // const auto if_true = evaluate(*expression.if_true, context, call_stack);
-        // const auto if_false = evaluate(*expression.if_false, context, call_stack);
-        // // select elementwise
-        // std::vector<double> mask_scratch;
-        // std::vector<double> true_scratch;
-        // std::vector<double> false_scratch;
-        // const auto mask = to_real_input(condition, mask_scratch);
-        // const auto true_values = to_real_input(if_true, true_scratch);
-        // const auto false_values = to_real_input(if_false, false_scratch);
-        // const auto mask_size = mask.scalar ? size_t{1} : mask.values.size();
-        // std::vector<double> out;
-        // out.reserve(mask_size);
-        // for (size_t index = 0; index < mask_size; ++index) {
-        //     const auto t = pick_real(true_values, index);
-        //     const auto f = pick_real(false_values, index);
-        //     out.push_back(pick_real(mask, index) != 0.0 ? t : f);
-        // }
-        // return out;
-        return 0.0;
+        // evaluate condition
+        const auto condition = evaluate(*expression.condition, context, call_stack);
+        // branch for scalar condition (short-circuit non-taken branch)
+        if (is_scalar(condition)) {
+            return scalar_value<double>(condition) != 0.0 ? evaluate(*expression.if_true, context, call_stack) : evaluate(*expression.if_false, context, call_stack);
+        }
+        // evaluate both branches for vector condition
+        const auto if_true = evaluate(*expression.if_true, context, call_stack);
+        const auto if_false = evaluate(*expression.if_false, context, call_stack);
+        // elementwise conditional selection using builtin if
+        return BUILTIN_FUNCTIONS.at("if")({condition, if_true, if_false});
     }
 
     std::string node_name_from_expr(const ExpressionNode& expression) {
@@ -533,11 +517,17 @@ namespace
             }
             if (to_lower(node_a_name) == "0") {
                 const auto probe_b_key = to_lower("V(" + node_b_name + ")");
+                const XyceValue* val = nullptr;
                 if (const auto it = context.variables.find(probe_b_key); it != context.variables.end()) {
-                    return broadcast_unary_real(it->second, [](double value) { return -value; });
+                    val = &it->second;
                 }
-                if (const auto jt = context.expressions.find(probe_b_key); jt != context.expressions.end()) {
-                    return broadcast_unary_real(*jt->second, [](double value) { return -value; });
+                else if (const auto jt = context.expressions.find(probe_b_key); jt != context.expressions.end()) {
+                    val = jt->second;
+                }
+                if (val != nullptr) {
+                    if (is_complex(*val))
+                        return broadcast_unary_complex(*val, [](std::complex<double> value) { return -value; });
+                    return broadcast_unary_real(*val, [](double value) { return -value; });
                 }
             }
             const auto probe_a_key = to_lower("V(" + node_a_name + ")");
@@ -562,6 +552,8 @@ namespace
             }
             if (value_a != nullptr) {
                 if (value_b != nullptr) {
+                    if (is_complex(*value_a) || is_complex(*value_b))
+                        return broadcast_binary_complex(*value_a, *value_b, [](std::complex<double> lhs, std::complex<double> rhs) { return lhs - rhs; });
                     return broadcast_binary_real(*value_a, *value_b, [](double lhs, double rhs) { return lhs - rhs; });
                 }
                 return *value_a;
@@ -636,13 +628,12 @@ namespace
 
     XyceValue evaluate_step_selector(const StepSelectorNode& expression, EvaluationContext& context, const std::vector<std::string>& call_stack) {
         // steps from context
-        const auto& steps = context.step_slices.value();
-        if (expression.step_index < 1 || expression.step_index > steps.size())
-            throw std::invalid_argument("Step selector @" + std::to_string(expression.step_index) + " is out of range: file has " + std::to_string(steps.size()) + " step(s)");
+        if (expression.step_index < 1 || expression.step_index > context.step_slices.size())
+            throw std::invalid_argument("Step selector @" + std::to_string(expression.step_index) + " is out of range: file has " + std::to_string(context.step_slices.size()) + " step(s)");
         // evaluate the base expression
         const auto base_value = evaluate(*expression.base, context, call_stack);
         // slice @ steo index
-        const auto [begin, end] = steps.at(expression.step_index - 1);
+        const auto [begin, end] = context.step_slices.at(expression.step_index - 1);
         // processor
         auto l = [&begin, &end]<typename T0>(T0& arg) -> XyceValue {
             // actual parameter type
@@ -706,7 +697,7 @@ namespace
     }
 } // namespace
 
-XyceValue evaluate_expression(const ExpressionNode& expression, const std::unordered_map<std::string, XyceValue>& expressions, const std::unordered_map<std::string, FunctionDefinitionNode>& functions, const std::unordered_map<std::string, XyceValue>& constants, const std::optional<std::vector<std::pair<size_t, size_t>>>& step_slices) {
+XyceValue evaluate_expression(const ExpressionNode& expression, const std::unordered_map<std::string, XyceValue>& expressions, const std::unordered_map<std::string, FunctionDefinitionNode>& functions, const std::unordered_map<std::string, XyceValue>& constants, const std::vector<std::pair<size_t, size_t>>& step_slices) {
     // build the evaluation context
     EvaluationContext context;
     // normalize expression keys

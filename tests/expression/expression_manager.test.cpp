@@ -287,15 +287,19 @@ TEST(ExpressionManagerChecks, evaluate_source_is_expression_manager) {
 }
 
 TEST(ExpressionManagerChecks, evaluate_numeric_literal_is_dimensionless) {
-    // arrange / act
-    ExpressionManager manager;
+    // arrange
+    auto expressions = std::vector<AnyExpression>{};
+    auto slices = std::vector<std::pair<size_t, size_t>>{{0, 3}};
+    auto manager = ExpressionManager(expressions, slices);
+    // act
     const auto result = manager.evaluate("3.14");
     // assert
-    ASSERT_NE(result, nullptr);
     ASSERT_EQ(extract_unit(*result), "");
     const auto data = extract_data(*result);
-    ASSERT_EQ(data.size(), 1);
+    ASSERT_EQ(data.size(), 3);
     ASSERT_DOUBLE_EQ(data[0], 3.14);
+    ASSERT_DOUBLE_EQ(data[1], 3.14);
+    ASSERT_DOUBLE_EQ(data[2], 3.14);
 }
 
 TEST(ExpressionManagerChecks, evaluate_node_name_with_plus_sign) {

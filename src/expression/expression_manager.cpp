@@ -8,9 +8,13 @@
 #include "expression_manager.h"
 #include "unit_utils.h"
 #include "util.h"
+#include "xyce_evaluator.h"
 
 ExpressionManager::ExpressionManager(std::vector<AnyExpression>& expressions, std::vector<std::pair<size_t, size_t>>& step_slices) :
     m_expressions(std::make_move_iterator(expressions.begin()), std::make_move_iterator(expressions.end())), m_step_slices(std::move(step_slices)) {
+    // ensure step are non empty
+    if (m_step_slices.empty())
+        throw std::invalid_argument("step slices cannot be empty");
     // index each expression by its lowercased name for fast lookup
     for (size_t idx = 0; idx < m_expressions.size(); ++idx)
         std::visit([this, &idx](auto&& expression) { this->m_context[to_lower(expression.name())] = idx; }, m_expressions[idx]);
@@ -63,12 +67,8 @@ AnyExpression* ExpressionManager::evaluate(const std::string& expression, const 
             // append to map
             expression_data[to_lower(std::visit([](auto&& expr) { return expr.name(); }, expression))] = std::move(value);
         }
-        // attach step slice metadata when not empty
-        std::optional<std::vector<std::pair<size_t, size_t>>> step_opt;
-        if (!m_step_slices.empty())
-            step_opt = m_step_slices;
         // evaluate the parsed expression
-        auto evaluated = evaluate_expression(*ast, expression_data, {}, {}, step_opt);
+        auto evaluated = evaluate_expression(*ast, expression_data, {}, {}, m_step_slices);
         // rematerialize the result if step slices require tiling
         evaluated = rematerialize(evaluated, *ast);
         // unix context
@@ -100,27 +100,28 @@ AnyExpression* ExpressionManager::evaluate(const std::string& expression, const 
 std::string ExpressionManager::infer_unit(const std::string& expression) {
     // determine the lookup key
     const std::string key = to_lower(expression);
-
     // return unit from an already evaluated expression
     if (const auto it = m_context.find(key); it != m_context.end()) {
+        // get the expression
         const auto& any_expr = m_expressions.at(it->second);
+        // return the unit of the expression
         return std::visit([](auto&& expr) { return expr.unit(); }, any_expr);
     }
-
     try {
         // parse and infer unit from the expression AST
         auto ast = m_parser.parse_expression(expression);
-
-        // build a unit-context map from all stored expressions
+        // unit context
         std::unordered_map<std::string, std::string> unit_context;
+        // reserve space for all expressions
         unit_context.reserve(m_expressions.size());
-        for (const auto& any_expr : m_expressions) {
+        // loop expressions, append unit to context
+        for (const auto& any_expr : m_expressions)
             std::visit([&](auto&& expr) { unit_context[to_lower(expr.name())] = expr.unit(); }, any_expr);
-        }
-
+        // use unit inference implementation
         return ::infer_unit(*ast, unit_context);
     }
     catch (const std::exception&) {
+        // unknown
         return "";
     }
 }
@@ -130,25 +131,48 @@ AnyExpression* ExpressionManager::build_expression(XyceValue& value, const std::
     auto l = [this, &name, &unit]<typename T0>(T0&& arg) -> AnyExpression* {
         // actual parameter type
         using TX = std::decay_t<T0>;
-        // scalar double
+        // double
         if constexpr (std::is_same_v<TX, double>) {
-            return nullptr;
+            // calculate total vector size across all steps
+            size_t total_points = 0;
+            for (const auto& [start, end] : m_step_slices)
+                total_points += (end - start);
+            // create vector to hold the scalar value repeated for each step
+            std::vector<double> slices(total_points, arg);
+            // create view, to reuse Expression constructor that takes a View and step slices
+            auto view = View<double>(std::move(slices));
+            // create expression, append it to expressions
+            m_expressions.emplace_back(Expression<double>{name, std::move(view), m_step_slices, unit, "expression manager"});
+            // return expression
+            return &m_expressions.back();
         }
-        // scalar complex
-        else if constexpr (std::is_same_v<TX, std::complex<double>>) {
-            return nullptr;
+
+        // complex
+        if constexpr (std::is_same_v<TX, std::complex<double>>) {
+            // calculate total vector size across all steps
+            size_t total_points = 0;
+            for (const auto& [start, end] : m_step_slices)
+                total_points += (end - start);
+            // create vector to hold the scalar value repeated for each step
+            std::vector<std::complex<double>> slices(total_points, arg);
+            // create view, to reuse Expression constructor that takes a View and step slices
+            auto view = View<std::complex<double>>(std::move(slices));
+            // create expression, append it to expressions
+            m_expressions.emplace_back(Expression<std::complex<double>>{name, std::move(view), m_step_slices, unit, "expression manager"});
+            // return expression
+            return &m_expressions.back();
         }
         // View<double>
-        else if constexpr (std::is_same_v<TX, std::shared_ptr<View<double>>>) {
+        if constexpr (std::is_same_v<TX, std::shared_ptr<View<double>>>) {
             // create expression, append it to expressions
-            m_expressions.emplace_back(Expression<double>{name, std::move(*arg), m_step_slices, unit});
+            m_expressions.emplace_back(Expression<double>{name, std::move(*arg), m_step_slices, unit, "expression manager"});
             // return expression
             return &m_expressions.back();
         }
         // vector<complex>
         else if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
             // create expression, append it to expressions
-            m_expressions.emplace_back(Expression<std::complex<double>>{name, std::move(*arg), m_step_slices, unit});
+            m_expressions.emplace_back(Expression<std::complex<double>>{name, std::move(*arg), m_step_slices, unit, "expression manager"});
             // return expression
             return &m_expressions.back();
         }
@@ -157,40 +181,6 @@ AnyExpression* ExpressionManager::build_expression(XyceValue& value, const std::
     };
     // convert value to expression
     return std::visit(l, value);
-
-    // // dispatch on the variant type and construct the matching expression
-    // return std::visit(
-    //     [&](auto&& arg) -> AnyExpression* {
-    //         using T = std::decay_t<decltype(arg)>;
-    //         if constexpr (std::is_same_v<T, double>) {
-    //             // scalar double
-    //             std::vector<double> data = {std::move(arg)};
-    //             std::vector<std::span<const double>> steps;
-    //             fill_step_spans(data, steps);
-    //             m_expressions.emplace_back(std::in_place_type<Expression<double>>, name, data, steps, unit, "expression manager");
-    //         }
-    //         else if constexpr (std::is_same_v<T, std::complex<double>>) {
-    //             // scalar complex
-    //             std::vector<std::complex<double>> data = {std::move(arg)};
-    //             std::vector<std::span<const std::complex<double>>> steps;
-    //             fill_step_spans(data, steps);
-    //             m_expressions.emplace_back(std::in_place_type<Expression<std::complex<double>>>, name, data, steps, unit, "expression manager");
-    //         }
-    //         else if constexpr (std::is_same_v<T, std::vector<double>>) {
-    //             // vector of doubles
-    //             std::vector<std::span<const double>> steps;
-    //             fill_step_spans(arg, steps);
-    //             m_expressions.emplace_back(std::in_place_type<Expression<double>>, name, arg, steps, unit, "expression manager");
-    //         }
-    //         else {
-    //             // vector of complex doubles
-    //             std::vector<std::span<const std::complex<double>>> steps;
-    //             fill_step_spans(arg, steps);
-    //             m_expressions.emplace_back(std::in_place_type<Expression<std::complex<double>>>, name, arg, steps, unit, "expression manager");
-    //         }
-    //         return &m_expressions.back();
-    //     },
-    //     std::move(value));
 }
 
 XyceValue ExpressionManager::rematerialize(XyceValue& value, const ExpressionNode& ast) {
