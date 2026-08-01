@@ -137,22 +137,18 @@ TEST_F(XyceValueTest, to_complex_vector) {
     XyceValue vc = std::make_shared<View<std::complex<double>>>(std::vector<std::complex<double>>{{1.0, 2.0}, {3.0, 4.0}});
     // act / assert scalar double
     auto cv1 = to_complex_vector(d);
-    ASSERT_NE(cv1, nullptr);
     EXPECT_EQ(cv1->size(), static_cast<std::size_t>(1));
     EXPECT_EQ((*cv1)[0], std::complex<double>(4.0, 0.0));
     // act / assert scalar complex
     auto cv2 = to_complex_vector(c);
-    ASSERT_NE(cv2, nullptr);
     EXPECT_EQ(cv2->size(), static_cast<std::size_t>(1));
     EXPECT_EQ((*cv2)[0], std::complex<double>(-3.0, 5.0));
     // act / assert real vector view
     auto cv3 = to_complex_vector(vr);
-    ASSERT_NE(cv3, nullptr);
     EXPECT_EQ(cv3->size(), static_cast<std::size_t>(2));
     EXPECT_EQ((*cv3)[0], std::complex<double>(6.0, 0.0));
     // act / assert complex vector view
     auto cv4 = to_complex_vector(vc);
-    ASSERT_NE(cv4, nullptr);
     EXPECT_EQ(cv4->size(), static_cast<std::size_t>(2));
     EXPECT_EQ((*cv4)[1], std::complex<double>(3.0, 4.0));
 }

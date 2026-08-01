@@ -3,6 +3,7 @@
 #include <complex>
 #include <memory>
 #include <stdexcept>
+#include <string_view>
 
 #include <spdlog/spdlog.h>
 
@@ -14,37 +15,61 @@
 
 namespace
 {
-    class ScopedVariableBindings
+    struct Context
     {
-    public:
-        explicit ScopedVariableBindings(EvaluationContext& context) :
-            m_context(context) {}
+        const std::unordered_map<std::string, const XyceValue*>& expressions;
+        const std::unordered_map<std::string, const FunctionDefinitionNode*>& functions;
+        const std::unordered_map<std::string, const XyceValue*>& constants;
+        const std::vector<std::pair<size_t, size_t>>& step_slices;
 
-        void bind(std::string key, XyceValue value) {
-            m_keys.push_back(key);
-            m_previous.push_back(m_context.variables.extract(key));
-            m_context.variables.insert_or_assign(std::move(key), std::move(value));
-        }
+        const std::unordered_map<std::string, XyceValue>* local_variables = nullptr;
+        const Context* parent_var_scope = nullptr;
 
-        ~ScopedVariableBindings() {
-            // restore previous variable bindings
-            for (const auto& key : m_keys)
-                m_context.variables.erase(key);
-            // restore previous variable values
-            for (auto& node : m_previous) {
-                // check if the node is not empty before inserting it back into the map
-                if (!node.empty())
-                    m_context.variables.insert(std::move(node));
+        std::string_view current_function_name{};
+        const Context* parent_call_frame = nullptr;
+
+        [[nodiscard]] const XyceValue* find_variable(std::string_view key) const {
+            // check local variables first
+            if (local_variables) {
+                // find in local map
+                if (const auto it = local_variables->find(std::string(key)); it != local_variables->end()) {
+                    // return pointer to value
+                    return &it->second;
+                }
             }
+            // fallback to parent scope if present
+            return parent_var_scope ? parent_var_scope->find_variable(key) : nullptr;
         }
 
-        ScopedVariableBindings(const ScopedVariableBindings&) = delete;
-        ScopedVariableBindings& operator=(const ScopedVariableBindings&) = delete;
+        [[nodiscard]] bool has_variable(std::string_view key) const {
+            // return whether variable was found
+            return find_variable(key) != nullptr;
+        }
 
-    private:
-        EvaluationContext& m_context;
-        std::vector<std::string> m_keys;
-        std::vector<std::unordered_map<std::string, XyceValue>::node_type> m_previous;
+        [[nodiscard]] bool has_function_in_stack(std::string_view func_name) const {
+            // check if current frame matches function name
+            if (current_function_name == func_name) {
+                // recursion detected
+                return true;
+            }
+            // check parent call frame
+            return parent_call_frame ? parent_call_frame->has_function_in_stack(func_name) : false;
+        }
+
+        [[nodiscard]] Context with_function_call(std::string_view func_name, const std::unordered_map<std::string, XyceValue>& args) const {
+            // create copy of current context
+            Context child = *this;
+            // update local variables pointer
+            child.local_variables = &args;
+            // set parent variable scope
+            child.parent_var_scope = this;
+            // set current function name
+            child.current_function_name = func_name;
+            // set parent call frame
+            child.parent_call_frame = this;
+            // exit
+            return child;
+        }
     };
 
     XyceValue broadcast_binary_real(const XyceValue& left, const XyceValue& right, const std::function<double(double, double)>& fn) {
@@ -197,13 +222,14 @@ namespace
         return std::make_shared<View<std::complex<double>>>(out);
     }
 
-    XyceValue evaluate(const ExpressionNode& expression, EvaluationContext& context, const std::vector<std::string>& call_stack);
+    XyceValue evaluate(const ExpressionNode& expression, const Context& context);
 
-    XyceValue evaluate_unary(const UnaryOperationNode& expression, EvaluationContext& context, const std::vector<std::string>& call_stack) {
+    XyceValue evaluate_unary(const UnaryOperationNode& expression, const Context& context) {
         // evaluate the operand first
-        auto value = evaluate(*expression.operand, context, call_stack);
+        auto value = evaluate(*expression.operand, context);
         // apply unary plus
         if (expression.operator_value == UnaryOperator::POS) {
+            // return value directly
             return value;
         }
         // apply unary minus
@@ -247,6 +273,7 @@ namespace
                 // not possible value type
                 throw std::invalid_argument("unsupported type");
             };
+            // visit and return
             return std::visit(l, value);
         }
         // apply logical not
@@ -290,22 +317,24 @@ namespace
                 // not possible value type
                 throw std::invalid_argument("unsupported type");
             };
+            // visit and return
             return std::visit(l, value);
         }
+        // unsupported operator
         throw std::invalid_argument("Unsupported unary operator");
     }
 
-    XyceValue evaluate_binary(const BinaryOperationNode& expression, EvaluationContext& context, const std::vector<std::string>& call_stack) {
+    XyceValue evaluate_binary(const BinaryOperationNode& expression, const Context& context) {
         // short-circuit logical and
         if (expression.operator_value == BinaryOperator::LOGICAL_AND) {
             // eveluate left, extract type
-            const auto left_value = evaluate(*expression.left, context, call_stack);
+            const auto left_value = evaluate(*expression.left, context);
             const auto left_is_scalar = is_scalar(left_value);
             // shortcut if left is scalar and false
             if (left_is_scalar && scalar_value<double>(left_value) == 0.0)
                 return 0.0;
             // evaluate right, extract type
-            const auto right_value = evaluate(*expression.right, context, call_stack);
+            const auto right_value = evaluate(*expression.right, context);
             const auto right_is_scalar = is_scalar(right_value);
             // shortcut if right is scalar and false
             if (right_is_scalar && scalar_value<double>(right_value) == 0.0)
@@ -319,13 +348,13 @@ namespace
         // short-circuit logical or
         if (expression.operator_value == BinaryOperator::LOGICAL_OR) {
             // eveluate left, extract type
-            const auto left_value = evaluate(*expression.left, context, call_stack);
+            const auto left_value = evaluate(*expression.left, context);
             const auto left_is_scalar = is_scalar(left_value);
             // shortcut if left is scalar and true
             if (left_is_scalar && scalar_value<double>(left_value) != 0.0)
                 return 1.0;
             // evaluate right, extract type
-            const auto right_value = evaluate(*expression.right, context, call_stack);
+            const auto right_value = evaluate(*expression.right, context);
             const auto right_is_scalar = is_scalar(right_value);
             // shortcut if right is scalar and true
             if (right_is_scalar && scalar_value<double>(right_value) != 0.0)
@@ -337,8 +366,8 @@ namespace
             return broadcast_binary_real(left_value, right_value, [](double lhs, double rhs) { return (lhs != 0.0 || rhs != 0.0) ? 1.0 : 0.0; });
         }
         // evaluate both operands for the remaining operators
-        const auto left_value = evaluate(*expression.left, context, call_stack);
-        const auto right_value = evaluate(*expression.right, context, call_stack);
+        const auto left_value = evaluate(*expression.left, context);
+        const auto right_value = evaluate(*expression.right, context);
         // +
         if (expression.operator_value == BinaryOperator::ADD) {
             // check at least one operand is complex or a complex vector
@@ -453,125 +482,181 @@ namespace
         throw std::invalid_argument("Unsupported binary operator");
     }
 
-    XyceValue evaluate_ternary(const TernaryOperationNode& expression, EvaluationContext& context, const std::vector<std::string>& call_stack) {
+    XyceValue evaluate_ternary(const TernaryOperationNode& expression, const Context& context) {
         // evaluate condition
-        const auto condition = evaluate(*expression.condition, context, call_stack);
+        const auto condition = evaluate(*expression.condition, context);
         // branch for scalar condition (short-circuit non-taken branch)
         if (is_scalar(condition)) {
-            return scalar_value<double>(condition) != 0.0 ? evaluate(*expression.if_true, context, call_stack) : evaluate(*expression.if_false, context, call_stack);
+            // check condition and evaluate corresponding branch
+            return scalar_value<double>(condition) != 0.0 ? evaluate(*expression.if_true, context) : evaluate(*expression.if_false, context);
         }
         // evaluate both branches for vector condition
-        const auto if_true = evaluate(*expression.if_true, context, call_stack);
-        const auto if_false = evaluate(*expression.if_false, context, call_stack);
+        const auto if_true = evaluate(*expression.if_true, context);
+        const auto if_false = evaluate(*expression.if_false, context);
         // elementwise conditional selection using builtin if
         return BUILTIN_FUNCTIONS.at("if")({condition, if_true, if_false});
     }
 
     std::string node_name_from_expr(const ExpressionNode& expression) {
+        // cast to identifier node
         if (const auto* node = dynamic_cast<const IdentifierNode*>(&expression); node != nullptr) {
+            // return identifier name
             return node->name;
         }
+        // cast to number node
         if (const auto* node = dynamic_cast<const NumberNode*>(&expression); node != nullptr) {
+            // return number text
             return node->text;
         }
+        // throw exception
         throw std::invalid_argument("Cannot extract node name from complex expression");
     }
 
     std::string reconstruct_probe_name(const FunctionCallNode& expression) {
+        // reconstruct probe string
         std::string result = expression.name;
+        // append closing parenthesis
         result += ")";
         // Note: original reconstruct_probe_name implementation reconstructed from args, keeping exact style
         result = expression.name;
+        // append opening parenthesis
         result += "(";
+        // loop arguments
         for (size_t index = 0; index < expression.args.size(); ++index) {
+            // append separator if needed
             if (index > 0) {
+                // append comma and space
                 result += ", ";
             }
+            // append node name
             result += node_name_from_expr(*expression.args[index]);
         }
+        // append closing parenthesis
         result += ")";
+        // return reconstructed probe name
         return result;
     }
 
     std::string extract_node_name(const ExpressionNode& expression) { return node_name_from_expr(expression); }
 
-    XyceValue evaluate_probe(const FunctionCallNode& expression, EvaluationContext& context) {
+    XyceValue evaluate_probe(const FunctionCallNode& expression, const Context& context) {
+        // reconstruct probe name
         const auto probe_name = reconstruct_probe_name(expression);
-        if (const auto it = context.variables.find(to_lower(probe_name)); it != context.variables.end()) {
-            return it->second;
+        // check variables
+        if (const auto* val = context.find_variable(to_lower(probe_name)); val != nullptr) {
+            // return variable value
+            return *val;
         }
+        // check expressions
         if (const auto it = context.expressions.find(to_lower(probe_name)); it != context.expressions.end()) {
+            // return expression value
             return *it->second;
         }
+        // check differential probe with 2 arguments
         if (expression.args.size() == 2) {
+            // node names
             const auto node_a_name = extract_node_name(*expression.args[0]);
             const auto node_b_name = extract_node_name(*expression.args[1]);
+            // check node b is ground
             if (to_lower(node_b_name) == "0") {
+                // probe key
                 const auto probe_a_key = to_lower("V(" + node_a_name + ")");
-                if (const auto it = context.variables.find(probe_a_key); it != context.variables.end()) {
-                    return it->second;
+                // check variables
+                if (const auto* val = context.find_variable(probe_a_key); val != nullptr) {
+                    // return variable value
+                    return *val;
                 }
+                // check expressions
                 if (const auto jt = context.expressions.find(probe_a_key); jt != context.expressions.end()) {
+                    // return expression value
                     return *jt->second;
                 }
             }
+            // check node a is ground
             if (to_lower(node_a_name) == "0") {
+                // probe key
                 const auto probe_b_key = to_lower("V(" + node_b_name + ")");
+                // value pointer
                 const XyceValue* val = nullptr;
-                if (const auto it = context.variables.find(probe_b_key); it != context.variables.end()) {
-                    val = &it->second;
+                // check variables
+                if (const auto* var_val = context.find_variable(probe_b_key); var_val != nullptr) {
+                    // set value pointer
+                    val = var_val;
                 }
                 else if (const auto jt = context.expressions.find(probe_b_key); jt != context.expressions.end()) {
+                    // set value pointer
                     val = jt->second;
                 }
+                // negate probe value if found
                 if (val != nullptr) {
+                    // check complex
                     if (is_complex(*val))
                         return broadcast_unary_complex(*val, [](std::complex<double> value) { return -value; });
+                    // real negation
                     return broadcast_unary_real(*val, [](double value) { return -value; });
                 }
             }
+            // differential probe keys
             const auto probe_a_key = to_lower("V(" + node_a_name + ")");
             const auto probe_b_key = to_lower("V(" + node_b_name + ")");
-            const auto it_a = context.variables.find(probe_a_key);
-            const auto it_b = context.variables.find(probe_b_key);
+            // find values
+            const auto* var_a = context.find_variable(probe_a_key);
+            const auto* var_b = context.find_variable(probe_b_key);
             const auto jt_a = context.expressions.find(probe_a_key);
             const auto jt_b = context.expressions.find(probe_b_key);
+            // value a
             const XyceValue* value_a = nullptr;
-            if (it_a != context.variables.end()) {
-                value_a = &it_a->second;
+            if (var_a != nullptr) {
+                // use variable value
+                value_a = var_a;
             }
             else if (jt_a != context.expressions.end()) {
+                // use expression value
                 value_a = jt_a->second;
             }
+            // value b
             const XyceValue* value_b = nullptr;
-            if (it_b != context.variables.end()) {
-                value_b = &it_b->second;
+            if (var_b != nullptr) {
+                // use variable value
+                value_b = var_b;
             }
             else if (jt_b != context.expressions.end()) {
+                // use expression value
                 value_b = jt_b->second;
             }
+            // calculate difference if available
             if (value_a != nullptr) {
+                // check value b
                 if (value_b != nullptr) {
+                    // complex subtract
                     if (is_complex(*value_a) || is_complex(*value_b))
                         return broadcast_binary_complex(*value_a, *value_b, [](std::complex<double> lhs, std::complex<double> rhs) { return lhs - rhs; });
+                    // real subtract
                     return broadcast_binary_real(*value_a, *value_b, [](double lhs, double rhs) { return lhs - rhs; });
                 }
+                // single reference value
                 return *value_a;
             }
         }
+        // throw exception
         throw std::invalid_argument("Unknown probe: " + probe_name);
     }
 
     bool has_simple_probe_args(const FunctionCallNode& expression) {
+        // loop arguments
         for (const auto& arg : expression.args) {
+            // check node type
             if (!dynamic_cast<const IdentifierNode*>(arg.get()) && !dynamic_cast<const NumberNode*>(arg.get())) {
+                // complex argument found
                 return false;
             }
         }
+        // all arguments are simple
         return true;
     }
 
-    bool is_probe_call(const FunctionCallNode& expression, const EvaluationContext& context) {
+    bool is_probe_call(const FunctionCallNode& expression, const Context& context) {
+        // lowercase function name
         const auto name = to_lower(expression.name);
         // canonical SPICE probe families: v, i, id
         if ((name == "v" || name == "i" || name == "id") && !expression.args.empty())
@@ -582,56 +667,78 @@ namespace
             if (has_simple_probe_args(expression)) {
                 // reconstruct the probe name and check if it exists in the context
                 const auto key = to_lower(reconstruct_probe_name(expression));
-                // check if the probe name exists in the context variables or expressions
-                return context.variables.contains(key) || context.expressions.contains(key);
+                // check if the probe name exists in context variables or expressions
+                return context.has_variable(key) || context.expressions.contains(key);
             }
         }
+        // not a probe call
         return false;
     }
 
-    XyceValue evaluate_function_call(const FunctionCallNode& expression, EvaluationContext& context, const std::vector<std::string>& call_stack) {
+    XyceValue evaluate_function_call(const FunctionCallNode& expression, const Context& context) {
         // probe calls are handled specially
         if (is_probe_call(expression, context)) {
+            // evaluate probe
             return evaluate_probe(expression, context);
         }
         // resolve a builtin function
         const auto builtin_key = to_lower(expression.name);
+        // find in builtin map
         if (const auto it = BUILTIN_FUNCTIONS.find(builtin_key); it != BUILTIN_FUNCTIONS.end()) {
+            // arguments vector
             std::vector<XyceValue> args;
+            // reserve space
             args.reserve(expression.args.size());
+            // evaluate arguments
             for (const auto& arg : expression.args) {
-                args.push_back(evaluate(*arg, context, call_stack));
+                // append evaluated argument
+                args.push_back(evaluate(*arg, context));
             }
+            // execute builtin function
             return it->second(args);
         }
         // resolve a user function
         const auto function_key = to_lower(expression.name);
+        // find in functions map
         const auto it = context.functions.find(function_key);
+        // check function exists
         if (it == context.functions.end()) {
+            // throw unknown function
             throw std::invalid_argument("Unknown function: " + expression.name);
         }
-        if (std::find(call_stack.begin(), call_stack.end(), function_key) != call_stack.end()) {
+        // check recursion
+        if (context.has_function_in_stack(function_key)) {
+            // throw recursive function error
             throw std::invalid_argument("Recursive function call detected: " + expression.name);
         }
+        // function definition reference
         const auto& definition = *it->second;
+        // check argument count matches parameter count
         if (expression.args.size() != definition.params.size()) {
+            // throw argument count error
             throw std::invalid_argument("Function '" + expression.name + "' expects " + std::to_string(definition.params.size()) + " arguments, got " + std::to_string(expression.args.size()));
         }
-        ScopedVariableBindings parameter_bindings(context);
+        // argument map for local variables scope
+        std::unordered_map<std::string, XyceValue> arg_map;
+        // reserve space for parameters
+        arg_map.reserve(definition.params.size());
+        // evaluate arguments and bind to parameter names
         for (size_t index = 0; index < definition.params.size(); ++index) {
-            parameter_bindings.bind(to_lower(definition.params[index]), evaluate(*expression.args[index], context, call_stack));
+            // bind parameter value
+            arg_map[to_lower(definition.params[index])] = evaluate(*expression.args[index], context);
         }
-        auto next_stack = call_stack;
-        next_stack.push_back(function_key);
-        return evaluate(*definition.body, context, next_stack);
+        // create child context with function call frame and local variables
+        const auto next_context = context.with_function_call(function_key, arg_map);
+        // evaluate function body in child context
+        return evaluate(*definition.body, next_context);
     }
 
-    XyceValue evaluate_step_selector(const StepSelectorNode& expression, EvaluationContext& context, const std::vector<std::string>& call_stack) {
+    XyceValue evaluate_step_selector(const StepSelectorNode& expression, const Context& context) {
         // steps from context
         if (expression.step_index < 1 || expression.step_index > context.step_slices.size())
             throw std::invalid_argument("Step selector @" + std::to_string(expression.step_index) + " is out of range: file has " + std::to_string(context.step_slices.size()) + " step(s)");
         // evaluate the base expression
-        const auto base_value = evaluate(*expression.base, context, call_stack);
+        const auto base_value = evaluate(*expression.base, context);
         // slice @ steo index
         const auto [begin, end] = context.step_slices.at(expression.step_index - 1);
         // processor
@@ -651,15 +758,16 @@ namespace
             // return argument when scalar
             return {arg};
         };
+        // visit base value
         return std::visit(l, base_value);
     }
 
-    XyceValue lookup_name(const std::string& name, EvaluationContext& context) {
+    XyceValue lookup_name(const std::string& name, const Context& context) {
         // lowercase the name for case-insensitive lookup
         const auto key = to_lower(name);
         // find in context variables
-        if (const auto it = context.variables.find(key); it != context.variables.end())
-            return it->second;
+        if (const auto* val = context.find_variable(key); val != nullptr)
+            return *val;
         // find in context expressions
         if (const auto it = context.expressions.find(key); it != context.expressions.end())
             return *it->second;
@@ -670,7 +778,7 @@ namespace
         throw std::invalid_argument("Unknown identifier: " + name);
     }
 
-    XyceValue evaluate(const ExpressionNode& expression, EvaluationContext& context, const std::vector<std::string>& call_stack) {
+    XyceValue evaluate(const ExpressionNode& expression, const Context& context) {
         // literal number
         if (const auto* node = dynamic_cast<const NumberNode*>(&expression); node != nullptr)
             return std::stod(node->text);
@@ -679,40 +787,54 @@ namespace
             return lookup_name(node->name, context);
         // unary expression
         if (const auto* node = dynamic_cast<const UnaryOperationNode*>(&expression); node != nullptr)
-            return evaluate_unary(*node, context, call_stack);
+            return evaluate_unary(*node, context);
         // binary expression
         if (const auto* node = dynamic_cast<const BinaryOperationNode*>(&expression); node != nullptr)
-            return evaluate_binary(*node, context, call_stack);
+            return evaluate_binary(*node, context);
         // ternary expression
         if (const auto* node = dynamic_cast<const TernaryOperationNode*>(&expression); node != nullptr)
-            return evaluate_ternary(*node, context, call_stack);
+            return evaluate_ternary(*node, context);
         // function call expression
         if (const auto* node = dynamic_cast<const FunctionCallNode*>(&expression); node != nullptr)
-            return evaluate_function_call(*node, context, call_stack);
+            return evaluate_function_call(*node, context);
         // step selector expression
         if (const auto* node = dynamic_cast<const StepSelectorNode*>(&expression); node != nullptr)
-            return evaluate_step_selector(*node, context, call_stack);
+            return evaluate_step_selector(*node, context);
         // unsupported expression node
         throw std::invalid_argument("Unsupported expression node");
     }
 } // namespace
 
 XyceValue evaluate_expression(const ExpressionNode& expression, const std::unordered_map<std::string, XyceValue>& expressions, const std::unordered_map<std::string, FunctionDefinitionNode>& functions, const std::unordered_map<std::string, XyceValue>& constants, const std::vector<std::pair<size_t, size_t>>& step_slices) {
-    // build the evaluation context
-    EvaluationContext context;
-    // normalize expression keys
+    // build evaluation expression lookup map
+    std::unordered_map<std::string, const XyceValue*> expr_map;
+    // loop expressions and store pointers
     for (const auto& [name, value] : expressions)
-        context.expressions[to_lower(name)] = &value;
-    // normalize function keys
+        expr_map[to_lower(name)] = &value;
+
+    // build evaluation function lookup map
+    std::unordered_map<std::string, const FunctionDefinitionNode*> func_map;
+    // loop functions and store pointers
     for (const auto& [name, value] : functions)
-        context.functions.insert_or_assign(to_lower(name), &value);
-    // normalize constant keys and seed the builtin constants
+        func_map.insert_or_assign(to_lower(name), &value);
+
+    // build evaluation constants lookup map
+    std::unordered_map<std::string, const XyceValue*> const_map;
+    // loop builtin constants
     for (const auto& [name, value] : BUILTIN_CONSTANTS)
-        context.constants[to_lower(name)] = &value;
+        const_map[to_lower(name)] = &value;
+    // loop user constants
     for (const auto& [name, value] : constants)
-        context.constants[to_lower(name)] = &value;
-    // store step slices
-    context.step_slices = step_slices;
+        const_map[to_lower(name)] = &value;
+
+    // build initial evaluation context
+    Context context{
+        .expressions = expr_map,
+        .functions = func_map,
+        .constants = const_map,
+        .step_slices = step_slices,
+    };
+
     // evaluate the tree
-    return evaluate(expression, context, {});
+    return evaluate(expression, context);
 }

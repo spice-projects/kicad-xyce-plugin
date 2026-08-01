@@ -66,6 +66,13 @@ public:
         m_size = m_data.size();
     }
 
+    explicit View(std::vector<T>&& vector) :
+        m_stride(1), m_data(std::move(vector)), m_data_owner(nullptr) {
+        // pointer to vector data
+        m_pointer = m_data.data();
+        m_size = m_data.size();
+    }
+
     explicit View(std::span<const T> span) :
         m_pointer(const_cast<T*>(span.data())), m_size(span.size()), m_stride(1), m_data_owner(nullptr) {}
 

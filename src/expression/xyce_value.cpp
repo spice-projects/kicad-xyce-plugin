@@ -57,14 +57,14 @@ std::shared_ptr<View<double>> to_real_vector(const XyceValue& value) {
         // scalar double
         if constexpr (std::is_same_v<TX, double>) {
             // create vector with a single element
-            auto v = std::vector<double>{arg};
+            std::vector<double> v = {{arg}};
             // create view (owning the vector)
             return std::make_shared<View<double>>(v);
         }
         // scalar complex
         else if constexpr (std::is_same_v<TX, std::complex<double>>) {
             // create vector with a single element
-            auto v = std::vector<double>{arg.real()};
+            std::vector<double> v = {{arg.real()}};
             // create view (owning the vector)
             return std::make_shared<View<double>>(v);
         }
@@ -100,14 +100,14 @@ std::shared_ptr<View<std::complex<double>>> to_complex_vector(const XyceValue& v
         // scalar double
         if constexpr (std::is_same_v<TX, double>) {
             // create vector with a single element
-            auto v = std::vector<std::complex<double>>{arg, 0.0};
+            std::vector<std::complex<double>> v = {{arg, 0.0}};
             // create view (owning the vector)
             return std::make_shared<View<std::complex<double>>>(v);
         }
         // scalar complex
         else if constexpr (std::is_same_v<TX, std::complex<double>>) {
             // create vector with a single element
-            auto v = std::vector<std::complex<double>>{arg};
+            std::vector<std::complex<double>> v = {{arg}};
             // create view (owning the vector)
             return std::make_shared<View<std::complex<double>>>(v);
         }
