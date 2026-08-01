@@ -4,7 +4,9 @@
 #include <memory>
 #include <optional>
 #include <regex>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <utility>
 
 #include <spdlog/spdlog.h>

@@ -44,10 +44,6 @@ message(STATUS "Collected source files:\n${CPP_SOURCES}")
 
 add_executable(kicad-xyce-plugin-tests ${TEST_FILES} ${SOURCE_FILES})
 
-if(WIN32)
-    set_target_properties(kicad-xyce-plugin-tests PROPERTIES WIN32_EXECUTABLE TRUE)
-endif()
-
 target_compile_definitions(kicad-xyce-plugin-tests PRIVATE KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
 
 target_link_libraries(kicad-xyce-plugin-tests PRIVATE wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog GTest::gtest_main)

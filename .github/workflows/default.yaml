@@ -39,6 +39,12 @@ jobs:
         if: ${{ matrix.build_enabled }}
         uses: llvm/actions/install-ninja@main
 
+      - name: Setup MSVC toolchain
+        if: ${{ matrix.build_enabled && runner.os == 'Windows' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Restore vcpkg binary cache
         if: ${{ matrix.build_enabled }}
         uses: actions/cache@v5
@@ -56,8 +62,13 @@ jobs:
 
       - name: Configure CMake
         if: ${{ matrix.build_enabled }}
+        shell: bash
         run: |
-          cmake --preset release
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cmake --preset release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl
+          else
+            cmake --preset release
+          fi
 
       - name: Build C++ Target
         if: ${{ matrix.build_enabled }}

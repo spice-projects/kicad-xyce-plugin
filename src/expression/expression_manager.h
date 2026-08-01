@@ -50,22 +50,4 @@ private:
     AnyExpression* build_expression(XyceValue& value, const std::string& name, const std::string& unit);
 
     XyceValue rematerialize(XyceValue& value, const ExpressionNode& ast);
-
-    template <typename T>
-    void fill_step_spans(const std::vector<T>& data, std::vector<std::span<const T>>& spans) {
-        // check there are multiple steps
-        if (m_step_slices.size() > 1) {
-            // reserve the number of spans
-            spans.reserve(m_step_slices.size());
-            // pointer
-            auto ptr = data.data();
-            // create a span for each step slice
-            for (const auto& [start, end] : m_step_slices)
-                spans.emplace_back(ptr + start, end - start);
-        }
-        else {
-            // single step, create a span for the entire data vector
-            spans.emplace_back(data);
-        }
-    }
 };
