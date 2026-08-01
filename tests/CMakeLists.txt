@@ -58,7 +58,7 @@ elseif(WIN32)
 endif()
 
 # enable more warnings in tests for better
-target_compile_options(kicad-xyce-plugin-tests PRIVATE $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall;-Wextra;-Wpedantic>)
+target_compile_options(kicad-xyce-plugin-tests PRIVATE -Wall -Wextra -Wpedantic)
 
 # auto-discover Gtests as Ctests
 include(CTest)
