@@ -44,6 +44,7 @@ private:
     std::deque<AnyExpression> m_expressions;
     std::vector<std::pair<size_t, size_t>> m_step_slices;
     std::unordered_map<std::string, size_t> m_context;
+    std::unordered_map<std::string, XyceValue> m_expression_data;
     XyceParser m_parser;
 
     AnyExpression* build_expression(XyceValue& value, const std::string& name, const std::string& unit);

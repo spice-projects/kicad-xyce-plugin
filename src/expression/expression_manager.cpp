@@ -56,19 +56,18 @@ AnyExpression* ExpressionManager::evaluate(const std::string& expression, const 
             return &m_expressions.at(it->second);
         // parse the expression string into an AST
         auto ast = m_parser.parse_expression(expression);
-        // expressions data
-        std::unordered_map<std::string, XyceValue> expression_data;
-        // reserve space for all expressions
-        expression_data.reserve(m_expressions.size());
-        // loop expressions
-        for (auto& expression : m_expressions) {
-            // create value
-            auto value = from_expression(expression);
-            // append to map
-            expression_data[to_lower(std::visit([](auto&& expr) { return expr.name(); }, expression))] = std::move(value);
-        }
-        // evaluate the parsed expression
-        auto evaluated = evaluate_expression(*ast, expression_data, {}, {}, m_step_slices);
+        // lazy loader materializes an expression the first time it is referenced
+        auto loader = [this](const std::string& key) -> std::optional<XyceValue> {
+            // find the expression in the context
+            if (const auto it = m_context.find(key); it != m_context.end()) {
+                // materialize and return the expression value
+                return from_expression(m_expressions.at(it->second));
+            }
+            // unknown expression
+            return std::nullopt;
+        };
+        // evaluate the parsed expression, materializing expressions on demand
+        auto evaluated = evaluate_expression(*ast, m_expression_data, loader, {}, {}, m_step_slices);
         // rematerialize the result if step slices require tiling
         evaluated = rematerialize(evaluated, *ast);
         // unix context

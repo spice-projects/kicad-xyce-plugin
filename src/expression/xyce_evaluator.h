@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -18,6 +19,8 @@ struct EvaluationContext
     std::unordered_map<std::string, const XyceValue*> constants;
     std::vector<std::pair<size_t, size_t>> step_slices;
 };
+
+XyceValue evaluate_expression(const ExpressionNode& expression, std::unordered_map<std::string, XyceValue>& expressions, const std::function<std::optional<XyceValue>(const std::string&)>& loader, const std::unordered_map<std::string, FunctionDefinitionNode>& functions, const std::unordered_map<std::string, XyceValue>& constants, const std::vector<std::pair<size_t, size_t>>& step_slices);
 
 XyceValue evaluate_expression(const ExpressionNode& expression, const std::unordered_map<std::string, XyceValue>& expressions = {}, const std::unordered_map<std::string, FunctionDefinitionNode>& functions = {}, const std::unordered_map<std::string, XyceValue>& constants = {}, const std::vector<std::pair<size_t, size_t>>& step_slices = {});
 

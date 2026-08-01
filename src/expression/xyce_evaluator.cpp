@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -18,7 +19,8 @@ namespace
 {
     struct Context
     {
-        const std::unordered_map<std::string, const XyceValue*>& expressions;
+        std::unordered_map<std::string, XyceValue>* expressions;
+        const std::function<std::optional<XyceValue>(const std::string&)>& loader;
         const std::unordered_map<std::string, const FunctionDefinitionNode*>& functions;
         const std::unordered_map<std::string, const XyceValue*>& constants;
         const std::vector<std::pair<size_t, size_t>>& step_slices;
@@ -28,6 +30,28 @@ namespace
 
         std::string_view current_function_name{};
         const Context* parent_call_frame = nullptr;
+
+        [[nodiscard]] std::optional<XyceValue> find_expression(const std::string& key) const {
+            // already in memory
+            if (const auto it = expressions->find(key); it != expressions->end()) {
+                // return a copy of the cached value
+                return it->second;
+            }
+            // not in memory, delegate to the loader
+            if (auto value = loader(key); value) {
+                // cache the loaded value in the context
+                expressions->emplace(key, *value);
+                // return the loaded value
+                return value;
+            }
+            // unknown expression
+            return std::nullopt;
+        }
+
+        [[nodiscard]] bool has_expression(const std::string& key) const {
+            // check whether the expression is available
+            return find_expression(key).has_value();
+        }
 
         [[nodiscard]] const XyceValue* find_variable(std::string_view key) const {
             // check local variables first
@@ -544,19 +568,24 @@ namespace
 
     std::string extract_node_name(const ExpressionNode& expression) { return node_name_from_expr(expression); }
 
+    std::optional<XyceValue> resolve_probe_value(const std::string& key, const Context& context) {
+        // check variables first
+        if (const auto* val = context.find_variable(key); val != nullptr) {
+            // return variable value
+            return *val;
+        }
+        // check expressions, loading them on demand
+        return context.find_expression(key);
+    }
+
     XyceValue evaluate_probe(const FunctionCallNode& expression, const Context& context, std::string probe_key = {}) {
         // reconstruct probe name if not provided
         if (probe_key.empty())
             probe_key = to_lower(reconstruct_probe_name(expression));
-        // check variables
-        if (const auto* val = context.find_variable(probe_key); val != nullptr) {
-            // return variable value
-            return *val;
-        }
-        // check expressions
-        if (const auto it = context.expressions.find(probe_key); it != context.expressions.end()) {
-            // return expression value
-            return *it->second;
+        // check variables and expressions, loading expressions on demand
+        if (const auto value = resolve_probe_value(probe_key, context); value) {
+            // return probe value
+            return *value;
         }
         // check differential probe with 2 arguments
         if (expression.args.size() == 2) {
@@ -567,73 +596,37 @@ namespace
             if (to_lower(node_b_name) == "0") {
                 // probe key
                 const auto probe_a_key = to_lower("V(" + node_a_name + ")");
-                // check variables
-                if (const auto* val = context.find_variable(probe_a_key); val != nullptr) {
-                    // return variable value
-                    return *val;
-                }
-                // check expressions
-                if (const auto jt = context.expressions.find(probe_a_key); jt != context.expressions.end()) {
-                    // return expression value
-                    return *jt->second;
+                // check variables and expressions, loading expressions on demand
+                if (const auto value = resolve_probe_value(probe_a_key, context); value) {
+                    // return probe value
+                    return *value;
                 }
             }
             // check node a is ground
             if (to_lower(node_a_name) == "0") {
                 // probe key
                 const auto probe_b_key = to_lower("V(" + node_b_name + ")");
-                // value pointer
-                const XyceValue* val = nullptr;
-                // check variables
-                if (const auto* var_val = context.find_variable(probe_b_key); var_val != nullptr) {
-                    // set value pointer
-                    val = var_val;
-                }
-                else if (const auto jt = context.expressions.find(probe_b_key); jt != context.expressions.end()) {
-                    // set value pointer
-                    val = jt->second;
-                }
+                // resolve the probe value
+                const auto value = resolve_probe_value(probe_b_key, context);
                 // negate probe value if found
-                if (val != nullptr) {
+                if (value) {
                     // check complex
-                    if (is_complex(*val))
-                        return broadcast_unary_complex(*val, [](std::complex<double> value) { return -value; });
+                    if (is_complex(*value))
+                        return broadcast_unary_complex(*value, [](std::complex<double> value) { return -value; });
                     // real negation
-                    return broadcast_unary_real(*val, [](double value) { return -value; });
+                    return broadcast_unary_real(*value, [](double value) { return -value; });
                 }
             }
             // differential probe keys
             const auto probe_a_key = to_lower("V(" + node_a_name + ")");
             const auto probe_b_key = to_lower("V(" + node_b_name + ")");
-            // find values
-            const auto* var_a = context.find_variable(probe_a_key);
-            const auto* var_b = context.find_variable(probe_b_key);
-            const auto jt_a = context.expressions.find(probe_a_key);
-            const auto jt_b = context.expressions.find(probe_b_key);
-            // value a
-            const XyceValue* value_a = nullptr;
-            if (var_a != nullptr) {
-                // use variable value
-                value_a = var_a;
-            }
-            else if (jt_a != context.expressions.end()) {
-                // use expression value
-                value_a = jt_a->second;
-            }
-            // value b
-            const XyceValue* value_b = nullptr;
-            if (var_b != nullptr) {
-                // use variable value
-                value_b = var_b;
-            }
-            else if (jt_b != context.expressions.end()) {
-                // use expression value
-                value_b = jt_b->second;
-            }
+            // resolve both probe values
+            const auto value_a = resolve_probe_value(probe_a_key, context);
+            const auto value_b = resolve_probe_value(probe_b_key, context);
             // calculate difference if available
-            if (value_a != nullptr) {
+            if (value_a) {
                 // check value b
-                if (value_b != nullptr) {
+                if (value_b) {
                     // complex subtract
                     if (is_complex(*value_a) || is_complex(*value_b))
                         return broadcast_binary_complex(*value_a, *value_b, [](std::complex<double> lhs, std::complex<double> rhs) { return lhs - rhs; });
@@ -673,9 +666,9 @@ namespace
             if (has_simple_probe_args(expression)) {
                 // reconstruct the probe name and check if it exists in the context
                 auto key = to_lower(reconstruct_probe_name(expression));
-                // check if the probe name exists in context variables or expressions
-                if (context.has_variable(key) || context.expressions.contains(key))
-                    return key;
+            // check if the probe name exists in context variables or expressions
+            if (context.has_variable(key) || context.has_expression(key))
+                return key;
             }
         }
         // not a probe call
@@ -775,9 +768,9 @@ namespace
         // find in context variables
         if (const auto* val = context.find_variable(key); val != nullptr)
             return *val;
-        // find in context expressions
-        if (const auto it = context.expressions.find(key); it != context.expressions.end())
-            return *it->second;
+        // find in context expressions, loading them on demand
+        if (const auto value = context.find_expression(key); value)
+            return *value;
         // find in context constants
         if (const auto it = context.constants.find(key); it != context.constants.end())
             return *it->second;
@@ -812,13 +805,7 @@ namespace
     }
 } // namespace
 
-XyceValue evaluate_expression(const ExpressionNode& expression, const std::unordered_map<std::string, XyceValue>& expressions, const std::unordered_map<std::string, FunctionDefinitionNode>& functions, const std::unordered_map<std::string, XyceValue>& constants, const std::vector<std::pair<size_t, size_t>>& step_slices) {
-    // build evaluation expression lookup map
-    std::unordered_map<std::string, const XyceValue*> expr_map;
-    // loop expressions and store pointers
-    for (const auto& [name, value] : expressions)
-        expr_map[to_lower(name)] = &value;
-
+XyceValue evaluate_expression(const ExpressionNode& expression, std::unordered_map<std::string, XyceValue>& expressions, const std::function<std::optional<XyceValue>(const std::string&)>& loader, const std::unordered_map<std::string, FunctionDefinitionNode>& functions, const std::unordered_map<std::string, XyceValue>& constants, const std::vector<std::pair<size_t, size_t>>& step_slices) {
     // build evaluation function lookup map
     std::unordered_map<std::string, const FunctionDefinitionNode*> func_map;
     // loop functions and store pointers
@@ -836,7 +823,8 @@ XyceValue evaluate_expression(const ExpressionNode& expression, const std::unord
 
     // build initial evaluation context
     Context context{
-        .expressions = expr_map,
+        .expressions = &expressions,
+        .loader = loader,
         .functions = func_map,
         .constants = const_map,
         .step_slices = step_slices,
@@ -844,4 +832,18 @@ XyceValue evaluate_expression(const ExpressionNode& expression, const std::unord
 
     // evaluate the tree
     return evaluate(expression, context);
+}
+
+XyceValue evaluate_expression(const ExpressionNode& expression, const std::unordered_map<std::string, XyceValue>& expressions, const std::unordered_map<std::string, FunctionDefinitionNode>& functions, const std::unordered_map<std::string, XyceValue>& constants, const std::vector<std::pair<size_t, size_t>>& step_slices) {
+    // copy expressions into a mutable map with lowercase keys
+    std::unordered_map<std::string, XyceValue> mutable_expressions;
+    // reserve space for all expressions
+    mutable_expressions.reserve(expressions.size());
+    // loop expressions, lowercase keys
+    for (const auto& [name, value] : expressions)
+        mutable_expressions.emplace(to_lower(name), value);
+    // no loader for pre-populated contexts
+    auto loader = [](const std::string&) -> std::optional<XyceValue> { return std::nullopt; };
+    // evaluate using the lazy-capable implementation
+    return evaluate_expression(expression, mutable_expressions, loader, functions, constants, step_slices);
 }
