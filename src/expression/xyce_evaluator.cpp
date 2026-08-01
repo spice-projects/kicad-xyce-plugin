@@ -72,7 +72,8 @@ namespace
         }
     };
 
-    XyceValue broadcast_binary_real(const XyceValue& left, const XyceValue& right, const std::function<double(double, double)>& fn) {
+    template <typename Fn>
+    XyceValue broadcast_binary_real(const XyceValue& left, const XyceValue& right, Fn&& fn) {
         // find left & right operand type
         bool left_is_scalar = is_scalar(left);
         bool right_is_scalar = is_scalar(right);
@@ -97,7 +98,7 @@ namespace
             for (size_t i = 0; i < left_vector->size(); ++i)
                 out.push_back(fn((*left_vector)[i], (*right_vector)[i]));
             // exit
-            return std::make_shared<View<double>>(out);
+            return std::make_shared<View<double>>(std::move(out));
         }
         // check left is scalar and right is vector
         if (left_is_scalar) {
@@ -112,7 +113,7 @@ namespace
             for (size_t i = 0; i < right_vector->size(); ++i)
                 out.push_back(fn(left_scalar, (*right_vector)[i]));
             // exit
-            return std::make_shared<View<double>>(out);
+            return std::make_shared<View<double>>(std::move(out));
         }
         // operands
         auto left_vector = to_real_vector(left);
@@ -125,10 +126,11 @@ namespace
         for (size_t i = 0; i < left_vector->size(); ++i)
             out.push_back(fn((*left_vector)[i], right_scalar));
         // exit
-        return std::make_shared<View<double>>(out);
+        return std::make_shared<View<double>>(std::move(out));
     }
 
-    XyceValue broadcast_binary_complex(const XyceValue& left, const XyceValue& right, const std::function<std::complex<double>(std::complex<double>, std::complex<double>)>& fn) {
+    template <typename Fn>
+    XyceValue broadcast_binary_complex(const XyceValue& left, const XyceValue& right, Fn&& fn) {
         // find left & right operand type
         bool left_is_scalar = !is_vector(left);
         bool right_is_scalar = !is_vector(right);
@@ -153,7 +155,7 @@ namespace
             for (size_t i = 0; i < left_vector->size(); ++i)
                 out.push_back(fn((*left_vector)[i], (*right_vector)[i]));
             // exit
-            return std::make_shared<View<std::complex<double>>>(out);
+            return std::make_shared<View<std::complex<double>>>(std::move(out));
         }
         // check left is scalar and right is vector
         if (left_is_scalar) {
@@ -168,7 +170,7 @@ namespace
             for (size_t i = 0; i < right_vector->size(); ++i)
                 out.push_back(fn(left_scalar, (*right_vector)[i]));
             // exit
-            return std::make_shared<View<std::complex<double>>>(out);
+            return std::make_shared<View<std::complex<double>>>(std::move(out));
         }
         // operands
         auto left_vector = to_complex_vector(left);
@@ -181,10 +183,11 @@ namespace
         for (size_t i = 0; i < left_vector->size(); ++i)
             out.push_back(fn((*left_vector)[i], right_scalar));
         // exit
-        return std::make_shared<View<std::complex<double>>>(out);
+        return std::make_shared<View<std::complex<double>>>(std::move(out));
     }
 
-    XyceValue broadcast_unary_real(const XyceValue& value, const std::function<double(double)>& fn) {
+    template <typename Fn>
+    XyceValue broadcast_unary_real(const XyceValue& value, Fn&& fn) {
         // check if the value is a scalar and apply the function directly
         if (is_scalar(value)) {
             // apply the function and return the result
@@ -200,10 +203,11 @@ namespace
         for (size_t i = 0; i < operand->size(); ++i)
             out.push_back(fn(operand->operator[](i)));
         // exit
-        return std::make_shared<View<double>>(out);
+        return std::make_shared<View<double>>(std::move(out));
     }
 
-    XyceValue broadcast_unary_complex(const XyceValue& value, const std::function<std::complex<double>(std::complex<double>)>& fn) {
+    template <typename Fn>
+    XyceValue broadcast_unary_complex(const XyceValue& value, Fn&& fn) {
         // check if the value is a scalar and apply the function directly
         if (!is_vector(value)) {
             // apply the function and return the result
@@ -219,7 +223,7 @@ namespace
         for (size_t i = 0; i < operand->size(); ++i)
             out.push_back(fn(operand->operator[](i)));
         // exit
-        return std::make_shared<View<std::complex<double>>>(out);
+        return std::make_shared<View<std::complex<double>>>(std::move(out));
     }
 
     XyceValue evaluate(const ExpressionNode& expression, const Context& context);
