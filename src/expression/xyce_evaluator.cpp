@@ -2,6 +2,7 @@
 #include <cmath>
 #include <complex>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string_view>
 
@@ -543,16 +544,17 @@ namespace
 
     std::string extract_node_name(const ExpressionNode& expression) { return node_name_from_expr(expression); }
 
-    XyceValue evaluate_probe(const FunctionCallNode& expression, const Context& context) {
-        // reconstruct probe name
-        const auto probe_name = reconstruct_probe_name(expression);
+    XyceValue evaluate_probe(const FunctionCallNode& expression, const Context& context, std::string probe_key = {}) {
+        // reconstruct probe name if not provided
+        if (probe_key.empty())
+            probe_key = to_lower(reconstruct_probe_name(expression));
         // check variables
-        if (const auto* val = context.find_variable(to_lower(probe_name)); val != nullptr) {
+        if (const auto* val = context.find_variable(probe_key); val != nullptr) {
             // return variable value
             return *val;
         }
         // check expressions
-        if (const auto it = context.expressions.find(to_lower(probe_name)); it != context.expressions.end()) {
+        if (const auto it = context.expressions.find(probe_key); it != context.expressions.end()) {
             // return expression value
             return *it->second;
         }
@@ -643,7 +645,7 @@ namespace
             }
         }
         // throw exception
-        throw std::invalid_argument("Unknown probe: " + probe_name);
+        throw std::invalid_argument("Unknown probe: " + (probe_key.empty() ? reconstruct_probe_name(expression) : probe_key));
     }
 
     bool has_simple_probe_args(const FunctionCallNode& expression) {
@@ -659,31 +661,32 @@ namespace
         return true;
     }
 
-    bool is_probe_call(const FunctionCallNode& expression, const Context& context) {
+    std::optional<std::string> probe_call_key(const FunctionCallNode& expression, const Context& context) {
         // lowercase function name
         const auto name = to_lower(expression.name);
         // canonical SPICE probe families: v, i, id
         if ((name == "v" || name == "i" || name == "id") && !expression.args.empty())
-            return true;
+            return to_lower(reconstruct_probe_name(expression));
         // network parameter probes: Sxy, Zxy, Yxy, Hxy — only when the key exists in context
         if (is_network_parameter_probe_name(name) && !expression.args.empty()) {
             // network parameter probes must have simple arguments to be unambiguous
             if (has_simple_probe_args(expression)) {
                 // reconstruct the probe name and check if it exists in the context
-                const auto key = to_lower(reconstruct_probe_name(expression));
+                auto key = to_lower(reconstruct_probe_name(expression));
                 // check if the probe name exists in context variables or expressions
-                return context.has_variable(key) || context.expressions.contains(key);
+                if (context.has_variable(key) || context.expressions.contains(key))
+                    return key;
             }
         }
         // not a probe call
-        return false;
+        return std::nullopt;
     }
 
     XyceValue evaluate_function_call(const FunctionCallNode& expression, const Context& context) {
         // probe calls are handled specially
-        if (is_probe_call(expression, context)) {
+        if (auto probe_key = probe_call_key(expression, context)) {
             // evaluate probe
-            return evaluate_probe(expression, context);
+            return evaluate_probe(expression, context, std::move(*probe_key));
         }
         // resolve a builtin function
         const auto builtin_key = to_lower(expression.name);
