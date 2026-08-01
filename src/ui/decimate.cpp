@@ -4,11 +4,9 @@
 #include <numeric>
 #include <span>
 #include <stdexcept>
-#include <tuple>
 #include <utility>
 #include <vector>
 
-#include "../expression/expression.h"
 #include "decimate.h"
 
 // ---------------------------------------------------------------------------

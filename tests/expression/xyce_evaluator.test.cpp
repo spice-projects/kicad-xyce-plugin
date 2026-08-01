@@ -8,6 +8,8 @@
 
 #include <gtest/gtest.h>
 
+#include <spdlog/spdlog.h>
+
 #include "expression/xyce_evaluator.h"
 #include "expression/xyce_parser.h"
 
@@ -34,6 +36,9 @@ namespace
     // keep complex values explicit in the assertions
     XyceValue expression_value(const std::complex<double>& value) { return value; }
 
+    // keep complex vector values explicit in the assertions
+    XyceValue expression_value(std::vector<std::complex<double>>&& values) { return std::make_shared<View<std::complex<double>>>(std::move(values)); }
+
     // read the first scalar value from a variant for compact checks
     template <typename T>
     T scalar(const XyceValue& value) {
@@ -50,7 +55,7 @@ namespace
     XyceValue eval(const std::string& text, const std::unordered_map<std::string, XyceValue>& expressions = {}, const std::unordered_map<std::string, FunctionDefinitionNode>& functions = {}, const std::unordered_map<std::string, XyceValue>& constants = {}, const std::vector<std::pair<size_t, size_t>>& step_slices = {}) { return evaluate_expression(*parse_expression(text), expressions, functions, constants, step_slices); }
 } // namespace
 
-TEST(XyceLanguageLexer, tokenizes_core_symbols) {
+TEST(XyceEvaluatorChecks, tokenizes_core_symbols) {
     // act
     const auto tokens = tokenize(".func x() {1+2-3*4/5%6^~!&|&&||==!=<=>=@:?,}");
     // assert
@@ -60,7 +65,7 @@ TEST(XyceLanguageLexer, tokenizes_core_symbols) {
     ASSERT_EQ(tokens[2].kind, TokenKind::LPAREN);
 }
 
-TEST(XyceLanguageLexer, tokenizes_numbers_identifiers_and_suffixes) {
+TEST(XyceEvaluatorChecks, tokenizes_numbers_identifiers_and_suffixes) {
     // act
     const auto tokens = tokenize("42 3.14 1e6 2.5e-3 1MEG v_out node[1]");
     // assert
@@ -73,7 +78,7 @@ TEST(XyceLanguageLexer, tokenizes_numbers_identifiers_and_suffixes) {
     ASSERT_EQ(tokens[6].kind, TokenKind::IDENTIFIER);
 }
 
-TEST(XyceLanguageLexer, ignores_whitespace_and_tracks_offsets) {
+TEST(XyceEvaluatorChecks, ignores_whitespace_and_tracks_offsets) {
     // arrange
     // act
     const auto tokens = tokenize("  1  +  2  ");
@@ -84,7 +89,7 @@ TEST(XyceLanguageLexer, ignores_whitespace_and_tracks_offsets) {
     ASSERT_EQ(tokens[2].start, 8U);
 }
 
-TEST(XyceLanguageLexer, rejects_invalid_characters) {
+TEST(XyceEvaluatorChecks, rejects_invalid_characters) {
     // arrange
     const auto tokenize_text = [](const std::string& text) { return tokenize(text); };
     // act
@@ -95,7 +100,7 @@ TEST(XyceLanguageLexer, rejects_invalid_characters) {
     ASSERT_THROW(tokenize_text("foo#bar"), std::invalid_argument);
 }
 
-TEST(XyceLanguageLexer, lexer_instance_matches_free_function) {
+TEST(XyceEvaluatorChecks, lexer_instance_matches_free_function) {
     // arrange
     // act
     const auto a = XyceLexer{}.tokenize("1 + x");
@@ -111,7 +116,7 @@ TEST(XyceLanguageLexer, lexer_instance_matches_free_function) {
 // parser
 // ========================================================================================
 
-TEST(XyceLanguageParser, parses_operators_precedence_and_probes) {
+TEST(XyceEvaluatorChecks, parses_operators_precedence_and_probes) {
     // arrange
     // act
     const auto tree = parse_expression("a + b * c ? V(out, 0)@1 : id(x)");
@@ -119,7 +124,7 @@ TEST(XyceLanguageParser, parses_operators_precedence_and_probes) {
     ASSERT_NE(as<TernaryOperationNode>(tree), nullptr);
 }
 
-TEST(XyceLanguageParser, parses_function_definitions) {
+TEST(XyceEvaluatorChecks, parses_function_definitions) {
     // arrange
     // act
     const auto tree = parse_function_definition(".func add(a, b) {a + b}");
@@ -129,7 +134,7 @@ TEST(XyceLanguageParser, parses_function_definitions) {
     ASSERT_TRUE(dynamic_cast<BinaryOperationNode*>(tree.body.get()) != nullptr);
 }
 
-TEST(XyceLanguageParser, parser_nodes_store_expected_values) {
+TEST(XyceEvaluatorChecks, parser_nodes_store_expected_values) {
     // arrange
     // act
     NumberNode number("3.14");
@@ -151,7 +156,7 @@ TEST(XyceLanguageParser, parser_nodes_store_expected_values) {
     ASSERT_EQ(step.step_index, 2U);
 }
 
-TEST(XyceLanguageParser, parse_errors_match_scenarios) {
+TEST(XyceEvaluatorChecks, parse_errors_match_scenarios) {
     // arrange
     const auto parse_text = [](const std::string& text, const bool is_function_definition) {
         if (is_function_definition) {
@@ -172,7 +177,7 @@ TEST(XyceLanguageParser, parse_errors_match_scenarios) {
 // builtin constants and functions
 // ========================================================================================
 
-TEST(XyceLanguageBuiltins, constants_match_expected_values) {
+TEST(XyceEvaluatorChecks, constants_match_expected_values) {
     // arrange
     const auto& constants = BUILTIN_CONSTANTS;
     // act
@@ -194,7 +199,7 @@ TEST(XyceLanguageBuiltins, constants_match_expected_values) {
     ASSERT_DOUBLE_EQ(scalar<double>(constants.at("mho")), 1.0);
 }
 
-TEST(XyceLanguageBuiltins, core_builtin_functions_work) {
+TEST(XyceEvaluatorChecks, core_builtin_functions_work) {
     // arrange
     const auto& functions = BUILTIN_FUNCTIONS;
     // act
@@ -232,7 +237,7 @@ TEST(XyceLanguageBuiltins, core_builtin_functions_work) {
     ASSERT_DOUBLE_EQ(scalar<double>(functions.at("if")({expression_value(1.0), expression_value(10.0), expression_value(20.0)})), 10.0);
 }
 
-TEST(XyceLanguageBuiltins, builtin_function_errors_match_scenarios) {
+TEST(XyceEvaluatorChecks, builtin_function_errors_match_scenarios) {
     // arrange
     const auto& functions = BUILTIN_FUNCTIONS;
     // act
@@ -413,4 +418,174 @@ TEST(XyceLanguageEvaluator, node_and_context_types_match) {
     ASSERT_EQ(unary.operator_value, UnaryOperator::NEG);
     ASSERT_TRUE(as<IdentifierNode>(ternary.condition) != nullptr);
     ASSERT_EQ(step.step_index, 1U);
+}
+
+// ========================================================================================
+// extended evaluator coverage
+// ========================================================================================
+
+TEST(XyceLanguageEvaluator, logical_short_circuit_and_vector_paths) {
+    // assert
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("0 && 1")), 0.0);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("0 || 1")), 1.0);
+    const std::unordered_map<std::string, XyceValue> expressions{
+        {"a", expression_value(std::vector<double>{0.0, 1.0})},
+        {"b", expression_value(std::vector<double>{1.0, 1.0})},
+    };
+    ASSERT_EQ(as_real_vector(eval("a && b", expressions)), std::vector<double>({0.0, 1.0}));
+    ASSERT_EQ(as_real_vector(eval("a || b", expressions)), std::vector<double>({1.0, 1.0}));
+}
+
+TEST(XyceLanguageEvaluator, scalar_left_broadcast_real) {
+    // arrange
+    const std::unordered_map<std::string, XyceValue> expressions{
+        {"x", expression_value(std::vector<double>{1.0, 2.0})},
+    };
+    // assert
+    ASSERT_EQ(as_real_vector(eval("1 + x", expressions)), std::vector<double>({2.0, 3.0}));
+}
+
+TEST(XyceLanguageEvaluator, vector_size_mismatch_throws) {
+    // arrange
+    const std::unordered_map<std::string, XyceValue> expressions{
+        {"x", expression_value(std::vector<double>{1.0, 2.0, 3.0})},
+        {"y", expression_value(std::vector<double>{1.0, 2.0})},
+    };
+    // assert
+    ASSERT_THROW(eval("x + y", expressions), std::invalid_argument);
+}
+
+TEST(XyceLanguageEvaluator, complex_binary_operations_broadcast) {
+    // assert
+    const auto j_plus_1 = scalar<std::complex<double>>(eval("j + 1"));
+    ASSERT_DOUBLE_EQ(j_plus_1.real(), 1.0);
+    ASSERT_DOUBLE_EQ(j_plus_1.imag(), 1.0);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("j - j")), 0.0);
+    ASSERT_DOUBLE_EQ(scalar<std::complex<double>>(eval("j * j")).real(), -1.0);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("j / j")), 1.0);
+    ASSERT_DOUBLE_EQ(scalar<std::complex<double>>(eval("j ** 2")).real(), -1.0);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("j == j")), 1.0);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("j != 1")), 1.0);
+    const std::unordered_map<std::string, XyceValue> expressions{
+        {"cv", expression_value(std::vector<std::complex<double>>{{1.0, 1.0}, {2.0, 2.0}})},
+        {"cv2", expression_value(std::vector<std::complex<double>>{{1.0, 0.0}, {0.0, 1.0}})},
+        {"small", expression_value(std::vector<std::complex<double>>{{1.0, 0.0}})},
+    };
+    ASSERT_EQ(as_real_vector(eval("cv + cv2", expressions)), std::vector<double>({2.0, 2.0}));
+    ASSERT_EQ(as_real_vector(eval("1 + cv", expressions)), std::vector<double>({2.0, 3.0}));
+    ASSERT_EQ(as_real_vector(eval("cv + 1", expressions)), std::vector<double>({2.0, 3.0}));
+    ASSERT_THROW(eval("cv + small", expressions), std::invalid_argument);
+}
+
+TEST(XyceLanguageEvaluator, complex_relational_operators_use_real_part) {
+    // arrange
+    spdlog::set_level(spdlog::level::warn);
+    // assert
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("j < 1")), 1.0);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("j <= 1")), 1.0);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("j > 1")), 0.0);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("j >= 1")), 0.0);
+}
+
+TEST(XyceLanguageEvaluator, unary_negate_and_not_cover_all_value_types) {
+    // assert
+    const auto neg_j = scalar<std::complex<double>>(eval("-j"));
+    ASSERT_DOUBLE_EQ(neg_j.real(), 0.0);
+    ASSERT_DOUBLE_EQ(neg_j.imag(), -1.0);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("!j")), 1.0);
+    ASSERT_EQ(as_real_vector(eval("-x", {{"x", expression_value(std::vector<double>{1.0, -2.0})}})), std::vector<double>({-1.0, 2.0}));
+    ASSERT_EQ(as_real_vector(eval("!x", {{"x", expression_value(std::vector<double>{0.0, 2.0})}})), std::vector<double>({1.0, 0.0}));
+    ASSERT_EQ(as_real_vector(eval("-cv", {{"cv", expression_value(std::vector<std::complex<double>>{{1.0, 2.0}, {3.0, -1.0}})}})), std::vector<double>({-1.0, -3.0}));
+    ASSERT_EQ(as_real_vector(eval("!cv", {{"cv", expression_value(std::vector<std::complex<double>>{{0.0, 1.0}, {1.0, 0.0}})}})), std::vector<double>({1.0, 0.0}));
+}
+
+struct UnknownExpressionNode final : ExpressionNode {};
+
+TEST(XyceLanguageEvaluator, unsupported_constructs_throw) {
+    // assert
+    UnaryOperationNode unary(static_cast<UnaryOperator>(99), make_number("1"));
+    ASSERT_THROW(evaluate_expression(unary), std::invalid_argument);
+    BinaryOperationNode binary(make_number("1"), static_cast<BinaryOperator>(99), make_number("2"));
+    ASSERT_THROW(evaluate_expression(binary), std::invalid_argument);
+    UnknownExpressionNode unknown;
+    ASSERT_THROW(evaluate_expression(unknown), std::invalid_argument);
+    // complex probe argument cannot be flattened into a probe name
+    std::vector<ExpressionPtr> complex_args;
+    complex_args.push_back(std::make_unique<BinaryOperationNode>(make_number("1"), BinaryOperator::ADD, make_number("2")));
+    FunctionCallNode bad_probe("v", std::move(complex_args));
+    ASSERT_THROW(evaluate_expression(bad_probe), std::invalid_argument);
+    // numeric probe argument is accepted but the probe itself is unknown
+    std::vector<ExpressionPtr> number_args;
+    number_args.push_back(make_number("0"));
+    FunctionCallNode number_probe("v", std::move(number_args));
+    ASSERT_THROW(evaluate_expression(number_probe), std::invalid_argument);
+}
+
+TEST(XyceLanguageEvaluator, probe_resolves_from_function_local_variable) {
+    // arrange
+    const std::vector<std::string> params{"v(out)"};
+    std::vector<ExpressionPtr> args;
+    args.push_back(make_identifier("out"));
+    const FunctionDefinitionNode probe_fn("probe_fn", params, std::make_unique<FunctionCallNode>("V", std::move(args)));
+    const std::unordered_map<std::string, FunctionDefinitionNode> functions{{"probe_fn", probe_fn}};
+    // assert
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("probe_fn(9)", {}, functions)), 9.0);
+}
+
+TEST(XyceLanguageEvaluator, probe_grounded_first_argument_negates) {
+    // assert
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("V(0, b)", {{"v(b)", expression_value(5.0)}})), -5.0);
+    const auto negated = scalar<std::complex<double>>(eval("V(0, b)", {{"v(b)", expression_value(std::complex<double>(0.0, 2.0))}}));
+    ASSERT_DOUBLE_EQ(negated.real(), 0.0);
+    ASSERT_DOUBLE_EQ(negated.imag(), -2.0);
+    ASSERT_EQ(as_real_vector(eval("V(0, b)", {{"v(b)", expression_value(std::vector<double>{1.0, 2.0, 3.0})}})), std::vector<double>({-1.0, -2.0, -3.0}));
+    ASSERT_EQ(as_real_vector(eval("V(0, b)", {{"v(b)", expression_value(std::vector<std::complex<double>>{{1.0, 2.0}, {3.0, 4.0}})}})), std::vector<double>({-1.0, -3.0}));
+}
+
+TEST(XyceLanguageEvaluator, differential_probe_complex_and_single_reference) {
+    // arrange
+    const std::unordered_map<std::string, XyceValue> complex_probes{
+        {"v(a)", expression_value(std::complex<double>(3.0, 1.0))},
+        {"v(b)", expression_value(std::complex<double>(1.0, 0.0))},
+    };
+    // assert
+    ASSERT_EQ(as_real_vector(eval("V(a, b)", complex_probes)), std::vector<double>({2.0}));
+    // single reference value is returned when the second node is missing
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("V(a, b)", {{"v(a)", expression_value(5.0)}})), 5.0);
+}
+
+TEST(XyceLanguageEvaluator, network_parameter_probes_resolve_when_present) {
+    // arrange
+    const std::unordered_map<std::string, XyceValue> probes{
+        {"s11(1, 2)", expression_value(3.0)},
+    };
+    // assert
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("S11(1, 2)", probes)), 3.0);
+    ASSERT_THROW(eval("S11(1, 2)"), std::invalid_argument);
+    // complex arguments disable the probe interpretation
+    std::vector<ExpressionPtr> args;
+    args.push_back(std::make_unique<BinaryOperationNode>(make_number("1"), BinaryOperator::ADD, make_number("2")));
+    FunctionCallNode s11("s11", std::move(args));
+    ASSERT_THROW(evaluate_expression(s11), std::invalid_argument);
+}
+
+TEST(XyceLanguageEvaluator, step_selector_slices_scalar_and_complex) {
+    // arrange
+    const std::vector<std::pair<size_t, size_t>> steps{{0, 2}, {2, 4}};
+    // assert
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("x@1", {{"x", expression_value(7.0)}}, {}, {}, steps)), 7.0);
+    const auto complex_scalar = scalar<std::complex<double>>(eval("j@1", {}, {}, {}, steps));
+    ASSERT_DOUBLE_EQ(complex_scalar.real(), 0.0);
+    ASSERT_DOUBLE_EQ(complex_scalar.imag(), 1.0);
+    const std::unordered_map<std::string, XyceValue> cv{
+        {"cv", expression_value(std::vector<std::complex<double>>{{1.0, 1.0}, {2.0, 0.0}, {3.0, 0.0}, {4.0, 0.0}})},
+    };
+    ASSERT_EQ(as_real_vector(eval("cv@1", cv, {}, {}, steps)), std::vector<double>({1.0, 2.0}));
+}
+
+TEST(XyceLanguageEvaluator, unknown_identifier_and_user_constants) {
+    // assert
+    ASSERT_THROW(eval("no_such_identifier"), std::invalid_argument);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("myval", {}, {}, {{"myval", expression_value(42.0)}})), 42.0);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("MYVAL", {}, {}, {{"myval", expression_value(42.0)}})), 42.0);
 }

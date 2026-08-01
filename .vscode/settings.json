@@ -10,5 +10,6 @@
   },
   "[objective-cpp]": {
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
-  }
+  },
+  "cmake.ctest.testSuiteDelimiter": "\\.|/|:"
 }
