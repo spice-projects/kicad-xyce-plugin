@@ -1,3 +1,5 @@
+#include <cmath>
+#include <complex>
 #include <span>
 #include <string>
 #include <type_traits>
@@ -17,12 +19,30 @@ namespace
         return {name, std::move(data), std::move(steps), unit};
     }
 
+    Expression<std::complex<double>> make_complex_expression(const std::string& name, const std::vector<std::complex<double>>& values, const std::string& unit = "") {
+        std::vector<std::complex<double>> data(values);
+        std::vector<std::span<const std::complex<double>>> steps = {{data.data(), data.size()}};
+        return {name, std::move(data), std::move(steps), unit};
+    }
+
     std::vector<double> extract_data(AnyExpression& expr) {
         return std::visit(
             [](auto&& e) -> std::vector<double> {
                 auto span = e.data();
                 using T = typename std::remove_reference_t<decltype(span)>::value_type;
                 if constexpr (std::is_same_v<T, double>)
+                    return {span.begin(), span.end()};
+                return {};
+            },
+            expr);
+    }
+
+    std::vector<std::complex<double>> extract_complex_data(AnyExpression& expr) {
+        return std::visit(
+            [](auto&& e) -> std::vector<std::complex<double>> {
+                auto span = e.data();
+                using T = typename std::remove_reference_t<decltype(span)>::value_type;
+                if constexpr (std::is_same_v<T, std::complex<double>>)
                     return {span.begin(), span.end()};
                 return {};
             },
@@ -37,13 +57,205 @@ namespace
         return std::visit([](auto&& e) { return e.unit(); }, expr);
     }
 
-    std::string extract_source(AnyExpression& expr) {
+    std::string extract_source(const AnyExpression& expr) {
         return std::visit([](auto&& e) { return e.source(); }, expr);
     }
 } // namespace
 
 static_assert(!std::is_copy_constructible_v<ExpressionManager>);
 static_assert(!std::is_copy_assignable_v<ExpressionManager>);
+static_assert(std::is_nothrow_move_constructible_v<ExpressionManager>);
+static_assert(std::is_nothrow_move_assignable_v<ExpressionManager>);
+
+TEST(ExpressionManagerChecks, constructor_throws_on_empty_step_slices) {
+    // arrange
+    std::vector<AnyExpression> expressions;
+    std::vector<std::pair<size_t, size_t>> slices;
+    // assert
+    ASSERT_THROW((ExpressionManager{expressions, slices}), std::invalid_argument);
+}
+
+TEST(ExpressionManagerChecks, abscissa_returns_first_real_expression) {
+    // arrange
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(make_real_expression("time", {0.0, 1.0, 2.0}, "s"));
+    expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0, 3.0}, "V"));
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    ExpressionManager manager(expressions, slices);
+    // act
+    auto& abscissa = manager.abscissa();
+    // assert
+    ASSERT_EQ(abscissa.name(), "time");
+    ASSERT_EQ(abscissa.unit(), "s");
+    ASSERT_EQ(abscissa.data().size(), 3);
+    ASSERT_DOUBLE_EQ(abscissa.data()[2], 2.0);
+}
+
+TEST(ExpressionManagerChecks, evaluate_imaginary_unit_builds_complex_expression) {
+    // arrange
+    std::vector<AnyExpression> expressions;
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 2}, {2, 4}};
+    ExpressionManager manager(expressions, slices);
+    // act
+    const auto result = manager.evaluate("j");
+    // assert
+    ASSERT_NE(result, nullptr);
+    const auto data = extract_complex_data(*result);
+    ASSERT_EQ(data.size(), 4);
+    for (const auto& point : data) {
+        EXPECT_DOUBLE_EQ(point.real(), 0.0);
+        EXPECT_DOUBLE_EQ(point.imag(), 1.0);
+    }
+    ASSERT_EQ(extract_source(*result), "expression manager");
+}
+
+TEST(ExpressionManagerChecks, evaluate_complex_vector_expression_preserves_complex_data) {
+    // arrange
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(make_complex_expression("c", {{1.0, 1.0}, {2.0, 0.0}}, "V"));
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 2}};
+    ExpressionManager manager(expressions, slices);
+    // act
+    const auto result = manager.evaluate("c*1");
+    // assert
+    ASSERT_NE(result, nullptr);
+    const auto data = extract_complex_data(*result);
+    ASSERT_EQ(data.size(), 2);
+    EXPECT_DOUBLE_EQ(data[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(data[0].imag(), 1.0);
+    EXPECT_DOUBLE_EQ(data[1].real(), 2.0);
+    EXPECT_DOUBLE_EQ(data[1].imag(), 0.0);
+    ASSERT_EQ(extract_source(*result), "expression manager");
+}
+
+TEST(ExpressionManagerChecks, rematerialize_tiles_single_step_real_to_all_steps) {
+    // arrange
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(make_real_expression("v(a)", {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}, "V"));
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}, {3, 6}};
+    ExpressionManager manager(expressions, slices);
+    // act: @1 selects the first 3-point step, tiled across both steps
+    const auto result = manager.evaluate("v(a)@1");
+    // assert
+    ASSERT_NE(result, nullptr);
+    const auto data = extract_data(*result);
+    ASSERT_EQ(data.size(), 6);
+    ASSERT_DOUBLE_EQ(data[0], 1.0);
+    ASSERT_DOUBLE_EQ(data[1], 2.0);
+    ASSERT_DOUBLE_EQ(data[2], 3.0);
+    ASSERT_DOUBLE_EQ(data[3], 1.0);
+    ASSERT_DOUBLE_EQ(data[4], 2.0);
+    ASSERT_DOUBLE_EQ(data[5], 3.0);
+}
+
+TEST(ExpressionManagerChecks, rematerialize_scalar_with_selector_returns_early) {
+    // arrange
+    std::vector<AnyExpression> expressions;
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}, {3, 6}};
+    ExpressionManager manager(expressions, slices);
+    // act: scalar values never need tiling even with a step selector
+    const auto result = manager.evaluate("pi@1");
+    // assert
+    ASSERT_NE(result, nullptr);
+    const auto data = extract_data(*result);
+    ASSERT_EQ(data.size(), 6);
+    for (const auto& point : data)
+        ASSERT_DOUBLE_EQ(point, std::acos(-1.0));
+}
+
+TEST(ExpressionManagerChecks, rematerialize_vector_without_selector_untiled) {
+    // arrange
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(make_real_expression("v(a)", {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}, "V"));
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}, {3, 6}};
+    ExpressionManager manager(expressions, slices);
+    // act: no step selector means no tiling
+    const auto result = manager.evaluate("v(a)");
+    // assert
+    ASSERT_NE(result, nullptr);
+    const auto data = extract_data(*result);
+    ASSERT_EQ(data.size(), 6);
+}
+
+TEST(ExpressionManagerChecks, rematerialize_full_size_vector_returns_early) {
+    // arrange
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(make_real_expression("v(a)", {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}, "V"));
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}, {3, 6}};
+    ExpressionManager manager(expressions, slices);
+    // act: vector already covers all steps; selector present but no tiling needed
+    const auto result = manager.evaluate("v(a) + pi@1");
+    // assert
+    ASSERT_NE(result, nullptr);
+    const auto data = extract_data(*result);
+    ASSERT_EQ(data.size(), 6);
+    ASSERT_DOUBLE_EQ(data[0], 1.0 + std::acos(-1.0));
+    ASSERT_DOUBLE_EQ(data[5], 6.0 + std::acos(-1.0));
+}
+
+TEST(ExpressionManagerChecks, rematerialize_size_mismatch_returns_untiled) {
+    // arrange: vector length matches neither a single step nor all steps
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(make_real_expression("v(a)", {1.0, 2.0, 3.0, 4.0}, "V"));
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}, {3, 6}};
+    ExpressionManager manager(expressions, slices);
+    // act: 4-point result cannot be tiled to the 3-point step length
+    const auto result = manager.evaluate("v(a) + pi@1");
+    // assert
+    ASSERT_NE(result, nullptr);
+    const auto data = extract_data(*result);
+    ASSERT_EQ(data.size(), 4);
+}
+
+TEST(ExpressionManagerChecks, rematerialize_tiles_complex_single_step_to_all_steps) {
+    // arrange
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(make_complex_expression("c", {{1.0, 1.0}, {2.0, 0.0}, {3.0, 3.0}, {4.0, 0.0}, {5.0, 0.0}, {6.0, 0.0}}));
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}, {3, 6}};
+    ExpressionManager manager(expressions, slices);
+    // act
+    const auto result = manager.evaluate("c@1");
+    // assert
+    ASSERT_NE(result, nullptr);
+    const auto data = extract_complex_data(*result);
+    ASSERT_EQ(data.size(), 6);
+    EXPECT_DOUBLE_EQ(data[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(data[0].imag(), 1.0);
+    EXPECT_DOUBLE_EQ(data[3].real(), 1.0);
+    EXPECT_DOUBLE_EQ(data[3].imag(), 1.0);
+    EXPECT_DOUBLE_EQ(data[5].real(), 3.0);
+    EXPECT_DOUBLE_EQ(data[5].imag(), 3.0);
+}
+
+TEST(ExpressionManagerChecks, infer_unit_returns_empty_on_parse_failure) {
+    // arrange
+    std::vector<AnyExpression> expressions;
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    ExpressionManager manager(expressions, slices);
+    // act
+    const auto result = manager.infer_unit("1 +");
+    // assert
+    ASSERT_EQ(result, "");
+}
+
+TEST(ExpressionManagerChecks, move_construct_and_move_assign_smoke) {
+    // arrange
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(make_real_expression("v(a)", {1.0, 2.0}, "V"));
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 2}};
+    ExpressionManager manager(expressions, slices);
+    // act: move construction preserves state
+    ExpressionManager moved(std::move(manager));
+    const auto first = moved.evaluate("v(a)");
+    ASSERT_NE(first, nullptr);
+    ASSERT_EQ(extract_name(*first), "v(a)");
+    // act: move assignment preserves state
+    ExpressionManager assigned;
+    assigned = std::move(moved);
+    const auto second = assigned.evaluate("v(a)");
+    ASSERT_NE(second, nullptr);
+    ASSERT_EQ(extract_unit(*second), "V");
+}
 
 TEST(ExpressionManagerChecks, default_constructor_initializes_empty_state) {
     // arrange / act

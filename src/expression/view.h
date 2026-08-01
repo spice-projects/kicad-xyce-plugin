@@ -54,7 +54,8 @@ public:
     // prevent copying, allow moving
     View(const View&) = delete;
 
-    View(View&&) noexcept = default;
+    View(View&& other) noexcept :
+        m_pointer(std::exchange(other.m_pointer, nullptr)), m_size(std::exchange(other.m_size, 0)), m_stride(std::exchange(other.m_stride, 1)), m_data(std::move(other.m_data)), m_data_owner(std::move(other.m_data_owner)) {}
 
     View(const T* pointer, const size_t size, const size_t stride = 1, std::shared_ptr<View> data_owner = nullptr) :
         m_pointer(const_cast<T*>(pointer)), m_size(size), m_stride(stride), m_data({}), m_data_owner(data_owner) {}
@@ -71,7 +72,18 @@ public:
     // prevent copying, allow moving
     View& operator=(const View&) = delete;
 
-    View& operator=(View&&) noexcept = default;
+    View& operator=(View&& other) noexcept {
+        // check for self-assignment
+        if (this != &other) {
+            // move data from other to this
+            m_pointer = std::exchange(other.m_pointer, nullptr);
+            m_size = std::exchange(other.m_size, 0);
+            m_stride = std::exchange(other.m_stride, 1);
+            m_data = std::move(other.m_data);
+            m_data_owner = std::move(other.m_data_owner);
+        }
+        return *this;
+    }
 
     const T& operator[](const size_t index) const { return m_pointer[index * m_stride]; }
 
@@ -91,9 +103,9 @@ private:
     template <typename U>
     friend class Expression;
 
-    T* m_pointer;
-    size_t m_size;
-    size_t m_stride;
+    T* m_pointer = nullptr;
+    size_t m_size = 0;
+    size_t m_stride = 1;
 
     std::vector<T> m_data;
 

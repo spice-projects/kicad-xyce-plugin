@@ -559,6 +559,20 @@ std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::f
     for (size_t b = 1; b < blocks.size(); ++b) {
         // get block reference
         auto& block = blocks[b];
+        // capture abscissa range before views are moved into the accumulator
+        if (block.num_points > 0) {
+            // get abscissa variable
+            const auto& abscissa_view = std::get<View<double>>(std::get<3>(block.variables[0]));
+            // get first & last values
+            double first_val = abscissa_view[0];
+            double last_val = abscissa_view[abscissa_view.size() - 1];
+            // append first range
+            abscissa_value_ranges.emplace_back(first_val, last_val);
+        }
+        else {
+            // append empty range
+            abscissa_value_ranges.emplace_back(0.0, 0.0);
+        }
         // loop variables
         for (auto& [idx, name, variable_type, view] : block.variables) {
             // validate variable index and metadata consistency across steps
@@ -576,19 +590,6 @@ std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::f
                 // append view to steps
                 std::get<std::vector<View<double>>>(variable.steps).push_back(std::move(std::get<View<double>>(view)));
             }
-        }
-        if (block.num_points > 0) {
-            // get abscissa variable
-            const auto& abscissa_view = std::get<View<double>>(std::get<3>(block.variables[0]));
-            // get first & last values
-            double first_val = abscissa_view[0];
-            double last_val = abscissa_view[abscissa_view.size() - 1];
-            // append first range
-            abscissa_value_ranges.emplace_back(first_val, last_val);
-        }
-        else {
-            // append empty range
-            abscissa_value_ranges.emplace_back(0.0, 0.0);
         }
         // append index pair
         abscissa_indices.emplace_back(abscissa_index_offset, abscissa_index_offset + block.num_points);

@@ -100,8 +100,6 @@ std::shared_ptr<View<std::complex<double>>> to_complex_vector(const XyceValue& v
         }
         // scalar complex
         else if constexpr (std::is_same_v<TX, std::complex<double>>) {
-            // create vector with a single element
-            std::vector<std::complex<double>> v = {{arg}};
             // create view (owning the vector)
             return std::make_shared<View<std::complex<double>>>(std::vector<std::complex<double>>{{arg}});
         }

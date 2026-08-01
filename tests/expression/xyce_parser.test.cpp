@@ -595,3 +595,297 @@ TEST(XyceParserChecks, nodes_store_expected_values) {
     ASSERT_TRUE(as<IdentifierNode>(ternary.condition) != nullptr);
     ASSERT_EQ(step.step_index, 2U);
 }
+
+TEST(XyceParserChecks, implicit_suffix_multiplication_number) {
+    // arrange
+    // act
+    const auto tree = parse_expression("1K");
+    // assert
+    const auto* node = as<BinaryOperationNode>(tree);
+    ASSERT_NE(node, nullptr);
+    ASSERT_EQ(node->operator_value, BinaryOperator::MUL);
+    ASSERT_EQ(as<NumberNode>(node->left)->text, "1");
+    ASSERT_EQ(as<IdentifierNode>(node->right)->name, "K");
+}
+
+TEST(XyceParserChecks, implicit_suffix_multiplication_meg) {
+    // arrange
+    // act
+    const auto tree = parse_expression("10MEG");
+    // assert
+    const auto* node = as<BinaryOperationNode>(tree);
+    ASSERT_NE(node, nullptr);
+    ASSERT_EQ(node->operator_value, BinaryOperator::MUL);
+    ASSERT_EQ(as<NumberNode>(node->left)->text, "10");
+    ASSERT_EQ(as<IdentifierNode>(node->right)->name, "MEG");
+}
+
+TEST(XyceParserChecks, implicit_suffix_multiplication_parenthized_expression) {
+    // arrange
+    // act
+    const auto tree = parse_expression("(a+2)K");
+    // assert
+    const auto* node = as<BinaryOperationNode>(tree);
+    ASSERT_NE(node, nullptr);
+    ASSERT_EQ(node->operator_value, BinaryOperator::MUL);
+    const auto* right = as<IdentifierNode>(node->right);
+    ASSERT_NE(right, nullptr);
+    ASSERT_EQ(right->name, "K");
+    const auto* left = as<BinaryOperationNode>(node->left);
+    ASSERT_NE(left, nullptr);
+    ASSERT_EQ(left->operator_value, BinaryOperator::ADD);
+}
+
+TEST(XyceParserChecks, implicit_suffix_multiplication_after_function_call_throws) {
+    // arrange
+    const auto text = "f()K";
+    // act
+    const auto parse = [&text]() { (void)parse_expression(text); };
+    // assert
+    ASSERT_THROW(parse(), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, consume_mismatch_adjacent_numbers_throws) {
+    // arrange
+    const auto text = "1 2";
+    // act
+    const auto parse = [&text]() { (void)parse_expression(text); };
+    // assert
+    ASSERT_THROW(parse(), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, consume_mismatch_ternary_missing_colon_throws) {
+    // arrange
+    const auto text = "a ? b";
+    // act
+    const auto parse = [&text]() { (void)parse_expression(text); };
+    // assert
+    ASSERT_THROW(parse(), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, consume_mismatch_func_missing_identifier_throws) {
+    // arrange
+    const auto text = ".func f( {1}";
+    // act
+    const auto parse = [&text]() { (void)parse_function_definition(text); };
+    // assert
+    ASSERT_THROW(parse(), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, consume_mismatch_func_missing_rbrace_throws) {
+    // arrange
+    const auto text = ".func f() {1";
+    // act
+    const auto parse = [&text]() { (void)parse_function_definition(text); };
+    // assert
+    ASSERT_THROW(parse(), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, step_selector_non_numeric_index_throws) {
+    // arrange
+    const auto text = "x@y";
+    // act
+    const auto parse = [&text]() { (void)parse_expression(text); };
+    // assert
+    ASSERT_THROW(parse(), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, step_selector_fractional_index_throws) {
+    // arrange
+    const auto text = "x@1.5";
+    // act
+    const auto parse = [&text]() { (void)parse_expression(text); };
+    // assert
+    ASSERT_THROW(parse(), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, step_selector_exponent_index_throws) {
+    // arrange
+    const auto text = "x@1e2";
+    // act
+    const auto parse = [&text]() { (void)parse_expression(text); };
+    // assert
+    ASSERT_THROW(parse(), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, step_selector_overflow_index_throws) {
+    // arrange
+    const auto text = "x@999999999999999999999";
+    // act
+    const auto parse = [&text]() { (void)parse_expression(text); };
+    // assert
+    ASSERT_THROW(parse(), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, lexer_directive_errors) {
+    // arrange
+    const auto tokenize_text = [](const std::string& text) { (void)tokenize(text); };
+    // assert
+    ASSERT_THROW(tokenize_text("."), std::invalid_argument);
+    ASSERT_THROW(tokenize_text(".5"), std::invalid_argument);
+    ASSERT_THROW(tokenize_text("1.."), std::invalid_argument);
+    ASSERT_THROW(tokenize_text(".."), std::invalid_argument);
+    // a directive with a valid identifier head is accepted
+    EXPECT_NO_THROW(tokenize_text(".x"));
+}
+
+TEST(XyceParserChecks, lexer_exponent_errors) {
+    // arrange
+    const auto tokenize_text = [](const std::string& text) { (void)tokenize(text); };
+    // assert
+    ASSERT_THROW(tokenize_text("1e"), std::invalid_argument);
+    ASSERT_THROW(tokenize_text("1e+"), std::invalid_argument);
+    ASSERT_THROW(tokenize_text("1e-"), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, ternary_nested_false_branch) {
+    // arrange
+    // act
+    const auto tree = parse_expression("a ? b : c ? d : e");
+    // assert
+    const auto* node = as<TernaryOperationNode>(tree);
+    ASSERT_NE(node, nullptr);
+    const auto* false_branch = as<TernaryOperationNode>(node->if_false);
+    ASSERT_NE(false_branch, nullptr);
+}
+
+TEST(XyceParserChecks, func_definition_uppercase_directive) {
+    // arrange
+    // act
+    const auto tree = parse_function_definition(".FUNC f() {1}");
+    // assert
+    ASSERT_EQ(tree.name, "f");
+    ASSERT_TRUE(tree.params.empty());
+}
+
+TEST(XyceParserChecks, func_definition_non_identifier_param_throws) {
+    // arrange
+    const auto text = ".func f(1) {x}";
+    // act
+    const auto parse = [&text]() { (void)parse_function_definition(text); };
+    // assert
+    ASSERT_THROW(parse(), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, func_definition_empty_body_throws) {
+    // arrange
+    const auto text = ".func f() {}";
+    // act
+    const auto parse = [&text]() { (void)parse_function_definition(text); };
+    // assert
+    ASSERT_THROW(parse(), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, lowercase_probe_family_parses_as_function_call) {
+    // arrange
+    // act
+    const auto tree = parse_expression("v(out)");
+    // assert
+    const auto* node = as<FunctionCallNode>(tree);
+    ASSERT_NE(node, nullptr);
+    ASSERT_EQ(node->name, "v");
+}
+
+TEST(XyceParserChecks, parse_probe_node_name_fragments) {
+    // arrange
+    // act
+    const auto tree_plus = parse_expression("V(net+5)");
+    // assert
+    const auto* node_plus = as<FunctionCallNode>(tree_plus);
+    ASSERT_NE(node_plus, nullptr);
+    ASSERT_EQ(as<IdentifierNode>(node_plus->args[0])->name, "net+5");
+    const auto tree_slash = parse_expression("V(a/b)");
+    const auto* node_slash = as<FunctionCallNode>(tree_slash);
+    ASSERT_NE(node_slash, nullptr);
+    ASSERT_EQ(as<IdentifierNode>(node_slash->args[0])->name, "a/b");
+    const auto tree_colon = parse_expression("V(net:3)");
+    const auto* node_colon = as<FunctionCallNode>(tree_colon);
+    ASSERT_NE(node_colon, nullptr);
+    ASSERT_EQ(as<IdentifierNode>(node_colon->args[0])->name, "net:3");
+}
+
+TEST(XyceParserChecks, exponent_variants) {
+    // arrange
+    // act
+    const auto tree_upper = parse_expression("1E3");
+    ASSERT_EQ(as<NumberNode>(tree_upper)->text, "1E3");
+    const auto tree_plus = parse_expression("1e+3");
+    ASSERT_EQ(as<NumberNode>(tree_plus)->text, "1e+3");
+    const auto tree_trailing = parse_expression("3.");
+    ASSERT_EQ(as<NumberNode>(tree_trailing)->text, "3.");
+}
+
+TEST(XyceParserChecks, chained_operators) {
+    // arrange
+    // act
+    const auto tree_and = parse_expression("a && b && c");
+    const auto* and_node = as<BinaryOperationNode>(tree_and);
+    ASSERT_NE(and_node, nullptr);
+    ASSERT_EQ(and_node->operator_value, BinaryOperator::LOGICAL_AND);
+    // left-associative: ((a && b) && c)
+    ASSERT_NE(as<BinaryOperationNode>(and_node->left), nullptr);
+    const auto tree_add = parse_expression("a + b + c + d");
+    const auto* add_node = as<BinaryOperationNode>(tree_add);
+    ASSERT_NE(add_node, nullptr);
+    ASSERT_EQ(add_node->operator_value, BinaryOperator::ADD);
+    const auto tree_mul = parse_expression("a * b * c");
+    const auto* mul_node = as<BinaryOperationNode>(tree_mul);
+    ASSERT_NE(mul_node, nullptr);
+    ASSERT_EQ(mul_node->operator_value, BinaryOperator::MUL);
+}
+
+TEST(XyceParserChecks, power_unary_precedence) {
+    // arrange
+    // act
+    const auto tree = parse_expression("2 ** -3");
+    // assert
+    const auto* node = as<BinaryOperationNode>(tree);
+    ASSERT_NE(node, nullptr);
+    ASSERT_EQ(node->operator_value, BinaryOperator::POW);
+    ASSERT_NE(as<UnaryOperationNode>(node->right), nullptr);
+}
+
+TEST(XyceParserChecks, empty_and_garbage_input_throws) {
+    // arrange
+    const auto parse = [](const std::string& text) { (void)parse_expression(text); };
+    // assert
+    ASSERT_THROW(parse(""), std::invalid_argument);
+    ASSERT_THROW(parse(" "), std::invalid_argument);
+    ASSERT_THROW(parse(")"), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, probes_with_three_args_and_nested) {
+    // arrange
+    // act
+    const auto tree_three = parse_expression("V(a, b, c)");
+    const auto* node_three = as<FunctionCallNode>(tree_three);
+    ASSERT_NE(node_three, nullptr);
+    ASSERT_EQ(node_three->args.size(), 3U);
+    const auto tree_ternary_arg = parse_expression("f(a ? b : c)");
+    const auto* node_ternary_arg = as<FunctionCallNode>(tree_ternary_arg);
+    ASSERT_NE(node_ternary_arg, nullptr);
+    ASSERT_NE(as<TernaryOperationNode>(node_ternary_arg->args[0]), nullptr);
+}
+
+TEST(XyceParserChecks, nested_probe_inside_non_probe_call) {
+    // arrange
+    // act
+    const auto tree = parse_expression("g(V(a), 0)");
+    // assert
+    const auto* node = as<FunctionCallNode>(tree);
+    ASSERT_NE(node, nullptr);
+    ASSERT_NE(as<FunctionCallNode>(node->args[0]), nullptr);
+}
+
+TEST(XyceParserChecks, parser_instance_reuse) {
+    // arrange
+    XyceParser parser;
+    // act
+    const auto first = parser.parse_expression("a + b");
+    const auto second = parser.parse_expression("c * d");
+    // assert
+    ASSERT_NE(as<BinaryOperationNode>(first), nullptr);
+    const auto* second_node = as<BinaryOperationNode>(second);
+    ASSERT_NE(second_node, nullptr);
+    ASSERT_EQ(second_node->operator_value, BinaryOperator::MUL);
+}

@@ -798,6 +798,101 @@ TEST(InferUnitChecks, function_call_h_probe_not_in_context_returns_empty) {
     ASSERT_EQ(result, "");
 }
 
+TEST(InferUnitChecks, function_call_z_probe_with_empty_context_unit_defaults_to_ohm) {
+    // arrange / act: stored unit empty falls through to the z->ohm branch
+    auto result = infer_unit(*make_call("z11", make_number("1"), make_number("1")), {{"z11(1, 1)", ""}});
+    // assert
+    ASSERT_EQ(result, "\u03A9");
+}
+
+TEST(InferUnitChecks, function_call_y_probe_with_empty_context_unit_defaults_to_siemens) {
+    // arrange / act: stored unit empty falls through to the y->siemens branch
+    auto result = infer_unit(*make_call("y21", make_number("2"), make_number("1")), {{"y21(2, 1)", ""}});
+    // assert
+    ASSERT_EQ(result, "S");
+}
+
+TEST(InferUnitChecks, binary_mul_generic_non_special_fallthrough) {
+    // arrange / act: V * W is not a special product, returns the left unit
+    auto result = infer_unit(*make_binary(make_identifier("v"), BinaryOperator::MUL, make_identifier("w")), {{"v", "V"}, {"w", "W"}});
+    // assert
+    ASSERT_EQ(result, "V");
+}
+
+TEST(InferUnitChecks, binary_mul_omega_siemens_non_special_fallthrough) {
+    // arrange / act: omega * siemens is not a special product, returns the left unit
+    auto result = infer_unit(*make_binary(make_identifier("z"), BinaryOperator::MUL, make_identifier("g")), {{"z", "\u03A9"}, {"g", "S"}});
+    // assert
+    ASSERT_EQ(result, "\u03A9");
+}
+
+TEST(InferUnitChecks, binary_div_generic_fallthrough_returns_empty) {
+    // arrange / act: V / W matches no special division rule
+    auto result = infer_unit(*make_binary(make_identifier("v"), BinaryOperator::DIV, make_identifier("w")), {{"v", "V"}, {"w", "W"}});
+    // assert
+    ASSERT_EQ(result, "");
+}
+
+TEST(InferUnitChecks, identifier_context_overrides_builtin_constant) {
+    // arrange / act: context shadows the builtin seconds constant
+    auto result = infer_unit(*make_identifier("s"), {{"s", "V"}});
+    // assert
+    ASSERT_EQ(result, "V");
+}
+
+TEST(InferUnitChecks, builtin_constant_units_are_dimensionless) {
+    // arrange / act: remaining CONSTANT_UNITS entries resolve to no unit
+    auto result_e = infer_unit(*make_identifier("e"), {});
+    auto result_f = infer_unit(*make_identifier("f"), {});
+    auto result_g = infer_unit(*make_identifier("g"), {});
+    auto result_j = infer_unit(*make_identifier("j"), {});
+    auto result_k = infer_unit(*make_identifier("k"), {});
+    auto result_m = infer_unit(*make_identifier("m"), {});
+    auto result_n = infer_unit(*make_identifier("n"), {});
+    auto result_p = infer_unit(*make_identifier("p"), {});
+    auto result_t = infer_unit(*make_identifier("t"), {});
+    auto result_u = infer_unit(*make_identifier("u"), {});
+    // assert
+    ASSERT_EQ(result_e, "");
+    ASSERT_EQ(result_f, "");
+    ASSERT_EQ(result_g, "");
+    ASSERT_EQ(result_j, "");
+    ASSERT_EQ(result_k, "");
+    ASSERT_EQ(result_m, "");
+    ASSERT_EQ(result_n, "");
+    ASSERT_EQ(result_p, "");
+    ASSERT_EQ(result_t, "");
+    ASSERT_EQ(result_u, "");
+}
+
+TEST(InferUnitChecks, binary_mul_both_dimensionless_returns_empty) {
+    // arrange / act
+    auto result = infer_unit(*make_binary(make_identifier("x"), BinaryOperator::MUL, make_identifier("y")), {{"x", ""}, {"y", ""}});
+    // assert
+    ASSERT_EQ(result, "");
+}
+
+TEST(InferUnitChecks, probe_with_complex_arg_reconstructs_empty_key) {
+    // arrange: non-identifier/number arg yields an empty arg name in the probe key
+    auto result = infer_unit(*make_call("v", make_binary(make_identifier("a"), BinaryOperator::ADD, make_identifier("b"))), {});
+    // assert
+    ASSERT_EQ(result, "V");
+}
+
+TEST(FormatExpressionChecks, nested_unary_formatting) {
+    // arrange / act
+    auto result = format_expression(*make_unary(UnaryOperator::NEG, make_unary(UnaryOperator::NOT, make_identifier("x"))));
+    // assert
+    ASSERT_EQ(result, "-~x");
+}
+
+TEST(FormatExpressionChecks, nested_step_with_ternary_formatting) {
+    // arrange / act
+    auto result = format_expression(*make_step(make_ternary(make_identifier("c"), make_identifier("a"), make_identifier("b")), 1));
+    // assert
+    ASSERT_EQ(result, "(c?a:b)@1");
+}
+
 TEST(InferUnitChecks, function_call_nullary_dimensionless) {
     // arrange / act
     auto result = infer_unit(*make_call("time"), {});

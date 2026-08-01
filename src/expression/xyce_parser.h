@@ -203,7 +203,6 @@ private:
     [[nodiscard]] const Token& peek() const;
     const Token& consume(TokenKind kind);
     static bool last_was_primary(const ExpressionNode* node);
-    static std::string lower_copy(std::string text);
 };
 
 std::vector<Token> tokenize(const std::string& text);

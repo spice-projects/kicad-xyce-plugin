@@ -156,3 +156,53 @@ TEST(ProbeNamesChecks, embedded_probe_in_longer_name_is_invalid) {
     ASSERT_FALSE(is_network_parameter_probe_name("s11s"));
     ASSERT_FALSE(is_network_parameter_probe_name("xs11"));
 }
+
+TEST(ProbeNamesChecks, high_bit_first_character_is_invalid) {
+    // arrange / act / assert
+    ASSERT_FALSE(is_network_parameter_probe_name("s\xFF\xFF"));
+    ASSERT_FALSE(is_network_parameter_probe_name("\xE9\x31\x31"));
+    ASSERT_FALSE(is_network_parameter_probe_name("s\x80"));
+}
+
+TEST(ProbeNamesChecks, high_bit_byte_sweep_all_positions) {
+    // arrange
+    bool all_invalid = true;
+    // act: sweep 0x80..0xFF in each of the three positions
+    for (int hi = 0x80; hi <= 0xFF; ++hi) {
+        const std::string in_family{static_cast<char>(hi), '1', '1'};
+        const std::string in_digit1{'s', static_cast<char>(hi), '1'};
+        const std::string in_digit2{'s', '1', static_cast<char>(hi)};
+        // assert
+        if (is_network_parameter_probe_name(in_family) || is_network_parameter_probe_name(in_digit1) || is_network_parameter_probe_name(in_digit2)) {
+            all_invalid = false;
+        }
+    }
+    ASSERT_TRUE(all_invalid);
+}
+
+TEST(ProbeNamesChecks, non_null_terminated_view_bounds) {
+    // arrange: longer buffer, explicit length 3 without a NUL terminator
+    const std::string buffer = "s11ZZZZ";
+    // act
+    const auto result = is_network_parameter_probe_name(std::string_view(buffer.data(), 3));
+    // assert
+    ASSERT_TRUE(result);
+}
+
+TEST(ProbeNamesChecks, embedded_nul_view_is_invalid) {
+    // arrange: view containing an embedded NUL within a longer buffer
+    const std::string buffer = "s1\0ABCDEF";
+    // act
+    const auto result = is_network_parameter_probe_name(std::string_view(buffer.data(), 3));
+    // assert
+    ASSERT_FALSE(result);
+}
+
+TEST(ProbeNamesChecks, non_null_terminated_too_short_view_is_invalid) {
+    // arrange: explicit length 2 from a longer buffer
+    const std::string buffer = "s11ZZZZ";
+    // act
+    const auto result = is_network_parameter_probe_name(std::string_view(buffer.data(), 2));
+    // assert
+    ASSERT_FALSE(result);
+}

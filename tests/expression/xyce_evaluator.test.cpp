@@ -434,3 +434,178 @@ TEST(XyceLanguageEvaluator, unknown_identifier_and_user_constants) {
     ASSERT_DOUBLE_EQ(scalar<double>(eval("myval", {}, {}, {{"myval", expression_value(42.0)}})), 42.0);
     ASSERT_DOUBLE_EQ(scalar<double>(eval("MYVAL", {}, {}, {{"myval", expression_value(42.0)}})), 42.0);
 }
+
+TEST(XyceLanguageEvaluator, loader_resolves_then_caches) {
+    // arrange
+    std::unordered_map<std::string, XyceValue> expressions;
+    int load_calls = 0;
+    auto loader = [&](const std::string& key) -> std::optional<XyceValue> {
+        ++load_calls;
+        if (key == "x")
+            return expression_value(7.0);
+        return std::nullopt;
+    };
+    // act: first evaluation loads and caches the identifier
+    const auto first = scalar<double>(evaluate_expression(*parse_expression("x"), expressions, loader, {}, {}, {}));
+    // act: second evaluation must reuse the cache
+    const auto second = scalar<double>(evaluate_expression(*parse_expression("x"), expressions, loader, {}, {}, {}));
+    // assert
+    ASSERT_DOUBLE_EQ(first, 7.0);
+    ASSERT_DOUBLE_EQ(second, 7.0);
+    ASSERT_EQ(load_calls, 1);
+    ASSERT_EQ(expressions.size(), 1U);
+}
+
+TEST(XyceLanguageEvaluator, loader_returns_nullopt_for_unknown_identifier) {
+    // arrange
+    std::unordered_map<std::string, XyceValue> expressions;
+    auto loader = [](const std::string&) -> std::optional<XyceValue> { return std::nullopt; };
+    // assert
+    ASSERT_THROW(evaluate_expression(*parse_expression("missing"), expressions, loader, {}, {}, {}), std::invalid_argument);
+}
+
+TEST(XyceLanguageEvaluator, loader_nullopt_unknown_probe) {
+    // arrange
+    std::unordered_map<std::string, XyceValue> expressions;
+    auto loader = [](const std::string&) -> std::optional<XyceValue> { return std::nullopt; };
+    // assert
+    ASSERT_THROW(evaluate_expression(*parse_expression("V(out)"), expressions, loader, {}, {}, {}), std::invalid_argument);
+}
+
+TEST(XyceLanguageEvaluator, loader_lazy_loads_probe_values) {
+    // arrange
+    std::unordered_map<std::string, XyceValue> expressions;
+    auto loader = [&](const std::string& key) -> std::optional<XyceValue> {
+        if (key == "v(out)")
+            return expression_value(3.3);
+        return std::nullopt;
+    };
+    // act
+    const auto result = scalar<double>(evaluate_expression(*parse_expression("V(out)"), expressions, loader, {}, {}, {}));
+    // assert
+    ASSERT_DOUBLE_EQ(result, 3.3);
+    ASSERT_EQ(expressions.size(), 1U);
+    ASSERT_TRUE(expressions.contains("v(out)"));
+}
+
+TEST(XyceLanguageEvaluator, find_variable_recurses_into_parent_scope) {
+    // arrange
+    const auto g = parse_function_definition(".func g(y) {x}");
+    const auto f = parse_function_definition(".func f(x) {g(x)}");
+    const std::unordered_map<std::string, FunctionDefinitionNode> functions{{"f", f}, {"g", g}};
+    // act / assert: g's body reads x from the caller f's local scope
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("f(5)", {}, functions)), 5.0);
+}
+
+TEST(XyceLanguageEvaluator, mutual_recursion_throws_via_ancestor_stack) {
+    // arrange
+    const auto g = parse_function_definition(".func g(x) {f(x)}");
+    const auto f = parse_function_definition(".func f(x) {g(x)}");
+    const std::unordered_map<std::string, FunctionDefinitionNode> functions{{"f", f}, {"g", g}};
+    // assert
+    ASSERT_THROW(eval("g(1)", {}, functions), std::invalid_argument);
+}
+
+TEST(XyceLanguageEvaluator, mixed_scalar_vector_logical_and_or) {
+    // arrange
+    const std::unordered_map<std::string, XyceValue> expressions{
+        {"x", expression_value(std::vector<double>{0.0, 1.0})},
+    };
+    // assert
+    ASSERT_EQ(as_real_vector(eval("1 && x", expressions)), std::vector<double>({0.0, 1.0}));
+    ASSERT_EQ(as_real_vector(eval("x && 1", expressions)), std::vector<double>({0.0, 1.0}));
+    ASSERT_EQ(as_real_vector(eval("0 || x", expressions)), std::vector<double>({0.0, 1.0}));
+    ASSERT_EQ(as_real_vector(eval("x || 0", expressions)), std::vector<double>({0.0, 1.0}));
+    // scalar-true right operand short-circuits OR to scalar 1.0
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("x || 1", expressions)), 1.0);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("0 && x", expressions)), 0.0);
+}
+
+TEST(XyceLanguageEvaluator, differential_probe_only_second_node_throws) {
+    // arrange
+    const std::unordered_map<std::string, XyceValue> expressions{
+        {"v(b)", expression_value(5.0)},
+    };
+    // assert: first node missing means the differential cannot resolve
+    ASSERT_THROW(eval("V(a,b)", expressions), std::invalid_argument);
+}
+
+TEST(XyceLanguageEvaluator, multi_arg_probe_key_direct_hit) {
+    // arrange
+    const std::unordered_map<std::string, XyceValue> expressions{
+        {"v(a, b)", expression_value(9.0)},
+    };
+    // assert
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("V(a,b)", expressions)), 9.0);
+}
+
+TEST(XyceLanguageEvaluator, mixed_complex_scalar_real_vector_broadcast) {
+    // arrange
+    const std::unordered_map<std::string, XyceValue> expressions{
+        {"x", expression_value(std::vector<double>{1.0, 2.0})},
+    };
+    // act
+    const auto sum = to_complex_vector(eval("j + x", expressions));
+    // assert
+    ASSERT_NE(sum, nullptr);
+    ASSERT_EQ(sum->size(), 2U);
+    EXPECT_DOUBLE_EQ((*sum)[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ((*sum)[0].imag(), 1.0);
+    EXPECT_DOUBLE_EQ((*sum)[1].real(), 2.0);
+    EXPECT_DOUBLE_EQ((*sum)[1].imag(), 1.0);
+    // real vector + complex vector ADD
+    const std::unordered_map<std::string, XyceValue> expressions2{
+        {"x", expression_value(std::vector<double>{1.0, 2.0})},
+        {"cv", expression_value(std::vector<std::complex<double>>{{1.0, 1.0}, {0.0, 1.0}})},
+    };
+    const auto sum2 = to_complex_vector(eval("x + cv", expressions2));
+    ASSERT_EQ(sum2->size(), 2U);
+    EXPECT_DOUBLE_EQ((*sum2)[0].real(), 2.0);
+    EXPECT_DOUBLE_EQ((*sum2)[0].imag(), 1.0);
+    EXPECT_DOUBLE_EQ((*sum2)[1].real(), 2.0);
+    EXPECT_DOUBLE_EQ((*sum2)[1].imag(), 1.0);
+}
+
+TEST(XyceLanguageEvaluator, vector_relational_and_equality_elementwise) {
+    // arrange
+    const std::unordered_map<std::string, XyceValue> expressions{
+        {"x", expression_value(std::vector<double>{1.0, 2.0, 5.0})},
+    };
+    // assert
+    ASSERT_EQ(as_real_vector(eval("x < 3", expressions)), std::vector<double>({1.0, 1.0, 0.0}));
+    ASSERT_EQ(as_real_vector(eval("x == 2", expressions)), std::vector<double>({0.0, 1.0, 0.0}));
+    ASSERT_EQ(as_real_vector(eval("x != 2", expressions)), std::vector<double>({1.0, 0.0, 1.0}));
+}
+
+TEST(XyceLanguageEvaluator, relational_complex_warn_disabled_at_err_level) {
+    // arrange
+    const auto previous_level = spdlog::get_level();
+    spdlog::set_level(spdlog::level::err);
+    // act / assert: same real-part result as at warn level, no warning emitted
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("j < 1")), 1.0);
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("j > 1")), 0.0);
+    // restore
+    spdlog::set_level(previous_level);
+}
+
+TEST(XyceLanguageEvaluator, minor_operator_and_selector_edges) {
+    // arrange
+    const std::unordered_map<std::string, XyceValue> expressions{
+        {"x", expression_value(std::vector<double>{1.0, 2.0})},
+        {"a", expression_value(std::vector<double>{10.0, 20.0})},
+        {"b", expression_value(std::vector<double>{30.0, 40.0})},
+        {"cond", expression_value(std::vector<double>{1.0, 0.0})},
+    };
+    const std::vector<std::pair<size_t, size_t>> steps{{0, 1}, {1, 2}};
+    // assert: unary POS on a vector
+    ASSERT_EQ(as_real_vector(eval("+x", expressions)), std::vector<double>({1.0, 2.0}));
+    // assert: complex MOD uses the real part
+    ASSERT_DOUBLE_EQ(scalar<double>(eval("j % 3")), 0.0);
+    // assert: ternary with vector condition and vector branches
+    ASSERT_EQ(as_real_vector(eval("cond ? a : b", expressions)), std::vector<double>({10.0, 40.0}));
+    // assert: empty probe args are rejected as an unknown function
+    ASSERT_THROW(eval("V()"), std::invalid_argument);
+    // assert: out-of-range step selector
+    ASSERT_THROW(eval("x@0", expressions, {}, {}, steps), std::invalid_argument);
+    ASSERT_THROW(eval("x@5", expressions, {}, {}, steps), std::invalid_argument);
+}
