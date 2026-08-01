@@ -58,7 +58,11 @@ elseif(WIN32)
 endif()
 
 # enable more warnings in tests for better
-target_compile_options(kicad-xyce-plugin-tests PRIVATE -Wall -Wextra -Wpedantic)
+# clang-cl treats -Wall as MSVC's /Wall (enable every warning), so only apply
+# the standard warning set to GNU-style frontends (clang++, g++)
+if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    target_compile_options(kicad-xyce-plugin-tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 
 # auto-discover Gtests as Ctests
 include(CTest)

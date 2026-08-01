@@ -74,7 +74,11 @@ set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-fprofile-instr-generate")
 
 target_compile_definitions(kicad-xyce-plugin PRIVATE KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
 
-target_compile_options(kicad-xyce-plugin PRIVATE -Wall -Wextra -Wpedantic)
+# clang-cl treats -Wall as MSVC's /Wall (enable every warning), so only apply
+# the standard warning set to GNU-style frontends (clang++, g++)
+if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    target_compile_options(kicad-xyce-plugin PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 
 target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog)
 
