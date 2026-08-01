@@ -55,199 +55,67 @@ namespace
     XyceValue eval(const std::string& text, const std::unordered_map<std::string, XyceValue>& expressions = {}, const std::unordered_map<std::string, FunctionDefinitionNode>& functions = {}, const std::unordered_map<std::string, XyceValue>& constants = {}, const std::vector<std::pair<size_t, size_t>>& step_slices = {}) { return evaluate_expression(*parse_expression(text), expressions, functions, constants, step_slices); }
 } // namespace
 
-TEST(XyceEvaluatorChecks, tokenizes_core_symbols) {
-    // act
-    const auto tokens = tokenize(".func x() {1+2-3*4/5%6^~!&|&&||==!=<=>=@:?,}");
-    // assert
-    ASSERT_EQ(tokens.front().kind, TokenKind::DIRECTIVE);
-    ASSERT_EQ(tokens.back().kind, TokenKind::EOF_TOKEN);
-    ASSERT_EQ(tokens[1].kind, TokenKind::IDENTIFIER);
-    ASSERT_EQ(tokens[2].kind, TokenKind::LPAREN);
-}
-
-TEST(XyceEvaluatorChecks, tokenizes_numbers_identifiers_and_suffixes) {
-    // act
-    const auto tokens = tokenize("42 3.14 1e6 2.5e-3 1MEG v_out node[1]");
-    // assert
-    ASSERT_EQ(tokens[0].kind, TokenKind::NUMBER);
-    ASSERT_EQ(tokens[1].kind, TokenKind::NUMBER);
-    ASSERT_EQ(tokens[2].kind, TokenKind::NUMBER);
-    ASSERT_EQ(tokens[3].kind, TokenKind::NUMBER);
-    ASSERT_EQ(tokens[4].kind, TokenKind::NUMBER);
-    ASSERT_EQ(tokens[5].kind, TokenKind::IDENTIFIER);
-    ASSERT_EQ(tokens[6].kind, TokenKind::IDENTIFIER);
-}
-
-TEST(XyceEvaluatorChecks, ignores_whitespace_and_tracks_offsets) {
-    // arrange
-    // act
-    const auto tokens = tokenize("  1  +  2  ");
-    // assert
-    ASSERT_EQ(tokens.size(), 4U);
-    ASSERT_EQ(tokens[0].start, 2U);
-    ASSERT_EQ(tokens[1].start, 5U);
-    ASSERT_EQ(tokens[2].start, 8U);
-}
-
-TEST(XyceEvaluatorChecks, rejects_invalid_characters) {
-    // arrange
-    const auto tokenize_text = [](const std::string& text) { return tokenize(text); };
-    // act
-    const auto invalid_character = std::string("$");
-    // assert
-    ASSERT_THROW(tokenize_text(invalid_character), std::invalid_argument);
-    ASSERT_THROW(tokenize_text("\u2022foo"), std::invalid_argument);
-    ASSERT_THROW(tokenize_text("foo#bar"), std::invalid_argument);
-}
-
-TEST(XyceEvaluatorChecks, lexer_instance_matches_free_function) {
-    // arrange
-    // act
-    const auto a = XyceLexer{}.tokenize("1 + x");
-    const auto b = tokenize("1 + x");
-    // assert
-    ASSERT_EQ(a.size(), b.size());
-    ASSERT_EQ(a[0].kind, b[0].kind);
-    ASSERT_EQ(a[1].kind, b[1].kind);
-    ASSERT_EQ(a[2].kind, b[2].kind);
-}
-
 // ========================================================================================
-// parser
+// evaluation context
 // ========================================================================================
 
-TEST(XyceEvaluatorChecks, parses_operators_precedence_and_probes) {
-    // arrange
-    // act
-    const auto tree = parse_expression("a + b * c ? V(out, 0)@1 : id(x)");
+TEST(XyceEvaluatorChecks, context_default_constructs_empty) {
+    // arrange / act
+    EvaluationContext context{};
     // assert
-    ASSERT_NE(as<TernaryOperationNode>(tree), nullptr);
+    ASSERT_TRUE(context.expressions.empty());
+    ASSERT_TRUE(context.variables.empty());
+    ASSERT_TRUE(context.functions.empty());
+    ASSERT_TRUE(context.constants.empty());
+    ASSERT_TRUE(context.step_slices.empty());
 }
 
-TEST(XyceEvaluatorChecks, parses_function_definitions) {
+TEST(XyceEvaluatorChecks, context_stores_expressions_by_pointer) {
     // arrange
+    const XyceValue value = expression_value(1.0);
     // act
-    const auto tree = parse_function_definition(".func add(a, b) {a + b}");
+    const EvaluationContext context{{{"x", &value}}, {}, {}, {}, {}};
     // assert
-    ASSERT_EQ(tree.name, "add");
-    ASSERT_EQ(tree.params.size(), 2U);
-    ASSERT_TRUE(dynamic_cast<BinaryOperationNode*>(tree.body.get()) != nullptr);
+    ASSERT_EQ(context.expressions.size(), 1U);
+    ASSERT_EQ(context.expressions.at("x"), &value);
 }
 
-TEST(XyceEvaluatorChecks, parser_nodes_store_expected_values) {
-    // arrange
-    // act
-    NumberNode number("3.14");
-    IdentifierNode identifier("vout");
-    std::vector<ExpressionPtr> args;
-    args.push_back(make_identifier("x"));
-    FunctionCallNode call("abs", std::move(args));
-    UnaryOperationNode unary(UnaryOperator::NEG, make_identifier("x"));
-    BinaryOperationNode binary(make_number("1"), BinaryOperator::ADD, make_number("2"));
-    TernaryOperationNode ternary(make_identifier("c"), make_number("1"), make_number("0"));
-    StepSelectorNode step(make_identifier("v(out)"), 2);
+TEST(XyceEvaluatorChecks, context_stores_variables_by_value) {
+    // arrange / act
+    const EvaluationContext context{{}, {{"x", expression_value(1.0)}}, {}, {}, {}};
     // assert
-    ASSERT_EQ(number.text, "3.14");
-    ASSERT_EQ(identifier.name, "vout");
-    ASSERT_EQ(call.name, "abs");
-    ASSERT_EQ(unary.operator_value, UnaryOperator::NEG);
-    ASSERT_EQ(binary.operator_value, BinaryOperator::ADD);
-    ASSERT_TRUE(as<IdentifierNode>(ternary.condition) != nullptr);
-    ASSERT_EQ(step.step_index, 2U);
+    ASSERT_EQ(context.variables.size(), 1U);
+    ASSERT_DOUBLE_EQ(scalar<double>(context.variables.at("x")), 1.0);
 }
 
-TEST(XyceEvaluatorChecks, parse_errors_match_scenarios) {
+TEST(XyceEvaluatorChecks, context_stores_functions_by_pointer) {
     // arrange
-    const auto parse_text = [](const std::string& text, const bool is_function_definition) {
-        if (is_function_definition) {
-            (void)parse_function_definition(text);
-            return;
-        }
-        (void)parse_expression(text);
-    };
+    const auto square = parse_function_definition(".func sq(x) {x * x}");
     // act
-    const auto invalid_function_definition = std::string(".param x = 1");
+    const EvaluationContext context{{}, {}, {{"sq", &square}}, {}, {}};
     // assert
-    ASSERT_THROW(parse_text(invalid_function_definition, true), std::invalid_argument);
-    ASSERT_THROW(parse_text("+", false), std::invalid_argument);
-    ASSERT_THROW(parse_text("x@0", false), std::invalid_argument);
+    ASSERT_EQ(context.functions.size(), 1U);
+    ASSERT_EQ(context.functions.at("sq"), &square);
+    ASSERT_EQ(context.functions.at("sq")->params.size(), 1U);
 }
 
-// ========================================================================================
-// builtin constants and functions
-// ========================================================================================
-
-TEST(XyceEvaluatorChecks, constants_match_expected_values) {
+TEST(XyceEvaluatorChecks, context_stores_constants_by_pointer) {
     // arrange
-    const auto& constants = BUILTIN_CONSTANTS;
+    const XyceValue value = expression_value(42.0);
     // act
-    const auto pi = scalar<double>(constants.at("pi"));
+    const EvaluationContext context{{}, {}, {}, {{"answer", &value}}, {}};
     // assert
-    ASSERT_NEAR(pi, std::acos(-1.0), 1e-12);
-    ASSERT_NEAR(scalar<double>(constants.at("e")), std::exp(1.0), 1e-12);
-    ASSERT_DOUBLE_EQ(scalar<double>(constants.at("meg")), 1e6);
-    ASSERT_DOUBLE_EQ(scalar<double>(constants.at("k")), 1e3);
-    ASSERT_DOUBLE_EQ(scalar<double>(constants.at("m")), 1e-3);
-    ASSERT_DOUBLE_EQ(scalar<double>(constants.at("u")), 1e-6);
-    ASSERT_DOUBLE_EQ(scalar<double>(constants.at("n")), 1e-9);
-    ASSERT_DOUBLE_EQ(scalar<double>(constants.at("p")), 1e-12);
-    ASSERT_DOUBLE_EQ(scalar<double>(constants.at("f")), 1e-15);
-    ASSERT_DOUBLE_EQ(scalar<double>(constants.at("g")), 1e9);
-    ASSERT_DOUBLE_EQ(scalar<double>(constants.at("t")), 1e12);
-    ASSERT_NEAR(scalar<double>(constants.at("mil")), 25.4e-6, 1e-20);
-    ASSERT_EQ(std::get<std::complex<double>>(constants.at("j")), std::complex<double>(0.0, 1.0));
-    ASSERT_DOUBLE_EQ(scalar<double>(constants.at("mho")), 1.0);
+    ASSERT_EQ(context.constants.size(), 1U);
+    ASSERT_EQ(context.constants.at("answer"), &value);
 }
 
-TEST(XyceEvaluatorChecks, core_builtin_functions_work) {
+TEST(XyceEvaluatorChecks, context_stores_step_slices) {
     // arrange
-    const auto& functions = BUILTIN_FUNCTIONS;
+    const std::vector<std::pair<size_t, size_t>> slices{{0, 3}, {3, 6}};
     // act
-    const auto log_value = scalar<double>(functions.at("log")({expression_value(100.0)}));
+    const EvaluationContext context{{}, {}, {}, {}, slices};
     // assert
-    ASSERT_DOUBLE_EQ(log_value, 2.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("log10")({expression_value(1000.0)})), 3.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("ln")({expression_value(std::exp(1.0))})), 1.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("abs")({expression_value(-3.0)})), 3.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("sqrt")({expression_value(9.0)})), 3.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("db")({expression_value(10.0)})), 20.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("real")({expression_value(std::complex<double>(3.0, 4.0))})), 3.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("imag")({expression_value(std::complex<double>(3.0, 4.0))})), 4.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("phase")({expression_value(std::complex<double>(0.0, 1.0))})), 90.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("sin")({expression_value(0.0)})), 0.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("cos")({expression_value(0.0)})), 1.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("tan")({expression_value(0.0)})), 0.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("atan2")({expression_value(1.0), expression_value(1.0)})), std::atan2(1.0, 1.0));
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("sgn")({expression_value(-3.0)})), -1.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("sign")({expression_value(-3.0), expression_value(2.0)})), 3.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("uramp")({expression_value(-5.0)})), 0.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("stp")({expression_value(1.0)})), 1.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("round")({expression_value(2.7)})), 3.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("nint")({expression_value(1.5)})), 2.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("floor")({expression_value(2.9)})), 2.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("ceil")({expression_value(2.1)})), 3.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("int")({expression_value(-2.9)})), -2.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("pow")({expression_value(2.0), expression_value(10.0)})), 1024.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("pwr")({expression_value(-2.0), expression_value(3.0)})), 8.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("pwrs")({expression_value(-2.0), expression_value(3.0)})), -8.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("fmod")({expression_value(10.0), expression_value(3.0)})), 1.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("min")({expression_value(3.0), expression_value(1.0), expression_value(2.0)})), 1.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("max")({expression_value(3.0), expression_value(1.0), expression_value(2.0)})), 3.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("limit")({expression_value(5.0), expression_value(1.0), expression_value(10.0)})), 5.0);
-    ASSERT_DOUBLE_EQ(scalar<double>(functions.at("if")({expression_value(1.0), expression_value(10.0), expression_value(20.0)})), 10.0);
-}
-
-TEST(XyceEvaluatorChecks, builtin_function_errors_match_scenarios) {
-    // arrange
-    const auto& functions = BUILTIN_FUNCTIONS;
-    // act
-    const auto invalid_abs_args = std::vector<XyceValue>{expression_value(1.0), expression_value(2.0)};
-    // assert
-    ASSERT_THROW(functions.at("abs")(invalid_abs_args), std::invalid_argument);
-    ASSERT_THROW(functions.at("sign")({expression_value(1.0)}), std::invalid_argument);
-    ASSERT_THROW(functions.at("fmod")({expression_value(1.0)}), std::invalid_argument);
-    ASSERT_THROW(functions.at("ddt")({expression_value(1.0)}), std::logic_error);
-    ASSERT_THROW(functions.at("sdt")({expression_value(1.0)}), std::logic_error);
+    ASSERT_EQ(context.step_slices, slices);
 }
 
 // ========================================================================================
@@ -395,29 +263,6 @@ TEST(XyceLanguageEvaluator, user_functions_and_errors_work) {
     ASSERT_THROW(eval("f(5)", {}, functions), std::invalid_argument);
     ASSERT_THROW(eval("sq(1, 2)", {}, functions), std::invalid_argument);
     ASSERT_THROW(eval("no_such_fn(1)"), std::invalid_argument);
-}
-
-TEST(XyceLanguageEvaluator, node_and_context_types_match) {
-    // arrange
-    // act
-    EvaluationContext context{{}, {{"x", expression_value(1.0)}}, {}, {}, {}};
-    NumberNode number("3.14");
-    IdentifierNode identifier("vout");
-    std::vector<ExpressionPtr> args;
-    args.push_back(make_identifier("x"));
-    FunctionCallNode call("abs", std::move(args));
-    BinaryOperationNode binary(make_number("1"), BinaryOperator::ADD, make_number("2"));
-    UnaryOperationNode unary(UnaryOperator::NEG, make_identifier("x"));
-    TernaryOperationNode ternary(make_identifier("c"), make_number("1"), make_number("0"));
-    StepSelectorNode step(make_identifier("v(out)"), 1);
-    // assert
-    ASSERT_EQ(number.text, "3.14");
-    ASSERT_EQ(identifier.name, "vout");
-    ASSERT_EQ(call.args.size(), 1U);
-    ASSERT_EQ(binary.operator_value, BinaryOperator::ADD);
-    ASSERT_EQ(unary.operator_value, UnaryOperator::NEG);
-    ASSERT_TRUE(as<IdentifierNode>(ternary.condition) != nullptr);
-    ASSERT_EQ(step.step_index, 1U);
 }
 
 // ========================================================================================

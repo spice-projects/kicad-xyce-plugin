@@ -1,5 +1,8 @@
+#include <memory>
 #include <string>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -13,16 +16,69 @@ namespace
     }
 } // namespace
 
-// ========================================================================================
-// type traits
-// ========================================================================================
-
 static_assert(!std::is_copy_constructible_v<XyceParser>);
 static_assert(!std::is_copy_assignable_v<XyceParser>);
 
 // ========================================================================================
-// parse_expression
+// lexer
 // ========================================================================================
+
+TEST(XyceParserChecks, tokenizes_core_symbols) {
+    // act
+    const auto tokens = tokenize(".func x() {1+2-3*4/5%6^~!&|&&||==!=<=>=@:?,}");
+    // assert
+    ASSERT_EQ(tokens.front().kind, TokenKind::DIRECTIVE);
+    ASSERT_EQ(tokens.back().kind, TokenKind::EOF_TOKEN);
+    ASSERT_EQ(tokens[1].kind, TokenKind::IDENTIFIER);
+    ASSERT_EQ(tokens[2].kind, TokenKind::LPAREN);
+}
+
+TEST(XyceParserChecks, tokenizes_numbers_identifiers_and_suffixes) {
+    // act
+    const auto tokens = tokenize("42 3.14 1e6 2.5e-3 1MEG v_out node[1]");
+    // assert
+    ASSERT_EQ(tokens[0].kind, TokenKind::NUMBER);
+    ASSERT_EQ(tokens[1].kind, TokenKind::NUMBER);
+    ASSERT_EQ(tokens[2].kind, TokenKind::NUMBER);
+    ASSERT_EQ(tokens[3].kind, TokenKind::NUMBER);
+    ASSERT_EQ(tokens[4].kind, TokenKind::NUMBER);
+    ASSERT_EQ(tokens[5].kind, TokenKind::IDENTIFIER);
+    ASSERT_EQ(tokens[6].kind, TokenKind::IDENTIFIER);
+}
+
+TEST(XyceParserChecks, ignores_whitespace_and_tracks_offsets) {
+    // arrange
+    // act
+    const auto tokens = tokenize("  1  +  2  ");
+    // assert
+    ASSERT_EQ(tokens.size(), 4U);
+    ASSERT_EQ(tokens[0].start, 2U);
+    ASSERT_EQ(tokens[1].start, 5U);
+    ASSERT_EQ(tokens[2].start, 8U);
+}
+
+TEST(XyceParserChecks, rejects_invalid_characters) {
+    // arrange
+    const auto tokenize_text = [](const std::string& text) { return tokenize(text); };
+    // act
+    const auto invalid_character = std::string("$");
+    // assert
+    ASSERT_THROW(tokenize_text(invalid_character), std::invalid_argument);
+    ASSERT_THROW(tokenize_text("\u2022foo"), std::invalid_argument);
+    ASSERT_THROW(tokenize_text("foo#bar"), std::invalid_argument);
+}
+
+TEST(XyceParserChecks, lexer_instance_matches_free_function) {
+    // arrange
+    // act
+    const auto a = XyceLexer{}.tokenize("1 + x");
+    const auto b = tokenize("1 + x");
+    // assert
+    ASSERT_EQ(a.size(), b.size());
+    ASSERT_EQ(a[0].kind, b[0].kind);
+    ASSERT_EQ(a[1].kind, b[1].kind);
+    ASSERT_EQ(a[2].kind, b[2].kind);
+}
 
 TEST(XyceParserChecks, number_literal_produces_number_node) {
     // arrange
@@ -272,6 +328,14 @@ TEST(XyceParserChecks, ternary_is_right_associative) {
     ASSERT_NE(as<TernaryOperationNode>(node->if_true), nullptr);
 }
 
+TEST(XyceParserChecks, parses_operators_precedence_and_probes) {
+    // arrange
+    // act
+    const auto tree = parse_expression("a + b * c ? V(out, 0)@1 : id(x)");
+    // assert
+    ASSERT_NE(as<TernaryOperationNode>(tree), nullptr);
+}
+
 TEST(XyceParserChecks, parentheses_override_precedence) {
     // arrange
     // act
@@ -425,8 +489,11 @@ TEST(XyceParserChecks, func_definition_two_params) {
     // act
     const auto tree = parse_function_definition(".func add(a, b) {a + b}");
     // assert
+    ASSERT_EQ(tree.name, "add");
+    ASSERT_EQ(tree.params.size(), 2U);
     ASSERT_EQ(tree.params[0], "a");
     ASSERT_EQ(tree.params[1], "b");
+    ASSERT_TRUE(dynamic_cast<BinaryOperationNode*>(tree.body.get()) != nullptr);
 }
 
 TEST(XyceParserChecks, wrong_directive_raises) {
@@ -505,4 +572,26 @@ TEST(XyceParserChecks, id_is_not_a_probe_family) {
     const auto* node = as<FunctionCallNode>(tree);
     ASSERT_NE(node, nullptr);
     ASSERT_NE(as<IdentifierNode>(node->args[0]), nullptr);
+}
+
+TEST(XyceParserChecks, nodes_store_expected_values) {
+    // arrange
+    // act
+    NumberNode number("3.14");
+    IdentifierNode identifier("vout");
+    std::vector<ExpressionPtr> args;
+    args.push_back(std::make_unique<IdentifierNode>("x"));
+    FunctionCallNode call("abs", std::move(args));
+    UnaryOperationNode unary(UnaryOperator::NEG, std::make_unique<IdentifierNode>("x"));
+    BinaryOperationNode binary(std::make_unique<NumberNode>("1"), BinaryOperator::ADD, std::make_unique<NumberNode>("2"));
+    TernaryOperationNode ternary(std::make_unique<IdentifierNode>("c"), std::make_unique<NumberNode>("1"), std::make_unique<NumberNode>("0"));
+    StepSelectorNode step(std::make_unique<IdentifierNode>("v(out)"), 2);
+    // assert
+    ASSERT_EQ(number.text, "3.14");
+    ASSERT_EQ(identifier.name, "vout");
+    ASSERT_EQ(call.name, "abs");
+    ASSERT_EQ(unary.operator_value, UnaryOperator::NEG);
+    ASSERT_EQ(binary.operator_value, BinaryOperator::ADD);
+    ASSERT_TRUE(as<IdentifierNode>(ternary.condition) != nullptr);
+    ASSERT_EQ(step.step_index, 2U);
 }
