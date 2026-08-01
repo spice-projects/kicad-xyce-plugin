@@ -286,7 +286,7 @@ namespace
                     // append mapped values
                     std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto& v) { return -v; });
                     // exit
-                    return XyceValue{std::make_shared<View<double>>(out)};
+                    return XyceValue{std::make_shared<View<double>>(std::move(out))};
                 }
                 // View<complex>
                 if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
@@ -297,7 +297,7 @@ namespace
                     // append mapped values
                     std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto& v) { return -v; });
                     // exit
-                    return XyceValue{std::make_shared<View<std::complex<double>>>(out)};
+                    return XyceValue{std::make_shared<View<std::complex<double>>>(std::move(out))};
                 }
                 // not possible value type
                 throw std::invalid_argument("unsupported type");
@@ -330,7 +330,7 @@ namespace
                     // append mapped values
                     std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto& v) { return v != 0.0 ? 0.0 : 1.0; });
                     // exit
-                    return XyceValue{std::make_shared<View<double>>(out)};
+                    return XyceValue{std::make_shared<View<double>>(std::move(out))};
                 }
                 // View<complex>
                 if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
@@ -341,7 +341,7 @@ namespace
                     // append mapped values
                     std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto& v) { return v.real() != 0.0 ? 0.0 : 1.0; });
                     // exit
-                    return XyceValue{std::make_shared<View<double>>(out)};
+                    return XyceValue{std::make_shared<View<double>>(std::move(out))};
                 }
                 // not possible value type
                 throw std::invalid_argument("unsupported type");
@@ -666,9 +666,9 @@ namespace
             if (has_simple_probe_args(expression)) {
                 // reconstruct the probe name and check if it exists in the context
                 auto key = to_lower(reconstruct_probe_name(expression));
-            // check if the probe name exists in context variables or expressions
-            if (context.has_variable(key) || context.has_expression(key))
-                return key;
+                // check if the probe name exists in context variables or expressions
+                if (context.has_variable(key) || context.has_expression(key))
+                    return key;
             }
         }
         // not a probe call
@@ -811,7 +811,6 @@ XyceValue evaluate_expression(const ExpressionNode& expression, std::unordered_m
     // loop functions and store pointers
     for (const auto& [name, value] : functions)
         func_map.insert_or_assign(to_lower(name), &value);
-
     // build evaluation constants lookup map
     std::unordered_map<std::string, const XyceValue*> const_map;
     // loop builtin constants
@@ -820,7 +819,6 @@ XyceValue evaluate_expression(const ExpressionNode& expression, std::unordered_m
     // loop user constants
     for (const auto& [name, value] : constants)
         const_map[to_lower(name)] = &value;
-
     // build initial evaluation context
     Context context{
         .expressions = &expressions,
@@ -829,7 +827,6 @@ XyceValue evaluate_expression(const ExpressionNode& expression, std::unordered_m
         .constants = const_map,
         .step_slices = step_slices,
     };
-
     // evaluate the tree
     return evaluate(expression, context);
 }

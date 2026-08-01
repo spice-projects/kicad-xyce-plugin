@@ -59,7 +59,7 @@ namespace
             for (const auto& v : *values)
                 out.emplace_back(v.real());
             // exit
-            return std::make_shared<View<double>>(out);
+            return std::make_shared<View<double>>(std::move(out));
         }
         return {values};
     }
@@ -89,7 +89,7 @@ namespace
                 // append mapped values
                 std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), fn);
                 // exit
-                return std::make_shared<View<double>>(out);
+                return std::make_shared<View<double>>(std::move(out));
             }
             // View<complex>
             if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
@@ -100,7 +100,7 @@ namespace
                 // append mapped values
                 std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [&fn](auto v) { return fn(v.real()); });
                 // exit
-                return std::make_shared<View<double>>(out);
+                return std::make_shared<View<double>>(std::move(out));
             }
             // not possible value type
             throw std::invalid_argument("unsupported type");
@@ -134,7 +134,7 @@ namespace
                 // append mapped values
                 std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [&fn](auto v) { return fn(std::complex<double>(v, 0.0)); });
                 // exit
-                return make_vector(std::make_shared<View<std::complex<double>>>(out));
+                return make_vector(std::make_shared<View<std::complex<double>>>(std::move(out)));
             }
             // View<complex>
             if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
@@ -145,7 +145,7 @@ namespace
                 // append mapped values
                 std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), fn);
                 // exit
-                return make_vector(std::make_shared<View<std::complex<double>>>(out));
+                return make_vector(std::make_shared<View<std::complex<double>>>(std::move(out)));
             }
             // not possible value type
             throw std::invalid_argument("unsupported type");
@@ -171,7 +171,7 @@ namespace
                 // append absolute values
                 std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto v) { return std::abs(v); });
                 // exit
-                return std::make_shared<View<double>>(out);
+                return std::make_shared<View<double>>(std::move(out));
             }
             // vector<complex>
             else if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
@@ -182,7 +182,7 @@ namespace
                 // append absolute values
                 std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto v) { return std::abs(v); });
                 // exit
-                return std::make_shared<View<double>>(out);
+                return std::make_shared<View<double>>(std::move(out));
             }
             // scalar
             else
@@ -244,7 +244,7 @@ namespace
                 // append real values
                 std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto v) { return v.real(); });
                 // exit
-                return std::make_shared<View<double>>(out);
+                return std::make_shared<View<double>>(std::move(out));
             }
             // vector<double>
             if constexpr (std::is_same_v<TX, std::shared_ptr<View<double>>>)
@@ -273,14 +273,14 @@ namespace
                 // append imag values
                 std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto v) { return v.imag(); });
                 // exit
-                return std::make_shared<View<double>>(out);
+                return std::make_shared<View<double>>(std::move(out));
             }
             // View<double>
             if constexpr (std::is_same_v<TX, std::shared_ptr<View<double>>>) {
                 // create vector with zeros
                 auto v = std::vector<double>(arg->size(), 0.0);
                 // create view (owning the vector)
-                return std::make_shared<View<double>>(v);
+                return std::make_shared<View<double>>(std::move(v));
             }
             // scalar
             if constexpr (std::is_same_v<TX, std::complex<double>>) {
@@ -309,7 +309,7 @@ namespace
                 // append angle values
                 std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto v) { return std::arg(v) * 180.0 / std::numbers::pi; });
                 // exit
-                return std::make_shared<View<double>>(out);
+                return std::make_shared<View<double>>(std::move(out));
             }
             // View<double>
             else if constexpr (std::is_same_v<TX, std::shared_ptr<View<double>>>) {
@@ -320,7 +320,7 @@ namespace
                 // append angle values
                 std::ranges::transform(arg->begin(), arg->end(), std::back_inserter(out), [](auto v) { return v >= 0.0 ? 0 : 180.0; });
                 // exit
-                return std::make_shared<View<double>>(out);
+                return std::make_shared<View<double>>(std::move(out));
             }
             // complex
             else if constexpr (std::is_same_v<TX, std::complex<double>>) {
@@ -647,7 +647,7 @@ namespace
             // append value based on condition
             out.push_back(condition->operator[](index) != 0.0 ? t : f);
         }
-        return std::make_shared<View<double>>(out);
+        return std::make_shared<View<double>>(std::move(out));
     }
 
     // derivative builtin placeholder

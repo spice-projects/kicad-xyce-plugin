@@ -16,10 +16,6 @@ View<T> make_view(const std::vector<T>& buf, const size_t size, const size_t str
     return View<T>(const_cast<T*>(buf.data()) + offset, size, stride);
 }
 
-// ========================================================================================
-// type traits
-// ========================================================================================
-
 static_assert(std::is_default_constructible_v<View<double>>);
 static_assert(!std::is_copy_constructible_v<View<double>>);
 static_assert(!std::is_copy_assignable_v<View<double>>);
@@ -55,10 +51,8 @@ TEST(ExpressionChecks, view_size_returns_constructor_size) {
 }
 
 TEST(ExpressionChecks, view_vector_constructor_owns_data) {
-    // arrange
-    std::vector<double> owned = {4, 5, 6};
     // act
-    const View<double> view(owned);
+    const View<double> view(std::vector<double>{4, 5, 6});
     // assert
     ASSERT_EQ(view.size(), 3);
     ASSERT_EQ(view[0], 4);
@@ -75,7 +69,7 @@ TEST(ExpressionChecks, constructor_stores_metadata_for_span_constructor) {
     std::vector<double> data = {1, 2, 3};
     std::vector<std::span<const double>> steps = {{data.data(), data.size()}};
     // act
-    const Expression<double> expr("net_voltage", data, steps, "V", "R1", "node");
+    const Expression<double> expr("net_voltage", std::move(data), std::move(steps), "V", "R1", "node");
     // assert
     ASSERT_EQ(expr.name(), "net_voltage");
     ASSERT_EQ(expr.unit(), "V");
@@ -88,7 +82,7 @@ TEST(ExpressionChecks, constructor_defaults_source_and_variable_type_to_empty) {
     std::vector<double> data = {1, 2, 3};
     std::vector<std::span<const double>> steps = {{data.data(), data.size()}};
     // act
-    const Expression<double> expr("net_voltage", data, steps, "V");
+    const Expression<double> expr("net_voltage", std::move(data), std::move(steps), "V");
     // assert
     ASSERT_TRUE(expr.source().empty());
     ASSERT_TRUE(expr.variable_type().empty());
@@ -105,7 +99,7 @@ TEST(ExpressionChecks, step_count_returns_correct_count_for_view_steps) {
     steps.reserve(2);
     steps.emplace_back(make_view(buffer, 3, 2));
     steps.emplace_back(make_view(buffer, 3, 2, 1));
-    const Expression<double> expr("V1", steps, "V");
+    const Expression<double> expr("V1", std::move(steps), "V");
     // act
     const auto step_count = expr.step_count();
     // assert
@@ -116,7 +110,7 @@ TEST(ExpressionChecks, step_count_returns_correct_count_for_span_steps) {
     // arrange
     std::vector<std::complex<double>> data = {1, 2, 3, 4, 5, 6};
     std::vector<std::span<const std::complex<double>>> steps = {{data.data(), 2}, {data.data() + 2, 2}, {data.data() + 4, 2}};
-    const Expression<std::complex<double>> expr("I1", data, steps, "A");
+    const Expression<std::complex<double>> expr("I1", std::move(data), std::move(steps), "A");
     // act
     const auto step_count = expr.step_count();
     // assert
@@ -134,7 +128,7 @@ TEST(ExpressionChecks, data_and_step_data_initialize_and_return_values_for_view_
     steps.reserve(2);
     steps.emplace_back(make_view(buffer, 3, 2));
     steps.emplace_back(make_view(buffer, 3, 2, 1));
-    Expression<double> expr("V1", steps, "V");
+    Expression<double> expr("V1", std::move(steps), "V");
     // act
     const auto data = expr.data();
     const auto step = expr.step_data(1);
@@ -160,7 +154,7 @@ TEST(ExpressionChecks, data_and_step_data_return_values_for_span_steps) {
     // arrange
     std::vector<std::complex<double>> data_buffer = {{1, 1}, {2, 2}, {3, 3}};
     std::vector<std::span<const std::complex<double>>> steps = {{data_buffer.data(), 1}, {data_buffer.data() + 1, 2}};
-    Expression<std::complex<double>> expr("I1", data_buffer, steps, "A");
+    Expression<std::complex<double>> expr("I1", std::move(data_buffer), std::move(steps), "A");
     // act
     const auto data = expr.data();
     const auto step = expr.step_data(1);
@@ -181,7 +175,7 @@ TEST(ExpressionChecks, step_data_throws_out_of_range_for_invalid_index) {
     // arrange
     std::vector<double> data_buffer = {1, 2};
     std::vector<std::span<const double>> steps = {{data_buffer.data(), 2}};
-    Expression<double> expr("V1", data_buffer, steps, "V");
+    Expression<double> expr("V1", std::move(data_buffer), std::move(steps), "V");
     // act
     const auto read_step = [&expr]() { (void)expr.step_data(1); };
     // assert
@@ -196,7 +190,7 @@ TEST(ExpressionChecks, transform_updates_metadata_and_values_for_real_expression
     // arrange
     std::vector<double> data_buffer = {1, 2, 3, 4};
     std::vector<std::span<const double>> steps = {{data_buffer.data(), 1}, {data_buffer.data() + 1, 3}};
-    Expression<double> expr("V1", data_buffer, steps, "V", "R1", "node");
+    Expression<double> expr("V1", std::move(data_buffer), std::move(steps), "V", "R1", "node");
     std::string transformed_name = "V1_scaled";
     std::string transformed_unit = "mV";
     std::string transformed_variable_type = "derived";
@@ -224,7 +218,7 @@ TEST(ExpressionChecks, any_expression_variant_holds_real_expression) {
     // arrange
     std::vector<double> data = {0.0, 1.0};
     std::vector<std::span<const double>> steps = {{data.data(), data.size()}};
-    Expression<double> expr("time", data, steps, "s");
+    Expression<double> expr("time", std::move(data), std::move(steps), "s");
     // act
     AnyExpression any = std::move(expr);
     // assert
@@ -235,7 +229,7 @@ TEST(ExpressionChecks, any_expression_variant_holds_complex_expression) {
     // arrange
     std::vector<std::complex<double>> data = {{1, 0}, {0, 1}};
     std::vector<std::span<const std::complex<double>>> steps = {{data.data(), data.size()}};
-    Expression<std::complex<double>> expr("I1", data, steps, "A");
+    Expression<std::complex<double>> expr("I1", std::move(data), std::move(steps), "A");
     // act
     AnyExpression any = std::move(expr);
     // assert

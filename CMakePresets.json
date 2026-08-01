@@ -18,6 +18,15 @@
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
             }
+        },
+        {
+            "name": "profile",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/.build-profile",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Profile",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+            }
         }
     ],
     "buildPresets": [
@@ -38,6 +47,18 @@
             "description": "",
             "displayName": "",
             "configurePreset": "release",
+            "targets": [
+                "kicad-xyce-plugin",
+                "kicad-xyce-plugin-tests"
+            ],
+            "configuration": "Release",
+            "inheritConfigureEnvironment": true
+        },
+        {
+            "name": "profile",
+            "description": "",
+            "displayName": "",
+            "configurePreset": "profile",
             "targets": [
                 "kicad-xyce-plugin",
                 "kicad-xyce-plugin-tests"

@@ -5,6 +5,7 @@
 #include <span>
 #include <stdexcept>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "../expression/expression.h"
@@ -334,11 +335,11 @@ std::pair<View<double>, View<double>> decimate_xy(const std::span<const double>&
         throw std::invalid_argument("decimate_target must be >= 1");
     // NONE — pass both arrays through unchanged
     if (algorithm == DECIMATE_NONE)
-        return {View(abscissa_values), View(ordinate_values)};
+        return {View(abscissa_values.data(), abscissa_values.size()), View(ordinate_values.data(), ordinate_values.size())};
     // vector length
     size_t length = ordinate_values.size();
     if (length <= decimate_target)
-        return {View(abscissa_values), View(ordinate_values)};
+        return {View(abscissa_values.data(), abscissa_values.size()), View(ordinate_values.data(), ordinate_values.size())};
     // index-based algorithms — derive indices from y, apply to both x and y
     std::vector<size_t> indices;
     // process algorithm-specific index selection
@@ -379,5 +380,5 @@ std::pair<View<double>, View<double>> decimate_xy(const std::span<const double>&
         y_out.emplace_back(ordinate_values[indices[i]]);
     }
     // exit
-    return {View(x_out), View(y_out)};
+    return {View(std::move(x_out)), View(std::move(y_out))};
 }

@@ -65,6 +65,7 @@ endif()
 target_compile_options(kicad-xyce-plugin-tests PRIVATE -Wall -Wextra -Wpedantic)
 
 # auto-discover Gtests as Ctests
+include(CTest)
 include(GoogleTest)
 gtest_discover_tests(kicad-xyce-plugin-tests)
 # add_test(NAME AllGoogleTests COMMAND kicad-xyce-plugin-tests)

@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <span>
 #include <utility>
 #include <vector>
 
@@ -52,19 +51,13 @@ public:
 
     View() = default;
 
+    // prevent copying, allow moving
     View(const View&) = delete;
 
     View(View&&) noexcept = default;
 
     View(const T* pointer, const size_t size, const size_t stride = 1, std::shared_ptr<View> data_owner = nullptr) :
-        m_pointer(const_cast<T*>(pointer)), m_size(size), m_stride(stride), m_data_owner(data_owner) {}
-
-    explicit View(std::vector<T>& vector) :
-        m_stride(1), m_data(std::move(vector)), m_data_owner(nullptr) {
-        // pointer to vector data
-        m_pointer = m_data.data();
-        m_size = m_data.size();
-    }
+        m_pointer(const_cast<T*>(pointer)), m_size(size), m_stride(stride), m_data({}), m_data_owner(data_owner) {}
 
     explicit View(std::vector<T>&& vector) :
         m_stride(1), m_data(std::move(vector)), m_data_owner(nullptr) {
@@ -73,11 +66,9 @@ public:
         m_size = m_data.size();
     }
 
-    explicit View(std::span<const T> span) :
-        m_pointer(const_cast<T*>(span.data())), m_size(span.size()), m_stride(1), m_data_owner(nullptr) {}
-
     ~View() = default;
 
+    // prevent copying, allow moving
     View& operator=(const View&) = delete;
 
     View& operator=(View&&) noexcept = default;
@@ -106,5 +97,5 @@ private:
 
     std::vector<T> m_data;
 
-    std::shared_ptr<View> m_data_owner = nullptr;
+    std::shared_ptr<View> m_data_owner;
 };

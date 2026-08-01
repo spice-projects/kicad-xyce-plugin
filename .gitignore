@@ -99,3 +99,4 @@ cmake-*
 *.fft*
 *.prof
 imgui.ini
+*.profraw

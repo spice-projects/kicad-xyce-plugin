@@ -137,15 +137,12 @@ AnyExpression* ExpressionManager::build_expression(XyceValue& value, const std::
             for (const auto& [start, end] : m_step_slices)
                 total_points += (end - start);
             // create vector to hold the scalar value repeated for each step
-            std::vector<double> slices(total_points, arg);
-            // create view, to reuse Expression constructor that takes a View and step slices
-            auto view = View<double>(std::move(slices));
+            std::vector<double> data(total_points, arg);
             // create expression, append it to expressions
-            m_expressions.emplace_back(Expression<double>{name, std::move(view), m_step_slices, unit, "expression manager"});
+            m_expressions.emplace_back(Expression<double>{name, std::move(data), m_step_slices, unit, "expression manager"});
             // return expression
             return &m_expressions.back();
         }
-
         // complex
         if constexpr (std::is_same_v<TX, std::complex<double>>) {
             // calculate total vector size across all steps
@@ -153,11 +150,9 @@ AnyExpression* ExpressionManager::build_expression(XyceValue& value, const std::
             for (const auto& [start, end] : m_step_slices)
                 total_points += (end - start);
             // create vector to hold the scalar value repeated for each step
-            std::vector<std::complex<double>> slices(total_points, arg);
-            // create view, to reuse Expression constructor that takes a View and step slices
-            auto view = View<std::complex<double>>(std::move(slices));
+            std::vector<std::complex<double>> data(total_points, arg);
             // create expression, append it to expressions
-            m_expressions.emplace_back(Expression<std::complex<double>>{name, std::move(view), m_step_slices, unit, "expression manager"});
+            m_expressions.emplace_back(Expression<std::complex<double>>{name, std::move(data), m_step_slices, unit, "expression manager"});
             // return expression
             return &m_expressions.back();
         }
@@ -217,7 +212,7 @@ XyceValue ExpressionManager::rematerialize(XyceValue& value, const ExpressionNod
         for (size_t i = 0; i < m_step_slices.size(); ++i)
             tiled.insert(tiled.end(), view->begin(), view->end());
         // exit
-        return std::make_shared<View<double>>(tiled);
+        return std::make_shared<View<double>>(std::move(tiled));
     }
     // view
     auto& view = std::get<std::shared_ptr<View<std::complex<double>>>>(value);
@@ -229,5 +224,5 @@ XyceValue ExpressionManager::rematerialize(XyceValue& value, const ExpressionNod
     for (size_t i = 0; i < m_step_slices.size(); ++i)
         tiled.insert(tiled.end(), view->begin(), view->end());
     // exit
-    return std::make_shared<View<std::complex<double>>>(tiled);
+    return std::make_shared<View<std::complex<double>>>(std::move(tiled));
 }

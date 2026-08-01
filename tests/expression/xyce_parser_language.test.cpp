@@ -2,9 +2,7 @@
 #include <complex>
 #include <limits>
 #include <memory>
-#include <optional>
 #include <string>
-#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -31,7 +29,7 @@ namespace
     XyceValue expression_value(double value) { return value; }
 
     // keep vector values explicit in the assertions
-    XyceValue expression_value(std::vector<double> values) { return std::make_shared<View<double>>(values); }
+    XyceValue expression_value(std::vector<double>&& values) { return std::make_shared<View<double>>(std::move(values)); }
 
     // keep complex values explicit in the assertions
     XyceValue expression_value(const std::complex<double>& value) { return value; }

@@ -65,6 +65,10 @@ if(WIN32)
     set_target_properties(kicad-xyce-plugin PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
 
+# profile build type, activate with `cmake --preset debug -DCMAKE_BUILD_TYPE=Profile` && `cmake --build --preset debug`
+set(CMAKE_CXX_FLAGS_PROFILE "-O2 -fprofile-instr-generate -fcoverage-mapping")
+set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-fprofile-instr-generate")
+
 target_compile_definitions(kicad-xyce-plugin PRIVATE KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
 
 target_compile_options(kicad-xyce-plugin PRIVATE -Wall -Wextra -Wpedantic)

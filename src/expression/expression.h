@@ -24,13 +24,28 @@ public:
 
     Expression(Expression&&) noexcept = default;
 
-    Expression(std::string name, std::vector<View<T>>& steps, std::string unit, std::string source = "", std::string variable_type = "") :
+    Expression(std::string name, std::vector<View<T>>&& steps, std::string unit, std::string source = "", std::string variable_type = "") :
         m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)) {}
 
-    Expression(std::string name, std::vector<T>& data, std::vector<std::span<const T>>& steps, std::string unit, std::string source = "", std::string variable_type = "") :
+    Expression(std::string name, std::vector<T>&& data, std::vector<std::span<const T>>&& steps, std::string unit, std::string source = "", std::string variable_type = "") :
         m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)), m_cached_data(std::move(data)) {}
 
-    Expression(std::string name, View<T>&& view, std::vector<std::pair<size_t, size_t>>& step_slices, std::string unit, std::string source = "", std::string variable_type = "") :
+    Expression(std::string name, std::vector<T>&& data, const std::vector<std::pair<size_t, size_t>>& step_slices, std::string unit, std::string source = "", std::string variable_type = "") :
+        m_name(std::move(name)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)), m_cached_data(std::move(data)) {
+        // steps
+        std::vector<std::span<const T>> steps;
+        // reserve space for steps
+        steps.reserve(step_slices.size());
+        // data pointer
+        auto ptr = std::get<std::vector<T>>(m_cached_data).data();
+        // populate steps from slices
+        for (const auto& [start, end] : step_slices)
+            steps.emplace_back(ptr + start, end - start);
+        // assign steps
+        m_steps = std::move(steps);
+    }
+
+    Expression(std::string name, View<T>&& view, const std::vector<std::pair<size_t, size_t>>& step_slices, std::string unit, std::string source = "", std::string variable_type = "") :
         m_name(std::move(name)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)) {
         // check view does not own data
         if (view.m_data.empty()) {
@@ -49,7 +64,7 @@ public:
             m_cached_data = std::move(view.m_data);
         }
         // steps
-        std::vector<View<T>> steps;
+        std::vector<std::span<const T>> steps;
         // reserve space for steps
         steps.reserve(step_slices.size());
         // data pointer
@@ -147,52 +162,88 @@ private:
     std::variant<std::monostate, std::vector<T>> m_cached_data;
 
     void initialize_expression_data() {
-        // check steps
-        if (std::holds_alternative<std::vector<View<T>>>(m_steps)) {
-            // record start time
-            auto start = std::chrono::steady_clock::now();
-            // steps
-            const auto& steps = std::get<std::vector<View<T>>>(m_steps);
-            // total vector size & step count
-            size_t total_size = 0;
-            size_t step_count = steps.size();
-            // loop steps
-            for (const auto& step : steps) {
-                // accumulate size
-                total_size += step.size();
-            }
-            // create data & step vectors
-            std::vector<T> concatenated;
-            std::vector<std::span<const T>> spans;
-            // allocate vectors
-            concatenated.reserve(total_size);
-            // loop steps
-            for (const View<T>& step : steps) {
-                // loop step data, append it to buffer
-                for (size_t j = 0; j < step.size(); ++j)
-                    concatenated.emplace_back(step[j]);
-            }
-            // data pointer and offset
-            const T* pointer = concatenated.data();
-            size_t offset = 0;
-            // allocate spans
-            spans.reserve(steps.size());
-            // loop steps
-            for (const auto& step : steps) {
-                // step size
-                const auto length = step.size();
-                // update view
-                spans.emplace_back(pointer + offset, length);
-                // move offset
-                offset += length;
-            }
-            // update cache field (at the end of the processing since this moves the data into the field)
-            m_cached_data = std::move(concatenated);
-            // update steps with views on the contiguous memory data
-            m_steps = std::move(spans);
-            // log information
-            spdlog::debug("Expression data for '{}' initialized with {} points across {} steps, elapsed time: {} ms", m_name, total_size, step_count, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count());
+        // record start time
+        auto start = std::chrono::steady_clock::now();
+        // steps
+        const auto& steps = std::get<std::vector<View<T>>>(m_steps);
+        // total vector size & step count
+        size_t total_size = 0;
+        size_t step_count = steps.size();
+        // loop steps
+        for (const auto& step : steps) {
+            // accumulate size
+            total_size += step.size();
         }
+        // create data & step vectors
+        std::vector<T> concatenated;
+        std::vector<std::span<const T>> spans;
+        // allocate vectors
+        concatenated.reserve(total_size);
+        // scratch buffer for blocked extraction of strided steps
+        std::vector<T> block;
+        // loop steps
+        for (const View<T>& step : steps) {
+            // data pointer and layout
+            const T* base = step.data();
+            const size_t stride = step.stride();
+            const size_t count = step.size();
+            // contiguous steps are copied directly
+            if (stride == 1) {
+                // append step data to buffer
+                concatenated.insert(concatenated.end(), base, base + count);
+                // next step
+                continue;
+            }
+            // tile size in elements
+            constexpr size_t BLOCK = 8192;
+            // large strides never share a tile, copy directly instead
+            if (stride >= BLOCK) {
+                // loop step data, append it to buffer
+                for (size_t j = 0; j < count; ++j)
+                    concatenated.emplace_back(base[j * stride]);
+                // next step
+                continue;
+            }
+            // allocate the scratch buffer on first use
+            if (block.empty())
+                block.resize(BLOCK);
+            // total source span for this step
+            const size_t span = count * stride;
+            // loop source tiles, copying each contiguous tile into the scratch buffer
+            // then pulling the strided column out of it (cache friendly instead of a strided walk)
+            for (size_t offset = 0; offset < span; offset += BLOCK) {
+                // tile length
+                const size_t length = std::min(BLOCK, span - offset);
+                // copy the contiguous tile into the scratch buffer
+                std::copy_n(base + offset, length, block.data());
+                // first and last step element indexes inside this tile
+                const size_t j_first = (offset + stride - 1) / stride;
+                const size_t j_last = (offset + length + stride - 1) / stride;
+                // append the step elements extracted from the tile
+                for (size_t j = j_first; j < j_last; ++j)
+                    concatenated.emplace_back(block[j * stride - offset]);
+            }
+        }
+        // data pointer and offset
+        const T* pointer = concatenated.data();
+        size_t offset = 0;
+        // allocate spans
+        spans.reserve(steps.size());
+        // loop steps
+        for (const auto& step : steps) {
+            // step size
+            const auto length = step.size();
+            // update view
+            spans.emplace_back(pointer + offset, length);
+            // move offset
+            offset += length;
+        }
+        // update cache field (at the end of the processing since this moves the data into the field)
+        m_cached_data = std::move(concatenated);
+        // update steps with views on the contiguous memory data
+        m_steps = std::move(spans);
+        // log information
+        spdlog::debug("Expression data for '{}' initialized with {} points across {} steps, elapsed time: {} ms", m_name, total_size, step_count, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count());
     }
 };
 

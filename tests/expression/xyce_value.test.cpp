@@ -1,35 +1,36 @@
-#include <gtest/gtest.h>
 #include <complex>
+#include <gtest/gtest.h>
 #include <memory>
 #include <vector>
 
-#include "../src/expression/xyce_value.h"
-#include "../src/expression/view.h"
 #include "../src/expression/expression.h"
+#include "../src/expression/view.h"
+#include "../src/expression/xyce_value.h"
 
 // helper: create an Expression<double> with a single step containing the supplied data
-static AnyExpression make_double_expression(const std::vector<double>& data) {
+static AnyExpression make_double_expression(std::vector<double>&& data) {
     std::vector<View<double>> steps;
-    steps.emplace_back(data);
-    Expression<double> expr("test", steps, "V");
+    steps.push_back(View<double>(std::move(data)));
+    Expression<double> expr("test", std::move(steps), "V");
     return AnyExpression(std::move(expr));
 }
 
 // helper: create an Expression<std::complex<double>> with a single step containing the supplied data
-static AnyExpression make_complex_expression(const std::vector<std::complex<double>>& data) {
+static AnyExpression make_complex_expression(std::vector<std::complex<double>>&& data) {
     std::vector<View<std::complex<double>>> steps;
-    steps.emplace_back(data);
-    Expression<std::complex<double>> expr("test", steps, "V");
+    steps.push_back(View<std::complex<double>>(std::move(data)));
+    Expression<std::complex<double>> expr("test", std::move(steps), "V");
     return AnyExpression(std::move(expr));
 }
 
 // test suite for xyce_value utilities
-class XyceValueTest : public ::testing::Test {};
+class XyceValueTest : public ::testing::Test
+{
+};
 
 TEST_F(XyceValueTest, from_expression_scalar_double) {
     // arrange
-    std::vector<double> data = {1.5};
-    AnyExpression any = make_double_expression(data);
+    AnyExpression any = make_double_expression({1.5});
     // act
     XyceValue val = from_expression(any);
     // assert
@@ -41,8 +42,7 @@ TEST_F(XyceValueTest, from_expression_scalar_double) {
 
 TEST_F(XyceValueTest, from_expression_scalar_complex) {
     // arrange
-    std::vector<std::complex<double>> data = {{2.0, -3.0}};
-    AnyExpression any = make_complex_expression(data);
+    AnyExpression any = make_complex_expression({{2.0, -3.0}});
     // act
     XyceValue val = from_expression(any);
     // assert

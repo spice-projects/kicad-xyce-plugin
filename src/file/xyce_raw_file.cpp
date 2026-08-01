@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <chrono>
 #include <complex>
 #include <memory>
 #include <optional>
@@ -295,7 +296,7 @@ namespace
                         variable_data.push_back(all_floats[r * floats_per_point + idx * 2]);
                     }
                     // add owning view
-                    std::get<3>(variable) = View(variable_data);
+                    std::get<3>(variable) = View(std::move(variable_data));
                     // next
                     continue;
                 }
@@ -313,7 +314,7 @@ namespace
                     variable_data.emplace_back(real_part, imag_part);
                 }
                 // add owning view
-                std::get<3>(variable) = View(variable_data);
+                std::get<3>(variable) = View(std::move(variable_data));
                 // next
                 continue;
             }
@@ -327,7 +328,7 @@ namespace
                 variable_data.push_back(all_floats[r * floats_per_point + idx]);
             }
             // add owning view
-            std::get<3>(variable) = View(variable_data);
+            std::get<3>(variable) = View(std::move(variable_data));
         }
         return true;
     }
@@ -401,6 +402,8 @@ std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::f
     // check if file exists
     if (!std::filesystem::exists(filename))
         return {};
+    // record start time
+    auto start_time = std::chrono::steady_clock::now();
     // log information
     spdlog::info("Parsing Xyce RAW file: {}", filename.string());
     // create mapped file
@@ -485,9 +488,10 @@ std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::f
         }
     }
     // check we found blocks in file
-    if (blocks.empty()) {
+    if (blocks.empty())
         return {};
-    }
+    // prefetch the mapped payload into memory, avoids the cold page-fault stall on the first plot
+    mapped_file->prefetch();
     // get first block reference
     auto& first_block = blocks[0];
     // get step count
@@ -605,10 +609,10 @@ std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::f
             using TX = std::decay_t<T0>;
             // double
             if constexpr (std::is_same_v<TX, std::vector<View<double>>>)
-                expressions.emplace_back(Expression<double>(name, s, unit, "", vtype));
+                expressions.emplace_back(Expression<double>(name, std::move(s), unit, "", vtype));
             // complex
             if constexpr (std::is_same_v<TX, std::vector<View<std::complex<double>>>>)
-                expressions.emplace_back(Expression<std::complex<double>>(name, s, unit, "", vtype));
+                expressions.emplace_back(Expression<std::complex<double>>(name, std::move(s), unit, "", vtype));
         };
         // process list
         std::visit(l, steps);
@@ -623,5 +627,9 @@ std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::f
     // create expression manager
     ExpressionManager expression_manager(expressions, abscissa_indices);
     // return file
-    return std::make_shared<XyceOutputFile>(filename, first_block.title, first_block.is_complex, std::move(step_information), abscissa_scale, std::move(expression_manager), std::move(mapped_file));
+    auto xyce_file = std::make_shared<XyceOutputFile>(filename, first_block.title, first_block.is_complex, std::move(step_information), abscissa_scale, std::move(expression_manager), std::move(mapped_file));
+    // log information
+    spdlog::info("Successfully parsed Xyce RAW file: {}, variables: {}, elapsed time: {}ms", filename.string(), expressions.size(), std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count());
+    // return file
+    return xyce_file;
 }

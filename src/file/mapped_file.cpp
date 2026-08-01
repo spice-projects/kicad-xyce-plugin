@@ -182,6 +182,22 @@ std::size_t MappedFile::size() const noexcept {
     return m_size;
 }
 
+void MappedFile::prefetch() const noexcept {
+    // check mapping
+    if (!m_data || m_size == 0)
+        return;
+#ifdef _WIN32
+    // prefetch the mapped region into RAM
+    WIN32_MEMORY_RANGE_ENTRY entry;
+    entry.VirtualAddress = m_data;
+    entry.NumberOfBytes = m_size;
+    PrefetchVirtualMemory(GetCurrentProcess(), 1, &entry, 0);
+#else
+    // hint the kernel to load the mapped file into RAM ahead of use
+    madvise(m_data, m_size, MADV_WILLNEED);
+#endif
+}
+
 void MappedFile::reset() noexcept {
 #ifdef _WIN32
     // reset state

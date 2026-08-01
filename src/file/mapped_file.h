@@ -35,6 +35,8 @@ public:
 
     [[nodiscard]] std::size_t size() const noexcept;
 
+    void prefetch() const noexcept;
+
 private:
     void reset() noexcept;
 
