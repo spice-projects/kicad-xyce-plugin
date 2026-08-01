@@ -18,4 +18,7 @@ void ChartsPanel::render_frame(const std::function<void()>& renderer) {}
 
 bool ChartsPanel::update_bounds() { return false; }
 
-void ChartsPanel::display_changed() {}
+void ChartsPanel::display_changed() {
+    // recompute the decimation target for the new display scale
+    update_decimation_target();
+}

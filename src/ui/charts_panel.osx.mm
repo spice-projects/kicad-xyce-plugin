@@ -165,30 +165,6 @@ void ChartsPanel::render_frame(const std::function<void()> &renderer) {
 }
 
 void ChartsPanel::display_changed() {
-  // // check flag
-  // if (!m_charts_panel)
-  //     return;
-  // // get static reference to MetalResourceManager
-  // auto resource_manager = MetalResourceManager::get_instance();
-  // // gpu for current view (associated to current display)
-  // auto gpu = resource_manager->get_gpu(m_charts_panel);
-  // // create metal layer for panel
-  // auto metal_layer = [CAMetalLayer layer];
-  // metal_layer.device = (__bridge id<MTLDevice>)gpu.device;
-  // metal_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-  // metal_layer.framebufferOnly = YES;
-  // // screen
-  // NSScreen* screen = [m_charts_panel window].screen ?: [NSScreen mainScreen];
-  // // scale factor for retina displays
-  // CGFloat scale = [screen backingScaleFactor];
-  // // set metal layer for panel
-  // [m_charts_panel setWantsLayer:YES];
-  // [m_charts_panel setLayer:metal_layer];
-
-  // // update class fields
-  // m_metal_layer = metal_layer;
-  // m_command_queue = gpu.command_queue;
-  // // log information
-  // spdlog::debug("Display [{}]: initialized Metal layer bounds: {}x{} (scale:
-  // {})", [[screen localizedName] UTF8String], sz.x, sz.y, scale);
+  // recompute the decimation target for the new display scale
+  update_decimation_target();
 }

@@ -421,7 +421,7 @@ bool MainWindow::update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFi
             m_charts_panel->delete_all_charts();
         }
         // update references
-        m_charts_panel->update(file->expression_manager(), file->step_information(), "", file->abscissa_scale(), 5000);
+        m_charts_panel->update(file->expression_manager(), file->step_information(), "", file->abscissa_scale());
         // indicate success
         return true;
     }

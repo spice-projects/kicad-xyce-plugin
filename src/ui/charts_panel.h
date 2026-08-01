@@ -17,7 +17,7 @@ public:
 
     ~ChartsPanel() override;
 
-    void update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, size_t decimate_target);
+    void update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale);
 
     Chart* add_chart();
 
@@ -55,6 +55,10 @@ private:
     void terminate();
 
     bool update_bounds();
+
+    [[nodiscard]] size_t compute_decimation_target() const;
+
+    void update_decimation_target();
 
     void render_frame(const std::function<void()>&);
 

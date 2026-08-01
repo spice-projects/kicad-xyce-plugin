@@ -532,6 +532,11 @@ void Chart::update(ExpressionManager* expression_manager, const StepInformation*
     m_abscissa_unit = expression_manager->abscissa().unit();
 }
 
+void Chart::set_decimate_target(const size_t decimate_target) {
+    // store the new target; existing series are re-decimated lazily on the next redraw/zoom
+    m_decimate_target = decimate_target;
+}
+
 std::pair<size_t, size_t> Chart::find_abscissa_indexes(const std::span<const double>& abscissa, double left_value, double right_value) const {
     // ascending or descending abscissa
     if (m_step_information->is_abscissa_ascending()) {

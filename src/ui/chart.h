@@ -79,6 +79,8 @@ public:
 
     void update(ExpressionManager* expression_manager, const StepInformation* step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale);
 
+    void set_decimate_target(size_t decimate_target);
+
     [[nodiscard]] const std::tuple<float, float, float, float>& get_plot_rect() const;
 
 private:

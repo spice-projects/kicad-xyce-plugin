@@ -3,11 +3,15 @@
 #ifndef WX_PRECOMP
 #include <wx/dcclient.h>
 #include <wx/defs.h>
+#include <wx/display.h>
 #include <wx/event.h>
 #include <wx/menu.h>
 #include <wx/settings.h>
 #include <wx/window.h>
 #endif
+
+#include <algorithm>
+#include <cmath>
 
 #include <imgui.h>
 #include <spdlog/spdlog.h>
@@ -253,6 +257,8 @@ void ChartsPanel::on_paint(wxPaintEvent& event) {
 }
 
 void ChartsPanel::on_size(wxSizeEvent& event) {
+    // recompute the decimation target for the new panel width
+    update_decimation_target();
     // check we have initialized
     if (m_charts_panel) {
         // update bounds in the native layer
@@ -498,13 +504,14 @@ void ChartsPanel::on_menu_new_window(wxCommandEvent& event) {
     event.Skip();
 }
 
-void ChartsPanel::update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, const AbscissaScale abscissa_scale, const size_t decimate_target) {
+void ChartsPanel::update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, const AbscissaScale abscissa_scale) {
+    // recompute the decimation target from the current panel size and display scale
+    update_decimation_target();
     // update fields
     m_expression_manager = &expression_manager;
     m_step_information = &step_information;
     m_abscissa_label = abscissa_label;
     m_abscissa_scale = abscissa_scale;
-    m_decimate_target = decimate_target;
     // check charts are present, if not add one
     if (!m_charts.empty()) {
         // loop charts
@@ -537,6 +544,40 @@ void ChartsPanel::delete_all_charts() {
     m_charts.clear();
     // refresh
     refresh_charts();
+}
+
+size_t ChartsPanel::compute_decimation_target() const {
+    // floor to keep the decimation algorithm meaningful on very small windows
+    constexpr size_t min_target = 500;
+    // fallback when no usable size or scale is available (headless / early startup)
+    constexpr size_t fallback_target = 9600;
+    // panel width in logical pixels and the per-window display scale factor
+    const int logical_width = GetClientSize().GetWidth();
+    const double scale = GetDPIScaleFactor();
+    // physical pixel width of the chart plot area
+    if (logical_width > 0 && scale > 0.0)
+        return std::max(min_target, static_cast<size_t>(std::lround(static_cast<double>(logical_width) * scale)));
+    // fall back to the geometry of the display this panel is on
+    const auto area = wxDisplay(wxDisplay::GetFromWindow(this)).GetClientArea();
+    if (area.GetWidth() > 0 && scale > 0.0)
+        return std::max(min_target, static_cast<size_t>(std::lround(static_cast<double>(area.GetWidth()) * scale)));
+    // conservative fallback
+    return fallback_target;
+}
+
+void ChartsPanel::update_decimation_target() {
+    // recompute the target for the current panel size and display scale
+    const size_t target = compute_decimation_target();
+    // check the target changed
+    if (target == m_decimate_target)
+        return;
+    // store it
+    m_decimate_target = target;
+    // propagate it to existing charts so future decimations use the new target
+    for (const auto& chart : m_charts)
+        chart->set_decimate_target(target);
+    // log information
+    spdlog::debug("Updated decimation target to {} points per series", target);
 }
 
 void ChartsPanel::refresh_charts(int frames) { m_render_chart_frames = frames; }
