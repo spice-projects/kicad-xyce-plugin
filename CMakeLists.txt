@@ -12,6 +12,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # disable compiler specific things
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# do not use precompiled headers (keeps wx/wxprec.h include blocks active)
+add_compile_definitions(NOPCH)
+
 # generate compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

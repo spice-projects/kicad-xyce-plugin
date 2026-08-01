@@ -279,8 +279,8 @@ void Chart::auto_range() {
         // loop axes
         for (auto& axis_info : m_axes) {
             // reset min & max values for axes
-            axis_info.min_value = std::numeric_limits<double>::max();
-            axis_info.max_value = -std::numeric_limits<double>::max();
+            axis_info.min_value = (std::numeric_limits<double>::max)();
+            axis_info.max_value = -(std::numeric_limits<double>::max)();
         }
         // loop rendered series
         for (auto& v : m_series | std::views::values) {
@@ -295,8 +295,8 @@ void Chart::auto_range() {
                     // check this is the axis
                     if (axis_info.axis == y_axis) {
                         // update min & max values for axis
-                        axis_info.min_value = std::min(axis_info.min_value, min_value);
-                        axis_info.max_value = std::max(axis_info.max_value, max_value);
+                        axis_info.min_value = (std::min)(axis_info.min_value, min_value);
+                        axis_info.max_value = (std::max)(axis_info.max_value, max_value);
                         // exit
                         break;
                     }
@@ -353,7 +353,7 @@ std::tuple<bool, View<double>, View<double>, double, double> Chart::plot_step(Ex
     if (x_np.empty() || y_np.empty())
         return {};
     // exit
-    return {true, std::move(x_np), std::move(y_np), std::min(min_value, *std::ranges::min_element(y_np)), std::max(max_value, *std::ranges::max_element(y_np))};
+    return {true, std::move(x_np), std::move(y_np), (std::min)(min_value, *std::ranges::min_element(y_np)), (std::max)(max_value, *std::ranges::max_element(y_np))};
 }
 
 void Chart::clear() {
@@ -398,8 +398,8 @@ int Chart::get_y_axis(const std::string& unit) {
         // use it
         available->plots = 1;
         available->unit = unit;
-        available->min_value = std::numeric_limits<double>::max();
-        available->max_value = -std::numeric_limits<double>::max();
+        available->min_value = (std::numeric_limits<double>::max)();
+        available->max_value = -(std::numeric_limits<double>::max)();
         available->plot_min_value = 0.0;
         available->plot_max_value = 1.0;
         // exit
@@ -436,7 +436,7 @@ bool Chart::release_y_axis(const int axis) {
 
 double Chart::ratio_to_abscissa_value(const double x_ratio) const {
     // make sure ratio is in the interval [0, 1]
-    const double percentage = std::max(0.0, std::min(1.0, x_ratio));
+    const double percentage = (std::max)(0.0, (std::min)(1.0, x_ratio));
     // convert to abscissa value
     return m_step_information->abscissa_left_value() + percentage * (m_step_information->abscissa_right_value() - m_step_information->abscissa_left_value());
 }
@@ -576,8 +576,8 @@ void Chart::redraw_all_series() {
             // steps
             auto& rendered_series = std::get<1>(ordinate_variant_series);
             // min and max value recalculation for the new zoom window
-            double min_value = std::numeric_limits<double>::max();
-            double max_value = -std::numeric_limits<double>::max();
+            double min_value = (std::numeric_limits<double>::max)();
+            double max_value = -(std::numeric_limits<double>::max)();
             // loop steps
             for (auto& [step, series] : rendered_series) {
                 // step abscissa & ordinate values — zero copy
@@ -598,8 +598,8 @@ void Chart::redraw_all_series() {
                 // log information
                 spdlog::debug("Updating series for expression [{}], step: {}, original size: {}, decimated size: {}", ordinate_variant->name(), step, abscissa_values.size(), x.size());
                 // update min and max values
-                min_value = std::min(min_value, *std::ranges::min_element(y));
-                max_value = std::max(max_value, *std::ranges::max_element(y));
+                min_value = (std::min)(min_value, *std::ranges::min_element(y));
+                max_value = (std::max)(max_value, *std::ranges::max_element(y));
                 // update map value
                 series = std::make_pair(std::move(x), std::move(y));
             }
