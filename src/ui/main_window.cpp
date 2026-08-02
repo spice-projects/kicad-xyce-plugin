@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 
 #include <wx/wxprec.h>
 
@@ -24,6 +25,7 @@
 #include "main_window.h"
 #include "plugin_config_dialog.h"
 #include "simulation_parameters/simulation_parameters_dialog.h"
+#include "xyce_simulation_runner.h"
 
 enum
 {
@@ -79,6 +81,10 @@ MainWindow::MainWindow(const wxString& title) :
     Bind(wxEVT_TOOL, &MainWindow::on_configure_simulation, this, wxID_CONFIGURE_SIMULATION);
     Bind(wxEVT_TOOL, &MainWindow::on_plugin_configuration, this, wxID_PLUGIN_CONFIGURATION);
     Bind(wxEVT_TOOL, &MainWindow::on_run_simulation, this, wxID_RUN_SIMULATION);
+    // simulation events
+    Bind(wxEVT_SIMULATION_STDOUT, &MainWindow::on_simulation_stdout, this);
+    Bind(wxEVT_SIMULATION_STDERR, &MainWindow::on_simulation_stderr, this);
+    Bind(wxEVT_SIMULATION_FINISHED, &MainWindow::on_simulation_finished, this);
     // configure netlist editor
     configure_netlist_editor();
 }
@@ -339,20 +345,26 @@ void MainWindow::on_plugin_configuration(wxCommandEvent& event) {
 }
 
 void MainWindow::on_run_simulation(wxCommandEvent& event) {
-    // re-parse editor content for fresh netlist + topology
-    if (m_netlist_editor && !m_netlist_editor->GetText().IsEmpty()) {
-        // netlist text
-        const auto netlist_text = m_netlist_editor->GetText().ToStdString();
-        // parse netlist and extract topology
-        auto [sanitized_netlist, topology] = parse_netlist(netlist_text);
-        // store topology for later use
-        m_topology = std::move(topology);
-        // store sanitized netlist for later serialization
-        m_sanitized_netlist = std::move(sanitized_netlist);
-        // initialize simulation config from parsed directives
-        m_simulation_config = SimulationConfig::from_xyce_directives(m_topology.m_directives);
+    // guard against empty editor content
+    if (!m_netlist_editor || m_netlist_editor->GetText().IsEmpty()) {
+        // update statusbar
+        SetStatusText("No netlist content to simulate");
+        // skip event
+        event.Skip();
+        // exit
+        return;
     }
-    // check if analysis is configured
+    // re-parse editor content for fresh netlist + topology
+    const auto netlist_text = m_netlist_editor->GetText().ToStdString();
+    // parse netlist and extract topology
+    auto [sanitized_netlist, topology] = parse_netlist(netlist_text);
+    // store topology for later use
+    m_topology = std::move(topology);
+    // store sanitized netlist for later serialization
+    m_sanitized_netlist = std::move(sanitized_netlist);
+    // initialize simulation config from parsed directives
+    m_simulation_config = SimulationConfig::from_xyce_directives(m_topology.m_directives);
+    // check if analysis is configured; if not, prompt the user
     if (std::holds_alternative<std::monostate>(m_simulation_config.analysis)) {
         // open configure dialog to set up analysis
         SimulationParametersDialog dialog(this, m_simulation_config);
@@ -366,7 +378,7 @@ void MainWindow::on_run_simulation(wxCommandEvent& event) {
         // store updated config
         m_simulation_config = dialog.get_config();
     }
-    // guard against missing netlist content
+    // guard against empty netlist after dialog interaction
     if (m_sanitized_netlist.empty()) {
         // skip when no netlist has been parsed
         event.Skip();
@@ -381,16 +393,129 @@ void MainWindow::on_run_simulation(wxCommandEvent& event) {
     m_sanitized_netlist = final_netlist;
     // update editor with final netlist
     m_netlist_editor->SetText(m_sanitized_netlist);
-    // write final netlist to file
-    std::ofstream file(m_xyce_netlist_file, std::ios::out | std::ios::trunc);
-    if (file.is_open()) {
-        // write merged content
-        file << m_sanitized_netlist;
-        // close stream
-        file.close();
-        // reset dirty flag
-        update_netlist_editor_dirty_flag(false);
+    // validate plugin configuration before launching
+    if (!m_plugin_config.is_xyce_executable_valid()) {
+        // update statusbar with error
+        SetStatusText("Configured Xyce executable path is invalid");
+        // skip event
+        event.Skip();
+        // exit
+        return;
     }
+    // determine working directory (netlist parent, or current directory)
+    std::filesystem::path working_dir;
+    if (!m_xyce_netlist_file.empty()) {
+        working_dir = m_xyce_netlist_file.parent_path();
+    }
+    // create temporary netlist file for the runner
+    auto temp_path = XyceSimulationRunner::create_temp_netlist(m_sanitized_netlist);
+    if (temp_path.empty()) {
+        // update statusbar with error
+        SetStatusText("Failed to create temporary netlist file");
+        // skip event
+        event.Skip();
+        // exit
+        return;
+    }
+    // clear any previous runner
+    m_simulation_runner.reset();
+    // create new simulation runner
+    auto runner = std::make_unique<XyceSimulationRunner>();
+    // bind simulation events from the runner to this window
+    runner->Bind(wxEVT_SIMULATION_FINISHED, &MainWindow::on_simulation_finished, this);
+    runner->Bind(wxEVT_SIMULATION_STDOUT, &MainWindow::on_simulation_stdout, this);
+    runner->Bind(wxEVT_SIMULATION_STDERR, &MainWindow::on_simulation_stderr, this);
+    // launch the simulation
+    runner->start(m_plugin_config.xyce_executable_path(), temp_path, working_dir);
+    // store the runner
+    m_simulation_runner = std::move(runner);
+    // update statusbar
+    SetStatusText("Simulation started...");
+    // skip event
+    event.Skip();
+}
+
+void MainWindow::on_simulation_finished(wxThreadEvent& event) {
+    // extract exit code and canceled flag from the event
+    int exit_code = event.GetInt();
+    bool was_canceled = event.GetPayload<bool>();
+    // handle canceled simulations
+    if (was_canceled) {
+        // update statusbar
+        SetStatusText("Simulation canceled");
+        // clear the runner
+        m_simulation_runner.reset();
+        // skip event
+        event.Skip();
+        // exit
+        return;
+    }
+    // check for success
+    if (exit_code == 0) {
+        // ensure we have a runner reference for accessing paths
+        if (!m_simulation_runner) {
+            // update statusbar
+            SetStatusText("Simulation finished but runner reference is missing");
+            // skip event
+            event.Skip();
+            // exit
+            return;
+        }
+        // compute expected raw output file path
+        auto raw_path = m_simulation_config.raw_output_file_path(
+            m_simulation_runner->working_directory(),
+            m_simulation_runner->netlist_file_path()
+        );
+        // try to load the raw file when a path was computed
+        if (raw_path.has_value() && std::filesystem::exists(*raw_path)) {
+            // parse the raw file
+            auto raw_file = xyce_raw_file_parser(raw_path->string());
+            if (raw_file.has_value()) {
+                // update charts panel with the parsed data
+                update_xyce_raw_file(std::move(raw_file), true);
+                // switch to charts view
+                m_main_sizer->Show(m_charts_panel);
+                m_main_sizer->Hide(m_netlist_editor);
+                m_main_sizer->Layout();
+                // update title
+                SetTitle(m_xyce_raw_file.value()->title());
+                // update statusbar
+                SetStatusText("Simulation finished successfully");
+                // clear the runner
+                m_simulation_runner.reset();
+                // skip event
+                event.Skip();
+                // exit
+                return;
+            }
+        }
+        // raw file not found or failed to parse
+        SetStatusText("Simulation finished but output raw file could not be found");
+    }
+    else {
+        // simulation failed with a non-zero exit code
+        SetStatusText(wxString::Format("Simulation failed (exit code %d)", exit_code));
+    }
+    // clear the runner
+    m_simulation_runner.reset();
+    // skip event
+    event.Skip();
+}
+
+void MainWindow::on_simulation_stdout(wxThreadEvent& event) {
+    // log stdout lines from the simulation process
+    spdlog::info("{}", event.GetPayload<std::string>());
+    // skip event
+    event.Skip();
+}
+
+void MainWindow::on_simulation_stderr(wxThreadEvent& event) {
+    // capture the error line
+    std::string error_line = event.GetPayload<std::string>();
+    // log to spdlog
+    spdlog::error("{}", error_line);
+    // update statusbar with the latest error line
+    SetStatusText(wxString::Format("Simulation error: %s", error_line));
     // skip event
     event.Skip();
 }

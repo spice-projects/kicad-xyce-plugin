@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include <wx/wxprec.h>
 
 #ifndef WX_PRECOMP
@@ -12,6 +14,8 @@
 #include "../config/plugin_config.h"
 #include "../simulation_parameters/simulation_config.h"
 #include "charts_panel.h"
+
+class XyceSimulationRunner;
 
 class MainWindow : public wxFrame
 {
@@ -37,6 +41,7 @@ private:
     PluginConfig m_plugin_config;
     NetlistTopology m_topology;
     std::string m_sanitized_netlist;
+    std::unique_ptr<XyceSimulationRunner> m_simulation_runner;
 
     void on_system_colour_changed(wxSysColourChangedEvent&);
 
@@ -63,6 +68,12 @@ private:
     void on_plugin_configuration(wxCommandEvent&);
 
     void on_run_simulation(wxCommandEvent&);
+
+    void on_simulation_finished(wxThreadEvent& event);
+
+    void on_simulation_stdout(wxThreadEvent& event);
+
+    void on_simulation_stderr(wxThreadEvent& event);
 
     void on_netlist_editor_modified(wxStyledTextEvent&);
 
