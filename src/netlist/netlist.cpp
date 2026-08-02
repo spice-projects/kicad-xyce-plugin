@@ -214,7 +214,9 @@ std::pair<std::string, NetlistTopology> parse_netlist(std::string_view text) {
             stripped = stripped.substr(0, rstrip_end + 1);
         // preserve empty lines and skip further processing for them
         if (stripped.empty()) {
+            // append line
             netlist.push_back(stripped);
+            // next
             continue;
         }
         // handle the first line specially (it becomes the title)
@@ -246,21 +248,27 @@ std::pair<std::string, NetlistTopology> parse_netlist(std::string_view text) {
         }
         // preserve comment lines (starting with '*') as-is
         if (stripped[0] == '*') {
+            // append comment line
             netlist.push_back(stripped);
+            // next
             continue;
         }
         // tokenize the line for further processing
         auto tokens = tokenize(stripped);
         // preserve lines with no tokens (e.g. pure whitespace after comment removal)
         if (tokens.empty()) {
+            // append line
             netlist.push_back(stripped);
+            // next
             continue;
         }
         // uppercase the first token for directive matching
         auto first_upper = to_upper(tokens[0]);
         // stop parsing when .END is encountered (short-circuit)
         if (first_upper == ".END") {
+            // append .END to the sanitized netlist
             netlist.push_back(".END");
+            // exit the parsing loop
             break;
         }
         // handle all lines starting with '.' (directives)
@@ -278,12 +286,14 @@ std::pair<std::string, NetlistTopology> parse_netlist(std::string_view text) {
                 title = title_text;
                 // store the sanitized .TITLE line
                 netlist.push_back(title_text.empty() ? ".TITLE" : ".TITLE " + title_text);
+                // next
                 continue;
             }
             // check if the directive is a recognized simulation directive
             if (std::find_if(SIMULATION_DIRECTIVES.begin(), SIMULATION_DIRECTIVES.end(), [&](std::string_view d) { return first_upper == d; }) != SIMULATION_DIRECTIVES.end()) {
                 // store as a managed directive
                 directives.push_back(stripped);
+                // next
                 continue;
             }
             // check for managed .OPTIONS package directives
@@ -293,6 +303,7 @@ std::pair<std::string, NetlistTopology> parse_netlist(std::string_view text) {
                 if (std::find(MANAGED_OPTIONS_PACKAGES.begin(), MANAGED_OPTIONS_PACKAGES.end(), pkg) != MANAGED_OPTIONS_PACKAGES.end()) {
                     // store as a managed directive
                     directives.push_back(stripped);
+                    // next
                     continue;
                 }
             }
@@ -300,15 +311,16 @@ std::pair<std::string, NetlistTopology> parse_netlist(std::string_view text) {
             if (first_upper == ".PREPROCESS" && tokens.size() > 2 && to_upper(tokens[1]) == "REPLACEGROUND") {
                 // store as a managed directive
                 directives.push_back(stripped);
+                // next
                 continue;
             }
             // handle .SUBCKT (subcircuit definition start)
             if (first_upper == ".SUBCKT") {
                 // reconstruct the full .SUBCKT line
                 std::string subckt_line = ".SUBCKT";
-                for (size_t i = 1; i < tokens.size(); ++i) {
+                for (size_t i = 1; i < tokens.size(); ++i)
                     subckt_line += " " + std::string(tokens[i]);
-                }
+                // append the .SUBCKT line to the sanitized netlist
                 netlist.push_back(subckt_line);
                 // ensure there is at least a subcircuit name
                 if (tokens.size() >= 2) {
@@ -336,31 +348,34 @@ std::pair<std::string, NetlistTopology> parse_netlist(std::string_view text) {
             }
             // handle .ENDS (subcircuit definition end)
             if (first_upper == ".ENDS") {
+                // append .ENDS to the sanitized netlist
                 netlist.push_back(".ENDS");
                 // reset the current subcircuit pointer back to top level
                 current_subckt = nullptr;
+                // next
                 continue;
             }
             // handle .GLOBAL (global node declaration)
             if (first_upper == ".GLOBAL") {
                 // reconstruct the full .GLOBAL line
                 std::string global_line = ".GLOBAL";
-                for (size_t i = 1; i < tokens.size(); ++i) {
+                for (size_t i = 1; i < tokens.size(); ++i)
                     global_line += " " + std::string(tokens[i]);
-                }
+                // append the .GLOBAL line to the sanitized netlist
                 netlist.push_back(global_line);
                 // add each listed node to the global set
-                for (size_t i = 1; i < tokens.size(); ++i) {
+                for (size_t i = 1; i < tokens.size(); ++i)
                     global_nodes.insert(to_upper(tokens[i]));
-                }
+                // next
                 continue;
             }
             // any other dot-command is treated as a passthrough directive
             std::string other_directive = first_upper;
-            for (size_t i = 1; i < tokens.size(); ++i) {
+            for (size_t i = 1; i < tokens.size(); ++i)
                 other_directive += " " + std::string(tokens[i]);
-            }
+            // store the passthrough directive for later re-insertion
             netlist.push_back(other_directive);
+            // next
             continue;
         }
         // preserve non-directive lines in the sanitized netlist
@@ -381,21 +396,21 @@ std::pair<std::string, NetlistTopology> parse_netlist(std::string_view text) {
         device.m_nodes = node_names;
         // assign the device to the current scope (subcircuit or top-level)
         if (current_subckt != nullptr) {
+            // add device to the current subcircuit's device list
             current_subckt->m_devices.push_back(std::move(device));
         }
         else {
             // add nodes to the top-level node set
-            for (const auto& node : node_names) {
+            for (const auto& node : node_names)
                 top_level_nodes.insert(node);
-            }
+            // add the device to the top-level devices list
             top_level_devices.push_back(std::move(device));
         }
         // detect $G_ prefixed nodes that implicitly become global
         for (const auto& node : node_names) {
             // $G prefix indicates an implicit global connection
-            if (node.size() >= 2 && node[0] == '$' && node[1] == 'G') {
+            if (node.size() >= 2 && node[0] == '$' && node[1] == 'G')
                 global_nodes.insert(node);
-            }
         }
     }
     // assemble the sanitized netlist into a single string with newlines

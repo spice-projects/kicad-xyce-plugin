@@ -1,7 +1,6 @@
 #pragma once
 
 #include <filesystem>
-#include <functional>
 #include <string>
 
 #include <wx/wxprec.h>
@@ -24,10 +23,10 @@ public:
     [[nodiscard]] int exit_code() const { return m_exit_code; }
 
 private:
-    void OnTerminate(int /*pid*/, int status) override;
-
     int m_exit_code = -1;
     class XyceSimulationRunner* m_runner = nullptr;
+
+    void OnTerminate(int /*pid*/, int status) override;
 };
 
 // async wxProcess-based runner that launches Xyce, polls stdout/stderr
@@ -38,11 +37,8 @@ public:
     XyceSimulationRunner();
     ~XyceSimulationRunner() override;
 
-    // launch the program with the given netlist path in the specified working
-    // directory; the runner takes ownership of the temp netlist file
     void start(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory);
 
-    // request graceful termination (SIGTERM then SIGKILL after 2 s)
     void cancel();
 
     [[nodiscard]] bool is_running() const { return m_running; }
@@ -55,21 +51,11 @@ public:
 
     [[nodiscard]] const std::filesystem::path& netlist_file_path() const { return m_netlist_file_path; }
 
-    // write netlist text to a temporary file and return its path
     [[nodiscard]] static std::filesystem::path create_temp_netlist(std::string_view text);
 
-    // accessor used by XyceProcess::OnTerminate (via friendship or public access)
     void notify_process_ended(int status);
 
 private:
-    void on_timer(wxTimerEvent&);
-
-    void emit_buffered_lines();
-
-    void on_kill_timeout(wxTimerEvent&);
-
-    void cleanup_temp_netlist();
-
     XyceProcess* m_process = nullptr;
     long m_pid = 0;
     wxTimer m_io_timer;
@@ -85,4 +71,12 @@ private:
     int m_exit_code = -1;
     bool m_running = false;
     bool m_canceled = false;
+
+    void on_timer(wxTimerEvent&);
+
+    void emit_buffered_lines();
+
+    void on_kill_timeout(wxTimerEvent&);
+
+    void cleanup_temp_netlist();
 };

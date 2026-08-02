@@ -17,8 +17,8 @@
 #include <spdlog/spdlog.h>
 
 #include "../config/plugin_config.h"
-#include "../netlist/netlist.h"
 #include "../file/xyce_raw_file.h"
+#include "../netlist/netlist.h"
 #include "charts_panel.h"
 #include "events.h"
 #include "icon_manager.h"
@@ -326,7 +326,16 @@ void MainWindow::on_configure_simulation(wxCommandEvent& event) {
     SimulationParametersDialog dialog(this, m_simulation_config);
     // show modal
     if (dialog.ShowModal() == wxID_OK) {
+        // updated simulation config from dialog
         m_simulation_config = dialog.get_config();
+        // build directives from simulation config with topology expansion
+        const auto directives = m_simulation_config.to_xyce_directives(&m_topology);
+        // merge directives into sanitized netlist before .END
+        const auto final_netlist = build_final_netlist(m_sanitized_netlist, directives, m_topology.m_passthrough_directives);
+        // update stored netlist with merged content
+        m_sanitized_netlist = final_netlist;
+        // update editor with final netlist
+        m_netlist_editor->SetText(m_sanitized_netlist);
     }
     // skip event
     event.Skip();
@@ -337,8 +346,10 @@ void MainWindow::on_plugin_configuration(wxCommandEvent& event) {
     PluginConfigDialog dialog(this, m_plugin_config);
     // show modal
     if (dialog.ShowModal() == wxID_OK) {
-        m_plugin_config = dialog.get_config();
+        // log information
         spdlog::info("Plugin configuration updated: Xyce path = {}", m_plugin_config.xyce_executable_path());
+        // update plugin configuration from dialog
+        m_plugin_config = dialog.get_config();
     }
     // skip event
     event.Skip();
@@ -354,6 +365,15 @@ void MainWindow::on_run_simulation(wxCommandEvent& event) {
         // exit
         return;
     }
+    // validate plugin configuration before launching
+    if (!m_plugin_config.is_xyce_executable_valid()) {
+        // update statusbar with error
+        SetStatusText("Configured Xyce executable path is invalid");
+        // skip event
+        event.Skip();
+        // exit
+        return;
+    }
     // re-parse editor content for fresh netlist + topology
     const auto netlist_text = m_netlist_editor->GetText().ToStdString();
     // parse netlist and extract topology
@@ -364,6 +384,13 @@ void MainWindow::on_run_simulation(wxCommandEvent& event) {
     m_sanitized_netlist = std::move(sanitized_netlist);
     // initialize simulation config from parsed directives
     m_simulation_config = SimulationConfig::from_xyce_directives(m_topology.m_directives);
+    // guard against empty netlist after dialog interaction
+    if (m_sanitized_netlist.empty()) {
+        // skip when no netlist has been parsed
+        event.Skip();
+        // exit
+        return;
+    }
     // check if analysis is configured; if not, prompt the user
     if (std::holds_alternative<std::monostate>(m_simulation_config.analysis)) {
         // open configure dialog to set up analysis
@@ -378,13 +405,6 @@ void MainWindow::on_run_simulation(wxCommandEvent& event) {
         // store updated config
         m_simulation_config = dialog.get_config();
     }
-    // guard against empty netlist after dialog interaction
-    if (m_sanitized_netlist.empty()) {
-        // skip when no netlist has been parsed
-        event.Skip();
-        // exit
-        return;
-    }
     // build directives from simulation config with topology expansion
     const auto directives = m_simulation_config.to_xyce_directives(&m_topology);
     // merge directives into sanitized netlist before .END
@@ -393,20 +413,10 @@ void MainWindow::on_run_simulation(wxCommandEvent& event) {
     m_sanitized_netlist = final_netlist;
     // update editor with final netlist
     m_netlist_editor->SetText(m_sanitized_netlist);
-    // validate plugin configuration before launching
-    if (!m_plugin_config.is_xyce_executable_valid()) {
-        // update statusbar with error
-        SetStatusText("Configured Xyce executable path is invalid");
-        // skip event
-        event.Skip();
-        // exit
-        return;
-    }
     // determine working directory (netlist parent, or current directory)
     std::filesystem::path working_dir;
-    if (!m_xyce_netlist_file.empty()) {
+    if (!m_xyce_netlist_file.empty())
         working_dir = m_xyce_netlist_file.parent_path();
-    }
     // create temporary netlist file for the runner
     auto temp_path = XyceSimulationRunner::create_temp_netlist(m_sanitized_netlist);
     if (temp_path.empty()) {
@@ -425,10 +435,10 @@ void MainWindow::on_run_simulation(wxCommandEvent& event) {
     runner->Bind(wxEVT_SIMULATION_FINISHED, &MainWindow::on_simulation_finished, this);
     runner->Bind(wxEVT_SIMULATION_STDOUT, &MainWindow::on_simulation_stdout, this);
     runner->Bind(wxEVT_SIMULATION_STDERR, &MainWindow::on_simulation_stderr, this);
-    // launch the simulation
-    runner->start(m_plugin_config.xyce_executable_path(), temp_path, working_dir);
     // store the runner
     m_simulation_runner = std::move(runner);
+    // launch the simulation
+    m_simulation_runner->start(m_plugin_config.xyce_executable_path(), temp_path, working_dir);
     // update statusbar
     SetStatusText("Simulation started...");
     // skip event
@@ -462,10 +472,7 @@ void MainWindow::on_simulation_finished(wxThreadEvent& event) {
             return;
         }
         // compute expected raw output file path
-        auto raw_path = m_simulation_config.raw_output_file_path(
-            m_simulation_runner->working_directory(),
-            m_simulation_runner->netlist_file_path()
-        );
+        auto raw_path = m_simulation_config.raw_output_file_path(m_simulation_runner->working_directory(), m_simulation_runner->netlist_file_path());
         // try to load the raw file when a path was computed
         if (raw_path.has_value() && std::filesystem::exists(*raw_path)) {
             // parse the raw file
