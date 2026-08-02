@@ -183,15 +183,11 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
 }
 
 std::vector<std::string> DCSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
-    (void)topology;
     // init output directive list
     std::vector<std::string> directives;
-
     // prepend replaceground preprocessing when enabled
-    if (replace_ground) {
+    if (replace_ground)
         directives.push_back(".PREPROCESS REPLACEGROUND TRUE");
-    }
-
     // build the core dc directive based on the selected sweep mode
     std::string dc_directive = ".DC";
 
@@ -220,9 +216,9 @@ std::vector<std::string> DCSimulationParameters::to_xyce_directives(const Netlis
 
     directives.push_back(dc_directive);
 
-    // append dc print directive when configured
+    // append dc print directive with topology-aware wildcard expansion
     if (print_parameters) {
-        directives.push_back(print_parameters->to_xyce_statement());
+        directives.push_back(print_parameters->to_xyce_statement(topology));
     }
 
     // append sensitivity directives when configured

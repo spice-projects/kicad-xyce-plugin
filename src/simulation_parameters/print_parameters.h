@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "../netlist/netlist.h"
+
 // print parameters class — parses and serializes Xyce .PRINT directives
 class PrintParameters
 {
@@ -17,6 +19,10 @@ public:
 
     // serialize this instance back to a .PRINT directive string
     [[nodiscard]] std::string to_xyce_statement() const;
+
+    // serialize with topology-aware wildcard expansion: V(*), I(*), P(*) are
+    // expanded to concrete node/device entries; null topology passes through
+    [[nodiscard]] std::string to_xyce_statement(const NetlistTopology* topology) const;
 
     // equality comparison
     [[nodiscard]] bool operator==(const PrintParameters& other) const;

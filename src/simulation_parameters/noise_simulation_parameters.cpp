@@ -135,7 +135,6 @@ std::optional<NoiseSimulationParameters> NoiseSimulationParameters::from_xyce_di
 }
 
 std::vector<std::string> NoiseSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
-    (void)topology;
     // init output directive list
     std::vector<std::string> directives;
 
@@ -159,9 +158,9 @@ std::vector<std::string> NoiseSimulationParameters::to_xyce_directives(const Net
 
     directives.push_back(noise_directive);
 
-    // append noise print directive when configured
+    // append noise print directive with topology-aware wildcard expansion
     if (print_parameters) {
-        directives.push_back(print_parameters->to_xyce_statement());
+        directives.push_back(print_parameters->to_xyce_statement(topology));
     }
 
     // return the full directive list

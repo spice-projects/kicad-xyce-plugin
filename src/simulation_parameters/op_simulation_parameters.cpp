@@ -158,10 +158,10 @@ std::vector<std::string> OpSimulationParameters::to_xyce_directives(const Netlis
     // start with the .OP directive
     directives.push_back(".OP");
 
-    // use print_parameters when set (newer wildcard approach)
+    // use print_parameters when set (newer wildcard approach with topology expansion)
     if (print_parameters) {
-        // emit the statement directly using the structured print parameters
-        directives.push_back(print_parameters->to_xyce_statement());
+        // emit the statement directly using the structured print parameters with topology
+        directives.push_back(print_parameters->to_xyce_statement(topology));
     }
     // check enabled
     else if (print_dc_enabled) {

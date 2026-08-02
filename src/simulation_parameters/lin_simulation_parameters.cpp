@@ -177,7 +177,6 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
 }
 
 std::vector<std::string> LinSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
-    (void)topology;
     // init output directive list
     std::vector<std::string> directives;
 
@@ -225,11 +224,11 @@ std::vector<std::string> LinSimulationParameters::to_xyce_directives(const Netli
     }
     directives.push_back(lin_directive);
 
-    // append ac print directive when configured
+    // append ac print directive with topology-aware wildcard expansion
     if (print_parameters) {
         const std::string print_type_upper = to_upper(print_parameters->print_type);
         if (print_type_upper == "AC") {
-            directives.push_back(print_parameters->to_xyce_statement());
+            directives.push_back(print_parameters->to_xyce_statement(topology));
         }
     }
 

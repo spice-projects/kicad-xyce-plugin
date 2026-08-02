@@ -195,7 +195,6 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
 }
 
 std::vector<std::string> HbSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
-    (void)topology;
     // init output directive list
     std::vector<std::string> directives;
 
@@ -276,11 +275,11 @@ std::vector<std::string> HbSimulationParameters::to_xyce_directives(const Netlis
         directives.push_back(".OPTIONS LINSOL-HB " + opts);
     }
 
-    // append hb print directive when configured
+    // append hb print directive with topology-aware wildcard expansion
     if (print_parameters) {
         const std::string print_type_upper = to_upper(print_parameters->print_type);
         if (print_type_upper == "HB" || print_type_upper == "HB_FD" || print_type_upper == "HB_TD") {
-            directives.push_back(print_parameters->to_xyce_statement());
+            directives.push_back(print_parameters->to_xyce_statement(topology));
         }
     }
 

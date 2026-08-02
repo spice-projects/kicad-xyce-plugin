@@ -96,7 +96,7 @@ TEST(OpSimulationParametersTopologyChecks, passes_through_no_topology) {
     ASSERT_EQ(print_line.find("V(0)"), std::string::npos);
 }
 
-TEST(OpSimulationParametersTopologyChecks, ignores_topology_when_print_parameters_set) {
+TEST(OpSimulationParametersTopologyChecks, expands_wildcards_when_print_parameters_set) {
     // arrange
     const auto [netlist, topology] = parse_netlist("Title\nR1 1 0 100\n.END\n");
     const PrintParameters print_params("DC", "RAW", "", {"V(*)"}, {});
@@ -113,8 +113,8 @@ TEST(OpSimulationParametersTopologyChecks, ignores_topology_when_print_parameter
         }
     }
     ASSERT_FALSE(print_line.empty());
-    // explicit print_parameters V(*) takes priority over topology expansion
-    ASSERT_NE(print_line.find("V(*)"), std::string::npos);
-    // topology-based V(1) should not appear
-    ASSERT_EQ(print_line.find("V(1)"), std::string::npos);
+    // V(*) is expanded via topology into V(1)
+    ASSERT_NE(print_line.find("V(1)"), std::string::npos);
+    // V(*) should not appear verbatim after topology expansion
+    ASSERT_EQ(print_line.find("V(*)"), std::string::npos);
 }

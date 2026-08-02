@@ -194,7 +194,6 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
 }
 
 std::vector<std::string> TransientSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
-    (void)topology;
     // init output directive list
     std::vector<std::string> directives;
     // prepend replaceground preprocessor directive when enabled
@@ -230,9 +229,9 @@ std::vector<std::string> TransientSimulationParameters::to_xyce_directives(const
     }
     // append the constructed transient directive to the output list
     directives.push_back(tran_directive);
-    // append transient print directive when configured
+    // append transient print directive with topology-aware wildcard expansion
     if (print_parameters)
-        directives.push_back(print_parameters->to_xyce_statement());
+        directives.push_back(print_parameters->to_xyce_statement(topology));
     // append sensitivity directives when configured
     if (sensitivity) {
         // retrieve sensitivity directives

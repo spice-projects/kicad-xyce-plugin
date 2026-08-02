@@ -131,7 +131,6 @@ std::optional<AcSimulationParameters> AcSimulationParameters::from_xyce_directiv
 }
 
 std::vector<std::string> AcSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
-    (void)topology;
     // init output directive list
     std::vector<std::string> directives;
     // prepend replaceground preprocessing when enabled
@@ -154,9 +153,9 @@ std::vector<std::string> AcSimulationParameters::to_xyce_directives(const Netlis
     }
     // append the ac directive to the output list
     directives.push_back(ac_directive);
-    // append ac print directive when configured
+    // append ac print directive with topology-aware wildcard expansion
     if (print_parameters.has_value())
-        directives.push_back(print_parameters->to_xyce_statement());
+        directives.push_back(print_parameters->to_xyce_statement(topology));
     // append sensitivity directives when configured
     if (sensitivity.has_value()) {
         // process directives

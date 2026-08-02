@@ -221,10 +221,10 @@ std::vector<std::string> SimulationConfig::to_xyce_directives(const NetlistTopol
         directives.insert(directives.end(), block_directives.begin(), block_directives.end());
     }
 
-    // extend with unassociated prints
+    // extend with unassociated prints (topology-aware wildcard expansion)
     for (const auto& pp : unassociated_prints) {
-        // append print directive string
-        directives.push_back(pp.to_xyce_statement());
+        // append print directive string with topology
+        directives.push_back(pp.to_xyce_statement(topology));
     }
 
     // return the full consolidated directive list

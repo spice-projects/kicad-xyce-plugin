@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "../netlist/netlist.h"
 #include "../util.h"
 #include "print_parameters.h"
 
@@ -250,6 +251,51 @@ std::string PrintParameters::to_xyce_statement() const {
     // append output variables
     for (const auto& var : output_variables)
         tokens.push_back(var);
+    // build joined statement
+    std::string result;
+    // loop tokens and join with spaces
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        // add separator
+        if (i > 0)
+            result += ' ';
+        // add token
+        result += tokens[i];
+    }
+    return result;
+}
+
+std::string PrintParameters::to_xyce_statement(const NetlistTopology* topology) const {
+    // init token list
+    std::vector<std::string> tokens = {".PRINT", print_type};
+    // append format option
+    if (!print_format.empty())
+        tokens.push_back("FORMAT=" + print_format);
+    // append file option
+    if (!print_file.empty())
+        tokens.push_back("FILE=" + print_file);
+    // append extra options
+    for (const auto& opt : extra_options)
+        tokens.push_back(opt);
+    // append output variables with wildcard expansion
+    for (const auto& var : output_variables) {
+        // check for topology-aware wildcard expansion
+        if (topology && var == "V(*)") {
+            // expand to one V(node) per topology node, in sorted order
+            for (const auto& node : topology->m_nodes) {
+                tokens.push_back("V(" + node + ")");
+            }
+        }
+        else if (topology && (var == "I(*)" || var == "P(*)")) {
+            // I(*) and P(*) expand to one entry per topology device
+            for (const auto& dev : topology->m_devices) {
+                tokens.push_back(var.substr(0, 1) + "(" + dev.m_name + ")");
+            }
+        }
+        else {
+            // pass through verbatim
+            tokens.push_back(var);
+        }
+    }
     // build joined statement
     std::string result;
     // loop tokens and join with spaces
