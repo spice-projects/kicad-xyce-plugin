@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <memory>
 #include <string>
 
 #include <wx/wxprec.h>
@@ -13,25 +14,21 @@
 
 #include <wx/process.h>
 
-// minimal wxProcess subclass that captures the exit code and notifies
-// the runner when the child process terminates
 class XyceProcess : public wxProcess
 {
 public:
-    void set_runner(class XyceSimulationRunner* runner) { m_runner = runner; }
+    void set_runner(const std::weak_ptr<class XyceSimulationRunner>& runner) { m_runner = runner; }
 
     [[nodiscard]] int exit_code() const { return m_exit_code; }
 
 private:
     int m_exit_code = -1;
-    class XyceSimulationRunner* m_runner = nullptr;
+    std::weak_ptr<class XyceSimulationRunner> m_runner;
 
-    void OnTerminate(int /*pid*/, int status) override;
+    void OnTerminate(int, int) override;
 };
 
-// async wxProcess-based runner that launches Xyce, polls stdout/stderr
-// with a wxTimer, and emits simulation events on completion
-class XyceSimulationRunner : public wxEvtHandler
+class XyceSimulationRunner : public wxEvtHandler, public std::enable_shared_from_this<XyceSimulationRunner>
 {
 public:
     XyceSimulationRunner();

@@ -68,23 +68,20 @@ namespace
 
     struct CwdGuard
     {
-        std::filesystem::path prev;
-        bool restored = false;
+        std::filesystem::path previous_cwd;
 
         explicit CwdGuard(const std::filesystem::path& new_cwd) :
-            prev(std::filesystem::current_path()) {
+            // store current working directory
+            previous_cwd(std::filesystem::current_path()) {
+            // change to new working directory
             std::error_code ec;
             std::filesystem::current_path(new_cwd, ec);
         }
 
-        ~CwdGuard() { restore(); }
-
-        void restore() {
-            if (restored)
-                return;
-            restored = true;
+        ~CwdGuard() {
+            // restore previous working directory
             std::error_code ec;
-            std::filesystem::current_path(prev, ec);
+            std::filesystem::current_path(previous_cwd, ec);
         }
 
         CwdGuard(const CwdGuard&) = delete;
@@ -96,10 +93,10 @@ namespace
 void XyceProcess::OnTerminate(int /*pid*/, int status) {
     // store exit code
     m_exit_code = status;
+    // take a strong reference so the runner stays alive until the deferred callback runs
+    auto runner = m_runner.lock();
     // check runner reference
-    if (m_runner) {
-        // wxWidgets will delete this process object after OnTerminate returns, so defer the callback via CallAfter on the runner
-        auto* runner = m_runner;
+    if (runner) {
         // send notification to the runner on the main thread
         runner->CallAfter([runner, status]() { runner->notify_process_ended(status); });
     }
@@ -141,7 +138,7 @@ void XyceSimulationRunner::start(const std::string& program, const std::filesyst
     // create process with redirected I/O
     auto* process = new XyceProcess();
     process->Redirect();
-    process->set_runner(this);
+    process->set_runner(shared_from_this());
     // prepare command-line arguments as a null-terminated argv array
     std::string prog_path = program;
     std::string net_path = netlist_path.string();

@@ -430,7 +430,7 @@ void MainWindow::on_run_simulation(wxCommandEvent& event) {
     // clear any previous runner
     m_simulation_runner.reset();
     // create new simulation runner
-    auto runner = std::make_unique<XyceSimulationRunner>();
+    auto runner = std::make_shared<XyceSimulationRunner>();
     // bind simulation events from the runner to this window
     runner->Bind(wxEVT_SIMULATION_FINISHED, &MainWindow::on_simulation_finished, this);
     runner->Bind(wxEVT_SIMULATION_STDOUT, &MainWindow::on_simulation_stdout, this);
@@ -519,8 +519,8 @@ void MainWindow::on_simulation_stdout(wxThreadEvent& event) {
 void MainWindow::on_simulation_stderr(wxThreadEvent& event) {
     // capture the error line
     std::string error_line = event.GetPayload<std::string>();
-    // log to spdlog
-    spdlog::error("{}", error_line);
+    // log information
+    spdlog::warn("{}", error_line);
     // update statusbar with the latest error line
     SetStatusText(wxString::Format("Simulation error: %s", error_line));
     // skip event
