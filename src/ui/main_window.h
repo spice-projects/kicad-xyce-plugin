@@ -33,6 +33,7 @@ private:
     std::filesystem::path m_xyce_netlist_file;
 
     SimulationConfig m_simulation_config;
+    NetlistTopology m_topology;
 
     void on_system_colour_changed(wxSysColourChangedEvent&);
 

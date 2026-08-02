@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "netlist/netlist.h"
 #include "simulation_parameters/sens_parameter.h"
 
 // ========================================================================================
@@ -141,6 +142,26 @@ TEST(SensParameterChecks, generate_sens_with_print_parameters) {
     ASSERT_EQ(directives[0], ".SENS objfunc={V(2)} param=R1:R");
     ASSERT_EQ(directives[1], ".OPTIONS SENSITIVITY direct=0 adjoint=1");
     ASSERT_EQ(directives[2], ".PRINT SENS V(OUT)");
+}
+
+TEST(SensParameterChecks, expands_print_wildcards_with_topology) {
+    // arrange
+    const auto [netlist, topology] = parse_netlist("Title\nR1 1 0 100\nR2 2 0 200\n.END\n");
+    const SensParameter params("", "objfunc", {"V(2)"}, {"R1:R"}, false, true, PrintParameters("SENS", "", "", {"V(*)", "I(*)"}, {}));
+    // act
+    const auto directives = params.to_xyce_directives(&topology);
+    // assert
+    ASSERT_EQ(directives.size(), 3);
+    // V(*) expanded to V(0), V(1), V(2) — V(0) should appear
+    ASSERT_NE(directives[2].find("V(0)"), std::string::npos);
+    ASSERT_NE(directives[2].find("V(1)"), std::string::npos);
+    ASSERT_NE(directives[2].find("V(2)"), std::string::npos);
+    // I(*) expanded to I(R1), I(R2)
+    ASSERT_NE(directives[2].find("I(R1)"), std::string::npos);
+    ASSERT_NE(directives[2].find("I(R2)"), std::string::npos);
+    // wildcards should not appear verbatim
+    ASSERT_EQ(directives[2].find("V(*)"), std::string::npos);
+    ASSERT_EQ(directives[2].find("I(*)"), std::string::npos);
 }
 
 // ========================================================================================

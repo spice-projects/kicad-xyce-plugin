@@ -235,7 +235,7 @@ std::vector<std::string> TransientSimulationParameters::to_xyce_directives(const
     // append sensitivity directives when configured
     if (sensitivity) {
         // retrieve sensitivity directives
-        const auto sens_directives = sensitivity->to_xyce_directives();
+        const auto sens_directives = sensitivity->to_xyce_directives(topology);
         // append to the output list
         directives.insert(directives.end(), sens_directives.begin(), sens_directives.end());
     }

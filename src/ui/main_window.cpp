@@ -15,6 +15,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include "../netlist/netlist.h"
 #include "../file/xyce_raw_file.h"
 #include "charts_panel.h"
 #include "events.h"
@@ -300,19 +301,12 @@ void MainWindow::on_show_netlist(wxCommandEvent& event) {
 void MainWindow::on_configure_simulation(wxCommandEvent& event) {
     // parse netlist editor content for initial config
     if (m_netlist_editor && !m_netlist_editor->GetText().IsEmpty()) {
-        // netlist text
-        auto netlist = m_netlist_editor->GetText();
-        // split into lines
-        wxArrayString lines = wxSplit(netlist, '\n');
-        // directives vector
-        std::vector<std::string> directives;
-        // reserve space for directives
-        directives.reserve(lines.size());
-        // loop lines and extract directives
-        for (const auto& line : lines)
-            directives.push_back(line.ToStdString());
-        // build simulation config from directives
-        m_simulation_config = SimulationConfig::from_xyce_directives(directives);
+        // parse the raw netlist text to get sanitized netlist + topology
+        const auto netlist_text = m_netlist_editor->GetText().ToStdString();
+        const auto [sanitized_netlist, topology] = parse_netlist(netlist_text);
+        m_topology = topology;
+        // build simulation config from parsed directives
+        m_simulation_config = SimulationConfig::from_xyce_directives(m_topology.m_directives);
     }
     // create dialog with current config
     SimulationParametersDialog dialog(this, m_simulation_config);

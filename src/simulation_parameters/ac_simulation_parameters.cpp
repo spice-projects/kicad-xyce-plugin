@@ -159,7 +159,7 @@ std::vector<std::string> AcSimulationParameters::to_xyce_directives(const Netlis
     // append sensitivity directives when configured
     if (sensitivity.has_value()) {
         // process directives
-        const auto sensitivity_directives = sensitivity->to_xyce_directives();
+        const auto sensitivity_directives = sensitivity->to_xyce_directives(topology);
         // append collection
         directives.insert(directives.end(), sensitivity_directives.begin(), sensitivity_directives.end());
     }

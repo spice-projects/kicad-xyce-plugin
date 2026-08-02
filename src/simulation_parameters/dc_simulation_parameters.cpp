@@ -223,7 +223,7 @@ std::vector<std::string> DCSimulationParameters::to_xyce_directives(const Netlis
 
     // append sensitivity directives when configured
     if (sensitivity) {
-        const auto sens_directives = sensitivity->to_xyce_directives();
+        const auto sens_directives = sensitivity->to_xyce_directives(topology);
         directives.insert(directives.end(), sens_directives.begin(), sens_directives.end());
     }
 
