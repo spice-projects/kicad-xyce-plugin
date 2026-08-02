@@ -9,6 +9,7 @@
 #include <wx/tbarbase.h>
 #endif
 
+#include "../config/plugin_config.h"
 #include "../simulation_parameters/simulation_config.h"
 #include "charts_panel.h"
 
@@ -33,6 +34,7 @@ private:
     std::filesystem::path m_xyce_netlist_file;
 
     SimulationConfig m_simulation_config;
+    PluginConfig m_plugin_config;
     NetlistTopology m_topology;
     std::string m_sanitized_netlist;
 
@@ -57,6 +59,8 @@ private:
     void on_show_netlist(wxCommandEvent&);
 
     void on_configure_simulation(wxCommandEvent&);
+
+    void on_plugin_configuration(wxCommandEvent&);
 
     void on_run_simulation(wxCommandEvent&);
 

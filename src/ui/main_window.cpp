@@ -15,19 +15,22 @@
 
 #include <spdlog/spdlog.h>
 
+#include "../config/plugin_config.h"
 #include "../netlist/netlist.h"
 #include "../file/xyce_raw_file.h"
 #include "charts_panel.h"
 #include "events.h"
 #include "icon_manager.h"
 #include "main_window.h"
+#include "plugin_config_dialog.h"
 #include "simulation_parameters/simulation_parameters_dialog.h"
 
 enum
 {
     wxID_SHOW_NETLIST = wxID_HIGHEST + 1,
     wxID_CONFIGURE_SIMULATION,
-    wxID_RUN_SIMULATION
+    wxID_RUN_SIMULATION,
+    wxID_PLUGIN_CONFIGURATION
 };
 
 enum
@@ -41,7 +44,7 @@ const wxRegEx SPICE_COMMENTS_REGEX("^\\*.*$");
 const wxRegEx SPICE_DIRECTIVE_REGEX("^(\\.\\b\\w+\\b).*$");
 
 MainWindow::MainWindow(const wxString& title) :
-    wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(800, 600)), m_simulation_config(SimulationConfig::from_xyce_directives({})) {
+    wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(800, 600)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(PluginConfig::load()) {
     // create menubar/toolbar/statusbar
     create_menubar();
     create_toolbar();
@@ -74,6 +77,7 @@ MainWindow::MainWindow(const wxString& title) :
     // custom commands
     Bind(wxEVT_TOOL, &MainWindow::on_show_netlist, this, wxID_SHOW_NETLIST);
     Bind(wxEVT_TOOL, &MainWindow::on_configure_simulation, this, wxID_CONFIGURE_SIMULATION);
+    Bind(wxEVT_TOOL, &MainWindow::on_plugin_configuration, this, wxID_PLUGIN_CONFIGURATION);
     Bind(wxEVT_TOOL, &MainWindow::on_run_simulation, this, wxID_RUN_SIMULATION);
     // configure netlist editor
     configure_netlist_editor();
@@ -151,7 +155,7 @@ void MainWindow::create_menubar() {
     tools_menu->Append(wxID_CONFIGURE_SIMULATION, "&Configure Simulation...\tCtrl-Shift-S", "Configure simulation parameters");
 
     // tools / configuration
-    tools_menu->Append(wxID_ANY, "&Configuration\tCtrl-Alt-C", "Configure Xyce Plugin");
+    tools_menu->Append(wxID_PLUGIN_CONFIGURATION, "&Configuration\tCtrl-Alt-C", "Configure Xyce Plugin");
 
     // set menu bar for frame
     wxFrameBase::SetMenuBar(menu_bar);
@@ -189,7 +193,7 @@ void MainWindow::create_toolbar() {
     tool_bar->AddSeparator();
 
     // configuration action
-    tool_bar->AddTool(wxID_ANY, "Plugin configuration", icon_manager.get_bitmap(dark_mode, "preference"));
+    tool_bar->AddTool(wxID_PLUGIN_CONFIGURATION, "Plugin configuration", icon_manager.get_bitmap(dark_mode, "preference"));
     // separator
     tool_bar->AddSeparator();
 
@@ -317,6 +321,18 @@ void MainWindow::on_configure_simulation(wxCommandEvent& event) {
     // show modal
     if (dialog.ShowModal() == wxID_OK) {
         m_simulation_config = dialog.get_config();
+    }
+    // skip event
+    event.Skip();
+}
+
+void MainWindow::on_plugin_configuration(wxCommandEvent& event) {
+    // create config dialog
+    PluginConfigDialog dialog(this, m_plugin_config);
+    // show modal
+    if (dialog.ShowModal() == wxID_OK) {
+        m_plugin_config = dialog.get_config();
+        spdlog::info("Plugin configuration updated: Xyce path = {}", m_plugin_config.xyce_executable_path());
     }
     // skip event
     event.Skip();
