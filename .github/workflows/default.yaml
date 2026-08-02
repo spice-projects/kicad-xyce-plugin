@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
-            cmake --preset release -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl
+            cmake --preset release -DCMAKE_CXX_COMPILER=clang-cl
           else
             cmake --preset release
           fi

@@ -25,19 +25,19 @@ namespace
     std::string search_path_for_xyce() {
 #ifdef __WXMSW__
         // PATH environment variable value
-        const char* path_env = std::getenv("PATH");
-        if (!path_env)
+        wxString path_env;
+        if (!wxGetEnv("PATH", &path_env))
             return {};
         // convert to std::string for easier manipulation, and use Windows path separator
-        std::string path_str(path_env);
+        std::string path_str = path_env.ToStdString();
         std::string separator = ";";
 #else
         // PATH environment variable value
-        const char* path_env = std::getenv("PATH");
-        if (!path_env)
+        wxString path_env;
+        if (!wxGetEnv("PATH", &path_env))
             return {};
         // convert to std::string for easier manipulation, and use POSIX path separator
-        std::string path_str(path_env);
+        std::string path_str = path_env.ToStdString();
         std::string separator = ":";
 #endif
         // start index

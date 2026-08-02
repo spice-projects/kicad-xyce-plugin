@@ -17,7 +17,7 @@ bool DataBlock::is_number(const std::string& s) {
     try {
         // check if it is float
         size_t idx = 0;
-        std::stof(normalized, &idx);
+        [[maybe_unused]] const float parsed = std::stof(normalized, &idx);
         // check if entire string was consumed
         if (idx == normalized.length()) {
             return true;
@@ -37,7 +37,7 @@ bool DataBlock::is_number(const std::string& s) {
             try {
                 const std::string val = normalized.substr(0, normalized.length() - suffix.length());
                 size_t idx = 0;
-                std::stof(val, &idx);
+                [[maybe_unused]] const float parsed = std::stof(val, &idx);
                 // check if entire value portion was consumed
                 if (idx == val.length()) {
                     return true;
