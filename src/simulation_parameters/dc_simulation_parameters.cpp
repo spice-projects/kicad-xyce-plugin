@@ -182,7 +182,8 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
     return DCSimulationParameters(sweep_mode, primary_variable, start, stop, step, points, list_values, data_table_name, secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, replace_ground, print_parameters, measure_parameters, sensitivity);
 }
 
-std::vector<std::string> DCSimulationParameters::to_xyce_directives() const {
+std::vector<std::string> DCSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
+    (void)topology;
     // init output directive list
     std::vector<std::string> directives;
 

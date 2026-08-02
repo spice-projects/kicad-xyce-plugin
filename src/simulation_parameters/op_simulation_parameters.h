@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "../netlist/netlist.h"
 #include "print_parameters.h"
 
 // entry for a nodeset directive
@@ -48,7 +49,7 @@ public:
     [[nodiscard]] static std::optional<OpSimulationParameters> from_xyce_directives(const std::vector<std::string>& directives);
 
     // serialize this instance to a list of Xyce directive strings
-    [[nodiscard]] std::vector<std::string> to_xyce_directives() const;
+    [[nodiscard]] std::vector<std::string> to_xyce_directives(const NetlistTopology* topology = nullptr) const;
 
     // equality operator
     [[nodiscard]] bool operator==(const OpSimulationParameters& other) const;

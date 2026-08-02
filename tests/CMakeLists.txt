@@ -18,7 +18,7 @@ find_package(wxwidgets CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(gtest CONFIG REQUIRED)
 
-file(GLOB_RECURSE CPP_SOURCES "../src/step_information.cpp" "../src/util.cpp" "../src/expression/*.cpp" "../src/file/*.cpp" "../src/simulation_parameters/*.cpp" "../src/ui/*.cpp")
+file(GLOB_RECURSE CPP_SOURCES "../src/step_information.cpp" "../src/util.cpp" "../src/expression/*.cpp" "../src/file/*.cpp" "../src/netlist/*.cpp" "../src/simulation_parameters/*.cpp" "../src/ui/*.cpp")
 file(GLOB_RECURSE TEST_FILES "./*.cpp")
 
 include_directories("../src")

@@ -6,6 +6,8 @@
 #include "../util.h"
 #include "sens_parameter.h"
 
+struct NetlistTopology;
+
 SensParameter::SensParameter(std::string analysis_context, std::string objective_mode, std::vector<std::string> objective_values, std::vector<std::string> parameter_list, bool direct, bool adjoint, std::optional<PrintParameters> print_parameters) :
     analysis_context(std::move(analysis_context)), objective_mode(std::move(objective_mode)), objective_values(std::move(objective_values)), parameter_list(std::move(parameter_list)), direct(direct), adjoint(adjoint), print_parameters(std::move(print_parameters)) {}
 
@@ -120,7 +122,8 @@ std::optional<SensParameter> SensParameter::from_xyce_directives(const std::vect
     return SensParameter(analysis_context, objective_mode, std::move(objective_values), std::move(parameter_list), direct, adjoint, std::move(print_parameters));
 }
 
-std::vector<std::string> SensParameter::to_xyce_directives() const {
+std::vector<std::string> SensParameter::to_xyce_directives(const NetlistTopology* topology) const {
+    (void)topology;
     // init line list
     std::vector<std::string> lines;
     // build objective directive string

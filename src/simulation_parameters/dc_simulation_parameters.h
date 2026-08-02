@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "../netlist/netlist.h"
 #include "measure_parameters.h"
 #include "print_parameters.h"
 #include "sens_parameter.h"
@@ -20,7 +21,7 @@ public:
     [[nodiscard]] static std::optional<DCSimulationParameters> from_xyce_directives(const std::vector<std::string>& directives);
 
     // serialize this instance to a list of Xyce directive strings
-    [[nodiscard]] std::vector<std::string> to_xyce_directives() const;
+    [[nodiscard]] std::vector<std::string> to_xyce_directives(const NetlistTopology* topology = nullptr) const;
 
     // equality operator
     [[nodiscard]] bool operator==(const DCSimulationParameters& other) const;

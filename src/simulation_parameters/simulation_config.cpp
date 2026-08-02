@@ -180,29 +180,31 @@ SimulationConfig SimulationConfig::from_xyce_directives(const std::vector<std::s
     return SimulationConfig(analysis_type, std::move(analysis), steps, data_blocks, options, unassociated_prints);
 }
 
-std::vector<std::string> SimulationConfig::to_xyce_directives() const {
+std::vector<std::string> SimulationConfig::to_xyce_directives(const NetlistTopology* topology) const {
     // init output directive list
     std::vector<std::string> directives;
 
     // extend with option directives
-    const auto option_directives = options.to_xyce_directives();
+    const auto option_directives = options.to_xyce_directives(topology);
     directives.insert(directives.end(), option_directives.begin(), option_directives.end());
 
     // check if an analysis is configured
     // Use std::visit to call to_xyce_directives on the active variant member
     struct DirectiveVisitor
     {
+        const NetlistTopology* topology;
         std::vector<std::string> operator()(const std::monostate&) const { return {}; }
-        std::vector<std::string> operator()(const AcSimulationParameters& params) const { return params.to_xyce_directives(); }
-        std::vector<std::string> operator()(const DCSimulationParameters& params) const { return params.to_xyce_directives(); }
-        std::vector<std::string> operator()(const HbSimulationParameters& params) const { return params.to_xyce_directives(); }
-        std::vector<std::string> operator()(const LinSimulationParameters& params) const { return params.to_xyce_directives(); }
-        std::vector<std::string> operator()(const NoiseSimulationParameters& params) const { return params.to_xyce_directives(); }
-        std::vector<std::string> operator()(const OpSimulationParameters& params) const { return params.to_xyce_directives(); }
-        std::vector<std::string> operator()(const TransientSimulationParameters& params) const { return params.to_xyce_directives(); }
+        std::vector<std::string> operator()(const AcSimulationParameters& params) const { return params.to_xyce_directives(topology); }
+        std::vector<std::string> operator()(const DCSimulationParameters& params) const { return params.to_xyce_directives(topology); }
+        std::vector<std::string> operator()(const HbSimulationParameters& params) const { return params.to_xyce_directives(topology); }
+        std::vector<std::string> operator()(const LinSimulationParameters& params) const { return params.to_xyce_directives(topology); }
+        std::vector<std::string> operator()(const NoiseSimulationParameters& params) const { return params.to_xyce_directives(topology); }
+        std::vector<std::string> operator()(const OpSimulationParameters& params) const { return params.to_xyce_directives(topology); }
+        std::vector<std::string> operator()(const TransientSimulationParameters& params) const { return params.to_xyce_directives(topology); }
     };
+    DirectiveVisitor visitor{topology};
 
-    const auto analysis_directives = std::visit(DirectiveVisitor{}, analysis);
+    const auto analysis_directives = std::visit(visitor, analysis);
     directives.insert(directives.end(), analysis_directives.begin(), analysis_directives.end());
 
     // emit all step directives preserving the original nested loop order
@@ -232,4 +234,72 @@ std::vector<std::string> SimulationConfig::to_xyce_directives() const {
 bool SimulationConfig::operator==(const SimulationConfig& other) const {
     // compare all fields for equality
     return analysis_type == other.analysis_type && analysis == other.analysis && steps == other.steps && data_blocks == other.data_blocks && options == other.options && unassociated_prints == other.unassociated_prints;
+}
+
+std::optional<std::filesystem::path> SimulationConfig::raw_output_file_path(const std::filesystem::path& working_directory, const std::filesystem::path& netlist_file_path) const {
+    struct RawPathVisitor
+    {
+        const std::filesystem::path& working_directory;
+        const std::filesystem::path& netlist_file_path;
+
+        std::optional<std::filesystem::path> operator()(const std::monostate&) const { return std::nullopt; }
+
+        std::optional<std::filesystem::path> operator()(const AcSimulationParameters& params) const {
+            return compute_raw_path(params.print_parameters, working_directory, netlist_file_path);
+        }
+        std::optional<std::filesystem::path> operator()(const DCSimulationParameters& params) const {
+            return compute_raw_path(params.print_parameters, working_directory, netlist_file_path);
+        }
+        std::optional<std::filesystem::path> operator()(const HbSimulationParameters& params) const {
+            return compute_raw_path(params.print_parameters, working_directory, netlist_file_path);
+        }
+        std::optional<std::filesystem::path> operator()(const LinSimulationParameters& params) const {
+            return compute_raw_path(params.print_parameters, working_directory, netlist_file_path);
+        }
+        std::optional<std::filesystem::path> operator()(const NoiseSimulationParameters& params) const {
+            return compute_raw_path(params.print_parameters, working_directory, netlist_file_path);
+        }
+        std::optional<std::filesystem::path> operator()(const OpSimulationParameters& params) const {
+            return compute_raw_path(params.print_parameters, working_directory, netlist_file_path);
+        }
+        std::optional<std::filesystem::path> operator()(const TransientSimulationParameters& params) const {
+            return compute_raw_path(params.print_parameters, working_directory, netlist_file_path);
+        }
+
+    private:
+        static std::optional<std::filesystem::path> compute_raw_path(const std::optional<PrintParameters>& print_params, const std::filesystem::path& wd, const std::filesystem::path& nl_path) {
+            if (!print_params.has_value() || to_upper(print_params->print_format) != "RAW") {
+                return std::nullopt;
+            }
+            if (!print_params->print_file.empty()) {
+                return wd / print_params->print_file;
+            }
+            return nl_path.string() + ".raw";
+        }
+    };
+
+    return std::visit(RawPathVisitor{working_directory, netlist_file_path}, analysis);
+}
+
+std::optional<std::filesystem::path> SimulationConfig::fft_output_file_path_pattern(const std::filesystem::path& netlist_file_path) const {
+    struct FftPathVisitor
+    {
+        const std::filesystem::path& netlist_file_path;
+
+        std::optional<std::filesystem::path> operator()(const std::monostate&) const { return std::nullopt; }
+        std::optional<std::filesystem::path> operator()(const AcSimulationParameters&) const { return std::nullopt; }
+        std::optional<std::filesystem::path> operator()(const DCSimulationParameters&) const { return std::nullopt; }
+        std::optional<std::filesystem::path> operator()(const HbSimulationParameters&) const { return std::nullopt; }
+        std::optional<std::filesystem::path> operator()(const LinSimulationParameters&) const { return std::nullopt; }
+        std::optional<std::filesystem::path> operator()(const NoiseSimulationParameters&) const { return std::nullopt; }
+        std::optional<std::filesystem::path> operator()(const OpSimulationParameters&) const { return std::nullopt; }
+        std::optional<std::filesystem::path> operator()(const TransientSimulationParameters& params) const {
+            if (params.fft_parameters.empty()) {
+                return std::nullopt;
+            }
+            return netlist_file_path.string() + ".fft*";
+        }
+    };
+
+    return std::visit(FftPathVisitor{netlist_file_path}, analysis);
 }

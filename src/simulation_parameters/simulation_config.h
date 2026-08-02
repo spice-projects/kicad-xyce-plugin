@@ -1,9 +1,12 @@
 #pragma once
 
+#include <filesystem>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
 
+#include "../netlist/netlist.h"
 #include "data_block.h"
 #include "option_parameters.h"
 #include "print_parameters.h"
@@ -31,7 +34,13 @@ public:
     [[nodiscard]] static SimulationConfig from_xyce_directives(const std::vector<std::string>& directives);
 
     // serialize this instance to a list of Xyce directive strings
-    [[nodiscard]] std::vector<std::string> to_xyce_directives() const;
+    [[nodiscard]] std::vector<std::string> to_xyce_directives(const NetlistTopology* topology = nullptr) const;
+
+    // compute the expected raw output file path for the configured analysis
+    [[nodiscard]] std::optional<std::filesystem::path> raw_output_file_path(const std::filesystem::path& working_directory, const std::filesystem::path& netlist_file_path) const;
+
+    // compute the expected FFT output file path pattern for the configured analysis
+    [[nodiscard]] std::optional<std::filesystem::path> fft_output_file_path_pattern(const std::filesystem::path& netlist_file_path) const;
 
     // get the first step for backward compatibility
     [[nodiscard]] StepParameters step() const;

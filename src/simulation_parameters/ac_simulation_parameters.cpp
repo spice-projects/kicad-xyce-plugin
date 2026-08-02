@@ -130,7 +130,8 @@ std::optional<AcSimulationParameters> AcSimulationParameters::from_xyce_directiv
     return AcSimulationParameters(sweep_mode, points, start, end, data_table_name, replace_ground, print_parameters, measure_parameters, sensitivity);
 }
 
-std::vector<std::string> AcSimulationParameters::to_xyce_directives() const {
+std::vector<std::string> AcSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
+    (void)topology;
     // init output directive list
     std::vector<std::string> directives;
     // prepend replaceground preprocessing when enabled

@@ -5,6 +5,8 @@
 #include "../util.h"
 #include "option_parameters.h"
 
+struct NetlistTopology;
+
 // parse a series of option tokens into a normalized map
 static std::map<std::string, std::string> parse_option_tokens(const std::vector<std::string>& tokens) {
     // parse a series of option tokens into a normalized dictionary
@@ -91,7 +93,8 @@ OptionParameters OptionParameters::from_xyce_directives(const std::vector<std::s
     return OptionParameters(device, timeint, nonlin, linsol);
 }
 
-std::vector<std::string> OptionParameters::to_xyce_directives() const {
+std::vector<std::string> OptionParameters::to_xyce_directives(const NetlistTopology* topology) const {
+    (void)topology;
     // serialize configured option blocks in a deterministic order
     std::vector<std::string> directives;
 
