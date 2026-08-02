@@ -34,6 +34,7 @@ private:
 
     SimulationConfig m_simulation_config;
     NetlistTopology m_topology;
+    std::string m_sanitized_netlist;
 
     void on_system_colour_changed(wxSysColourChangedEvent&);
 

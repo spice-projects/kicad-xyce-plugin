@@ -301,10 +301,14 @@ void MainWindow::on_show_netlist(wxCommandEvent& event) {
 void MainWindow::on_configure_simulation(wxCommandEvent& event) {
     // parse netlist editor content for initial config
     if (m_netlist_editor && !m_netlist_editor->GetText().IsEmpty()) {
-        // parse the raw netlist text to get sanitized netlist + topology
+        // netlist text
         const auto netlist_text = m_netlist_editor->GetText().ToStdString();
+        // parse netlist and extract topology
         const auto [sanitized_netlist, topology] = parse_netlist(netlist_text);
-        m_topology = topology;
+        // store topology for later use
+        m_topology = std::move(topology);
+        // store sanitized netlist for later serialization
+        m_sanitized_netlist = std::move(sanitized_netlist);
         // build simulation config from parsed directives
         m_simulation_config = SimulationConfig::from_xyce_directives(m_topology.m_directives);
     }
@@ -319,6 +323,58 @@ void MainWindow::on_configure_simulation(wxCommandEvent& event) {
 }
 
 void MainWindow::on_run_simulation(wxCommandEvent& event) {
+    // re-parse editor content for fresh netlist + topology
+    if (m_netlist_editor && !m_netlist_editor->GetText().IsEmpty()) {
+        // netlist text
+        const auto netlist_text = m_netlist_editor->GetText().ToStdString();
+        // parse netlist and extract topology
+        auto [sanitized_netlist, topology] = parse_netlist(netlist_text);
+        // store topology for later use
+        m_topology = std::move(topology);
+        // store sanitized netlist for later serialization
+        m_sanitized_netlist = std::move(sanitized_netlist);
+        // initialize simulation config from parsed directives
+        m_simulation_config = SimulationConfig::from_xyce_directives(m_topology.m_directives);
+    }
+    // check if analysis is configured
+    if (std::holds_alternative<std::monostate>(m_simulation_config.analysis)) {
+        // open configure dialog to set up analysis
+        SimulationParametersDialog dialog(this, m_simulation_config);
+        // show modal
+        if (dialog.ShowModal() != wxID_OK) {
+            // user cancelled, skip
+            event.Skip();
+            // exit
+            return;
+        }
+        // store updated config
+        m_simulation_config = dialog.get_config();
+    }
+    // guard against missing netlist content
+    if (m_sanitized_netlist.empty()) {
+        // skip when no netlist has been parsed
+        event.Skip();
+        // exit
+        return;
+    }
+    // build directives from simulation config with topology expansion
+    const auto directives = m_simulation_config.to_xyce_directives(&m_topology);
+    // merge directives into sanitized netlist before .END
+    const auto final_netlist = build_final_netlist(m_sanitized_netlist, directives, m_topology.m_passthrough_directives);
+    // update stored netlist with merged content
+    m_sanitized_netlist = final_netlist;
+    // update editor with final netlist
+    m_netlist_editor->SetText(m_sanitized_netlist);
+    // write final netlist to file
+    std::ofstream file(m_xyce_netlist_file, std::ios::out | std::ios::trunc);
+    if (file.is_open()) {
+        // write merged content
+        file << m_sanitized_netlist;
+        // close stream
+        file.close();
+        // reset dirty flag
+        update_netlist_editor_dirty_flag(false);
+    }
     // skip event
     event.Skip();
 }

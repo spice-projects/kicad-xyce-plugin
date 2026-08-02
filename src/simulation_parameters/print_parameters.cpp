@@ -157,6 +157,21 @@ std::vector<std::string> tokenize_print_statement(const std::string& print_state
     return tokens;
 }
 
+// join tokens with spaces
+static std::string join_tokens(const std::vector<std::string>& tokens) {
+    // init result
+    std::string result;
+    // loop tokens and join with spaces
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        // add separator
+        if (i > 0)
+            result += ' ';
+        // add token
+        result += tokens[i];
+    }
+    return result;
+}
+
 PrintParameters::PrintParameters(std::string print_type, std::string print_format, std::string print_file, std::vector<std::string> output_variables, std::vector<std::string> extra_options) :
     print_type(std::move(print_type)), print_format(std::move(print_format)), print_file(std::move(print_file)), output_variables(std::move(output_variables)), extra_options(std::move(extra_options)) {}
 
@@ -252,16 +267,7 @@ std::string PrintParameters::to_xyce_statement() const {
     for (const auto& var : output_variables)
         tokens.push_back(var);
     // build joined statement
-    std::string result;
-    // loop tokens and join with spaces
-    for (size_t i = 0; i < tokens.size(); ++i) {
-        // add separator
-        if (i > 0)
-            result += ' ';
-        // add token
-        result += tokens[i];
-    }
-    return result;
+    return join_tokens(tokens);
 }
 
 std::string PrintParameters::to_xyce_statement(const NetlistTopology* topology) const {
@@ -297,16 +303,7 @@ std::string PrintParameters::to_xyce_statement(const NetlistTopology* topology) 
         }
     }
     // build joined statement
-    std::string result;
-    // loop tokens and join with spaces
-    for (size_t i = 0; i < tokens.size(); ++i) {
-        // add separator
-        if (i > 0)
-            result += ' ';
-        // add token
-        result += tokens[i];
-    }
-    return result;
+    return join_tokens(tokens);
 }
 
 bool PrintParameters::operator==(const PrintParameters& other) const {
