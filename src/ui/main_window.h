@@ -7,6 +7,7 @@
 #ifndef WX_PRECOMP
 #include <wx/frame.h>
 #include <wx/sizer.h>
+#include <wx/splitter.h>
 #include <wx/stc/stc.h>
 #include <wx/tbarbase.h>
 #endif
@@ -14,6 +15,7 @@
 #include "../config/plugin_config.h"
 #include "../simulation_parameters/simulation_config.h"
 #include "charts_panel.h"
+#include "main_window_state.h"
 
 class XyceSimulationRunner;
 
@@ -23,16 +25,28 @@ public:
     explicit MainWindow(const wxString& title);
 
 private:
+    wxToolBarToolBase* m_open_netlist_action = nullptr;
     wxToolBarToolBase* m_save_netlist_action = nullptr;
     wxToolBarToolBase* m_show_netlist_action = nullptr;
     wxToolBarToolBase* m_simulation_settings_action = nullptr;
     wxToolBarToolBase* m_simulation_run_action = nullptr;
+    wxToolBarToolBase* m_show_simulation_output_action = nullptr;
+    wxToolBarToolBase* m_show_charts_action = nullptr;
 
     wxBoxSizer* m_main_sizer = nullptr;
+    wxBoxSizer* m_content_sizer = nullptr;
+    wxSplitterWindow* m_body_splitter = nullptr;
+    wxPanel* m_content_panel = nullptr;
     wxStyledTextCtrl* m_netlist_editor = nullptr;
     ChartsPanel* m_charts_panel = nullptr;
+    wxPanel* m_simulation_output_container = nullptr;
+    wxStyledTextCtrl* m_simulation_output_panel = nullptr;
 
     void* m_kicad_client = nullptr;
+
+    AppState m_app_state = AppState::Empty;
+    bool m_simulation_running = false;
+    bool m_netlist_editor_dirty = false;
 
     std::optional<std::shared_ptr<XyceOutputFile>> m_xyce_raw_file;
     std::filesystem::path m_xyce_netlist_file;
@@ -63,6 +77,10 @@ private:
 
     void on_show_netlist(wxCommandEvent&);
 
+    void on_show_charts(wxCommandEvent&);
+
+    void on_show_simulation_output(wxCommandEvent&);
+
     void on_configure_simulation(wxCommandEvent&);
 
     void on_plugin_configuration(wxCommandEvent&);
@@ -75,6 +93,8 @@ private:
 
     void on_simulation_stderr(wxThreadEvent& event);
 
+    void on_close_simulation_output(wxCommandEvent&);
+
     void on_netlist_editor_modified(wxStyledTextEvent&);
 
     void on_netlist_editor_style_needed(wxStyledTextEvent&);
@@ -86,4 +106,8 @@ private:
     void update_netlist_editor_dirty_flag(bool);
 
     void configure_netlist_editor();
+
+    void update_action_states();
+
+    void show_simulation_output_panel();
 };

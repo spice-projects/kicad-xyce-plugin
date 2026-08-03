@@ -27,5 +27,8 @@ IconManager::IconManager() {
     m_bitmap_bundles["sim_command_dark"] = get_sim_command_dark_png_bundle();
     m_bitmap_bundles["sim_run"] = get_sim_run_png_bundle();
     m_bitmap_bundles["sim_run_dark"] = get_sim_run_dark_png_bundle();
+    m_bitmap_bundles["sim_tune"] = get_sim_tune_png_bundle();
+    m_bitmap_bundles["sim_tune_dark"] = get_sim_tune_dark_png_bundle();
+    m_bitmap_bundles["simulator"] = get_simulator_png_bundle();
     m_bitmap_bundles["window-icon"] = get_window_icon_png_bundle();
 }

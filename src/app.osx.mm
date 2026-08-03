@@ -8,7 +8,7 @@
 
 bool App::OnInit() {
     // initialize logging to debug level
-    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_level(spdlog::level::info);
     // initialize image handlers
     wxInitAllImageHandlers();
     // use system appearance for the app

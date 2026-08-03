@@ -104,8 +104,6 @@ std::vector<AnyExpression*> Chart::selected_expressions() {
 }
 
 void Chart::render(const std::tuple<float, float, float, float>& selection) {
-    // set style color
-    // ImPlot::PushStyleColor(ImPlotCol_FrameBg, ImVec4());
     // initialize plot, full area
     if (ImPlot::BeginPlot("My First Plot", ImVec2(-1, -1), PLOT_FLAGS)) {
         // x axis
@@ -167,8 +165,6 @@ void Chart::render(const std::tuple<float, float, float, float>& selection) {
         // finalize the plot block
         ImPlot::EndPlot();
     }
-    // pop style color
-    // ImPlot::PopStyleColor();
 }
 
 void Chart::plot_series(const std::set<AnyExpression*>& expressions) {
@@ -179,7 +175,7 @@ void Chart::plot_series(const std::set<AnyExpression*>& expressions) {
             // loop ordinate series
             for (auto& [key, value] : ordinate_series) {
                 // log information
-                spdlog::debug("Removing series for expression '{}' from chart", key->name());
+                spdlog::info("Removing series for expression '{}' from chart", key->name());
                 // release axis
                 release_y_axis(std::get<0>(value));
             }
@@ -216,7 +212,7 @@ void Chart::plot_series(const std::set<AnyExpression*>& expressions) {
                 // check step in selected steps
                 if (!m_selected_steps.contains(it2->first)) {
                     // log information
-                    spdlog::debug("Removing series for expression [{}] from chart, step: {}", ordinate_variant->name(), it2->first);
+                    spdlog::info("Removing series for expression [{}] from chart, step: {}", ordinate_variant->name(), it2->first);
                     // remove it
                     it2 = rendered_series.erase(it2);
                     // next
@@ -348,7 +344,7 @@ std::tuple<bool, View<double>, View<double>, double, double> Chart::plot_step(Ex
     auto [x_np, y_np] = decimate_xy(abscissa_values, ordinate_values, m_decimate_target, DECIMATE_M4);
     // TODO: remove Inf values
     // log information
-    spdlog::debug("Adding series for expression [{}], step: {}, original size: {}, decimated size: {}", ordinate_variant->name(), step, abscissa_values.size(), x_np.size());
+    spdlog::info("Adding series for expression [{}], step: {}, original size: {}, decimated size: {}", ordinate_variant->name(), step, abscissa_values.size(), x_np.size());
     // check all values were non-finite after filtering
     if (x_np.empty() || y_np.empty())
         return {};
@@ -394,7 +390,7 @@ int Chart::get_y_axis(const std::string& unit) {
     // check we have an available axis
     if (available) {
         // log information
-        spdlog::debug("Creating Y{} axis for measurement type: {}", available->axis - ImAxis_Y1 + 1, unit.empty() ? "<no unit>" : unit);
+        spdlog::info("Creating Y{} axis for measurement type: {}", available->axis - ImAxis_Y1 + 1, unit.empty() ? "<no unit>" : unit);
         // use it
         available->plots = 1;
         available->unit = unit;
@@ -418,7 +414,7 @@ bool Chart::release_y_axis(const int axis) {
             // check axis is no longer in use
             if (axis_info.plots == 0) {
                 // log information
-                spdlog::debug("Releasing Y{} axis", axis_info.axis - ImAxis_Y1 + 1);
+                spdlog::info("Releasing Y{} axis", axis_info.axis - ImAxis_Y1 + 1);
                 // reset plot range
                 axis_info.plot_min_value = 0.0;
                 axis_info.plot_max_value = 1.0;

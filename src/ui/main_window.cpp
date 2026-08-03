@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <string_view>
 
 #include <wx/wxprec.h>
 
@@ -32,7 +33,10 @@ enum
     wxID_SHOW_NETLIST = wxID_HIGHEST + 1,
     wxID_CONFIGURE_SIMULATION,
     wxID_RUN_SIMULATION,
-    wxID_PLUGIN_CONFIGURATION
+    wxID_PLUGIN_CONFIGURATION,
+    wxID_CLOSE_SIMULATION_OUTPUT,
+    wxID_SHOW_SIMULATION_OUTPUT,
+    wxID_SHOW_CHARTS
 };
 
 enum
@@ -53,15 +57,65 @@ MainWindow::MainWindow(const wxString& title) :
     create_statusbar();
     // create main vertical sizer
     m_main_sizer = new wxBoxSizer(wxVERTICAL);
+    // create body splitter, top pane holds the content views, bottom pane the simulation output
+    m_body_splitter = new wxSplitterWindow(this, wxID_ANY);
+    // content panel hosts the exclusive netlist/charts views
+    m_content_panel = new wxPanel(m_body_splitter, wxID_ANY);
+    // create main content sizer
+    m_content_sizer = new wxBoxSizer(wxVERTICAL);
     // create netlist editor (read-only if connected to KiCad)
-    m_netlist_editor = new wxStyledTextCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
+    m_netlist_editor = new wxStyledTextCtrl(m_content_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
     m_netlist_editor->SetReadOnly(m_kicad_client != nullptr);
-    m_main_sizer->Add(m_netlist_editor, 1, wxEXPAND | wxALL, 0);
-    m_main_sizer->Hide(m_netlist_editor);
+    m_content_sizer->Add(m_netlist_editor, 1, wxEXPAND | wxALL, 0);
+    m_content_sizer->Hide(m_netlist_editor);
     // create charts panel
-    m_charts_panel = new ChartsPanel(this);
-    m_main_sizer->Add(m_charts_panel, 1, wxEXPAND | wxALL, 0);
-    m_main_sizer->Hide(m_charts_panel);
+    m_charts_panel = new ChartsPanel(m_content_panel);
+    m_content_sizer->Add(m_charts_panel, 1, wxEXPAND | wxALL, 0);
+    m_content_sizer->Hide(m_charts_panel);
+    // set sizer for content panel
+    m_content_panel->SetSizer(m_content_sizer);
+    // create simulation output container, holds a header bar and the log area
+    m_simulation_output_container = new wxPanel(m_body_splitter, wxID_ANY);
+    // create vertical sizer for the simulation output container
+    auto* output_container_sizer = new wxBoxSizer(wxVERTICAL);
+    // create header bar with title and close button
+    auto* output_header_sizer = new wxBoxSizer(wxHORIZONTAL);
+    // title of the simulation output panel
+    auto* output_title = new wxStaticText(m_simulation_output_container, wxID_ANY, "Simulation Output");
+    output_header_sizer->Add(output_title, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(6));
+    // push the close button to the right edge of the header
+    output_header_sizer->AddStretchSpacer();
+    // close button to dismiss the simulation output panel
+    auto* output_close_button = new wxButton(m_simulation_output_container, wxID_CLOSE_SIMULATION_OUTPUT, "\u2715", wxDefaultPosition, wxSize(FromDIP(24), FromDIP(24)));
+    output_close_button->SetToolTip("Close the simulation output panel");
+    output_header_sizer->Add(output_close_button, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(2));
+    output_container_sizer->Add(output_header_sizer, 0, wxEXPAND);
+    // create simulation output panel (blank, read-only log area)
+    m_simulation_output_panel = new wxStyledTextCtrl(m_simulation_output_container, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
+    // use a monospaced font for readable log output
+    m_simulation_output_panel->StyleSetFont(wxSTC_STYLE_DEFAULT, wxFont(wxFontInfo(wxNORMAL_FONT->GetPointSize()).Family(wxFONTFAMILY_TELETYPE)));
+    // use explicit system colours so log text is always readable
+    m_simulation_output_panel->StyleSetForeground(wxSTC_STYLE_DEFAULT, wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
+    m_simulation_output_panel->StyleSetBackground(wxSTC_STYLE_DEFAULT, wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+    // make the simulation output panel read-only
+    m_simulation_output_panel->SetReadOnly(true);
+    // keep each output line intact on a single visual line
+    m_simulation_output_panel->SetWrapMode(wxSTC_WRAP_NONE);
+    // propagate default style attributes to all other styles
+    m_simulation_output_panel->StyleClearAll();
+    output_container_sizer->Add(m_simulation_output_panel, 1, wxEXPAND | wxALL, 0);
+    // set sizer for the simulation output container
+    m_simulation_output_container->SetSizer(output_container_sizer);
+    // hide the simulation output container until a simulation is started
+    m_simulation_output_container->Hide();
+    // initialize splitter with the content panel only, simulation output panel stays hidden
+    m_body_splitter->Initialize(m_content_panel);
+    // keep the bottom pane fixed size when the window is resized
+    m_body_splitter->SetSashGravity(1.0);
+    // prevent the panes from collapsing entirely
+    m_body_splitter->SetMinimumPaneSize(FromDIP(80));
+    // add splitter to main sizer
+    m_main_sizer->Add(m_body_splitter, 1, wxEXPAND | wxALL, 0);
     // set sizer
     SetSizer(m_main_sizer);
     // bind events
@@ -78,6 +132,8 @@ MainWindow::MainWindow(const wxString& title) :
     Bind(wxEVT_STC_STYLENEEDED, &MainWindow::on_netlist_editor_style_needed, this, m_netlist_editor->GetId());
     // custom commands
     Bind(wxEVT_TOOL, &MainWindow::on_show_netlist, this, wxID_SHOW_NETLIST);
+    Bind(wxEVT_TOOL, &MainWindow::on_show_charts, this, wxID_SHOW_CHARTS);
+    Bind(wxEVT_TOOL, &MainWindow::on_show_simulation_output, this, wxID_SHOW_SIMULATION_OUTPUT);
     Bind(wxEVT_TOOL, &MainWindow::on_configure_simulation, this, wxID_CONFIGURE_SIMULATION);
     Bind(wxEVT_TOOL, &MainWindow::on_plugin_configuration, this, wxID_PLUGIN_CONFIGURATION);
     Bind(wxEVT_TOOL, &MainWindow::on_run_simulation, this, wxID_RUN_SIMULATION);
@@ -85,8 +141,12 @@ MainWindow::MainWindow(const wxString& title) :
     Bind(wxEVT_SIMULATION_STDOUT, &MainWindow::on_simulation_stdout, this);
     Bind(wxEVT_SIMULATION_STDERR, &MainWindow::on_simulation_stderr, this);
     Bind(wxEVT_SIMULATION_FINISHED, &MainWindow::on_simulation_finished, this);
+    // simulation output panel events
+    Bind(wxEVT_BUTTON, &MainWindow::on_close_simulation_output, this, wxID_CLOSE_SIMULATION_OUTPUT);
     // configure netlist editor
     configure_netlist_editor();
+    // set initial action states
+    update_action_states();
 }
 
 void MainWindow::on_system_colour_changed(wxSysColourChangedEvent& event) {
@@ -130,6 +190,8 @@ void MainWindow::on_new_window(wxCommandEvent& event) {
     frame->Show(true);
     // update file reference
     frame->update_xyce_raw_file(m_xyce_raw_file, true);
+    // refresh toolbar/menu states in the new window
+    frame->update_action_states();
     // skip event
     event.Skip();
 }
@@ -154,8 +216,11 @@ void MainWindow::create_menubar() {
     const auto tools_menu = new wxMenu();
     menu_bar->Append(tools_menu, "&Tools");
 
-    // tools / view simulation output
-    tools_menu->Append(wxID_ANY, "&View Simulation Output\tCtrl-Alt-V", "View Simulation Output");
+    // tools / show charts (matches toolbar action)
+    tools_menu->Append(wxID_SHOW_CHARTS, "&Show Charts", "Show Charts");
+
+    // tools / view simulation output (matches toolbar action)
+    tools_menu->Append(wxID_SHOW_SIMULATION_OUTPUT, "&View Simulation Output\tCtrl-Alt-V", "View Simulation Output");
 
     // tools / configure simulation (matches toolbar action)
     tools_menu->Append(wxID_CONFIGURE_SIMULATION, "&Configure Simulation...\tCtrl-Shift-S", "Configure simulation parameters");
@@ -179,33 +244,32 @@ void MainWindow::create_toolbar() {
     // section only available when not connected to KiCad
     if (!m_kicad_client) {
         // open action
-        tool_bar->AddTool(wxID_OPEN, "Open Xyce File", icon_manager.get_bitmap(dark_mode, "directory_open"));
+        m_open_netlist_action = tool_bar->AddTool(wxID_OPEN, "Open Xyce File", icon_manager.get_bitmap(dark_mode, "directory_open"));
         // save action(disable by default)
         m_save_netlist_action = tool_bar->AddTool(wxID_SAVE, "Save", icon_manager.get_bitmap(dark_mode, "save"));
-        m_save_netlist_action->Enable(false);
         // separator
         tool_bar->AddSeparator();
     }
-    // show netlist action (enabled if connected to KiCad)
+    // show netlist action
     m_show_netlist_action = tool_bar->AddTool(wxID_SHOW_NETLIST, "Show Netlist", icon_manager.get_bitmap(dark_mode, "netlist"));
-    m_show_netlist_action->Enable(m_kicad_client != nullptr);
-    // simulation settings action (enabled if connected to KiCad)
-    m_simulation_settings_action = tool_bar->AddTool(wxID_CONFIGURE_SIMULATION, "Configure simulation parameters", icon_manager.get_bitmap(dark_mode, "sim_command"));
-    m_simulation_settings_action->Enable(m_kicad_client != nullptr);
-    // simulation run action (enabled if connected to KiCad)
-    m_simulation_run_action = tool_bar->AddTool(wxID_RUN_SIMULATION, "Run the simulation", icon_manager.get_bitmap(dark_mode, "sim_run"));
-    m_simulation_run_action->Enable(m_kicad_client != nullptr);
+    // show charts action
+    m_show_charts_action = tool_bar->AddTool(wxID_SHOW_CHARTS, "Show Charts", icon_manager.get_bitmap(dark_mode, "simulator"));
+    // show simulation output action
+    m_show_simulation_output_action = tool_bar->AddTool(wxID_SHOW_SIMULATION_OUTPUT, "Show Simulation Output", icon_manager.get_bitmap(dark_mode, "sim_command"));
     // separator
     tool_bar->AddSeparator();
-
+    // simulation run action
+    m_simulation_run_action = tool_bar->AddTool(wxID_RUN_SIMULATION, "Run the simulation", icon_manager.get_bitmap(dark_mode, "sim_run"));
+    // simulation settings action
+    m_simulation_settings_action = tool_bar->AddTool(wxID_CONFIGURE_SIMULATION, "Configure simulation parameters", icon_manager.get_bitmap(dark_mode, "sim_tune"));
+    // separator
+    tool_bar->AddSeparator();
     // configuration action
     tool_bar->AddTool(wxID_PLUGIN_CONFIGURATION, "Plugin configuration", icon_manager.get_bitmap(dark_mode, "preference"));
     // separator
     tool_bar->AddSeparator();
-
     // add tool button for exit
     tool_bar->AddTool(wxID_EXIT, "Exit", icon_manager.get_bitmap(dark_mode, "exit"));
-
     // realize toolbar
     tool_bar->Realize();
 }
@@ -234,20 +298,16 @@ void MainWindow::on_menu_file_open(wxCommandEvent& event) {
         if (extension == "cir") {
             // load netlist file into editor
             if (update_xyce_netlist_file(filepath.ToStdString())) {
-                // disable save action (enabled when editor is modified)
-                m_save_netlist_action->Enable(false);
-                // enable simulation actions (analyzing netlist)
-                m_show_netlist_action->Enable(true);
-                m_simulation_settings_action->Enable(true);
-                m_simulation_run_action->Enable(true);
                 // update title
                 SetTitle(m_xyce_netlist_file.filename().string());
                 // remove output file reference
                 m_xyce_raw_file = std::nullopt;
                 // hide/show panels
-                m_main_sizer->Hide(m_charts_panel);
-                m_main_sizer->Show(m_netlist_editor);
-                m_main_sizer->Layout();
+                m_content_sizer->Hide(m_charts_panel);
+                m_content_sizer->Show(m_netlist_editor);
+                m_content_sizer->Layout();
+                // refresh toolbar/menu states
+                update_action_states();
             }
             // skip event
             event.Skip();
@@ -258,19 +318,20 @@ void MainWindow::on_menu_file_open(wxCommandEvent& event) {
         if (extension == "raw") {
             // parse file & update it in window field
             if (update_xyce_raw_file(xyce_raw_file_parser(filepath.ToStdString()), true)) {
-                // disable simulation actions (analyzing existing output file)
-                m_show_netlist_action->Enable(false);
-                m_simulation_settings_action->Enable(false);
-                m_simulation_run_action->Enable(false);
                 // update title
                 SetTitle(m_xyce_raw_file.value()->title());
                 // remove existing netlist file
                 m_xyce_netlist_file = std::filesystem::path();
                 m_netlist_editor->ClearAll();
                 // hide/show panels
-                m_main_sizer->Show(m_charts_panel);
-                m_main_sizer->Hide(m_netlist_editor);
-                m_main_sizer->Layout();
+                m_content_sizer->Show(m_charts_panel);
+                m_content_sizer->Hide(m_netlist_editor);
+                m_content_sizer->Layout();
+                // hide the simulation output panel for the raw file view
+                if (m_body_splitter->IsSplit())
+                    m_body_splitter->Unsplit(m_simulation_output_container);
+                // refresh toolbar/menu states
+                update_action_states();
                 // disable the save netlist action (enabled when editor is modified)
                 CallAfter([this]() { update_netlist_editor_dirty_flag(false); });
             }
@@ -301,9 +362,31 @@ void MainWindow::on_menu_file_save(wxCommandEvent& event) {
 
 void MainWindow::on_show_netlist(wxCommandEvent& event) {
     // hide/show panels
-    m_main_sizer->Hide(m_charts_panel);
-    m_main_sizer->Show(m_netlist_editor);
-    m_main_sizer->Layout();
+    m_content_sizer->Hide(m_charts_panel);
+    m_content_sizer->Show(m_netlist_editor);
+    m_content_sizer->Layout();
+    // refresh toolbar/menu states
+    update_action_states();
+    // skip event
+    event.Skip();
+}
+
+void MainWindow::on_show_charts(wxCommandEvent& event) {
+    // hide/show panels
+    m_content_sizer->Hide(m_netlist_editor);
+    m_content_sizer->Show(m_charts_panel);
+    m_content_sizer->Layout();
+    // refresh toolbar/menu states
+    update_action_states();
+    // skip event
+    event.Skip();
+}
+
+void MainWindow::on_show_simulation_output(wxCommandEvent& event) {
+    // re-show the simulation output panel
+    show_simulation_output_panel();
+    // refresh toolbar/menu states
+    update_action_states();
     // skip event
     event.Skip();
 }
@@ -437,8 +520,16 @@ void MainWindow::on_run_simulation(wxCommandEvent& event) {
     runner->Bind(wxEVT_SIMULATION_STDERR, &MainWindow::on_simulation_stderr, this);
     // store the runner
     m_simulation_runner = std::move(runner);
+    // mark the simulation as running
+    m_simulation_running = true;
+    // show the simulation output panel for this run
+    show_simulation_output_panel();
+    // reset the log for this run
+    m_simulation_output_panel->ClearAll();
     // launch the simulation
     m_simulation_runner->start(m_plugin_config.xyce_executable_path(), temp_path, working_dir);
+    // refresh toolbar/menu states
+    update_action_states();
     // update statusbar
     SetStatusText("Simulation started...");
     // skip event
@@ -449,12 +540,16 @@ void MainWindow::on_simulation_finished(wxThreadEvent& event) {
     // extract exit code and canceled flag from the event
     int exit_code = event.GetInt();
     bool was_canceled = event.GetPayload<bool>();
+    // mark the simulation as no longer running
+    m_simulation_running = false;
     // handle canceled simulations
     if (was_canceled) {
         // update statusbar
         SetStatusText("Simulation canceled");
         // clear the runner
         m_simulation_runner.reset();
+        // refresh toolbar/menu states
+        update_action_states();
         // skip event
         event.Skip();
         // exit
@@ -466,6 +561,8 @@ void MainWindow::on_simulation_finished(wxThreadEvent& event) {
         if (!m_simulation_runner) {
             // update statusbar
             SetStatusText("Simulation finished but runner reference is missing");
+            // refresh toolbar/menu states
+            update_action_states();
             // skip event
             event.Skip();
             // exit
@@ -481,15 +578,17 @@ void MainWindow::on_simulation_finished(wxThreadEvent& event) {
                 // update charts panel with the parsed data
                 update_xyce_raw_file(std::move(raw_file), true);
                 // switch to charts view
-                m_main_sizer->Show(m_charts_panel);
-                m_main_sizer->Hide(m_netlist_editor);
-                m_main_sizer->Layout();
+                m_content_sizer->Show(m_charts_panel);
+                m_content_sizer->Hide(m_netlist_editor);
+                m_content_sizer->Layout();
                 // update title
                 SetTitle(m_xyce_raw_file.value()->title());
                 // update statusbar
                 SetStatusText("Simulation finished successfully");
                 // clear the runner
                 m_simulation_runner.reset();
+                // refresh toolbar/menu states
+                update_action_states();
                 // skip event
                 event.Skip();
                 // exit
@@ -505,13 +604,34 @@ void MainWindow::on_simulation_finished(wxThreadEvent& event) {
     }
     // clear the runner
     m_simulation_runner.reset();
+    // refresh toolbar/menu states
+    update_action_states();
     // skip event
     event.Skip();
 }
 
 void MainWindow::on_simulation_stdout(wxThreadEvent& event) {
-    // log stdout lines from the simulation process
-    spdlog::info("{}", event.GetPayload<std::string>());
+    // stdout line from the simulation process
+    const auto output_line = event.GetPayload<std::string>();
+    // convert the raw output line to a wxString
+    wxString output_text;
+    if (!output_line.empty()) {
+        // try strict UTF-8 conversion first
+        output_text = wxString::FromUTF8(output_line.data(), output_line.size());
+        // fall back to a byte-preserving conversion when the line is not valid UTF-8
+        if (output_text.empty())
+            output_text = wxString::From8BitData(output_line.data(), output_line.size());
+    }
+    // allow programmatic inserts, Scintilla rejects them while read-only
+    m_simulation_output_panel->SetReadOnly(false);
+    // terminate the line, the runner strips the trailing newline
+    output_text.Append('\n');
+    // append the line to the end of the simulation output panel
+    m_simulation_output_panel->InsertText(m_simulation_output_panel->GetLength(), output_text);
+    // restore read-only state for user interaction
+    m_simulation_output_panel->SetReadOnly(true);
+    // scroll to the end so the latest output is visible
+    m_simulation_output_panel->GotoPos(m_simulation_output_panel->GetLength());
     // skip event
     event.Skip();
 }
@@ -628,6 +748,8 @@ bool MainWindow::update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFi
 }
 
 void MainWindow::update_netlist_editor_dirty_flag(bool flag) {
+    // store the dirty state
+    m_netlist_editor_dirty = flag;
     // current title
     const auto current_title = GetTitle();
     // check flag
@@ -638,8 +760,8 @@ void MainWindow::update_netlist_editor_dirty_flag(bool flag) {
     }
     else if (current_title.StartsWith("* "))
         SetTitle(current_title.substr(2));
-    // enable/disable save action
-    m_save_netlist_action->Enable(flag);
+    // refresh toolbar/menu states
+    update_action_states();
 }
 
 void MainWindow::configure_netlist_editor() {
@@ -661,4 +783,79 @@ void MainWindow::configure_netlist_editor() {
     // directive style
     m_netlist_editor->StyleSetForeground(STYLE_SPICE_DIRECTIVE, wxColour(0, 0, 255));
     m_netlist_editor->StyleSetBold(STYLE_SPICE_DIRECTIVE, true);
+}
+
+void MainWindow::show_simulation_output_panel() {
+    // split the body when the simulation output panel is still hidden
+    if (!m_body_splitter->IsSplit()) {
+        // split splitter horizontally, top pane holds content views, bottom pane the simulation output
+        m_body_splitter->SplitHorizontally(m_content_panel, m_simulation_output_container);
+        // keep the log pane at a fixed portion of the body height
+        m_body_splitter->SetSashPosition(m_body_splitter->GetClientSize().GetHeight() * 3 / 4);
+    }
+}
+
+void MainWindow::update_action_states() {
+    // netlist content is available when the editor holds text
+    const bool has_netlist = m_netlist_editor != nullptr && !m_netlist_editor->GetText().IsEmpty();
+    // raw output data is available
+    const bool has_raw = m_xyce_raw_file.has_value();
+    // charts view is the active content view
+    const bool charts_shown = m_charts_panel != nullptr && m_charts_panel->IsShown();
+    // simulation output can be re-shown when the splitter is hidden and the log holds content
+    const bool output_hidden = m_body_splitter != nullptr && !m_body_splitter->IsSplit();
+    const bool log_has_content = m_simulation_output_panel != nullptr && m_simulation_output_panel->GetLength() > 0;
+    // gather the input flags describing the current window state
+    ActionStateInput input;
+    input.has_netlist = has_netlist;
+    input.has_raw = has_raw;
+    input.charts_shown = charts_shown;
+    input.simulation_running = m_simulation_running;
+    input.netlist_editor_dirty = m_netlist_editor_dirty;
+    input.has_netlist_file = !m_xyce_netlist_file.empty();
+    input.output_hidden = output_hidden;
+    input.log_has_content = log_has_content;
+    // derive the current application state
+    const AppState state = derive_app_state(input);
+    // compute the action enablement for the current state
+    const ActionStateEnablement enablement = compute_action_enablement(input);
+    // log state transitions
+    if (state != m_app_state) {
+        // store the new state
+        m_app_state = state;
+        // log the transition
+        spdlog::debug("Application state changed to {}", app_state_name(state));
+    }
+    // apply toolbar states
+    if (!m_kicad_client) {
+        m_open_netlist_action->Enable(enablement.open);
+        m_save_netlist_action->Enable(enablement.save);
+    }
+    m_show_netlist_action->Enable(enablement.show_netlist);
+    m_show_charts_action->Enable(enablement.show_charts);
+    m_show_simulation_output_action->Enable(enablement.show_simulation_output);
+    m_simulation_settings_action->Enable(enablement.configure_simulation);
+    m_simulation_run_action->Enable(enablement.run_simulation);
+    // mirror enablement to menu items sharing the same ids
+    if (auto* menu_bar = GetMenuBar()) {
+        // file open action
+        menu_bar->Enable(wxID_OPEN, enablement.open);
+        // file save action
+        menu_bar->Enable(wxID_SAVE, enablement.save);
+        // tools show charts action
+        menu_bar->Enable(wxID_SHOW_CHARTS, enablement.show_charts);
+        // tools view simulation output action
+        menu_bar->Enable(wxID_SHOW_SIMULATION_OUTPUT, enablement.show_simulation_output);
+        // tools configure simulation action
+        menu_bar->Enable(wxID_CONFIGURE_SIMULATION, enablement.configure_simulation);
+    }
+}
+
+void MainWindow::on_close_simulation_output(wxCommandEvent& event) {
+    // unsplit the bottom pane to dismiss the simulation output panel
+    m_body_splitter->Unsplit(m_simulation_output_container);
+    // refresh toolbar/menu states
+    update_action_states();
+    // skip event
+    event.Skip();
 }
