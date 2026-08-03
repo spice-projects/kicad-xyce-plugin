@@ -1,6 +1,3 @@
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -136,8 +133,8 @@ static bool resize_render_target(ChartsPanelRenderContext& context) {
         return false;
 
     // compute the current width and height
-    const auto width = std::max(LONG{1}, client_rect.right - client_rect.left);
-    const auto height = std::max(LONG{1}, client_rect.bottom - client_rect.top);
+    const auto width = (std::max)(LONG{1}, client_rect.right - client_rect.left);
+    const auto height = (std::max)(LONG{1}, client_rect.bottom - client_rect.top);
 
     // check the size did not change
     if (context.width == static_cast<UINT>(width) && context.height == static_cast<UINT>(height))
@@ -208,8 +205,8 @@ void ChartsPanel::initialize() {
     }
 
     // compute the panel size
-    const auto width = std::max(LONG{1}, client_rect.right - client_rect.left);
-    const auto height = std::max(LONG{1}, client_rect.bottom - client_rect.top);
+    const auto width = (std::max)(LONG{1}, client_rect.right - client_rect.left);
+    const auto height = (std::max)(LONG{1}, client_rect.bottom - client_rect.top);
 
     // create the Direct3D 11 device
     D3D_FEATURE_LEVEL feature_level = D3D_FEATURE_LEVEL_11_0;

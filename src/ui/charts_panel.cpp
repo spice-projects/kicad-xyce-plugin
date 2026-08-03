@@ -193,10 +193,10 @@ void ChartsPanel::on_mouse_button(wxMouseEvent& event) {
             const auto width = x_max - x_min;
             const auto height = y_max - y_min;
             // zoom window
-            auto z_x1 = (std::min(x1, x2) - x_min) / width;
-            auto z_y1 = (std::min(y1, y2) - y_min) / height;
-            auto z_x2 = (std::max(x1, x2) - x_min) / width;
-            auto z_y2 = (std::max(y1, y2) - y_min) / height;
+            auto z_x1 = ((std::min)(x1, x2) - x_min) / width;
+            auto z_y1 = ((std::min)(y1, y2) - y_min) / height;
+            auto z_x2 = ((std::max)(x1, x2) - x_min) / width;
+            auto z_y2 = ((std::max)(y1, y2) - y_min) / height;
             // update zoom window
             m_zoom_window = {z_x1, z_y1, z_x2, z_y2};
             // loop charts
@@ -556,11 +556,11 @@ size_t ChartsPanel::compute_decimation_target() const {
     const double scale = GetDPIScaleFactor();
     // physical pixel width of the chart plot area
     if (logical_width > 0 && scale > 0.0)
-        return std::max(min_target, static_cast<size_t>(std::lround(static_cast<double>(logical_width) * scale)));
+        return (std::max)(min_target, static_cast<size_t>(std::lround(static_cast<double>(logical_width) * scale)));
     // fall back to the geometry of the display this panel is on
     const auto area = wxDisplay(wxDisplay::GetFromWindow(this)).GetClientArea();
     if (area.GetWidth() > 0 && scale > 0.0)
-        return std::max(min_target, static_cast<size_t>(std::lround(static_cast<double>(area.GetWidth()) * scale)));
+        return (std::max)(min_target, static_cast<size_t>(std::lround(static_cast<double>(area.GetWidth()) * scale)));
     // conservative fallback
     return fallback_target;
 }

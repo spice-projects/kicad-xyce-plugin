@@ -213,7 +213,7 @@ private:
             // then pulling the strided column out of it (cache friendly instead of a strided walk)
             for (size_t offset = 0; offset < span; offset += BLOCK) {
                 // tile length
-                const size_t length = std::min(BLOCK, span - offset);
+                const size_t length = (std::min)(BLOCK, span - offset);
                 // copy the contiguous tile into the scratch buffer
                 std::copy_n(base + offset, length, block.data());
                 // first and last step element indexes inside this tile

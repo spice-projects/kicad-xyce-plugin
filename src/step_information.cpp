@@ -15,9 +15,9 @@ StepInformation::StepInformation(std::vector<std::string> keys, std::vector<std:
             // loop steps
             for (const auto& [first, second] : m_abscissa_value_ranges) {
                 // compute minimum
-                left = std::min(left, first);
+                left = (std::min)(left, first);
                 // compute maximum
-                right = std::max(right, second);
+                right = (std::max)(right, second);
             }
             // assign left & right values
             m_abscissa_left_value = left;
@@ -30,9 +30,9 @@ StepInformation::StepInformation(std::vector<std::string> keys, std::vector<std:
             // loop steps
             for (const auto& [first, second] : m_abscissa_value_ranges) {
                 // compute maximum
-                left = std::max(left, first);
+                left = (std::max)(left, first);
                 // compute minimum
-                right = std::min(right, second);
+                right = (std::min)(right, second);
             }
             // assign left & right values
             m_abscissa_left_value = left;

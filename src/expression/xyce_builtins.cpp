@@ -504,7 +504,7 @@ namespace
         // one value argument
         expect_arity("uramp", args, 1);
         // max(arg, 0)
-        return std::max(scalar_value<double>(args[0]), 0.0);
+        return (std::max)(scalar_value<double>(args[0]), 0.0);
     }
 
     // step builtin
@@ -598,7 +598,7 @@ namespace
         auto result = scalar_value<double>(args[0]);
         // loop other arguments, updating the minimum
         for (size_t i = 1; i < args.size(); ++i)
-            result = std::min(result, scalar_value<double>(args[i]));
+            result = (std::min)(result, scalar_value<double>(args[i]));
         // exit
         return result;
     }
@@ -611,7 +611,7 @@ namespace
         auto result = scalar_value<double>(args[0]);
         // loop other arguments, updating the maximum
         for (size_t i = 1; i < args.size(); ++i)
-            result = std::max(result, scalar_value<double>(args[i]));
+            result = (std::max)(result, scalar_value<double>(args[i]));
         // exit
         return result;
     }
