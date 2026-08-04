@@ -1,6 +1,9 @@
 #pragma once
 
+#include <filesystem>
 #include <memory>
+#include <optional>
+#include <string>
 
 #include <wx/wxprec.h>
 
@@ -13,18 +16,51 @@
 #endif
 
 #include "../config/plugin_config.h"
+#include "../expression/expression_manager.h"
+#include "../file/xyce_output_file.h"
 #include "../kicad/kicad_session.h"
-#include "../netlist/netlist_source.h"
 #include "../simulation_parameters/simulation_config.h"
+#include "../step_information.h"
 #include "charts_panel.h"
 #include "main_window_state.h"
+#include "main_window_view.h"
 
-class XyceSimulationRunner;
+class MainWindowPresenter;
 
-class MainWindow : public wxFrame
+class MainWindow : public wxFrame, public MainWindowView
 {
 public:
     MainWindow(const wxString& title, std::shared_ptr<KiCadSession> session = nullptr);
+
+    // main window view interface
+    void set_title(const std::string& title) override;
+    void set_status_text(const std::string& text) override;
+    void apply_action_enablement(const ActionStateEnablement& enablement) override;
+
+    void show_netlist_view() override;
+    void show_charts_view() override;
+    bool charts_shown() const override;
+    void set_netlist_editor_content(const std::string& content, bool) override;
+    std::string netlist_editor_content() const override;
+    void set_netlist_editor_read_only(bool read_only) override;
+
+    void show_simulation_output_panel() override;
+    void hide_simulation_output_panel() override;
+    void clear_simulation_output() override;
+    void append_simulation_output_line(const std::string& line) override;
+    bool simulation_output_panel_hidden() const override;
+    bool simulation_output_has_content() const override;
+
+    void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) override;
+    void delete_all_charts() override;
+
+    std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig& current) override;
+    std::optional<PluginConfig> show_plugin_config_dialog(const PluginConfig& current) override;
+
+    void start_simulation_process(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory) override;
+    void cancel_simulation_process() override;
+
+    void spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) override;
 
 private:
     wxToolBarToolBase* m_open_netlist_action = nullptr;
@@ -45,19 +81,8 @@ private:
     wxStyledTextCtrl* m_simulation_output_panel = nullptr;
 
     std::shared_ptr<KiCadSession> m_kicad_session;
-    std::unique_ptr<NetlistSource> m_netlist_source;
+    std::unique_ptr<MainWindowPresenter> m_presenter;
     bool m_netlist_editor_updating = false;
-
-    AppState m_app_state = AppState::Empty;
-    bool m_simulation_running = false;
-    bool m_netlist_editor_dirty = false;
-
-    std::optional<std::shared_ptr<XyceOutputFile>> m_xyce_raw_file;
-
-    SimulationConfig m_simulation_config;
-    PluginConfig m_plugin_config;
-
-    std::shared_ptr<XyceSimulationRunner> m_simulation_runner;
 
     void on_system_colour_changed(wxSysColourChangedEvent&);
 
@@ -101,17 +126,5 @@ private:
 
     void on_netlist_editor_style_needed(wxStyledTextEvent&);
 
-    bool update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>>, bool);
-
-    bool update_netlist_editor_dirty_flag(bool);
-
     void configure_netlist_editor();
-
-    void update_action_states();
-
-    void show_simulation_output_panel();
-
-    bool extract_schematic_netlist();
-
-    bool update_netlist_editor_content(const std::string&, bool);
 };
