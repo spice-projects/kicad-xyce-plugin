@@ -53,7 +53,6 @@ private:
     bool m_netlist_editor_dirty = false;
 
     std::optional<std::shared_ptr<XyceOutputFile>> m_xyce_raw_file;
-    std::filesystem::path m_xyce_netlist_file;
 
     SimulationConfig m_simulation_config;
     PluginConfig m_plugin_config;

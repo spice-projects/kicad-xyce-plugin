@@ -1,6 +1,4 @@
 #include <filesystem>
-#include <fstream>
-#include <iostream>
 #include <memory>
 
 #include <wx/wxprec.h>
@@ -791,6 +789,7 @@ void MainWindow::update_action_states() {
     // gather the input flags describing the current window state
     ActionStateInput input;
     input.has_netlist = has_netlist;
+    input.has_netlist_file = m_netlist_source != nullptr && !m_netlist_source->is_read_only();
     input.has_raw = has_raw;
     input.charts_shown = charts_shown;
     input.simulation_running = m_simulation_running;
@@ -845,39 +844,10 @@ void MainWindow::on_close_simulation_output(wxCommandEvent&) {
 }
 
 bool MainWindow::extract_schematic_netlist() {
-    // only valid in KiCad plugin mode
-    if (m_kicad_session == nullptr)
-        return false;
-    // extract the current netlist from the schematic source
-    std::string netlist_text;
-    try {
-        // export the netlist from the schematic, the load status is unused here
-        [[maybe_unused]] auto [re_exported, content] = m_netlist_source->load_netlist();
-        netlist_text = std::move(content);
-    }
-    catch (const std::exception& e) {
-        // log the failure
-        spdlog::error("Failed to extract schematic netlist: {}", e.what());
-        // update statusbar
-        SetStatusText(wxString::Format("Failed to extract schematic netlist: %s", e.what()));
-        // exit
-        return false;
-    }
-    // guard against an empty export
-    if (netlist_text.empty()) {
-        // update statusbar
-        SetStatusText("Schematic netlist export produced no content");
-        // exit
-        return false;
-    }
-    // parse netlist and extract topology
-    auto [sanitized_netlist, topology] = parse_netlist(netlist_text);
-    // store sanitized netlist for later serialization
-    // m_sanitized_netlist = std::move(sanitized_netlist);
-    // build simulation config from parsed directives
-    m_simulation_config = SimulationConfig::from_xyce_directives(topology.m_directives);
+    // extract netlist from schematic
+    auto [_, content] = m_netlist_source->load_netlist();
     // set content into the read-only editor
-    // update_netlist_editor_content(m_sanitized_netlist, true);
+    update_netlist_editor_content(content, false);
     // show the netlist editor and hide the charts panel
     m_content_sizer->Show(m_netlist_editor);
     m_content_sizer->Hide(m_charts_panel);
@@ -889,16 +859,26 @@ bool MainWindow::extract_schematic_netlist() {
 }
 
 bool MainWindow::update_netlist_editor_content(const std::string& content, bool dirty_flag) {
-    // prevent dirty analysis
-    m_netlist_editor_updating = true;
-    // current read-only state of the editor
-    const bool read_only = m_netlist_editor->GetReadOnly();
-    // update editor content, temporarily allowing edits if the editor is read-only
-    m_netlist_editor->SetReadOnly(false);
-    m_netlist_editor->SetText(content);
-    m_netlist_editor->SetReadOnly(read_only);
-    // reset flag (on next event loop iteration)
-    CallAfter([this]() { m_netlist_editor_updating = false; });
-    // update editor as dirty or clean based on the provided flag
-    return update_netlist_editor_dirty_flag(dirty_flag);
+    try {
+        // prevent dirty analysis
+        m_netlist_editor_updating = true;
+        // current read-only state of the editor
+        const bool read_only = m_netlist_editor->GetReadOnly();
+        // update editor content, temporarily allowing edits if the editor is read-only
+        m_netlist_editor->SetReadOnly(false);
+        m_netlist_editor->SetText(content);
+        m_netlist_editor->SetReadOnly(read_only);
+        // reset flag (on next event loop iteration)
+        CallAfter([this]() { m_netlist_editor_updating = false; });
+        // update editor as dirty or clean based on the provided flag
+        return update_netlist_editor_dirty_flag(dirty_flag);
+    }
+    catch (const std::exception& e) {
+        // log error
+        spdlog::error("Failed to update netlist editor content: {}", e.what());
+        // reset flag (on next event loop iteration)
+        CallAfter([this]() { m_netlist_editor_updating = false; });
+        // indicate failure
+        return false;
+    }
 }

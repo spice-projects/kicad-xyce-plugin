@@ -134,6 +134,7 @@ TEST(MainWindowStateChecks, editing_state_with_dirty_file_enables_save) {
     // arrange
     ActionStateInput input;
     input.has_netlist = true;
+    input.has_netlist_file = true;
     input.netlist_editor_dirty = true;
     // act
     const ActionStateEnablement enablement = compute_action_enablement(input);
@@ -218,6 +219,7 @@ TEST(MainWindowStateChecks, netlist_with_results_state_with_dirty_file_enables_s
     // arrange
     ActionStateInput input;
     input.has_netlist = true;
+    input.has_netlist_file = true;
     input.has_raw = true;
     input.netlist_editor_dirty = true;
     // act

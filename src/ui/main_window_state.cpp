@@ -26,7 +26,7 @@ ActionStateEnablement compute_action_enablement(const ActionStateInput& input) {
     // netlist-dependent actions are available while a netlist is loaded
     const bool netlist_actions_enabled = state == AppState::Editing || state == AppState::Chart || state == AppState::NetlistWithResults;
     // save is possible when the editor is dirty and backed by a netlist file
-    const bool save_enabled = input.netlist_editor_dirty && netlist_actions_enabled;
+    const bool save_enabled = input.netlist_editor_dirty&& netlist_actions_enabled&& input.has_netlist_file;
     // simulation output can be re-shown when the splitter is hidden and the log holds content
     const bool show_output_enabled = input.output_hidden && input.log_has_content && netlist_actions_enabled;
     // build the enablement result

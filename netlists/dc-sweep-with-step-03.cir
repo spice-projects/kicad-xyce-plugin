@@ -1,10 +1,11 @@
 DC Sweep with Resistor Stepping for Xyce
-
 V1 1 0 DC 0V
 R1 1 2 1k
 R2 2 0 2k
+
+.PREPROCESS REPLACEGROUND TRUE
 .DC V1 0 5 0.5
 .PRINT DC FORMAT=RAW FILE=dc-sweep-with-step-03.raw V(*) I(*)
 .STEP R1 LIST 1k 2k 3k
-.STEP R2 LIST 2k 4k 6k
+
 .END

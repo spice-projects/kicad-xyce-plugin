@@ -17,6 +17,7 @@ enum class AppState
 struct ActionStateInput
 {
     bool has_netlist = false;
+    bool has_netlist_file = false;
     bool has_raw = false;
     bool charts_shown = false;
     bool simulation_running = false;
