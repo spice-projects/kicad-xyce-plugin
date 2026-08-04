@@ -105,6 +105,8 @@ bool ChartsPanel::update_bounds() {
     metal_layer.bounds = CGRectMake(0, 0, sz.x, sz.y);
     metal_layer.drawableSize = CGSizeMake(sz.x * scale, sz.y * scale);
     metal_layer.contentsScale = scale;
+    // log information
+    spdlog::debug( "Display [{}]: updated Metal layer bounds: {}x{} (scale: {})", [[screen localizedName] UTF8String], sz.x, sz.y, scale);
     // indicate success
     return true;
 }

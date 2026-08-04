@@ -17,11 +17,18 @@ find_package(implot CONFIG REQUIRED)
 find_package(wxwidgets CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(gtest CONFIG REQUIRED)
+find_package(nng CONFIG REQUIRED)
+find_package(protobuf CONFIG REQUIRED)
 
-file(GLOB_RECURSE CPP_SOURCES "../src/step_information.cpp" "../src/util.cpp" "../src/config/*.cpp" "../src/expression/*.cpp" "../src/file/*.cpp" "../src/netlist/*.cpp" "../src/simulation_parameters/*.cpp" "../src/ui/*.cpp")
+file(GLOB_RECURSE CPP_SOURCES "../src/app.cpp" "../src/step_information.cpp" "../src/util.cpp" "../src/config/*.cpp" "../src/expression/*.cpp" "../src/file/*.cpp" "../src/kicad/*.cpp" "../src/netlist/*.cpp" "../src/simulation_parameters/*.cpp" "../src/ui/*.cpp")
 file(GLOB_RECURSE TEST_FILES "./*.cpp")
 
 include_directories("../src")
+
+# generated proto sources are produced once by the parent CMakeLists
+if(NOT DEFINED KICAD_PROTO_GENERATED_SOURCES)
+    message(FATAL_ERROR "KICAD_PROTO_GENERATED_SOURCES not defined; add tests after the proto generation in the top-level CMakeLists")
+endif()
 
 if(APPLE)
     # gather objective-c++ sources
@@ -44,9 +51,13 @@ message(STATUS "Collected source files:\n${CPP_SOURCES}")
 
 add_executable(kicad-xyce-plugin-tests ${TEST_FILES} ${SOURCE_FILES})
 
+# the generated proto headers come from the kicad-proto library in the parent scope
+# ensure the proto custom commands run before the test executable builds
+add_dependencies(kicad-xyce-plugin-tests kicad-proto)
+
 target_compile_definitions(kicad-xyce-plugin-tests PRIVATE KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
 
-target_link_libraries(kicad-xyce-plugin-tests PRIVATE wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog GTest::gtest_main)
+target_link_libraries(kicad-xyce-plugin-tests PRIVATE wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog GTest::gtest_main nng::nng protobuf::libprotobuf kicad-proto)
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis

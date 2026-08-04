@@ -7,7 +7,7 @@ C1 N2 0 1uF
 
 .PREPROCESS REPLACEGROUND TRUE
 .TRAN 1u 20m 0
-.PRINT TRAN FORMAT=RAW FILE=tran-simple-with-step-01.raw V(0) V(IN) V(N1) V(N2) I(V1) I(R1) I(L1) I(C1)
+.PRINT TRAN FORMAT=RAW FILE=tran-simple-with-step-01.raw V(*) I(*) P(*)
 .FFT I(L1) WINDOW=HANN
 .STEP L1 LIST 10mH 20mH 30mH
 

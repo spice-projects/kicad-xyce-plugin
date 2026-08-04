@@ -121,7 +121,7 @@ std::optional<SensParameter> SensParameter::from_xyce_directives(const std::vect
     return SensParameter(analysis_context, objective_mode, std::move(objective_values), std::move(parameter_list), direct, adjoint, std::move(print_parameters));
 }
 
-std::vector<std::string> SensParameter::to_xyce_directives(const NetlistTopology* topology) const {
+std::vector<std::string> SensParameter::to_xyce_directives(const NetlistTopology& topology) const {
     // init line list
     std::vector<std::string> lines;
     // build objective directive string
@@ -156,7 +156,7 @@ std::vector<std::string> SensParameter::to_xyce_directives(const NetlistTopology
     // check for print parameters
     if (print_parameters.has_value()) {
         // add print directive
-        lines.push_back(print_parameters->to_xyce_statement(topology));
+        lines.push_back(print_parameters->to_xyce_statement());
     }
     // return directive lines
     return lines;

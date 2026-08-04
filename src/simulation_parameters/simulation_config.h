@@ -21,6 +21,8 @@
 #include "op_simulation_parameters.h"
 #include "transient_simulation_parameters.h"
 
+using SimulationAnalysis = std::variant<std::monostate, AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, TransientSimulationParameters>;
+
 // simulation config class — aggregates all simulation parameters
 // This mirrors the Python SimulationConfig which holds analysis parameters
 // In C++, we use std::variant to hold any of the simulation parameter types
@@ -34,7 +36,7 @@ public:
     [[nodiscard]] static SimulationConfig from_xyce_directives(const std::vector<std::string>& directives);
 
     // serialize this instance to a list of Xyce directive strings
-    [[nodiscard]] std::vector<std::string> to_xyce_directives(const NetlistTopology* topology = nullptr) const;
+    [[nodiscard]] std::vector<std::string> to_xyce_directives(const NetlistTopology& topology) const;
 
     // compute the expected raw output file path for the configured analysis
     [[nodiscard]] std::optional<std::filesystem::path> raw_output_file_path(const std::filesystem::path& working_directory, const std::filesystem::path& netlist_file_path) const;
@@ -51,7 +53,7 @@ public:
     // analysis type identifier (e.g. "AC", "DC", "TRAN", etc.)
     std::string analysis_type;
     // variant to hold any of the analysis parameters (or monostate for none)
-    std::variant<std::monostate, AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, TransientSimulationParameters> analysis;
+    SimulationAnalysis analysis;
     // step directives in order
     std::vector<StepParameters> steps;
     // data table blocks

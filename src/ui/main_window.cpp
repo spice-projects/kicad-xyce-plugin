@@ -2,7 +2,6 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
-#include <string_view>
 
 #include <wx/wxprec.h>
 
@@ -19,6 +18,7 @@
 
 #include "../config/plugin_config.h"
 #include "../file/xyce_raw_file.h"
+#include "../netlist/file_netlist_source.h"
 #include "../netlist/netlist.h"
 #include "charts_panel.h"
 #include "events.h"
@@ -27,6 +27,49 @@
 #include "plugin_config_dialog.h"
 #include "simulation_parameters/simulation_parameters_dialog.h"
 #include "xyce_simulation_runner.h"
+
+namespace
+{
+    class EditorNetlistSource : public NetlistSource
+    {
+    public:
+        explicit EditorNetlistSource(wxStyledTextCtrl* netlist_editor, std::filesystem::path file_path) :
+            m_netlist_editor(netlist_editor), m_initialized(false) {
+            // create a file-based netlist source for the given path
+            m_file_source = std::make_unique<FileNetlistSource>(file_path.string());
+        }
+
+        [[nodiscard]] std::string title() const override { return m_file_source->title(); }
+
+        [[nodiscard]] bool is_read_only() const override { return false; }
+
+        [[nodiscard]] virtual std::filesystem::path working_directory() const override { return m_file_source->working_directory(); }
+
+        [[nodiscard]] std::tuple<bool, std::string> load_netlist() override {
+            // check we have initialized the editor with the file content
+            if (!m_initialized) {
+                // load the netlist from the file source
+                const auto [reloaded, content] = m_file_source->load_netlist();
+                // mark as initialized
+                m_initialized = true;
+                // return the result of loading from the file source
+                return {reloaded, content};
+            }
+            // load current text from editor
+            return {false, m_netlist_editor->GetText().ToStdString()};
+        }
+
+        virtual void save_netlist(const std::string& content = "") override {
+            // use the file source to save the current editor content
+            m_file_source->save_netlist(content.empty() ? m_netlist_editor->GetText().ToStdString() : content);
+        }
+
+    private:
+        wxStyledTextCtrl* m_netlist_editor;
+        std::unique_ptr<FileNetlistSource> m_file_source;
+        bool m_initialized;
+    };
+}; // namespace
 
 enum
 {
@@ -49,8 +92,11 @@ enum
 const wxRegEx SPICE_COMMENTS_REGEX("^\\*.*$");
 const wxRegEx SPICE_DIRECTIVE_REGEX("^(\\.\\b\\w+\\b).*$");
 
-MainWindow::MainWindow(const wxString& title) :
-    wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(800, 600)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(PluginConfig::load()) {
+MainWindow::MainWindow(const wxString& title, std::shared_ptr<KiCadSession> session) :
+    wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(800, 600)), m_kicad_session(std::move(session)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(PluginConfig::load()) {
+    // take ownership of the netlist source in KiCad plugin mode
+    if (m_kicad_session != nullptr)
+        m_netlist_source = m_kicad_session->take_netlist_source();
     // create menubar/toolbar/statusbar
     create_menubar();
     create_toolbar();
@@ -63,9 +109,9 @@ MainWindow::MainWindow(const wxString& title) :
     m_content_panel = new wxPanel(m_body_splitter, wxID_ANY);
     // create main content sizer
     m_content_sizer = new wxBoxSizer(wxVERTICAL);
-    // create netlist editor (read-only if connected to KiCad)
+    // create netlist editor
     m_netlist_editor = new wxStyledTextCtrl(m_content_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
-    m_netlist_editor->SetReadOnly(m_kicad_client != nullptr);
+    m_netlist_editor->SetReadOnly(true);
     m_content_sizer->Add(m_netlist_editor, 1, wxEXPAND | wxALL, 0);
     m_content_sizer->Hide(m_netlist_editor);
     // create charts panel
@@ -147,6 +193,9 @@ MainWindow::MainWindow(const wxString& title) :
     configure_netlist_editor();
     // set initial action states
     update_action_states();
+    // load the schematic netlist in KiCad plugin mode
+    if (m_kicad_session != nullptr)
+        extract_schematic_netlist();
 }
 
 void MainWindow::on_system_colour_changed(wxSysColourChangedEvent& event) {
@@ -176,14 +225,12 @@ void MainWindow::on_display_changed(wxDisplayChangedEvent& event) {
     event.Skip();
 }
 
-void MainWindow::on_exit(wxCommandEvent& event) {
+void MainWindow::on_exit(wxCommandEvent&) {
     // close the window
     Close(true);
-    // skip event
-    event.Skip();
 }
 
-void MainWindow::on_new_window(wxCommandEvent& event) {
+void MainWindow::on_new_window(wxCommandEvent&) {
     // create main window instance
     const auto frame = new MainWindow("KiCad Xyce Plugin");
     // show main window
@@ -192,8 +239,6 @@ void MainWindow::on_new_window(wxCommandEvent& event) {
     frame->update_xyce_raw_file(m_xyce_raw_file, true);
     // refresh toolbar/menu states in the new window
     frame->update_action_states();
-    // skip event
-    event.Skip();
 }
 
 void MainWindow::create_menubar() {
@@ -205,7 +250,7 @@ void MainWindow::create_menubar() {
     menu_bar->Append(file_menu, "&File");
 
     // section only available when not connected to KiCad
-    if (!m_kicad_client) {
+    if (m_kicad_session == nullptr) {
         // file / open
         file_menu->Append(wxID_OPEN, "&Open\tCtrl-O", "Open Xyce File");
         // file / save
@@ -242,7 +287,7 @@ void MainWindow::create_toolbar() {
     // create toolbar
     const auto tool_bar = wxFrame::CreateToolBar(wxTB_HORIZONTAL);
     // section only available when not connected to KiCad
-    if (!m_kicad_client) {
+    if (m_kicad_session == nullptr) {
         // open action
         m_open_netlist_action = tool_bar->AddTool(wxID_OPEN, "Open Xyce File", icon_manager.get_bitmap(dark_mode, "directory_open"));
         // save action(disable by default)
@@ -281,7 +326,7 @@ void MainWindow::create_statusbar() {
     wxFrame::SetStatusText("Welcome to KiCad Xyce Plugin");
 }
 
-void MainWindow::on_menu_file_open(wxCommandEvent& event) {
+void MainWindow::on_menu_file_open(wxCommandEvent&) {
     // file types
     const wxString wildcards = "Netlist files (*.cir)|*.cir|Xyce output files (*.raw, *.fftX)|*.raw;*.fft?;*.fft??";
     // define open file dialog
@@ -296,21 +341,24 @@ void MainWindow::on_menu_file_open(wxCommandEvent& event) {
         const auto extension = filepath.AfterLast('.');
         // netlist file extension
         if (extension == "cir") {
-            // load netlist file into editor
-            if (update_xyce_netlist_file(filepath.ToStdString())) {
-                // update title
-                SetTitle(m_xyce_netlist_file.filename().string());
-                // remove output file reference
-                m_xyce_raw_file = std::nullopt;
-                // hide/show panels
-                m_content_sizer->Hide(m_charts_panel);
-                m_content_sizer->Show(m_netlist_editor);
-                m_content_sizer->Layout();
-                // refresh toolbar/menu states
-                update_action_states();
-            }
-            // skip event
-            event.Skip();
+            // replace the current netlist source with the file source for this path
+            m_netlist_source = std::make_unique<EditorNetlistSource>(m_netlist_editor, filepath.ToStdString());
+            // update title
+            SetTitle(m_netlist_source->title());
+            // netlist editor is now editable
+            m_netlist_editor->SetReadOnly(false);
+            // load the netlist content
+            const auto [reloaded, content] = m_netlist_source->load_netlist();
+            // set the editor content to the loaded netlist
+            update_netlist_editor_content(content, false);
+            // remove output file reference
+            m_xyce_raw_file = std::nullopt;
+            // hide/show panels
+            m_content_sizer->Hide(m_charts_panel);
+            m_content_sizer->Show(m_netlist_editor);
+            m_content_sizer->Layout();
+            // update states
+            CallAfter([this]() { update_action_states(); });
             // exit
             return;
         }
@@ -320,9 +368,8 @@ void MainWindow::on_menu_file_open(wxCommandEvent& event) {
             if (update_xyce_raw_file(xyce_raw_file_parser(filepath.ToStdString()), true)) {
                 // update title
                 SetTitle(m_xyce_raw_file.value()->title());
-                // remove existing netlist file
-                m_xyce_netlist_file = std::filesystem::path();
-                m_netlist_editor->ClearAll();
+                // clear netlist editor content
+                update_netlist_editor_content("", false);
                 // hide/show panels
                 m_content_sizer->Show(m_charts_panel);
                 m_content_sizer->Hide(m_netlist_editor);
@@ -332,79 +379,58 @@ void MainWindow::on_menu_file_open(wxCommandEvent& event) {
                     m_body_splitter->Unsplit(m_simulation_output_container);
                 // refresh toolbar/menu states
                 update_action_states();
-                // disable the save netlist action (enabled when editor is modified)
-                CallAfter([this]() { update_netlist_editor_dirty_flag(false); });
             }
-            // skip event
-            event.Skip();
-            // exit
-            return;
         }
     }
-    // skip event
-    event.Skip();
 }
 
-void MainWindow::on_menu_file_save(wxCommandEvent& event) {
-    // open stream in write mode
-    std::ofstream file(m_xyce_netlist_file, std::ios::out | std::ios::trunc);
-    if (file.is_open()) {
-        // write content into file
-        file << m_netlist_editor->GetText().ToStdString();
-        // close stream
-        file.close();
-        // reset dirty flag
-        update_netlist_editor_dirty_flag(false);
+void MainWindow::on_menu_file_save(wxCommandEvent&) {
+    // save content in netlist source
+    m_netlist_source->save_netlist();
+    // reset dirty flag
+    if (update_netlist_editor_dirty_flag(false)) {
+        // update state
+        update_action_states();
     }
-    // skip event
-    event.Skip();
 }
 
-void MainWindow::on_show_netlist(wxCommandEvent& event) {
+void MainWindow::on_show_netlist(wxCommandEvent&) {
     // hide/show panels
     m_content_sizer->Hide(m_charts_panel);
     m_content_sizer->Show(m_netlist_editor);
     m_content_sizer->Layout();
     // refresh toolbar/menu states
     update_action_states();
-    // skip event
-    event.Skip();
 }
 
-void MainWindow::on_show_charts(wxCommandEvent& event) {
+void MainWindow::on_show_charts(wxCommandEvent&) {
     // hide/show panels
     m_content_sizer->Hide(m_netlist_editor);
     m_content_sizer->Show(m_charts_panel);
     m_content_sizer->Layout();
     // refresh toolbar/menu states
     update_action_states();
-    // skip event
-    event.Skip();
 }
 
-void MainWindow::on_show_simulation_output(wxCommandEvent& event) {
+void MainWindow::on_show_simulation_output(wxCommandEvent&) {
     // re-show the simulation output panel
     show_simulation_output_panel();
     // refresh toolbar/menu states
     update_action_states();
-    // skip event
-    event.Skip();
 }
 
-void MainWindow::on_configure_simulation(wxCommandEvent& event) {
-    // parse netlist editor content for initial config
-    if (m_netlist_editor && !m_netlist_editor->GetText().IsEmpty()) {
-        // netlist text
-        const auto netlist_text = m_netlist_editor->GetText().ToStdString();
-        // parse netlist and extract topology
-        const auto [sanitized_netlist, topology] = parse_netlist(netlist_text);
-        // store topology for later use
-        m_topology = std::move(topology);
-        // store sanitized netlist for later serialization
-        m_sanitized_netlist = std::move(sanitized_netlist);
-        // build simulation config from parsed directives
-        m_simulation_config = SimulationConfig::from_xyce_directives(m_topology.m_directives);
+void MainWindow::on_configure_simulation(wxCommandEvent&) {
+    // load the netlist content
+    const auto [reloaded, content] = m_netlist_source->load_netlist();
+    // check content was reloaded
+    if (reloaded) {
+        // update editor with reloaded content
+        update_netlist_editor_content(content, false);
     }
+    // parse netlist and extract topology
+    const auto [sanitized_netlist, topology] = parse_netlist(content);
+    // build simulation config from parsed directives
+    m_simulation_config = SimulationConfig::from_xyce_directives(topology.m_directives);
     // create dialog with current config
     SimulationParametersDialog dialog(this, m_simulation_config);
     // show modal
@@ -412,114 +438,94 @@ void MainWindow::on_configure_simulation(wxCommandEvent& event) {
         // updated simulation config from dialog
         m_simulation_config = dialog.get_config();
         // build directives from simulation config with topology expansion
-        const auto directives = m_simulation_config.to_xyce_directives(&m_topology);
+        const auto directives = m_simulation_config.to_xyce_directives(topology);
         // merge directives into sanitized netlist before .END
-        const auto final_netlist = build_final_netlist(m_sanitized_netlist, directives, m_topology.m_passthrough_directives);
-        // update stored netlist with merged content
-        m_sanitized_netlist = final_netlist;
+        const auto final_netlist = build_final_netlist(sanitized_netlist, directives, topology.m_passthrough_directives);
         // update editor with final netlist
-        m_netlist_editor->SetText(m_sanitized_netlist);
-    }
-    // skip event
-    event.Skip();
-}
-
-void MainWindow::on_plugin_configuration(wxCommandEvent& event) {
-    // create config dialog
-    PluginConfigDialog dialog(this, m_plugin_config);
-    // show modal
-    if (dialog.ShowModal() == wxID_OK) {
-        // log information
-        spdlog::info("Plugin configuration updated: Xyce path = {}", m_plugin_config.xyce_executable_path());
-        // update plugin configuration from dialog
-        m_plugin_config = dialog.get_config();
-    }
-    // skip event
-    event.Skip();
-}
-
-void MainWindow::on_run_simulation(wxCommandEvent& event) {
-    // guard against empty editor content
-    if (!m_netlist_editor || m_netlist_editor->GetText().IsEmpty()) {
-        // update statusbar
-        SetStatusText("No netlist content to simulate");
-        // skip event
-        event.Skip();
+        if (update_netlist_editor_content(final_netlist, content != final_netlist)) {
+            // update state (deferred to next event loop iteration)
+            CallAfter([this]() { update_action_states(); });
+        }
         // exit
         return;
     }
+    // update state if content was reloaded but user canceled the dialog
+    if (reloaded) {
+        // update state (deferred to next event loop iteration)
+        CallAfter([this]() { update_action_states(); });
+    }
+}
+
+void MainWindow::on_run_simulation(wxCommandEvent&) {
     // validate plugin configuration before launching
     if (!m_plugin_config.is_xyce_executable_valid()) {
         // update statusbar with error
         SetStatusText("Configured Xyce executable path is invalid");
-        // skip event
-        event.Skip();
         // exit
         return;
     }
-    // re-parse editor content for fresh netlist + topology
-    const auto netlist_text = m_netlist_editor->GetText().ToStdString();
+    // netlist source content
+    auto [reloaded, content] = m_netlist_source->load_netlist();
     // parse netlist and extract topology
-    auto [sanitized_netlist, topology] = parse_netlist(netlist_text);
-    // store topology for later use
-    m_topology = std::move(topology);
-    // store sanitized netlist for later serialization
-    m_sanitized_netlist = std::move(sanitized_netlist);
-    // initialize simulation config from parsed directives
-    m_simulation_config = SimulationConfig::from_xyce_directives(m_topology.m_directives);
-    // guard against empty netlist after dialog interaction
-    if (m_sanitized_netlist.empty()) {
-        // skip when no netlist has been parsed
-        event.Skip();
+    auto [sanitized_netlist, topology] = parse_netlist(content);
+    // guard against empty netlist
+    if (sanitized_netlist.empty()) {
+        // update statusbar
+        SetStatusText("No netlist content to simulate");
+        // update editor with final netlist
+        if (reloaded && update_netlist_editor_content("", false)) {
+            // update state (deferred to next event loop iteration)
+            CallAfter([this]() { update_action_states(); });
+        }
         // exit
         return;
     }
+    // initialize simulation config from parsed directives
+    m_simulation_config = SimulationConfig::from_xyce_directives(topology.m_directives);
     // check if analysis is configured; if not, prompt the user
     if (std::holds_alternative<std::monostate>(m_simulation_config.analysis)) {
         // open configure dialog to set up analysis
         SimulationParametersDialog dialog(this, m_simulation_config);
         // show modal
         if (dialog.ShowModal() != wxID_OK) {
-            // user cancelled, skip
-            event.Skip();
+            // update editor with final netlist
+            if (reloaded && update_netlist_editor_content(content, false)) {
+                // update state (deferred to next event loop iteration)
+                CallAfter([this]() { update_action_states(); });
+            }
             // exit
             return;
         }
-        // store updated config
+        // updated simulation config from dialog
         m_simulation_config = dialog.get_config();
     }
     // build directives from simulation config with topology expansion
-    const auto directives = m_simulation_config.to_xyce_directives(&m_topology);
+    const auto directives = m_simulation_config.to_xyce_directives(topology);
     // merge directives into sanitized netlist before .END
-    const auto final_netlist = build_final_netlist(m_sanitized_netlist, directives, m_topology.m_passthrough_directives);
-    // update stored netlist with merged content
-    m_sanitized_netlist = final_netlist;
+    const auto final_netlist = build_final_netlist(sanitized_netlist, directives, topology.m_passthrough_directives);
     // update editor with final netlist
-    m_netlist_editor->SetText(m_sanitized_netlist);
-    // determine working directory (netlist parent, or current directory)
-    std::filesystem::path working_dir;
-    if (!m_xyce_netlist_file.empty())
-        working_dir = m_xyce_netlist_file.parent_path();
+    if (update_netlist_editor_content(final_netlist, content != final_netlist)) {
+        // update state (deferred to next event loop iteration)
+        CallAfter([this]() { update_action_states(); });
+    }
+    // working directory
+    auto working_dir = m_netlist_source->working_directory();
     // create temporary netlist file for the runner
-    auto temp_path = XyceSimulationRunner::create_temp_netlist(m_sanitized_netlist);
+    auto temp_path = XyceSimulationRunner::create_temp_netlist(final_netlist);
     if (temp_path.empty()) {
         // update statusbar with error
         SetStatusText("Failed to create temporary netlist file");
-        // skip event
-        event.Skip();
         // exit
         return;
     }
     // clear any previous runner
     m_simulation_runner.reset();
     // create new simulation runner
-    auto runner = std::make_shared<XyceSimulationRunner>();
+    m_simulation_runner = std::make_shared<XyceSimulationRunner>();
     // bind simulation events from the runner to this window
-    runner->Bind(wxEVT_SIMULATION_FINISHED, &MainWindow::on_simulation_finished, this);
-    runner->Bind(wxEVT_SIMULATION_STDOUT, &MainWindow::on_simulation_stdout, this);
-    runner->Bind(wxEVT_SIMULATION_STDERR, &MainWindow::on_simulation_stderr, this);
-    // store the runner
-    m_simulation_runner = std::move(runner);
+    m_simulation_runner->Bind(wxEVT_SIMULATION_FINISHED, &MainWindow::on_simulation_finished, this);
+    m_simulation_runner->Bind(wxEVT_SIMULATION_STDOUT, &MainWindow::on_simulation_stdout, this);
+    m_simulation_runner->Bind(wxEVT_SIMULATION_STDERR, &MainWindow::on_simulation_stderr, this);
     // mark the simulation as running
     m_simulation_running = true;
     // show the simulation output panel for this run
@@ -532,8 +538,18 @@ void MainWindow::on_run_simulation(wxCommandEvent& event) {
     update_action_states();
     // update statusbar
     SetStatusText("Simulation started...");
-    // skip event
-    event.Skip();
+}
+
+void MainWindow::on_plugin_configuration(wxCommandEvent&) {
+    // create config dialog
+    PluginConfigDialog dialog(this, m_plugin_config);
+    // show modal
+    if (dialog.ShowModal() == wxID_OK) {
+        // log information
+        spdlog::info("Plugin configuration updated: Xyce path = {}", m_plugin_config.xyce_executable_path());
+        // update plugin configuration from dialog
+        m_plugin_config = dialog.get_config();
+    }
 }
 
 void MainWindow::on_simulation_finished(wxThreadEvent& event) {
@@ -550,8 +566,6 @@ void MainWindow::on_simulation_finished(wxThreadEvent& event) {
         m_simulation_runner.reset();
         // refresh toolbar/menu states
         update_action_states();
-        // skip event
-        event.Skip();
         // exit
         return;
     }
@@ -563,8 +577,6 @@ void MainWindow::on_simulation_finished(wxThreadEvent& event) {
             SetStatusText("Simulation finished but runner reference is missing");
             // refresh toolbar/menu states
             update_action_states();
-            // skip event
-            event.Skip();
             // exit
             return;
         }
@@ -589,8 +601,6 @@ void MainWindow::on_simulation_finished(wxThreadEvent& event) {
                 m_simulation_runner.reset();
                 // refresh toolbar/menu states
                 update_action_states();
-                // skip event
-                event.Skip();
                 // exit
                 return;
             }
@@ -606,8 +616,6 @@ void MainWindow::on_simulation_finished(wxThreadEvent& event) {
     m_simulation_runner.reset();
     // refresh toolbar/menu states
     update_action_states();
-    // skip event
-    event.Skip();
 }
 
 void MainWindow::on_simulation_stdout(wxThreadEvent& event) {
@@ -632,8 +640,6 @@ void MainWindow::on_simulation_stdout(wxThreadEvent& event) {
     m_simulation_output_panel->SetReadOnly(true);
     // scroll to the end so the latest output is visible
     m_simulation_output_panel->GotoPos(m_simulation_output_panel->GetLength());
-    // skip event
-    event.Skip();
 }
 
 void MainWindow::on_simulation_stderr(wxThreadEvent& event) {
@@ -643,15 +649,14 @@ void MainWindow::on_simulation_stderr(wxThreadEvent& event) {
     spdlog::warn("{}", error_line);
     // update statusbar with the latest error line
     SetStatusText(wxString::Format("Simulation error: %s", error_line));
-    // skip event
-    event.Skip();
 }
 
-void MainWindow::on_netlist_editor_modified(wxStyledTextEvent& event) {
-    // set editor as dirty
-    update_netlist_editor_dirty_flag(true);
-    // skip event
-    event.Skip();
+void MainWindow::on_netlist_editor_modified(wxStyledTextEvent&) {
+    // set editor as dirty if not updating via programmatic
+    if (!m_netlist_editor_updating && update_netlist_editor_dirty_flag(true)) {
+        // update state
+        update_action_states();
+    }
 }
 
 void MainWindow::on_netlist_editor_style_needed(wxStyledTextEvent& event) {
@@ -700,30 +705,6 @@ void MainWindow::on_netlist_editor_style_needed(wxStyledTextEvent& event) {
         // increment start position for next line
         start_pos += line.Length() + 1;
     }
-    // skip event
-    event.Skip();
-}
-
-bool MainWindow::update_xyce_netlist_file(const std::filesystem::path& filename) {
-    // check if file exists
-    if (!std::filesystem::exists(filename))
-        return false;
-    // open stream in read mode
-    std::ifstream file(filename, std::ios::in);
-    if (!file.is_open())
-        return false;
-    // pre-allocate buffer for file content
-    std::string content;
-    content.reserve(std::filesystem::file_size(filename));
-    // read file content into buffer
-    content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    // set content into editor & set file
-    m_netlist_editor->SetText(content);
-    m_xyce_netlist_file = filename;
-    // reset dirty flag, wait for next iteration of event loop to allow the text editor event to be processed first
-    CallAfter([this]() { update_netlist_editor_dirty_flag(false); });
-    // indicate success
-    return true;
 }
 
 bool MainWindow::update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>> raw_file, bool delete_charts) {
@@ -747,7 +728,9 @@ bool MainWindow::update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFi
     return false;
 }
 
-void MainWindow::update_netlist_editor_dirty_flag(bool flag) {
+bool MainWindow::update_netlist_editor_dirty_flag(bool flag) {
+    // previous dirty state
+    bool previous_dirty_state = m_netlist_editor_dirty;
     // store the dirty state
     m_netlist_editor_dirty = flag;
     // current title
@@ -760,8 +743,8 @@ void MainWindow::update_netlist_editor_dirty_flag(bool flag) {
     }
     else if (current_title.StartsWith("* "))
         SetTitle(current_title.substr(2));
-    // refresh toolbar/menu states
-    update_action_states();
+    // return true if the dirty state changed, false if it remained the same
+    return previous_dirty_state != m_netlist_editor_dirty;
 }
 
 void MainWindow::configure_netlist_editor() {
@@ -812,7 +795,6 @@ void MainWindow::update_action_states() {
     input.charts_shown = charts_shown;
     input.simulation_running = m_simulation_running;
     input.netlist_editor_dirty = m_netlist_editor_dirty;
-    input.has_netlist_file = !m_xyce_netlist_file.empty();
     input.output_hidden = output_hidden;
     input.log_has_content = log_has_content;
     // derive the current application state
@@ -827,7 +809,8 @@ void MainWindow::update_action_states() {
         spdlog::debug("Application state changed to {}", app_state_name(state));
     }
     // apply toolbar states
-    if (!m_kicad_client) {
+    if (m_kicad_session == nullptr) {
+        // only when not in KiCad plugin mode, the open/save actions are available
         m_open_netlist_action->Enable(enablement.open);
         m_save_netlist_action->Enable(enablement.save);
     }
@@ -838,10 +821,13 @@ void MainWindow::update_action_states() {
     m_simulation_run_action->Enable(enablement.run_simulation);
     // mirror enablement to menu items sharing the same ids
     if (auto* menu_bar = GetMenuBar()) {
-        // file open action
-        menu_bar->Enable(wxID_OPEN, enablement.open);
-        // file save action
-        menu_bar->Enable(wxID_SAVE, enablement.save);
+        // not available in KiCad plugin mode
+        if (m_kicad_session == nullptr) {
+            // file open action
+            menu_bar->Enable(wxID_OPEN, enablement.open);
+            // file save action
+            menu_bar->Enable(wxID_SAVE, enablement.save);
+        }
         // tools show charts action
         menu_bar->Enable(wxID_SHOW_CHARTS, enablement.show_charts);
         // tools view simulation output action
@@ -851,11 +837,68 @@ void MainWindow::update_action_states() {
     }
 }
 
-void MainWindow::on_close_simulation_output(wxCommandEvent& event) {
+void MainWindow::on_close_simulation_output(wxCommandEvent&) {
     // unsplit the bottom pane to dismiss the simulation output panel
     m_body_splitter->Unsplit(m_simulation_output_container);
     // refresh toolbar/menu states
     update_action_states();
-    // skip event
-    event.Skip();
+}
+
+bool MainWindow::extract_schematic_netlist() {
+    // only valid in KiCad plugin mode
+    if (m_kicad_session == nullptr)
+        return false;
+    // extract the current netlist from the schematic source
+    std::string netlist_text;
+    try {
+        // export the netlist from the schematic, the load status is unused here
+        [[maybe_unused]] auto [re_exported, content] = m_netlist_source->load_netlist();
+        netlist_text = std::move(content);
+    }
+    catch (const std::exception& e) {
+        // log the failure
+        spdlog::error("Failed to extract schematic netlist: {}", e.what());
+        // update statusbar
+        SetStatusText(wxString::Format("Failed to extract schematic netlist: %s", e.what()));
+        // exit
+        return false;
+    }
+    // guard against an empty export
+    if (netlist_text.empty()) {
+        // update statusbar
+        SetStatusText("Schematic netlist export produced no content");
+        // exit
+        return false;
+    }
+    // parse netlist and extract topology
+    auto [sanitized_netlist, topology] = parse_netlist(netlist_text);
+    // store sanitized netlist for later serialization
+    // m_sanitized_netlist = std::move(sanitized_netlist);
+    // build simulation config from parsed directives
+    m_simulation_config = SimulationConfig::from_xyce_directives(topology.m_directives);
+    // set content into the read-only editor
+    // update_netlist_editor_content(m_sanitized_netlist, true);
+    // show the netlist editor and hide the charts panel
+    m_content_sizer->Show(m_netlist_editor);
+    m_content_sizer->Hide(m_charts_panel);
+    m_content_sizer->Layout();
+    // refresh toolbar/menu states
+    update_action_states();
+    // exit
+    return true;
+}
+
+bool MainWindow::update_netlist_editor_content(const std::string& content, bool dirty_flag) {
+    // prevent dirty analysis
+    m_netlist_editor_updating = true;
+    // current read-only state of the editor
+    const bool read_only = m_netlist_editor->GetReadOnly();
+    // update editor content, temporarily allowing edits if the editor is read-only
+    m_netlist_editor->SetReadOnly(false);
+    m_netlist_editor->SetText(content);
+    m_netlist_editor->SetReadOnly(read_only);
+    // reset flag (on next event loop iteration)
+    CallAfter([this]() { m_netlist_editor_updating = false; });
+    // update editor as dirty or clean based on the provided flag
+    return update_netlist_editor_dirty_flag(dirty_flag);
 }

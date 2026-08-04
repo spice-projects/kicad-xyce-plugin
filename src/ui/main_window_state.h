@@ -21,7 +21,6 @@ struct ActionStateInput
     bool charts_shown = false;
     bool simulation_running = false;
     bool netlist_editor_dirty = false;
-    bool has_netlist_file = false;
     bool output_hidden = false;
     bool log_has_content = false;
 };

@@ -38,6 +38,21 @@ find_package(imgui CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
 find_package(wxwidgets CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
+find_package(nng CONFIG REQUIRED)
+find_package(protobuf CONFIG REQUIRED)
+
+# generate C++ code from the vendored KiCad API protos
+set(KICAD_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/kicad/proto")
+set(KICAD_PROTO_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/kicad-proto")
+protobuf_generate(
+    PROTOS
+        "${KICAD_PROTO_DIR}/common/envelope.proto"
+        "${KICAD_PROTO_DIR}/common/commands/base_commands.proto"
+        "${KICAD_PROTO_DIR}/common/types/base_types.proto"
+    IMPORT_DIRS "${KICAD_PROTO_DIR}"
+    PROTOC_OUT_DIR "${KICAD_PROTO_OUT_DIR}"
+    OUT_VAR KICAD_PROTO_GENERATED_SOURCES
+)
 
 # gather cpp sources (all platforms)
 file(GLOB_RECURSE CPP_SOURCES "src/*.cpp")
@@ -64,6 +79,12 @@ endif()
 
 add_executable(kicad-xyce-plugin ${SOURCE_FILES})
 
+# compile the generated proto sources into a library shared by the app and tests
+add_library(kicad-proto STATIC ${KICAD_PROTO_GENERATED_SOURCES})
+# expose the generated proto headers
+target_include_directories(kicad-proto PUBLIC "${KICAD_PROTO_OUT_DIR}")
+target_link_libraries(kicad-proto PUBLIC protobuf::libprotobuf)
+
 if(WIN32)
     set_target_properties(kicad-xyce-plugin PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
@@ -80,7 +101,7 @@ if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     target_compile_options(kicad-xyce-plugin PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog)
+target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog nng::nng protobuf::libprotobuf kicad-proto)
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis

@@ -576,8 +576,6 @@ void ChartsPanel::update_decimation_target() {
     // propagate it to existing charts so future decimations use the new target
     for (const auto& chart : m_charts)
         chart->set_decimate_target(target);
-    // log information
-    spdlog::debug("Updated decimation target to {} points per series", target);
 }
 
 void ChartsPanel::refresh_charts(int frames) { m_render_chart_frames = frames; }

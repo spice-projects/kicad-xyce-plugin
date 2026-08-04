@@ -193,7 +193,7 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
     return TransientSimulationParameters(initial_step_value, final_time_value, start_time_value, step_ceiling_value, op_keyword, schedule_points, replace_ground, print_parameters, fft_parameters, four_parameters, measure_parameters, sensitivity);
 }
 
-std::vector<std::string> TransientSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
+std::vector<std::string> TransientSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
     // prepend replaceground preprocessor directive when enabled
@@ -231,7 +231,7 @@ std::vector<std::string> TransientSimulationParameters::to_xyce_directives(const
     directives.push_back(tran_directive);
     // append transient print directive with topology-aware wildcard expansion
     if (print_parameters)
-        directives.push_back(print_parameters->to_xyce_statement(topology));
+        directives.push_back(print_parameters->to_xyce_statement());
     // append sensitivity directives when configured
     if (sensitivity) {
         // retrieve sensitivity directives

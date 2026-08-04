@@ -13,6 +13,8 @@
 #endif
 
 #include "../config/plugin_config.h"
+#include "../kicad/kicad_session.h"
+#include "../netlist/netlist_source.h"
 #include "../simulation_parameters/simulation_config.h"
 #include "charts_panel.h"
 #include "main_window_state.h"
@@ -22,7 +24,7 @@ class XyceSimulationRunner;
 class MainWindow : public wxFrame
 {
 public:
-    explicit MainWindow(const wxString& title);
+    MainWindow(const wxString& title, std::shared_ptr<KiCadSession> session = nullptr);
 
 private:
     wxToolBarToolBase* m_open_netlist_action = nullptr;
@@ -42,7 +44,9 @@ private:
     wxPanel* m_simulation_output_container = nullptr;
     wxStyledTextCtrl* m_simulation_output_panel = nullptr;
 
-    void* m_kicad_client = nullptr;
+    std::shared_ptr<KiCadSession> m_kicad_session;
+    std::unique_ptr<NetlistSource> m_netlist_source;
+    bool m_netlist_editor_updating = false;
 
     AppState m_app_state = AppState::Empty;
     bool m_simulation_running = false;
@@ -53,8 +57,7 @@ private:
 
     SimulationConfig m_simulation_config;
     PluginConfig m_plugin_config;
-    NetlistTopology m_topology;
-    std::string m_sanitized_netlist;
+
     std::shared_ptr<XyceSimulationRunner> m_simulation_runner;
 
     void on_system_colour_changed(wxSysColourChangedEvent&);
@@ -83,15 +86,15 @@ private:
 
     void on_configure_simulation(wxCommandEvent&);
 
-    void on_plugin_configuration(wxCommandEvent&);
-
     void on_run_simulation(wxCommandEvent&);
 
-    void on_simulation_finished(wxThreadEvent& event);
+    void on_plugin_configuration(wxCommandEvent&);
 
-    void on_simulation_stdout(wxThreadEvent& event);
+    void on_simulation_finished(wxThreadEvent&);
 
-    void on_simulation_stderr(wxThreadEvent& event);
+    void on_simulation_stdout(wxThreadEvent&);
+
+    void on_simulation_stderr(wxThreadEvent&);
 
     void on_close_simulation_output(wxCommandEvent&);
 
@@ -99,15 +102,17 @@ private:
 
     void on_netlist_editor_style_needed(wxStyledTextEvent&);
 
-    bool update_xyce_netlist_file(const std::filesystem::path& filename);
+    bool update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>>, bool);
 
-    bool update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>> raw_file, bool delete_charts);
-
-    void update_netlist_editor_dirty_flag(bool);
+    bool update_netlist_editor_dirty_flag(bool);
 
     void configure_netlist_editor();
 
     void update_action_states();
 
     void show_simulation_output_panel();
+
+    bool extract_schematic_netlist();
+
+    bool update_netlist_editor_content(const std::string&, bool);
 };

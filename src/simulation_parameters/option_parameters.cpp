@@ -93,7 +93,7 @@ OptionParameters OptionParameters::from_xyce_directives(const std::vector<std::s
     return OptionParameters(device, timeint, nonlin, linsol);
 }
 
-std::vector<std::string> OptionParameters::to_xyce_directives(const NetlistTopology* topology) const {
+std::vector<std::string> OptionParameters::to_xyce_directives(const NetlistTopology& topology) const {
     (void)topology;
     // serialize configured option blocks in a deterministic order
     std::vector<std::string> directives;

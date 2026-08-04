@@ -135,7 +135,6 @@ TEST(MainWindowStateChecks, editing_state_with_dirty_file_enables_save) {
     ActionStateInput input;
     input.has_netlist = true;
     input.netlist_editor_dirty = true;
-    input.has_netlist_file = true;
     // act
     const ActionStateEnablement enablement = compute_action_enablement(input);
     // assert
@@ -146,7 +145,6 @@ TEST(MainWindowStateChecks, editing_state_clean_editor_does_not_enable_save) {
     // arrange
     ActionStateInput input;
     input.has_netlist = true;
-    input.has_netlist_file = true;
     // act
     const ActionStateEnablement enablement = compute_action_enablement(input);
     // assert
@@ -173,7 +171,6 @@ TEST(MainWindowStateChecks, running_state_disables_every_action) {
     input.charts_shown = true;
     input.simulation_running = true;
     input.netlist_editor_dirty = true;
-    input.has_netlist_file = true;
     input.output_hidden = true;
     input.log_has_content = true;
     // act
@@ -223,7 +220,6 @@ TEST(MainWindowStateChecks, netlist_with_results_state_with_dirty_file_enables_s
     input.has_netlist = true;
     input.has_raw = true;
     input.netlist_editor_dirty = true;
-    input.has_netlist_file = true;
     // act
     const ActionStateEnablement enablement = compute_action_enablement(input);
     // assert

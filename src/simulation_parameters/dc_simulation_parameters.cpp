@@ -182,7 +182,7 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
     return DCSimulationParameters(sweep_mode, primary_variable, start, stop, step, points, list_values, data_table_name, secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, replace_ground, print_parameters, measure_parameters, sensitivity);
 }
 
-std::vector<std::string> DCSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
+std::vector<std::string> DCSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
     // prepend replaceground preprocessing when enabled
@@ -218,7 +218,7 @@ std::vector<std::string> DCSimulationParameters::to_xyce_directives(const Netlis
 
     // append dc print directive with topology-aware wildcard expansion
     if (print_parameters) {
-        directives.push_back(print_parameters->to_xyce_statement(topology));
+        directives.push_back(print_parameters->to_xyce_statement());
     }
 
     // append sensitivity directives when configured

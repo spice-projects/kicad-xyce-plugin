@@ -176,7 +176,7 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
     return LinSimulationParameters(sparcalc, format, lintype, dataformat, file, width, precision, sweep_mode, points, start, end, data_table_name, replace_ground, print_parameters);
 }
 
-std::vector<std::string> LinSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
+std::vector<std::string> LinSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
 
@@ -228,7 +228,7 @@ std::vector<std::string> LinSimulationParameters::to_xyce_directives(const Netli
     if (print_parameters) {
         const std::string print_type_upper = to_upper(print_parameters->print_type);
         if (print_type_upper == "AC") {
-            directives.push_back(print_parameters->to_xyce_statement(topology));
+            directives.push_back(print_parameters->to_xyce_statement());
         }
     }
 

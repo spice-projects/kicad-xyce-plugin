@@ -194,7 +194,7 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
     return HbSimulationParameters(frequencies, harmonics, tahb, selectharms, startup_periods, replace_ground, print_parameters, nonlin_options, linsol_options);
 }
 
-std::vector<std::string> HbSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
+std::vector<std::string> HbSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
 
@@ -279,7 +279,7 @@ std::vector<std::string> HbSimulationParameters::to_xyce_directives(const Netlis
     if (print_parameters) {
         const std::string print_type_upper = to_upper(print_parameters->print_type);
         if (print_type_upper == "HB" || print_type_upper == "HB_FD" || print_type_upper == "HB_TD") {
-            directives.push_back(print_parameters->to_xyce_statement(topology));
+            directives.push_back(print_parameters->to_xyce_statement());
         }
     }
 

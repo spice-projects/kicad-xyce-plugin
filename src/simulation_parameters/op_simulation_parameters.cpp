@@ -151,7 +151,7 @@ std::optional<OpSimulationParameters> OpSimulationParameters::from_xyce_directiv
     return OpSimulationParameters(print_dc_enabled, false, false, print_dc_vars, "", "", save_enabled, "NODESET", "", nodeset_entries, ic_entries, replace_ground, print_parameters_parsed);
 }
 
-std::vector<std::string> OpSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
+std::vector<std::string> OpSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
 
@@ -161,7 +161,7 @@ std::vector<std::string> OpSimulationParameters::to_xyce_directives(const Netlis
     // use print_parameters when set (newer wildcard approach with topology expansion)
     if (print_parameters) {
         // emit the statement directly using the structured print parameters with topology
-        directives.push_back(print_parameters->to_xyce_statement(topology));
+        directives.push_back(print_parameters->to_xyce_statement());
     }
     // check enabled
     else if (print_dc_enabled) {
@@ -179,21 +179,6 @@ std::vector<std::string> OpSimulationParameters::to_xyce_directives(const Netlis
         }
         // start with custom vars
         std::vector<std::string> vars = print_dc_specific_variables;
-        // check topology for wildcard expansion
-        if (topology) {
-            // expand all nodes
-            if (print_dc_all_nodes) {
-                for (const auto& node : topology->m_nodes) {
-                    vars.push_back("V(" + node + ")");
-                }
-            }
-            // expand all currents
-            if (print_dc_all_currents) {
-                for (const auto& dev : topology->m_devices) {
-                    vars.push_back("I(" + dev.m_name + ")");
-                }
-            }
-        }
         // de-duplicate preserving order
         std::vector<std::string> unique_vars;
         std::set<std::string> seen;

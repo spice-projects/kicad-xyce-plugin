@@ -131,6 +131,7 @@ void XyceSimulationRunner::start(const std::string& program, const std::filesyst
     m_netlist_file_path = netlist_path;
     m_working_directory = working_directory;
     m_temp_netlist_path = netlist_path;
+    // reset state
     m_exit_code = -1;
     m_canceled = false;
     m_stdout_buffer.clear();

@@ -3,18 +3,28 @@
 #include <spdlog/spdlog.h>
 
 #include "app.h"
+#include "kicad/kicad_session.h"
 #include "ui/icon_data.h"
 #include "ui/main_window.h"
 
 bool App::OnInit() {
-    // initialize logging to debug level
-    spdlog::set_level(spdlog::level::info);
+    // initialize base
+    if (!wxApp::OnInit())
+        return false;
+    // log information
+    spdlog::info("Starting KiCad Xyce Plugin on macOS");
     // initialize image handlers
     wxInitAllImageHandlers();
     // use system appearance for the app
     SetAppearance(Appearance::System);
+    // build a session when running as a KiCad plugin
+    auto session = KiCadSession::from_environment();
+    // share the session with the main window when present
+    std::shared_ptr<KiCadSession> shared_session;
+    if (session)
+        shared_session = std::make_shared<KiCadSession>(std::move(*session));
     // create main window instance
-    const auto frame = new MainWindow("KiCad Xyce Plugin");
+    const auto frame = new MainWindow("KiCad Xyce Plugin", std::move(shared_session));
     // show main window
     frame->Show(true);
     // set application dock icon from embedded png bytes

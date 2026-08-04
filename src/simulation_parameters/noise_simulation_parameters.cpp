@@ -134,7 +134,7 @@ std::optional<NoiseSimulationParameters> NoiseSimulationParameters::from_xyce_di
     return NoiseSimulationParameters(output_node, ref_node, source_name, start_freq_value, end_freq_value, num_points_value, sweep_type, device_noise_operators, data_table_name, replace_ground, print_parameters);
 }
 
-std::vector<std::string> NoiseSimulationParameters::to_xyce_directives(const NetlistTopology* topology) const {
+std::vector<std::string> NoiseSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
 
@@ -160,7 +160,7 @@ std::vector<std::string> NoiseSimulationParameters::to_xyce_directives(const Net
 
     // append noise print directive with topology-aware wildcard expansion
     if (print_parameters) {
-        directives.push_back(print_parameters->to_xyce_statement(topology));
+        directives.push_back(print_parameters->to_xyce_statement());
     }
 
     // return the full directive list

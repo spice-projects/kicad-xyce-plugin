@@ -6,10 +6,39 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
-            "args": [],
+            "args": [
+                "--log-level=debug"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
+            // "envFile": "${workspaceFolder}/.env",
+            "externalConsole": false,
+            "MIMode": "lldb"
+        },        
+        {
+            "name": "kicad-xyce-plugin (plugin)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
+            "args": [
+                "--log-level=debug"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "KICAD_API_SOCKET",
+                    "value": "ipc:///tmp/kicad/api.sock"
+                },
+                {
+                    "name": "KICAD_API_TOKEN",
+                    "value": "123"
+                },
+                {
+                    "name": "KIPRJMOD",
+                    "value": "111"
+                }
+            ],
             "externalConsole": false,
             "MIMode": "lldb"
         },
