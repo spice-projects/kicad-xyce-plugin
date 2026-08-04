@@ -148,13 +148,8 @@ void ChartsPanel::render_frame(const std::function<void()> &renderer) {
         ImGui::NewFrame();
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2((float)sz.x, (float)sz.y));
-        // set background color
-        // ImPlot::PushStyleColor(ImPlotCol_FrameBg, m_background_color);
-        // ImPlot::PushStyleColor(ImPlotCol_PlotBg,  m_background_color);
         // render frame content
         renderer();
-        // pop style colors
-        // ImPlot::PopStyleColor(2);
         // render frame
         ImGui::Render();
         // get rendering commands
