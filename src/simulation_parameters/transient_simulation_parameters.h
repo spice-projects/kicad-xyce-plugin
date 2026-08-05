@@ -31,7 +31,7 @@ class TransientSimulationParameters
 {
 public:
     // construct a transient simulation parameters instance from individual fields
-    TransientSimulationParameters(std::string initial_step_value, std::string final_time_value, std::string start_time_value, std::string step_ceiling_value, std::string op_keyword, std::vector<TransientSchedulePoint> schedule_points, bool replace_ground, std::optional<PrintParameters> print_parameters, std::vector<FftParameters> fft_parameters, std::vector<FourParameters> four_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity);
+    TransientSimulationParameters(std::string initial_step_value, std::string final_time_value, std::string start_time_value, std::string step_ceiling_value, std::string op_keyword, std::vector<TransientSchedulePoint> schedule_points, std::optional<PrintParameters> print_parameters, std::vector<FftParameters> fft_parameters, std::vector<FourParameters> four_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity);
 
     // parse all directives into a TransientSimulationParameters instance;
     // returns nullopt when no .TRAN directive is found
@@ -55,8 +55,6 @@ public:
     std::string op_keyword;
     // schedule points for variable time stepping
     std::vector<TransientSchedulePoint> schedule_points;
-    // whether to apply replaceground preprocessing
-    bool replace_ground;
     // optional print parameters
     std::optional<PrintParameters> print_parameters;
     // FFT parameters

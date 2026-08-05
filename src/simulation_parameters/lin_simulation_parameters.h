@@ -12,7 +12,7 @@ class LinSimulationParameters
 {
 public:
     // construct a LIN simulation parameters instance from individual fields
-    LinSimulationParameters(bool sparcalc, std::string format, std::string lintype, std::string dataformat, std::string file, std::string width, std::string precision, std::string sweep_mode, std::string points, std::string start, std::string end, std::string data_table_name, bool replace_ground, std::optional<PrintParameters> print_parameters);
+    LinSimulationParameters(bool sparcalc, std::string format, std::string lintype, std::string dataformat, std::string file, std::string width, std::string precision, std::string sweep_mode, std::string points, std::string start, std::string end, std::string data_table_name, std::optional<PrintParameters> print_parameters);
 
     // parse all directives into a LinSimulationParameters instance;
     // returns nullopt when no .LIN directive is found
@@ -38,8 +38,6 @@ public:
     std::string start;
     std::string end;
     std::string data_table_name;
-    // whether to apply replaceground preprocessing
-    bool replace_ground;
     // optional print parameters
     std::optional<PrintParameters> print_parameters;
 };

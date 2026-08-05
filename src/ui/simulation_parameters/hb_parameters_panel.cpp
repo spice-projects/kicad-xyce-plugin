@@ -221,14 +221,11 @@ HbSimulationParameters HbParametersPanel::build_hb_parameters() const {
     // read print parameters from print section
     std::optional<PrintParameters> print_params = m_print_section->build_print_parameters();
 
-    // read replace ground from global settings
-    bool replace_ground = m_global_settings->get_replace_ground();
-
     // read and parse solver options
     auto nonlin_options = parse_options_text(m_nonlin_options_text->GetValue());
     auto linsol_options = parse_options_text(m_linsol_options_text->GetValue());
 
-    return HbSimulationParameters(std::move(frequencies), std::move(harmonics), tahb, std::move(selectharms), startup_periods, replace_ground, std::move(print_params), std::move(nonlin_options), std::move(linsol_options));
+    return HbSimulationParameters(std::move(frequencies), std::move(harmonics), tahb, std::move(selectharms), startup_periods, std::move(print_params), std::move(nonlin_options), std::move(linsol_options));
 }
 
 void HbParametersPanel::apply(const HbSimulationParameters& params) {
@@ -305,9 +302,6 @@ void HbParametersPanel::apply(const HbSimulationParameters& params) {
 
     // restore print parameters (no power, no BJT/FET for HB)
     m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, false, false);
-
-    // restore replace ground
-    m_global_settings->set_replace_ground(params.replace_ground);
 }
 
 GlobalSettingsPanel* HbParametersPanel::get_global_settings() const { return m_global_settings; }

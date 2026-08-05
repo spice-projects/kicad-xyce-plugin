@@ -417,18 +417,56 @@ SimulationConfig SimulationParametersDialog::build_preview_config() const {
         break;
     }
 
-    return SimulationConfig(std::move(analysis_type), std::move(analysis), std::move(steps), m_data_blocks, OptionParameters({}, {}, {}, {}), {});
+    GlobalSettingsPanel* global_settings = nullptr;
+    switch (page) {
+    case PAGE_OP:
+        global_settings = m_op_panel->get_global_settings();
+        break;
+    case PAGE_TRAN:
+        global_settings = m_tran_panel->get_global_settings();
+        break;
+    case PAGE_DC:
+        global_settings = m_dc_panel->get_global_settings();
+        break;
+    case PAGE_AC:
+        global_settings = m_ac_panel->get_global_settings();
+        break;
+    case PAGE_NOISE:
+        global_settings = m_noise_panel->get_global_settings();
+        break;
+    case PAGE_HB:
+        global_settings = m_hb_panel->get_global_settings();
+        break;
+    case PAGE_LIN:
+        global_settings = m_lin_panel->get_global_settings();
+        break;
+    }
+    // read replace ground from the active page's global settings panel
+    bool replace_ground = true;
+    if (global_settings != nullptr)
+        replace_ground = global_settings->get_replace_ground();
+    // exit
+    return SimulationConfig(std::move(analysis_type), std::move(analysis), std::move(steps), m_data_blocks, OptionParameters({}, {}, {}, {}), {}, replace_ground);
 }
 
 void SimulationParametersDialog::apply_config(const SimulationConfig& config) {
     // reset panels to defaults
-    m_op_panel->apply(OpSimulationParameters(false, false, false, {}, "", "", false, "", "", {}, {}, false, std::nullopt));
-    m_tran_panel->apply(TransientSimulationParameters("", "", "", "", "", {}, false, std::nullopt, {}, {}, {}, std::nullopt));
-    m_dc_panel->apply(DCSimulationParameters("", "", "", "", "", "", {}, "", "", "", "", "", "", false, std::nullopt, {}, std::nullopt));
-    m_ac_panel->apply(AcSimulationParameters("", "", "", "", "", false, std::nullopt, {}, std::nullopt));
-    m_noise_panel->apply(NoiseSimulationParameters("", "", "", "", "", "", "", {}, "", false, std::nullopt));
-    m_hb_panel->apply(HbSimulationParameters({}, {}, std::nullopt, std::nullopt, std::nullopt, false, std::nullopt, {}, {}));
-    m_lin_panel->apply(LinSimulationParameters(false, "", "", "", "", "", "", "", "", "", "", "", false, std::nullopt));
+    m_op_panel->apply(OpSimulationParameters(false, false, false, {}, "", "", false, "", "", {}, {}, std::nullopt));
+    m_tran_panel->apply(TransientSimulationParameters("", "", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt));
+    m_dc_panel->apply(DCSimulationParameters("", "", "", "", "", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt));
+    m_ac_panel->apply(AcSimulationParameters("", "", "", "", "", std::nullopt, {}, std::nullopt));
+    m_noise_panel->apply(NoiseSimulationParameters("", "", "", "", "", "", "", {}, "", std::nullopt));
+    m_hb_panel->apply(HbSimulationParameters({}, {}, std::nullopt, std::nullopt, std::nullopt, std::nullopt, {}, {}));
+    m_lin_panel->apply(LinSimulationParameters(false, "", "", "", "", "", "", "", "", "", "", "", std::nullopt));
+
+    // sync replace ground to all pages
+    m_op_panel->get_global_settings()->set_replace_ground(config.replace_ground);
+    m_tran_panel->get_global_settings()->set_replace_ground(config.replace_ground);
+    m_dc_panel->get_global_settings()->set_replace_ground(config.replace_ground);
+    m_ac_panel->get_global_settings()->set_replace_ground(config.replace_ground);
+    m_noise_panel->get_global_settings()->set_replace_ground(config.replace_ground);
+    m_hb_panel->get_global_settings()->set_replace_ground(config.replace_ground);
+    m_lin_panel->get_global_settings()->set_replace_ground(config.replace_ground);
 
     // reset per-tab sensitivity sections
     m_tran_sensitivity->apply(nullptr);

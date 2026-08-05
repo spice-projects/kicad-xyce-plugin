@@ -14,7 +14,7 @@ class AcSimulationParameters
 {
 public:
     // construct an AC simulation parameters instance from individual fields
-    AcSimulationParameters(std::string sweep_mode, std::string points, std::string start, std::string end, std::string data_table_name, bool replace_ground, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity);
+    AcSimulationParameters(std::string sweep_mode, std::string points, std::string start, std::string end, std::string data_table_name, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity);
 
     // parse all directives into an AcSimulationParameters instance;
     // returns nullopt when no .AC directive is found
@@ -36,8 +36,6 @@ public:
     std::string end;
     // data table name (for DATA sweeps)
     std::string data_table_name;
-    // whether to apply replaceground preprocessing
-    bool replace_ground;
     // optional print parameters
     std::optional<PrintParameters> print_parameters;
     // measure directives

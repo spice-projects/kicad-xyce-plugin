@@ -55,7 +55,6 @@ TEST_F(NoiseParametersPanelTest, build_returns_defaults_by_default) {
     EXPECT_EQ(result.sweep_type, "LIN");
     EXPECT_EQ(result.data_table_name, "");
     EXPECT_TRUE(result.device_noise_operators.empty());
-    EXPECT_FALSE(result.replace_ground);
     EXPECT_FALSE(result.print_parameters.has_value());
 }
 
@@ -70,7 +69,7 @@ TEST_F(NoiseParametersPanelTest, build_after_apply_returns_same_values) {
     std::vector<DeviceNoiseOperator> dno;
     dno.emplace_back("DNI", "OUT", "V1");
     dno.emplace_back("DNO", "OUT", "V1");
-    NoiseSimulationParameters input("OUT", "0", "V1", "10", "100k", "100", "DEC", dno, "", true, print_params);
+    NoiseSimulationParameters input("OUT", "0", "V1", "10", "100k", "100", "DEC", dno, "", print_params);
     // act
     panel.apply(input);
     auto result = panel.build_noise_parameters();
@@ -90,26 +89,10 @@ TEST_F(NoiseParametersPanelTest, build_after_apply_returns_same_values) {
     EXPECT_EQ(result.device_noise_operators[1].type, "DNO");
     EXPECT_EQ(result.device_noise_operators[1].node, "OUT");
     EXPECT_EQ(result.device_noise_operators[1].source, "V1");
-    EXPECT_TRUE(result.replace_ground);
     ASSERT_TRUE(result.print_parameters.has_value());
     EXPECT_EQ(result.print_parameters->print_type, "NOISE");
     EXPECT_EQ(result.print_parameters->print_format, "RAW");
     EXPECT_EQ(result.print_parameters->print_file, "noise.raw");
-}
-
-// ========================================================================================
-// build with replace_ground
-// ========================================================================================
-
-TEST_F(NoiseParametersPanelTest, build_with_replace_ground) {
-    // arrange
-    NoiseParametersPanel panel(m_parent);
-    NoiseSimulationParameters input("", "", "", "", "", "", "LIN", {}, "", true, std::nullopt);
-    // act
-    panel.apply(input);
-    auto result = panel.build_noise_parameters();
-    // assert
-    EXPECT_TRUE(result.replace_ground);
 }
 
 // ========================================================================================
@@ -120,7 +103,7 @@ TEST_F(NoiseParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     NoiseParametersPanel panel(m_parent);
     auto print_params = PrintParameters("NOISE", "CSV", "data.csv", {"V(1)", "V(2)"}, {});
-    NoiseSimulationParameters input("", "", "", "", "", "", "LIN", {}, "", false, print_params);
+    NoiseSimulationParameters input("", "", "", "", "", "", "LIN", {}, "", print_params);
     // act
     panel.apply(input);
     auto result = panel.build_noise_parameters();
@@ -134,7 +117,7 @@ TEST_F(NoiseParametersPanelTest, build_with_print_section_enabled) {
 TEST_F(NoiseParametersPanelTest, build_without_print_section) {
     // arrange
     NoiseParametersPanel panel(m_parent);
-    NoiseSimulationParameters input("", "", "", "", "", "", "LIN", {}, "", false, std::nullopt);
+    NoiseSimulationParameters input("", "", "", "", "", "", "LIN", {}, "", std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_noise_parameters();
@@ -150,11 +133,11 @@ TEST_F(NoiseParametersPanelTest, apply_without_print_params_disables_print_secti
     // arrange
     NoiseParametersPanel panel(m_parent);
     auto print_params = PrintParameters("NOISE", "RAW", "noise.raw", {}, {});
-    NoiseSimulationParameters with_print("", "", "", "", "", "", "LIN", {}, "", false, print_params);
+    NoiseSimulationParameters with_print("", "", "", "", "", "", "LIN", {}, "", print_params);
     panel.apply(with_print);
     ASSERT_TRUE(panel.build_noise_parameters().print_parameters.has_value());
     // act — apply without print parameters
-    NoiseSimulationParameters without_print("", "", "", "", "", "", "LIN", {}, "", false, std::nullopt);
+    NoiseSimulationParameters without_print("", "", "", "", "", "", "LIN", {}, "", std::nullopt);
     panel.apply(without_print);
     auto result = panel.build_noise_parameters();
     // assert
@@ -170,7 +153,7 @@ TEST_F(NoiseParametersPanelTest, build_with_device_noise_operators) {
     NoiseParametersPanel panel(m_parent);
     std::vector<DeviceNoiseOperator> dno;
     dno.emplace_back("DNI", "OUT", "V1");
-    NoiseSimulationParameters input("OUT", "0", "V1", "10", "100k", "100", "LIN", dno, "", false, std::nullopt);
+    NoiseSimulationParameters input("OUT", "0", "V1", "10", "100k", "100", "LIN", dno, "", std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_noise_parameters();

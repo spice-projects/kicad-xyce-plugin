@@ -258,9 +258,6 @@ DCSimulationParameters DcParametersPanel::build_dc_parameters() const {
         secondary_points = std::string(m_secondary_points_text->GetValue().ToUTF8());
     }
 
-    // read replace ground from global settings
-    bool replace_ground = m_global_settings->get_replace_ground();
-
     // read print parameters from print section
     std::optional<PrintParameters> print_params = m_print_section->build_print_parameters();
 
@@ -276,7 +273,7 @@ DCSimulationParameters DcParametersPanel::build_dc_parameters() const {
         }
     }
 
-    return DCSimulationParameters(std::move(sweep_mode), std::move(primary_variable), std::move(start), std::move(stop), std::move(step), std::move(points), std::move(list_values), std::move(data_table_name), std::move(secondary_variable), std::move(secondary_start), std::move(secondary_stop), std::move(secondary_step), std::move(secondary_points), replace_ground, std::move(print_params), std::move(measure_params), std::nullopt);
+    return DCSimulationParameters(std::move(sweep_mode), std::move(primary_variable), std::move(start), std::move(stop), std::move(step), std::move(points), std::move(list_values), std::move(data_table_name), std::move(secondary_variable), std::move(secondary_start), std::move(secondary_stop), std::move(secondary_step), std::move(secondary_points), std::move(print_params), std::move(measure_params), std::nullopt);
 }
 
 void DcParametersPanel::apply(const DCSimulationParameters& params) {
@@ -306,9 +303,6 @@ void DcParametersPanel::apply(const DCSimulationParameters& params) {
     m_secondary_stop_text->SetValue(wxString::FromUTF8(params.secondary_stop));
     m_secondary_step_text->SetValue(wxString::FromUTF8(params.secondary_step));
     m_secondary_points_text->SetValue(wxString::FromUTF8(params.secondary_points));
-
-    // restore replace ground
-    m_global_settings->set_replace_ground(params.replace_ground);
 
     // restore print parameters (BJT and FET leads both always relevant for DC)
     m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, true, true);

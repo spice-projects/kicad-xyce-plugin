@@ -52,7 +52,6 @@ TEST_F(AcParametersPanelTest, build_returns_defaults_by_default) {
     EXPECT_EQ(result.start, "");
     EXPECT_EQ(result.end, "");
     EXPECT_EQ(result.data_table_name, "");
-    EXPECT_FALSE(result.replace_ground);
     EXPECT_FALSE(result.print_parameters.has_value());
 }
 
@@ -64,7 +63,7 @@ TEST_F(AcParametersPanelTest, build_after_apply_returns_same_values) {
     // arrange
     AcParametersPanel panel(m_parent);
     auto print_params = PrintParameters("AC", "RAW", "ac.raw", {"V(*)", "IC(*)"}, {});
-    AcSimulationParameters input("LIN", "100", "1", "1k", "", true, print_params, {}, std::nullopt);
+    AcSimulationParameters input("LIN", "100", "1", "1k", "", print_params, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_ac_parameters();
@@ -74,7 +73,6 @@ TEST_F(AcParametersPanelTest, build_after_apply_returns_same_values) {
     EXPECT_EQ(result.start, "1");
     EXPECT_EQ(result.end, "1k");
     EXPECT_EQ(result.data_table_name, "");
-    EXPECT_TRUE(result.replace_ground);
     ASSERT_TRUE(result.print_parameters.has_value());
     EXPECT_EQ(result.print_parameters->print_type, "AC");
     EXPECT_EQ(result.print_parameters->print_format, "RAW");
@@ -88,21 +86,6 @@ TEST_F(AcParametersPanelTest, build_after_apply_returns_same_values) {
 }
 
 // ========================================================================================
-// build with replace_ground
-// ========================================================================================
-
-TEST_F(AcParametersPanelTest, build_with_replace_ground) {
-    // arrange
-    AcParametersPanel panel(m_parent);
-    AcSimulationParameters input("LIN", "", "", "", "", true, std::nullopt, {}, std::nullopt);
-    // act
-    panel.apply(input);
-    auto result = panel.build_ac_parameters();
-    // assert
-    EXPECT_TRUE(result.replace_ground);
-}
-
-// ========================================================================================
 // build with print section
 // ========================================================================================
 
@@ -110,7 +93,7 @@ TEST_F(AcParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     AcParametersPanel panel(m_parent);
     auto print_params = PrintParameters("AC", "CSV", "data.csv", {"V(1)", "V(2)"}, {});
-    AcSimulationParameters input("LIN", "", "", "", "", false, print_params, {}, std::nullopt);
+    AcSimulationParameters input("LIN", "", "", "", "", print_params, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_ac_parameters();
@@ -124,7 +107,7 @@ TEST_F(AcParametersPanelTest, build_with_print_section_enabled) {
 TEST_F(AcParametersPanelTest, build_without_print_section) {
     // arrange
     AcParametersPanel panel(m_parent);
-    AcSimulationParameters input("LIN", "", "", "", "", false, std::nullopt, {}, std::nullopt);
+    AcSimulationParameters input("LIN", "", "", "", "", std::nullopt, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_ac_parameters();
@@ -140,11 +123,11 @@ TEST_F(AcParametersPanelTest, apply_without_print_params_disables_print_section)
     // arrange
     AcParametersPanel panel(m_parent);
     auto print_params = PrintParameters("AC", "RAW", "ac.raw", {}, {});
-    AcSimulationParameters with_print("LIN", "", "", "", "", false, print_params, {}, std::nullopt);
+    AcSimulationParameters with_print("LIN", "", "", "", "", print_params, {}, std::nullopt);
     panel.apply(with_print);
     ASSERT_TRUE(panel.build_ac_parameters().print_parameters.has_value());
     // act — apply without print parameters
-    AcSimulationParameters without_print("LIN", "", "", "", "", false, std::nullopt, {}, std::nullopt);
+    AcSimulationParameters without_print("LIN", "", "", "", "", std::nullopt, {}, std::nullopt);
     panel.apply(without_print);
     auto result = panel.build_ac_parameters();
     // assert
@@ -158,7 +141,7 @@ TEST_F(AcParametersPanelTest, apply_without_print_params_disables_print_section)
 TEST_F(AcParametersPanelTest, build_with_data_sweep) {
     // arrange
     AcParametersPanel panel(m_parent);
-    AcSimulationParameters input("DATA", "", "", "", "mytable", false, std::nullopt, {}, std::nullopt);
+    AcSimulationParameters input("DATA", "", "", "", "mytable", std::nullopt, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_ac_parameters();
@@ -174,7 +157,7 @@ TEST_F(AcParametersPanelTest, build_with_data_sweep) {
 TEST_F(AcParametersPanelTest, build_with_dec_sweep) {
     // arrange
     AcParametersPanel panel(m_parent);
-    AcSimulationParameters input("DEC", "10", "1", "100k", "", false, std::nullopt, {}, std::nullopt);
+    AcSimulationParameters input("DEC", "10", "1", "100k", "", std::nullopt, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_ac_parameters();

@@ -59,7 +59,6 @@ TEST_F(DcParametersPanelTest, build_returns_defaults_by_default) {
     EXPECT_EQ(result.secondary_stop, "");
     EXPECT_EQ(result.secondary_step, "");
     EXPECT_EQ(result.secondary_points, "");
-    EXPECT_FALSE(result.replace_ground);
     EXPECT_FALSE(result.print_parameters.has_value());
 }
 
@@ -71,7 +70,7 @@ TEST_F(DcParametersPanelTest, build_after_apply_returns_same_values) {
     // arrange
     DcParametersPanel panel(m_parent);
     auto print_params = PrintParameters("DC", "RAW", "out.raw", {"V(*)", "IC(*)"}, {});
-    DCSimulationParameters input("LIN", "V1", "0", "5", "0.1", "", {}, "", "V2", "0", "10", "1", "", true, print_params, {}, std::nullopt);
+    DCSimulationParameters input("LIN", "V1", "0", "5", "0.1", "", {}, "", "V2", "0", "10", "1", "", print_params, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_dc_parameters();
@@ -89,7 +88,6 @@ TEST_F(DcParametersPanelTest, build_after_apply_returns_same_values) {
     EXPECT_EQ(result.secondary_stop, "10");
     EXPECT_EQ(result.secondary_step, "1");
     EXPECT_TRUE(result.secondary_points.empty());
-    EXPECT_TRUE(result.replace_ground);
     ASSERT_TRUE(result.print_parameters.has_value());
     EXPECT_EQ(result.print_parameters->print_type, "DC");
     EXPECT_EQ(result.print_parameters->print_format, "RAW");
@@ -103,21 +101,6 @@ TEST_F(DcParametersPanelTest, build_after_apply_returns_same_values) {
 }
 
 // ========================================================================================
-// build with replace_ground
-// ========================================================================================
-
-TEST_F(DcParametersPanelTest, build_with_replace_ground) {
-    // arrange
-    DcParametersPanel panel(m_parent);
-    DCSimulationParameters input("LIN", "", "", "", "", "", {}, "", "", "", "", "", "", true, std::nullopt, {}, std::nullopt);
-    // act
-    panel.apply(input);
-    auto result = panel.build_dc_parameters();
-    // assert
-    EXPECT_TRUE(result.replace_ground);
-}
-
-// ========================================================================================
 // build with print section
 // ========================================================================================
 
@@ -125,7 +108,7 @@ TEST_F(DcParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     DcParametersPanel panel(m_parent);
     auto print_params = PrintParameters("DC", "CSV", "data.csv", {"V(1)", "V(2)"}, {});
-    DCSimulationParameters input("LIN", "", "", "", "", "", {}, "", "", "", "", "", "", false, print_params, {}, std::nullopt);
+    DCSimulationParameters input("LIN", "", "", "", "", "", {}, "", "", "", "", "", "", print_params, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_dc_parameters();
@@ -139,7 +122,7 @@ TEST_F(DcParametersPanelTest, build_with_print_section_enabled) {
 TEST_F(DcParametersPanelTest, build_without_print_section) {
     // arrange
     DcParametersPanel panel(m_parent);
-    DCSimulationParameters input("LIN", "", "", "", "", "", {}, "", "", "", "", "", "", false, std::nullopt, {}, std::nullopt);
+    DCSimulationParameters input("LIN", "", "", "", "", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_dc_parameters();
@@ -155,11 +138,11 @@ TEST_F(DcParametersPanelTest, apply_without_print_params_disables_print_section)
     // arrange
     DcParametersPanel panel(m_parent);
     auto print_params = PrintParameters("DC", "RAW", "out.raw", {}, {});
-    DCSimulationParameters with_print("LIN", "", "", "", "", "", {}, "", "", "", "", "", "", false, print_params, {}, std::nullopt);
+    DCSimulationParameters with_print("LIN", "", "", "", "", "", {}, "", "", "", "", "", "", print_params, {}, std::nullopt);
     panel.apply(with_print);
     ASSERT_TRUE(panel.build_dc_parameters().print_parameters.has_value());
     // act — apply without print parameters
-    DCSimulationParameters without_print("LIN", "", "", "", "", "", {}, "", "", "", "", "", "", false, std::nullopt, {}, std::nullopt);
+    DCSimulationParameters without_print("LIN", "", "", "", "", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
     panel.apply(without_print);
     auto result = panel.build_dc_parameters();
     // assert
@@ -174,7 +157,7 @@ TEST_F(DcParametersPanelTest, build_with_list_sweep) {
     // arrange
     DcParametersPanel panel(m_parent);
     auto list_vals = std::vector<std::string>{"0.5", "1.0", "1.5", "2.0"};
-    DCSimulationParameters input("LIST", "V1", "", "", "", "", list_vals, "", "", "", "", "", "", false, std::nullopt, {}, std::nullopt);
+    DCSimulationParameters input("LIST", "V1", "", "", "", "", list_vals, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_dc_parameters();
@@ -195,7 +178,7 @@ TEST_F(DcParametersPanelTest, build_with_list_sweep) {
 TEST_F(DcParametersPanelTest, build_with_data_sweep) {
     // arrange
     DcParametersPanel panel(m_parent);
-    DCSimulationParameters input("DATA", "", "", "", "", "", {}, "my_data_table", "", "", "", "", "", false, std::nullopt, {}, std::nullopt);
+    DCSimulationParameters input("DATA", "", "", "", "", "", {}, "my_data_table", "", "", "", "", "", std::nullopt, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_dc_parameters();
@@ -211,7 +194,7 @@ TEST_F(DcParametersPanelTest, build_with_data_sweep) {
 TEST_F(DcParametersPanelTest, build_with_dec_sweep) {
     // arrange
     DcParametersPanel panel(m_parent);
-    DCSimulationParameters input("DEC", "V1", "1", "10k", "", "10", {}, "", "", "", "", "", "", false, std::nullopt, {}, std::nullopt);
+    DCSimulationParameters input("DEC", "V1", "1", "10k", "", "10", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_dc_parameters();

@@ -129,9 +129,6 @@ AcSimulationParameters AcParametersPanel::build_ac_parameters() const {
     // read data table name
     std::string data_table = std::string(m_data_table_text->GetValue().ToUTF8());
 
-    // read replace ground from global settings
-    bool replace_ground = m_global_settings->get_replace_ground();
-
     // read print parameters from print section
     std::optional<PrintParameters> print_params = m_print_section->build_print_parameters();
 
@@ -147,7 +144,7 @@ AcSimulationParameters AcParametersPanel::build_ac_parameters() const {
         }
     }
 
-    return AcSimulationParameters(std::move(sweep_mode), std::move(points), std::move(start), std::move(end), std::move(data_table), replace_ground, std::move(print_params), std::move(measure_params), std::nullopt);
+    return AcSimulationParameters(std::move(sweep_mode), std::move(points), std::move(start), std::move(end), std::move(data_table), std::move(print_params), std::move(measure_params), std::nullopt);
 }
 
 void AcParametersPanel::apply(const AcSimulationParameters& params) {
@@ -166,9 +163,6 @@ void AcParametersPanel::apply(const AcSimulationParameters& params) {
     m_start_text->SetValue(wxString::FromUTF8(params.start));
     m_end_text->SetValue(wxString::FromUTF8(params.end));
     m_data_table_text->SetValue(wxString::FromUTF8(params.data_table_name));
-
-    // restore replace ground
-    m_global_settings->set_replace_ground(params.replace_ground);
 
     // restore print parameters (BJT and FET leads both always relevant for AC)
     m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, true, true);

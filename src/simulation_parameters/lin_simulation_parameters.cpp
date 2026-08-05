@@ -6,8 +6,8 @@
 #include "../util.h"
 #include "lin_simulation_parameters.h"
 
-LinSimulationParameters::LinSimulationParameters(bool sparcalc, std::string format, std::string lintype, std::string dataformat, std::string file, std::string width, std::string precision, std::string sweep_mode, std::string points, std::string start, std::string end, std::string data_table_name, bool replace_ground, std::optional<PrintParameters> print_parameters) :
-    sparcalc(sparcalc), format(std::move(format)), lintype(std::move(lintype)), dataformat(std::move(dataformat)), file(std::move(file)), width(std::move(width)), precision(std::move(precision)), sweep_mode(std::move(sweep_mode)), points(std::move(points)), start(std::move(start)), end(std::move(end)), data_table_name(std::move(data_table_name)), replace_ground(replace_ground), print_parameters(std::move(print_parameters)) {}
+LinSimulationParameters::LinSimulationParameters(bool sparcalc, std::string format, std::string lintype, std::string dataformat, std::string file, std::string width, std::string precision, std::string sweep_mode, std::string points, std::string start, std::string end, std::string data_table_name, std::optional<PrintParameters> print_parameters) :
+    sparcalc(sparcalc), format(std::move(format)), lintype(std::move(lintype)), dataformat(std::move(dataformat)), file(std::move(file)), width(std::move(width)), precision(std::move(precision)), sweep_mode(std::move(sweep_mode)), points(std::move(points)), start(std::move(start)), end(std::move(end)), data_table_name(std::move(data_table_name)), print_parameters(std::move(print_parameters)) {}
 
 std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // init defaults
@@ -23,7 +23,6 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
     std::string start;
     std::string end;
     std::string data_table_name;
-    bool replace_ground = true;
     std::optional<PrintParameters> print_parameters;
 
     // flag indicating whether a valid directive was found
@@ -54,13 +53,6 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
                     continue;
                 }
             }
-        }
-
-        // handle preprocess replaceground
-        if (cmd == ".PREPROCESS" && tokens.size() > 2 && to_upper(tokens[1]) == "REPLACEGROUND") {
-            // set replace_ground based on the third token
-            replace_ground = (to_upper(tokens[2]) == "TRUE");
-            continue;
         }
 
         // parse the embedded ac sweep directive
@@ -173,18 +165,12 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
         return std::nullopt;
     }
 
-    return LinSimulationParameters(sparcalc, format, lintype, dataformat, file, width, precision, sweep_mode, points, start, end, data_table_name, replace_ground, print_parameters);
+    return LinSimulationParameters(sparcalc, format, lintype, dataformat, file, width, precision, sweep_mode, points, start, end, data_table_name, print_parameters);
 }
 
 std::vector<std::string> LinSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
-
-    // prepend replaceground preprocessing when enabled
-    if (replace_ground) {
-        directives.push_back(".PREPROCESS REPLACEGROUND TRUE");
-    }
-
     // build the embedded ac sweep directive
     std::string ac_directive = ".AC";
     if (sweep_mode == "DATA") {
@@ -238,5 +224,5 @@ std::vector<std::string> LinSimulationParameters::to_xyce_directives(const Netli
 
 bool LinSimulationParameters::operator==(const LinSimulationParameters& other) const {
     // compare all fields for equality
-    return sparcalc == other.sparcalc && format == other.format && lintype == other.lintype && dataformat == other.dataformat && file == other.file && width == other.width && precision == other.precision && sweep_mode == other.sweep_mode && points == other.points && start == other.start && end == other.end && data_table_name == other.data_table_name && replace_ground == other.replace_ground && print_parameters == other.print_parameters;
+    return sparcalc == other.sparcalc && format == other.format && lintype == other.lintype && dataformat == other.dataformat && file == other.file && width == other.width && precision == other.precision && sweep_mode == other.sweep_mode && points == other.points && start == other.start && end == other.end && data_table_name == other.data_table_name && print_parameters == other.print_parameters;
 }

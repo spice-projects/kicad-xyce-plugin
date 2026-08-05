@@ -59,7 +59,6 @@ TEST_F(LinParametersPanelTest, build_returns_defaults_by_default) {
     EXPECT_EQ(result.start, "");
     EXPECT_EQ(result.end, "");
     EXPECT_EQ(result.data_table_name, "");
-    EXPECT_FALSE(result.replace_ground);
     EXPECT_FALSE(result.print_parameters.has_value());
 }
 
@@ -71,7 +70,7 @@ TEST_F(LinParametersPanelTest, build_after_apply_returns_same_values) {
     // arrange
     LinParametersPanel panel(m_parent);
     auto print_params = PrintParameters("AC", "RAW", "lin.raw", {"V(*)", "IC(*)"}, {});
-    LinSimulationParameters input(true, "CITIFILE", "Z", "DB", "out.s2p", "10", "6", "DEC", "100", "1k", "1M", "", true, print_params);
+    LinSimulationParameters input(true, "CITIFILE", "Z", "DB", "out.s2p", "10", "6", "DEC", "100", "1k", "1M", "", print_params);
     // act
     panel.apply(input);
     auto result = panel.build_lin_parameters();
@@ -88,7 +87,6 @@ TEST_F(LinParametersPanelTest, build_after_apply_returns_same_values) {
     EXPECT_EQ(result.start, "1k");
     EXPECT_EQ(result.end, "1M");
     EXPECT_EQ(result.data_table_name, "");
-    EXPECT_TRUE(result.replace_ground);
     ASSERT_TRUE(result.print_parameters.has_value());
     EXPECT_EQ(result.print_parameters->print_type, "AC");
     EXPECT_EQ(result.print_parameters->print_format, "RAW");
@@ -102,21 +100,6 @@ TEST_F(LinParametersPanelTest, build_after_apply_returns_same_values) {
 }
 
 // ========================================================================================
-// build with replace_ground
-// ========================================================================================
-
-TEST_F(LinParametersPanelTest, build_with_replace_ground) {
-    // arrange
-    LinParametersPanel panel(m_parent);
-    LinSimulationParameters input(true, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "", "", "", "", true, std::nullopt);
-    // act
-    panel.apply(input);
-    auto result = panel.build_lin_parameters();
-    // assert
-    EXPECT_TRUE(result.replace_ground);
-}
-
-// ========================================================================================
 // build with print section
 // ========================================================================================
 
@@ -124,7 +107,7 @@ TEST_F(LinParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     LinParametersPanel panel(m_parent);
     auto print_params = PrintParameters("AC", "CSV", "data.csv", {"V(1)", "V(2)"}, {});
-    LinSimulationParameters input(true, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "", "", "", "", false, print_params);
+    LinSimulationParameters input(true, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "", "", "", "", print_params);
     // act
     panel.apply(input);
     auto result = panel.build_lin_parameters();
@@ -138,7 +121,7 @@ TEST_F(LinParametersPanelTest, build_with_print_section_enabled) {
 TEST_F(LinParametersPanelTest, build_without_print_section) {
     // arrange
     LinParametersPanel panel(m_parent);
-    LinSimulationParameters input(true, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "", "", "", "", false, std::nullopt);
+    LinSimulationParameters input(true, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "", "", "", "", std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_lin_parameters();
@@ -154,11 +137,11 @@ TEST_F(LinParametersPanelTest, apply_without_print_params_disables_print_section
     // arrange
     LinParametersPanel panel(m_parent);
     auto print_params = PrintParameters("AC", "RAW", "lin.raw", {}, {});
-    LinSimulationParameters with_print(true, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "", "", "", "", false, print_params);
+    LinSimulationParameters with_print(true, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "", "", "", "", print_params);
     panel.apply(with_print);
     ASSERT_TRUE(panel.build_lin_parameters().print_parameters.has_value());
     // act — apply without print parameters
-    LinSimulationParameters without_print(true, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "", "", "", "", false, std::nullopt);
+    LinSimulationParameters without_print(true, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "", "", "", "", std::nullopt);
     panel.apply(without_print);
     auto result = panel.build_lin_parameters();
     // assert
@@ -172,7 +155,7 @@ TEST_F(LinParametersPanelTest, apply_without_print_params_disables_print_section
 TEST_F(LinParametersPanelTest, build_with_data_sweep) {
     // arrange
     LinParametersPanel panel(m_parent);
-    LinSimulationParameters input(true, "TOUCHSTONE2", "S", "RI", "", "", "", "DATA", "", "", "", "my_table", false, std::nullopt);
+    LinSimulationParameters input(true, "TOUCHSTONE2", "S", "RI", "", "", "", "DATA", "", "", "", "my_table", std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_lin_parameters();

@@ -6,8 +6,8 @@
 #include "../util.h"
 #include "hb_simulation_parameters.h"
 
-HbSimulationParameters::HbSimulationParameters(std::vector<std::string> frequencies, std::vector<int> harmonics, std::optional<int> tahb, std::optional<std::string> selectharms, std::optional<int> startup_periods, bool replace_ground, std::optional<PrintParameters> print_parameters, std::map<std::string, std::string> nonlin_options, std::map<std::string, std::string> linsol_options) :
-    frequencies(std::move(frequencies)), harmonics(std::move(harmonics)), tahb(std::move(tahb)), selectharms(std::move(selectharms)), startup_periods(std::move(startup_periods)), replace_ground(replace_ground), print_parameters(std::move(print_parameters)), nonlin_options(std::move(nonlin_options)), linsol_options(std::move(linsol_options)) {}
+HbSimulationParameters::HbSimulationParameters(std::vector<std::string> frequencies, std::vector<int> harmonics, std::optional<int> tahb, std::optional<std::string> selectharms, std::optional<int> startup_periods, std::optional<PrintParameters> print_parameters, std::map<std::string, std::string> nonlin_options, std::map<std::string, std::string> linsol_options) :
+    frequencies(std::move(frequencies)), harmonics(std::move(harmonics)), tahb(std::move(tahb)), selectharms(std::move(selectharms)), startup_periods(std::move(startup_periods)), print_parameters(std::move(print_parameters)), nonlin_options(std::move(nonlin_options)), linsol_options(std::move(linsol_options)) {}
 
 std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // init defaults
@@ -16,7 +16,6 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
     std::optional<int> tahb;
     std::optional<std::string> selectharms;
     std::optional<int> startup_periods;
-    bool replace_ground = true;
     std::optional<PrintParameters> print_parameters;
     std::map<std::string, std::string> nonlin_options;
     std::map<std::string, std::string> linsol_options;
@@ -48,13 +47,6 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
                     print_parameters = *print_statement;
                 }
             }
-            continue;
-        }
-
-        // handle preprocess replaceground
-        if (cmd == ".PREPROCESS" && tokens.size() > 2 && to_upper(tokens[1]) == "REPLACEGROUND") {
-            // set replace_ground based on the third token
-            replace_ground = (to_upper(tokens[2]) == "TRUE");
             continue;
         }
 
@@ -191,18 +183,12 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
         return std::nullopt;
     }
 
-    return HbSimulationParameters(frequencies, harmonics, tahb, selectharms, startup_periods, replace_ground, print_parameters, nonlin_options, linsol_options);
+    return HbSimulationParameters(frequencies, harmonics, tahb, selectharms, startup_periods, print_parameters, nonlin_options, linsol_options);
 }
 
 std::vector<std::string> HbSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
-
-    // prepend replaceground preprocessing when enabled
-    if (replace_ground) {
-        directives.push_back(".PREPROCESS REPLACEGROUND TRUE");
-    }
-
     // build the hb directive with space-separated fundamental frequencies
     std::string hb_directive = ".HB";
     for (const auto& freq : frequencies) {
@@ -289,5 +275,5 @@ std::vector<std::string> HbSimulationParameters::to_xyce_directives(const Netlis
 
 bool HbSimulationParameters::operator==(const HbSimulationParameters& other) const {
     // compare all fields for equality
-    return frequencies == other.frequencies && harmonics == other.harmonics && tahb == other.tahb && selectharms == other.selectharms && startup_periods == other.startup_periods && replace_ground == other.replace_ground && print_parameters == other.print_parameters && nonlin_options == other.nonlin_options && linsol_options == other.linsol_options;
+    return frequencies == other.frequencies && harmonics == other.harmonics && tahb == other.tahb && selectharms == other.selectharms && startup_periods == other.startup_periods && print_parameters == other.print_parameters && nonlin_options == other.nonlin_options && linsol_options == other.linsol_options;
 }

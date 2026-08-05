@@ -6,8 +6,8 @@
 #include "../util.h"
 #include "dc_simulation_parameters.h"
 
-DCSimulationParameters::DCSimulationParameters(std::string sweep_mode, std::string primary_variable, std::string start, std::string stop, std::string step, std::string points, std::vector<std::string> list_values, std::string data_table_name, std::string secondary_variable, std::string secondary_start, std::string secondary_stop, std::string secondary_step, std::string secondary_points, bool replace_ground, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
-    sweep_mode(std::move(sweep_mode)), primary_variable(std::move(primary_variable)), start(std::move(start)), stop(std::move(stop)), step(std::move(step)), points(std::move(points)), list_values(std::move(list_values)), data_table_name(std::move(data_table_name)), secondary_variable(std::move(secondary_variable)), secondary_start(std::move(secondary_start)), secondary_stop(std::move(secondary_stop)), secondary_step(std::move(secondary_step)), secondary_points(std::move(secondary_points)), replace_ground(replace_ground), print_parameters(std::move(print_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
+DCSimulationParameters::DCSimulationParameters(std::string sweep_mode, std::string primary_variable, std::string start, std::string stop, std::string step, std::string points, std::vector<std::string> list_values, std::string data_table_name, std::string secondary_variable, std::string secondary_start, std::string secondary_stop, std::string secondary_step, std::string secondary_points, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
+    sweep_mode(std::move(sweep_mode)), primary_variable(std::move(primary_variable)), start(std::move(start)), stop(std::move(stop)), step(std::move(step)), points(std::move(points)), list_values(std::move(list_values)), data_table_name(std::move(data_table_name)), secondary_variable(std::move(secondary_variable)), secondary_start(std::move(secondary_start)), secondary_stop(std::move(secondary_stop)), secondary_step(std::move(secondary_step)), secondary_points(std::move(secondary_points)), print_parameters(std::move(print_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
 
 std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // init defaults
@@ -24,7 +24,6 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
     std::string secondary_stop;
     std::string secondary_step;
     std::string secondary_points;
-    bool replace_ground = true;
     std::optional<PrintParameters> print_parameters;
     std::vector<MeasureEntry> measure_parameters;
     std::optional<SensParameter> sensitivity;
@@ -57,13 +56,6 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
                     continue;
                 }
             }
-        }
-
-        // handle preprocess replaceground
-        if (cmd == ".PREPROCESS" && tokens.size() > 2 && to_upper(tokens[1]) == "REPLACEGROUND") {
-            // set replace_ground based on the third token
-            replace_ground = (to_upper(tokens[2]) == "TRUE");
-            continue;
         }
 
         // parse measure directives
@@ -179,15 +171,12 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
         return std::nullopt;
     }
 
-    return DCSimulationParameters(sweep_mode, primary_variable, start, stop, step, points, list_values, data_table_name, secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, replace_ground, print_parameters, measure_parameters, sensitivity);
+    return DCSimulationParameters(sweep_mode, primary_variable, start, stop, step, points, list_values, data_table_name, secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, print_parameters, measure_parameters, sensitivity);
 }
 
 std::vector<std::string> DCSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
-    // prepend replaceground preprocessing when enabled
-    if (replace_ground)
-        directives.push_back(".PREPROCESS REPLACEGROUND TRUE");
     // build the core dc directive based on the selected sweep mode
     std::string dc_directive = ".DC";
 
@@ -238,5 +227,5 @@ std::vector<std::string> DCSimulationParameters::to_xyce_directives(const Netlis
 
 bool DCSimulationParameters::operator==(const DCSimulationParameters& other) const {
     // compare all fields for equality
-    return sweep_mode == other.sweep_mode && primary_variable == other.primary_variable && start == other.start && stop == other.stop && step == other.step && points == other.points && list_values == other.list_values && data_table_name == other.data_table_name && secondary_variable == other.secondary_variable && secondary_start == other.secondary_start && secondary_stop == other.secondary_stop && secondary_step == other.secondary_step && secondary_points == other.secondary_points && replace_ground == other.replace_ground && print_parameters == other.print_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
+    return sweep_mode == other.sweep_mode && primary_variable == other.primary_variable && start == other.start && stop == other.stop && step == other.step && points == other.points && list_values == other.list_values && data_table_name == other.data_table_name && secondary_variable == other.secondary_variable && secondary_start == other.secondary_start && secondary_stop == other.secondary_stop && secondary_step == other.secondary_step && secondary_points == other.secondary_points && print_parameters == other.print_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
 }

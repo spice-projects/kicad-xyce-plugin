@@ -14,8 +14,8 @@ bool DeviceNoiseOperator::operator==(const DeviceNoiseOperator& other) const {
     return type == other.type && node == other.node && source == other.source;
 }
 
-NoiseSimulationParameters::NoiseSimulationParameters(std::string output_node, std::string ref_node, std::string source_name, std::string start_freq_value, std::string end_freq_value, std::string num_points_value, std::string sweep_type, std::vector<DeviceNoiseOperator> device_noise_operators, std::string data_table_name, bool replace_ground, std::optional<PrintParameters> print_parameters) :
-    output_node(std::move(output_node)), ref_node(std::move(ref_node)), source_name(std::move(source_name)), start_freq_value(std::move(start_freq_value)), end_freq_value(std::move(end_freq_value)), num_points_value(std::move(num_points_value)), sweep_type(std::move(sweep_type)), device_noise_operators(std::move(device_noise_operators)), data_table_name(std::move(data_table_name)), replace_ground(replace_ground), print_parameters(std::move(print_parameters)) {}
+NoiseSimulationParameters::NoiseSimulationParameters(std::string output_node, std::string ref_node, std::string source_name, std::string start_freq_value, std::string end_freq_value, std::string num_points_value, std::string sweep_type, std::vector<DeviceNoiseOperator> device_noise_operators, std::string data_table_name, std::optional<PrintParameters> print_parameters) :
+    output_node(std::move(output_node)), ref_node(std::move(ref_node)), source_name(std::move(source_name)), start_freq_value(std::move(start_freq_value)), end_freq_value(std::move(end_freq_value)), num_points_value(std::move(num_points_value)), sweep_type(std::move(sweep_type)), device_noise_operators(std::move(device_noise_operators)), data_table_name(std::move(data_table_name)), print_parameters(std::move(print_parameters)) {}
 
 std::optional<NoiseSimulationParameters> NoiseSimulationParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // init defaults
@@ -28,7 +28,6 @@ std::optional<NoiseSimulationParameters> NoiseSimulationParameters::from_xyce_di
     std::string sweep_type;
     std::vector<DeviceNoiseOperator> device_noise_operators;
     std::string data_table_name;
-    bool replace_ground = true;
     std::optional<PrintParameters> print_parameters;
 
     // flag indicating whether a valid directive was found
@@ -59,13 +58,6 @@ std::optional<NoiseSimulationParameters> NoiseSimulationParameters::from_xyce_di
                     continue;
                 }
             }
-        }
-
-        // handle preprocess replaceground
-        if (cmd == ".PREPROCESS" && tokens.size() > 2 && to_upper(tokens[1]) == "REPLACEGROUND") {
-            // set flag based on value
-            replace_ground = (to_upper(tokens[2]) == "TRUE");
-            continue;
         }
 
         // skip non-NOISE directives
@@ -131,18 +123,12 @@ std::optional<NoiseSimulationParameters> NoiseSimulationParameters::from_xyce_di
         return std::nullopt;
     }
 
-    return NoiseSimulationParameters(output_node, ref_node, source_name, start_freq_value, end_freq_value, num_points_value, sweep_type, device_noise_operators, data_table_name, replace_ground, print_parameters);
+    return NoiseSimulationParameters(output_node, ref_node, source_name, start_freq_value, end_freq_value, num_points_value, sweep_type, device_noise_operators, data_table_name, print_parameters);
 }
 
 std::vector<std::string> NoiseSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
-
-    // prepend replaceground preprocessor directive when enabled
-    if (replace_ground) {
-        directives.push_back(".PREPROCESS REPLACEGROUND TRUE");
-    }
-
     // start with the noise analysis directive
     std::string noise_directive = ".NOISE " + output_node + " " + ref_node + " " + source_name + " " + start_freq_value + " " + end_freq_value + " " + num_points_value + " " + sweep_type;
 
@@ -169,5 +155,5 @@ std::vector<std::string> NoiseSimulationParameters::to_xyce_directives(const Net
 
 bool NoiseSimulationParameters::operator==(const NoiseSimulationParameters& other) const {
     // compare all fields for equality
-    return output_node == other.output_node && ref_node == other.ref_node && source_name == other.source_name && start_freq_value == other.start_freq_value && end_freq_value == other.end_freq_value && num_points_value == other.num_points_value && sweep_type == other.sweep_type && device_noise_operators == other.device_noise_operators && data_table_name == other.data_table_name && replace_ground == other.replace_ground && print_parameters == other.print_parameters;
+    return output_node == other.output_node && ref_node == other.ref_node && source_name == other.source_name && start_freq_value == other.start_freq_value && end_freq_value == other.end_freq_value && num_points_value == other.num_points_value && sweep_type == other.sweep_type && device_noise_operators == other.device_noise_operators && data_table_name == other.data_table_name && print_parameters == other.print_parameters;
 }

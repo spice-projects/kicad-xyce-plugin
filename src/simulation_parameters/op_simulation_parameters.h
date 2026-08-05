@@ -42,7 +42,7 @@ class OpSimulationParameters
 {
 public:
     // construct an OP simulation parameters instance from individual fields
-    OpSimulationParameters(bool print_dc_enabled, bool print_dc_all_nodes, bool print_dc_all_currents, std::vector<std::string> print_dc_specific_variables, std::string print_dc_format, std::string print_dc_file, bool save_enabled, std::string save_type, std::string save_file, std::vector<NodesetEntry> nodeset_entries, std::vector<IcEntry> ic_entries, bool replace_ground, std::optional<PrintParameters> print_parameters);
+    OpSimulationParameters(bool print_dc_enabled, bool print_dc_all_nodes, bool print_dc_all_currents, std::vector<std::string> print_dc_specific_variables, std::string print_dc_format, std::string print_dc_file, bool save_enabled, std::string save_type, std::string save_file, std::vector<NodesetEntry> nodeset_entries, std::vector<IcEntry> ic_entries, std::optional<PrintParameters> print_parameters);
 
     // parse all directives into an OpSimulationParameters instance;
     // returns nullopt when no .OP directive is found
@@ -76,8 +76,6 @@ public:
     std::vector<NodesetEntry> nodeset_entries;
     // initial condition entries
     std::vector<IcEntry> ic_entries;
-    // whether to apply replaceground preprocessing
-    bool replace_ground;
     // optional print parameters
     std::optional<PrintParameters> print_parameters;
 };

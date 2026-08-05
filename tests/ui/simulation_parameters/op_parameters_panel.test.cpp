@@ -55,7 +55,6 @@ TEST_F(OpParametersPanelTest, build_returns_defaults_by_default) {
     EXPECT_TRUE(result.save_file.empty());
     EXPECT_TRUE(result.nodeset_entries.empty());
     EXPECT_TRUE(result.ic_entries.empty());
-    EXPECT_FALSE(result.replace_ground);
 }
 
 // ========================================================================================
@@ -68,7 +67,7 @@ TEST_F(OpParametersPanelTest, build_after_apply_returns_same_values) {
     auto print_params = PrintParameters("DC", "RAW", "out.raw", {"V(*)", "IC(*)"}, {});
     auto nodeset_entries = std::vector<NodesetEntry>{NodesetEntry("1", "5.0"), NodesetEntry("2", "3.3")};
     auto ic_entries = std::vector<IcEntry>{IcEntry("out", "1.0"), IcEntry("in", "0")};
-    OpSimulationParameters input(true, false, false, std::vector<std::string>{}, "", "", true, "IC", "save.dat", nodeset_entries, ic_entries, true, print_params);
+    OpSimulationParameters input(true, false, false, std::vector<std::string>{}, "", "", true, "IC", "save.dat", nodeset_entries, ic_entries, print_params);
     // act
     panel.apply(input);
     auto result = panel.build_op_parameters();
@@ -100,8 +99,6 @@ TEST_F(OpParametersPanelTest, build_after_apply_returns_same_values) {
     EXPECT_EQ(result.ic_entries[0].voltage, "1.0");
     EXPECT_EQ(result.ic_entries[1].node, "in");
     EXPECT_EQ(result.ic_entries[1].voltage, "0");
-
-    EXPECT_TRUE(result.replace_ground);
 }
 
 // ========================================================================================
@@ -113,7 +110,7 @@ TEST_F(OpParametersPanelTest, build_with_save_section) {
     OpParametersPanel panel(m_parent);
     auto nodeset = std::vector<NodesetEntry>{};
     auto ic = std::vector<IcEntry>{};
-    OpSimulationParameters input(true, false, false, std::vector<std::string>{}, "", "", true, "NODESET", "op.dat", nodeset, ic, false, std::nullopt);
+    OpSimulationParameters input(true, false, false, std::vector<std::string>{}, "", "", true, "NODESET", "op.dat", nodeset, ic, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_op_parameters();
@@ -131,7 +128,7 @@ TEST_F(OpParametersPanelTest, build_with_nodeset_entries) {
     // arrange
     OpParametersPanel panel(m_parent);
     auto nodeset = std::vector<NodesetEntry>{NodesetEntry("1", "5.0"), NodesetEntry("2", "3.3")};
-    OpSimulationParameters input(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", nodeset, {}, false, std::nullopt);
+    OpSimulationParameters input(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", nodeset, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_op_parameters();
@@ -151,7 +148,7 @@ TEST_F(OpParametersPanelTest, build_with_ic_entries) {
     // arrange
     OpParametersPanel panel(m_parent);
     auto ic = std::vector<IcEntry>{IcEntry("out", "1.0"), IcEntry("in", "0")};
-    OpSimulationParameters input(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, ic, false, std::nullopt);
+    OpSimulationParameters input(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, ic, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_op_parameters();
@@ -171,7 +168,7 @@ TEST_F(OpParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     OpParametersPanel panel(m_parent);
     auto print_params = PrintParameters("DC", "CSV", "data.csv", {"V(1)", "V(2)"}, {});
-    OpSimulationParameters input(true, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, false, print_params);
+    OpSimulationParameters input(true, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, print_params);
     // act
     panel.apply(input);
     auto result = panel.build_op_parameters();
@@ -185,7 +182,7 @@ TEST_F(OpParametersPanelTest, build_with_print_section_enabled) {
 TEST_F(OpParametersPanelTest, build_without_print_section) {
     // arrange
     OpParametersPanel panel(m_parent);
-    OpSimulationParameters input(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, false, std::nullopt);
+    OpSimulationParameters input(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_op_parameters();
@@ -201,28 +198,13 @@ TEST_F(OpParametersPanelTest, apply_without_print_params_disables_print_section)
     // arrange
     OpParametersPanel panel(m_parent);
     auto print_params = PrintParameters("DC", "RAW", "out.raw", {}, {});
-    OpSimulationParameters with_print(true, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, false, print_params);
+    OpSimulationParameters with_print(true, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, print_params);
     panel.apply(with_print);
     ASSERT_TRUE(panel.build_op_parameters().print_parameters.has_value());
     // act — apply without print parameters
-    OpSimulationParameters without_print(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, false, std::nullopt);
+    OpSimulationParameters without_print(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, std::nullopt);
     panel.apply(without_print);
     auto result = panel.build_op_parameters();
     // assert
     EXPECT_FALSE(result.print_parameters.has_value());
-}
-
-// ========================================================================================
-// build with replace_ground
-// ========================================================================================
-
-TEST_F(OpParametersPanelTest, build_with_replace_ground) {
-    // arrange
-    OpParametersPanel panel(m_parent);
-    OpSimulationParameters input(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, true, std::nullopt);
-    // act
-    panel.apply(input);
-    auto result = panel.build_op_parameters();
-    // assert
-    EXPECT_TRUE(result.replace_ground);
 }

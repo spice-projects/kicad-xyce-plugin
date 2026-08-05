@@ -264,13 +264,10 @@ TransientSimulationParameters TransientParametersPanel::build_transient_paramete
         }
     }
 
-    // read replace ground from global settings
-    bool replace_ground = m_global_settings->get_replace_ground();
-
     // read print parameters from print section
     std::optional<PrintParameters> print_params = m_print_section->build_print_parameters();
     // create parameters
-    return TransientSimulationParameters(std::move(initial_step), std::move(final_time), std::move(start_time), std::move(step_ceiling), std::move(op_keyword), std::move(schedule_points), replace_ground, std::move(print_params), std::move(fft_params), std::move(four_params), std::move(measure_params), std::nullopt);
+    return TransientSimulationParameters(std::move(initial_step), std::move(final_time), std::move(start_time), std::move(step_ceiling), std::move(op_keyword), std::move(schedule_points), std::move(print_params), std::move(fft_params), std::move(four_params), std::move(measure_params), std::nullopt);
 }
 
 void TransientParametersPanel::apply(const TransientSimulationParameters& params) {
@@ -318,9 +315,6 @@ void TransientParametersPanel::apply(const TransientSimulationParameters& params
         }
         m_measure_text->SetValue(text);
     }
-
-    // restore replace ground
-    m_global_settings->set_replace_ground(params.replace_ground);
 
     // restore print parameters (BJT and FET leads both always relevant for TRAN)
     m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, true, true);

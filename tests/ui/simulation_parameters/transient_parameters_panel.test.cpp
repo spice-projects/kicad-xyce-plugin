@@ -53,7 +53,6 @@ TEST_F(TransientParametersPanelTest, build_returns_empty_fields_by_default) {
     EXPECT_EQ(result.step_ceiling_value, "");
     EXPECT_EQ(result.op_keyword, "");
     EXPECT_TRUE(result.schedule_points.empty());
-    EXPECT_FALSE(result.replace_ground);
     EXPECT_FALSE(result.print_parameters.has_value());
 }
 
@@ -66,7 +65,7 @@ TEST_F(TransientParametersPanelTest, build_after_apply_returns_same_values) {
     TransientParametersPanel panel(m_parent);
     auto schedule = std::vector<TransientSchedulePoint>{TransientSchedulePoint("1u", "10n"), TransientSchedulePoint("10u", "100n")};
     auto print_params = PrintParameters("TRANADJOINT", "RAW", "out.raw", {"V(*)", "IC(*)"}, {});
-    TransientSimulationParameters input("1u", "1m", "0", "5u", "NOOP", schedule, true, print_params, {}, {}, {}, std::nullopt);
+    TransientSimulationParameters input("1u", "1m", "0", "5u", "NOOP", schedule, print_params, {}, {}, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_transient_parameters();
@@ -81,7 +80,6 @@ TEST_F(TransientParametersPanelTest, build_after_apply_returns_same_values) {
     EXPECT_EQ(result.schedule_points[0].max_time_step_value, "10n");
     EXPECT_EQ(result.schedule_points[1].time_value, "10u");
     EXPECT_EQ(result.schedule_points[1].max_time_step_value, "100n");
-    EXPECT_TRUE(result.replace_ground);
     ASSERT_TRUE(result.print_parameters.has_value());
     EXPECT_EQ(result.print_parameters->print_type, "TRANADJOINT");
     EXPECT_EQ(result.print_parameters->print_format, "RAW");
@@ -98,7 +96,7 @@ TEST_F(TransientParametersPanelTest, build_after_apply_returns_same_values) {
 TEST_F(TransientParametersPanelTest, build_with_noop_keyword) {
     // arrange
     TransientParametersPanel panel(m_parent);
-    TransientSimulationParameters input("1u", "1m", "", "", "NOOP", {}, false, std::nullopt, {}, {}, {}, std::nullopt);
+    TransientSimulationParameters input("1u", "1m", "", "", "NOOP", {}, std::nullopt, {}, {}, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_transient_parameters();
@@ -109,27 +107,12 @@ TEST_F(TransientParametersPanelTest, build_with_noop_keyword) {
 TEST_F(TransientParametersPanelTest, build_with_uic_keyword) {
     // arrange
     TransientParametersPanel panel(m_parent);
-    TransientSimulationParameters input("1u", "1m", "", "", "UIC", {}, false, std::nullopt, {}, {}, {}, std::nullopt);
+    TransientSimulationParameters input("1u", "1m", "", "", "UIC", {}, std::nullopt, {}, {}, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_transient_parameters();
     // assert
     EXPECT_EQ(result.op_keyword, "UIC");
-}
-
-// ========================================================================================
-// build with replace_ground
-// ========================================================================================
-
-TEST_F(TransientParametersPanelTest, build_with_replace_ground) {
-    // arrange
-    TransientParametersPanel panel(m_parent);
-    TransientSimulationParameters input("1u", "1m", "", "", "", {}, true, std::nullopt, {}, {}, {}, std::nullopt);
-    // act
-    panel.apply(input);
-    auto result = panel.build_transient_parameters();
-    // assert
-    EXPECT_TRUE(result.replace_ground);
 }
 
 // ========================================================================================
@@ -140,7 +123,7 @@ TEST_F(TransientParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     TransientParametersPanel panel(m_parent);
     auto print_params = PrintParameters("TRAN", "CSV", "data.csv", {"V(1)", "V(2)"}, {});
-    TransientSimulationParameters input("1u", "1m", "", "", "", {}, false, print_params, {}, {}, {}, std::nullopt);
+    TransientSimulationParameters input("1u", "1m", "", "", "", {}, print_params, {}, {}, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_transient_parameters();
@@ -154,7 +137,7 @@ TEST_F(TransientParametersPanelTest, build_with_print_section_enabled) {
 TEST_F(TransientParametersPanelTest, build_without_print_section) {
     // arrange
     TransientParametersPanel panel(m_parent);
-    TransientSimulationParameters input("1u", "1m", "", "", "", {}, false, std::nullopt, {}, {}, {}, std::nullopt);
+    TransientSimulationParameters input("1u", "1m", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt);
     // act
     panel.apply(input);
     auto result = panel.build_transient_parameters();
@@ -170,11 +153,11 @@ TEST_F(TransientParametersPanelTest, apply_without_print_params_disables_print_s
     // arrange
     TransientParametersPanel panel(m_parent);
     auto print_params = PrintParameters("TRAN", "RAW", "out.raw", {}, {});
-    TransientSimulationParameters with_print("1u", "1m", "", "", "", {}, false, print_params, {}, {}, {}, std::nullopt);
+    TransientSimulationParameters with_print("1u", "1m", "", "", "", {}, print_params, {}, {}, {}, std::nullopt);
     panel.apply(with_print);
     ASSERT_TRUE(panel.build_transient_parameters().print_parameters.has_value());
     // act — apply without print parameters
-    TransientSimulationParameters without_print("1u", "1m", "", "", "", {}, false, std::nullopt, {}, {}, {}, std::nullopt);
+    TransientSimulationParameters without_print("1u", "1m", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt);
     panel.apply(without_print);
     auto result = panel.build_transient_parameters();
     // assert

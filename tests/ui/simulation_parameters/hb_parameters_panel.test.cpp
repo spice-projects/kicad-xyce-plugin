@@ -50,7 +50,6 @@ TEST_F(HbParametersPanelTest, build_returns_defaults_by_default) {
     EXPECT_FALSE(result.tahb.has_value());
     EXPECT_FALSE(result.selectharms.has_value());
     EXPECT_FALSE(result.startup_periods.has_value());
-    EXPECT_FALSE(result.replace_ground);
     EXPECT_FALSE(result.print_parameters.has_value());
     EXPECT_TRUE(result.nonlin_options.empty());
     EXPECT_TRUE(result.linsol_options.empty());
@@ -69,7 +68,7 @@ TEST_F(HbParametersPanelTest, build_after_apply_returns_same_values) {
     std::map<std::string, std::string> linsol_opts;
     linsol_opts["METHOD"] = "KINSOL";
     auto print_params = PrintParameters("HB_FD", "CSV", "hb.csv", {"V(1)", "I(V1)"}, {});
-    HbSimulationParameters input({"1e6", "2e6"}, {5, 7, 9}, 10, "ALL", 10, true, print_params, nonlin_opts, linsol_opts);
+    HbSimulationParameters input({"1e6", "2e6"}, {5, 7, 9}, 10, "ALL", 10, print_params, nonlin_opts, linsol_opts);
     // act
     panel.apply(input);
     auto result = panel.build_hb_parameters();
@@ -87,7 +86,6 @@ TEST_F(HbParametersPanelTest, build_after_apply_returns_same_values) {
     EXPECT_EQ(*result.selectharms, "ALL");
     ASSERT_TRUE(result.startup_periods.has_value());
     EXPECT_EQ(*result.startup_periods, 10);
-    EXPECT_TRUE(result.replace_ground);
     ASSERT_TRUE(result.print_parameters.has_value());
     EXPECT_EQ(result.print_parameters->print_type, "HB_FD");
     EXPECT_EQ(result.print_parameters->print_format, "CSV");
@@ -100,21 +98,6 @@ TEST_F(HbParametersPanelTest, build_after_apply_returns_same_values) {
 }
 
 // ========================================================================================
-// build with replace_ground
-// ========================================================================================
-
-TEST_F(HbParametersPanelTest, build_with_replace_ground) {
-    // arrange
-    HbParametersPanel panel(m_parent);
-    HbSimulationParameters input({}, {}, std::nullopt, std::nullopt, std::nullopt, true, std::nullopt, {}, {});
-    // act
-    panel.apply(input);
-    auto result = panel.build_hb_parameters();
-    // assert
-    EXPECT_TRUE(result.replace_ground);
-}
-
-// ========================================================================================
 // build with print section
 // ========================================================================================
 
@@ -122,7 +105,7 @@ TEST_F(HbParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     HbParametersPanel panel(m_parent);
     auto print_params = PrintParameters("HB", "RAW", "out.raw", {"V(*)"}, {});
-    HbSimulationParameters input({}, {}, std::nullopt, std::nullopt, std::nullopt, false, print_params, {}, {});
+    HbSimulationParameters input({}, {}, std::nullopt, std::nullopt, std::nullopt, print_params, {}, {});
     // act
     panel.apply(input);
     auto result = panel.build_hb_parameters();
@@ -136,7 +119,7 @@ TEST_F(HbParametersPanelTest, build_with_print_section_enabled) {
 TEST_F(HbParametersPanelTest, build_without_print_section) {
     // arrange
     HbParametersPanel panel(m_parent);
-    HbSimulationParameters input({}, {}, std::nullopt, std::nullopt, std::nullopt, false, std::nullopt, {}, {});
+    HbSimulationParameters input({}, {}, std::nullopt, std::nullopt, std::nullopt, std::nullopt, {}, {});
     // act
     panel.apply(input);
     auto result = panel.build_hb_parameters();
@@ -152,11 +135,11 @@ TEST_F(HbParametersPanelTest, apply_without_print_params_disables_print_section)
     // arrange
     HbParametersPanel panel(m_parent);
     auto print_params = PrintParameters("HB", "RAW", "out.raw", {}, {});
-    HbSimulationParameters with_print({}, {}, std::nullopt, std::nullopt, std::nullopt, false, print_params, {}, {});
+    HbSimulationParameters with_print({}, {}, std::nullopt, std::nullopt, std::nullopt, print_params, {}, {});
     panel.apply(with_print);
     ASSERT_TRUE(panel.build_hb_parameters().print_parameters.has_value());
     // act — apply without print parameters
-    HbSimulationParameters without_print({}, {}, std::nullopt, std::nullopt, std::nullopt, false, std::nullopt, {}, {});
+    HbSimulationParameters without_print({}, {}, std::nullopt, std::nullopt, std::nullopt, std::nullopt, {}, {});
     panel.apply(without_print);
     auto result = panel.build_hb_parameters();
     // assert
@@ -173,7 +156,7 @@ TEST_F(HbParametersPanelTest, build_with_nonlin_options) {
     std::map<std::string, std::string> nonlin_opts;
     nonlin_opts["MAXITER"] = "100";
     nonlin_opts["RELAXTYPE"] = "LINEAR";
-    HbSimulationParameters input({}, {}, std::nullopt, std::nullopt, std::nullopt, false, std::nullopt, nonlin_opts, {});
+    HbSimulationParameters input({}, {}, std::nullopt, std::nullopt, std::nullopt, std::nullopt, nonlin_opts, {});
     // act
     panel.apply(input);
     auto result = panel.build_hb_parameters();

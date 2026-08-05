@@ -181,13 +181,10 @@ NoiseSimulationParameters NoiseParametersPanel::build_noise_parameters() const {
     // read and parse device noise operators from multiline text
     auto device_noise_operators = parse_device_noise_text(m_device_noise_text->GetValue());
 
-    // read replace ground from global settings
-    bool replace_ground = m_global_settings->get_replace_ground();
-
     // read print parameters from print section
     std::optional<PrintParameters> print_params = m_print_section->build_print_parameters();
 
-    return NoiseSimulationParameters(std::move(output_node), std::move(ref_node), std::move(source_name), std::move(start_freq), std::move(end_freq), std::move(num_points), std::move(sweep_type), std::move(device_noise_operators), std::move(data_table_name), replace_ground, std::move(print_params));
+    return NoiseSimulationParameters(std::move(output_node), std::move(ref_node), std::move(source_name), std::move(start_freq), std::move(end_freq), std::move(num_points), std::move(sweep_type), std::move(device_noise_operators), std::move(data_table_name), std::move(print_params));
 }
 
 void NoiseParametersPanel::apply(const NoiseSimulationParameters& params) {
@@ -206,9 +203,6 @@ void NoiseParametersPanel::apply(const NoiseSimulationParameters& params) {
     // restore data table name and device noise operators
     m_data_table_text->SetValue(wxString::FromUTF8(params.data_table_name));
     m_device_noise_text->SetValue(format_device_noise_operators(params.device_noise_operators));
-
-    // restore replace ground
-    m_global_settings->set_replace_ground(params.replace_ground);
 
     // restore print parameters (BJT leads hidden, FET leads relevant for NOISE)
     m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, true, true);

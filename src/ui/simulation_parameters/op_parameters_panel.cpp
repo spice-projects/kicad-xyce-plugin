@@ -206,10 +206,8 @@ OpSimulationParameters OpParametersPanel::build_op_parameters() const {
     // parse nodeset and IC entries from text controls
     auto nodeset_entries = parse_nodeset_text(m_nodeset_text->GetValue());
     auto ic_entries = parse_ic_text(m_ic_text->GetValue());
-    // read replace ground from global settings
-    bool replace_ground = m_global_settings->get_replace_ground();
     // legacy DC print fields are left at defaults since print_parameters takes priority
-    return OpSimulationParameters(print_params.has_value(), false, false, {}, "", "", save_enabled, save_type, save_file, std::move(nodeset_entries), std::move(ic_entries), replace_ground, std::move(print_params));
+    return OpSimulationParameters(print_params.has_value(), false, false, {}, "", "", save_enabled, save_type, save_file, std::move(nodeset_entries), std::move(ic_entries), std::move(print_params));
 }
 
 void OpParametersPanel::apply(const OpSimulationParameters& params) {
@@ -226,9 +224,6 @@ void OpParametersPanel::apply(const OpSimulationParameters& params) {
     // restore nodeset and IC entries
     m_nodeset_text->SetValue(format_nodeset_entries(params.nodeset_entries));
     m_ic_text->SetValue(format_ic_entries(params.ic_entries));
-
-    // restore replace ground
-    m_global_settings->set_replace_ground(params.replace_ground);
 }
 
 GlobalSettingsPanel* OpParametersPanel::get_global_settings() const { return m_global_settings; }

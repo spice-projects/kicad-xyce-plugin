@@ -14,7 +14,7 @@ class DCSimulationParameters
 {
 public:
     // construct a DC simulation parameters instance from individual fields
-    DCSimulationParameters(std::string sweep_mode, std::string primary_variable, std::string start, std::string stop, std::string step, std::string points, std::vector<std::string> list_values, std::string data_table_name, std::string secondary_variable, std::string secondary_start, std::string secondary_stop, std::string secondary_step, std::string secondary_points, bool replace_ground, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity);
+    DCSimulationParameters(std::string sweep_mode, std::string primary_variable, std::string start, std::string stop, std::string step, std::string points, std::vector<std::string> list_values, std::string data_table_name, std::string secondary_variable, std::string secondary_start, std::string secondary_stop, std::string secondary_step, std::string secondary_points, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity);
 
     // parse all directives into a DCSimulationParameters instance;
     // returns nullopt when no .DC directive is found
@@ -52,8 +52,6 @@ public:
     std::string secondary_step;
     // number of points (DEC/OCT sweep only)
     std::string secondary_points;
-    // whether to apply replaceground preprocessing
-    bool replace_ground;
     // optional print parameters
     std::optional<PrintParameters> print_parameters;
     // measure directives

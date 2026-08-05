@@ -13,7 +13,7 @@ class HbSimulationParameters
 {
 public:
     // construct an HB simulation parameters instance from individual fields
-    HbSimulationParameters(std::vector<std::string> frequencies, std::vector<int> harmonics, std::optional<int> tahb, std::optional<std::string> selectharms, std::optional<int> startup_periods, bool replace_ground, std::optional<PrintParameters> print_parameters, std::map<std::string, std::string> nonlin_options, std::map<std::string, std::string> linsol_options);
+    HbSimulationParameters(std::vector<std::string> frequencies, std::vector<int> harmonics, std::optional<int> tahb, std::optional<std::string> selectharms, std::optional<int> startup_periods, std::optional<PrintParameters> print_parameters, std::map<std::string, std::string> nonlin_options, std::map<std::string, std::string> linsol_options);
 
     // parse all directives into an HbSimulationParameters instance;
     // returns nullopt when no .HB directive is found
@@ -35,8 +35,6 @@ public:
     std::optional<std::string> selectharms;
     // startup periods (STARTUPPERIODS option)
     std::optional<int> startup_periods;
-    // whether to apply replaceground preprocessing
-    bool replace_ground;
     // optional print parameters
     std::optional<PrintParameters> print_parameters;
     // nonlinear solver options (NONLIN-HB package)

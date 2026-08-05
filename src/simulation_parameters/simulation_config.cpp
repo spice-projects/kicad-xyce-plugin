@@ -14,8 +14,8 @@
 #include "op_simulation_parameters.h"
 #include "transient_simulation_parameters.h"
 
-SimulationConfig::SimulationConfig(std::string analysis_type, std::variant<std::monostate, AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, TransientSimulationParameters> analysis, std::vector<StepParameters> steps, std::vector<DataBlock> data_blocks, OptionParameters options, std::vector<PrintParameters> unassociated_prints) :
-    analysis_type(std::move(analysis_type)), analysis(std::move(analysis)), steps(std::move(steps)), data_blocks(std::move(data_blocks)), options(std::move(options)), unassociated_prints(std::move(unassociated_prints)) {}
+SimulationConfig::SimulationConfig(std::string analysis_type, std::variant<std::monostate, AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, TransientSimulationParameters> analysis, std::vector<StepParameters> steps, std::vector<DataBlock> data_blocks, OptionParameters options, std::vector<PrintParameters> unassociated_prints, bool replace_ground) :
+    analysis_type(std::move(analysis_type)), analysis(std::move(analysis)), steps(std::move(steps)), data_blocks(std::move(data_blocks)), options(std::move(options)), unassociated_prints(std::move(unassociated_prints)), replace_ground(replace_ground) {}
 
 StepParameters SimulationConfig::step() const {
     // return the first step for backward compatibility, or a disabled default
@@ -105,6 +105,23 @@ SimulationConfig SimulationConfig::from_xyce_directives(const std::vector<std::s
     // parse the structured option directives
     const auto options = OptionParameters::from_xyce_directives(directives);
 
+    // parse the replace-ground preprocessing directive
+    // the RG gives .PREPROCESS REPLACEGROUND no default, so a netlist without the
+    // statement preserves its baseline semantics on round-trip
+    bool replace_ground = true;
+    for (const auto& directive : directives) {
+        // tokenize the directive
+        const auto tokens = tokenize(directive);
+        // skip empty or short directives
+        if (tokens.size() < 3)
+            continue;
+        // check for .PREPROCESS REPLACEGROUND directive
+        if (to_upper(tokens[0]) == ".PREPROCESS" && to_upper(tokens[1]) == "REPLACEGROUND") {
+            // set replace_ground based on the third token (last statement wins)
+            replace_ground = (to_upper(tokens[2]) == "TRUE");
+        }
+    }
+
     // init unassociated print list
     std::vector<PrintParameters> unassociated_prints;
 
@@ -177,7 +194,7 @@ SimulationConfig SimulationConfig::from_xyce_directives(const std::vector<std::s
     }
 
     // return the combined configuration container
-    return SimulationConfig(analysis_type, std::move(analysis), steps, data_blocks, options, unassociated_prints);
+    return SimulationConfig(analysis_type, std::move(analysis), steps, data_blocks, options, unassociated_prints, replace_ground);
 }
 
 std::vector<std::string> SimulationConfig::to_xyce_directives(const NetlistTopology& topology) const {
@@ -187,6 +204,10 @@ std::vector<std::string> SimulationConfig::to_xyce_directives(const NetlistTopol
     // extend with option directives
     const auto option_directives = options.to_xyce_directives(topology);
     directives.insert(directives.end(), option_directives.begin(), option_directives.end());
+
+    // emit the replace-ground preprocessing directive at most once for the whole netlist
+    // the state is always emitted explicitly so that a disabled replacement round-trips
+    directives.push_back(replace_ground ? ".PREPROCESS REPLACEGROUND TRUE" : ".PREPROCESS REPLACEGROUND FALSE");
 
     // check if an analysis is configured
     // Use std::visit to call to_xyce_directives on the active variant member
@@ -233,7 +254,7 @@ std::vector<std::string> SimulationConfig::to_xyce_directives(const NetlistTopol
 
 bool SimulationConfig::operator==(const SimulationConfig& other) const {
     // compare all fields for equality
-    return analysis_type == other.analysis_type && analysis == other.analysis && steps == other.steps && data_blocks == other.data_blocks && options == other.options && unassociated_prints == other.unassociated_prints;
+    return analysis_type == other.analysis_type && analysis == other.analysis && steps == other.steps && data_blocks == other.data_blocks && options == other.options && unassociated_prints == other.unassociated_prints && replace_ground == other.replace_ground;
 }
 
 std::optional<std::filesystem::path> SimulationConfig::raw_output_file_path(const std::filesystem::path& working_directory, const std::filesystem::path& netlist_path) const {

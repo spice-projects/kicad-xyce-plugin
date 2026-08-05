@@ -15,8 +15,8 @@ bool TransientSchedulePoint::operator==(const TransientSchedulePoint& other) con
     return time_value == other.time_value && max_time_step_value == other.max_time_step_value;
 }
 
-TransientSimulationParameters::TransientSimulationParameters(std::string initial_step_value, std::string final_time_value, std::string start_time_value, std::string step_ceiling_value, std::string op_keyword, std::vector<TransientSchedulePoint> schedule_points, bool replace_ground, std::optional<PrintParameters> print_parameters, std::vector<FftParameters> fft_parameters, std::vector<FourParameters> four_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
-    initial_step_value(std::move(initial_step_value)), final_time_value(std::move(final_time_value)), start_time_value(std::move(start_time_value)), step_ceiling_value(std::move(step_ceiling_value)), op_keyword(std::move(op_keyword)), schedule_points(std::move(schedule_points)), replace_ground(replace_ground), print_parameters(std::move(print_parameters)), fft_parameters(std::move(fft_parameters)), four_parameters(std::move(four_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
+TransientSimulationParameters::TransientSimulationParameters(std::string initial_step_value, std::string final_time_value, std::string start_time_value, std::string step_ceiling_value, std::string op_keyword, std::vector<TransientSchedulePoint> schedule_points, std::optional<PrintParameters> print_parameters, std::vector<FftParameters> fft_parameters, std::vector<FourParameters> four_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
+    initial_step_value(std::move(initial_step_value)), final_time_value(std::move(final_time_value)), start_time_value(std::move(start_time_value)), step_ceiling_value(std::move(step_ceiling_value)), op_keyword(std::move(op_keyword)), schedule_points(std::move(schedule_points)), print_parameters(std::move(print_parameters)), fft_parameters(std::move(fft_parameters)), four_parameters(std::move(four_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
 
 std::optional<TransientSimulationParameters> TransientSimulationParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // init defaults
@@ -26,7 +26,6 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
     std::string step_ceiling_value;
     std::string op_keyword;
     std::vector<TransientSchedulePoint> schedule_points;
-    bool replace_ground = true;
     std::optional<PrintParameters> print_parameters;
     std::vector<FftParameters> fft_parameters;
     std::vector<FourParameters> four_parameters;
@@ -95,13 +94,6 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
                     measure_parameters.push_back(*measure_statement);
                 }
             }
-            continue;
-        }
-        // handle preprocess replaceground
-        if (cmd == ".PREPROCESS" && tokens.size() > 2 && to_upper(tokens[1]) == "REPLACEGROUND") {
-            // set flag based on value
-            replace_ground = (to_upper(tokens[2]) == "TRUE");
-            // next
             continue;
         }
         // skip non-TRAN directives
@@ -190,15 +182,12 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
         return std::nullopt;
     }
 
-    return TransientSimulationParameters(initial_step_value, final_time_value, start_time_value, step_ceiling_value, op_keyword, schedule_points, replace_ground, print_parameters, fft_parameters, four_parameters, measure_parameters, sensitivity);
+    return TransientSimulationParameters(initial_step_value, final_time_value, start_time_value, step_ceiling_value, op_keyword, schedule_points, print_parameters, fft_parameters, four_parameters, measure_parameters, sensitivity);
 }
 
 std::vector<std::string> TransientSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
-    // prepend replaceground preprocessor directive when enabled
-    if (replace_ground)
-        directives.push_back(".PREPROCESS REPLACEGROUND TRUE");
     // start with the transient analysis directive
     std::string tran_directive = ".TRAN " + initial_step_value + " " + final_time_value;
     // add start time if specified
@@ -254,5 +243,5 @@ std::vector<std::string> TransientSimulationParameters::to_xyce_directives(const
 
 bool TransientSimulationParameters::operator==(const TransientSimulationParameters& other) const {
     // compare all fields for equality
-    return initial_step_value == other.initial_step_value && final_time_value == other.final_time_value && start_time_value == other.start_time_value && step_ceiling_value == other.step_ceiling_value && op_keyword == other.op_keyword && schedule_points == other.schedule_points && replace_ground == other.replace_ground && print_parameters == other.print_parameters && fft_parameters == other.fft_parameters && four_parameters == other.four_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
+    return initial_step_value == other.initial_step_value && final_time_value == other.final_time_value && start_time_value == other.start_time_value && step_ceiling_value == other.step_ceiling_value && op_keyword == other.op_keyword && schedule_points == other.schedule_points && print_parameters == other.print_parameters && fft_parameters == other.fft_parameters && four_parameters == other.four_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
 }

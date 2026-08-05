@@ -191,13 +191,10 @@ LinSimulationParameters LinParametersPanel::build_lin_parameters() const {
     std::string end = std::string(m_end_text->GetValue().ToUTF8());
     std::string data_table_name = std::string(m_data_table_text->GetValue().ToUTF8());
 
-    // read replace ground from global settings
-    bool replace_ground = m_global_settings->get_replace_ground();
-
     // read print parameters from print section
     std::optional<PrintParameters> print_params = m_print_section->build_print_parameters();
 
-    return LinSimulationParameters(sparcalc, std::move(format), std::move(lintype), std::move(dataformat), std::move(file), std::move(width), std::move(precision), std::move(sweep_mode), std::move(points), std::move(start), std::move(end), std::move(data_table_name), replace_ground, std::move(print_params));
+    return LinSimulationParameters(sparcalc, std::move(format), std::move(lintype), std::move(dataformat), std::move(file), std::move(width), std::move(precision), std::move(sweep_mode), std::move(points), std::move(start), std::move(end), std::move(data_table_name), std::move(print_params));
 }
 
 void LinParametersPanel::apply(const LinSimulationParameters& params) {
@@ -230,9 +227,6 @@ void LinParametersPanel::apply(const LinSimulationParameters& params) {
     m_start_text->SetValue(wxString::FromUTF8(params.start));
     m_end_text->SetValue(wxString::FromUTF8(params.end));
     m_data_table_text->SetValue(wxString::FromUTF8(params.data_table_name));
-
-    // restore replace ground
-    m_global_settings->set_replace_ground(params.replace_ground);
 
     // restore print parameters (BJT and FET leads both always relevant for LIN)
     m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, true, true);

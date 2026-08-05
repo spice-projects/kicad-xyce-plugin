@@ -6,8 +6,8 @@
 #include "../util.h"
 #include "ac_simulation_parameters.h"
 
-AcSimulationParameters::AcSimulationParameters(std::string sweep_mode, std::string points, std::string start, std::string end, std::string data_table_name, bool replace_ground, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
-    sweep_mode(std::move(sweep_mode)), points(std::move(points)), start(std::move(start)), end(std::move(end)), data_table_name(std::move(data_table_name)), replace_ground(replace_ground), print_parameters(std::move(print_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
+AcSimulationParameters::AcSimulationParameters(std::string sweep_mode, std::string points, std::string start, std::string end, std::string data_table_name, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
+    sweep_mode(std::move(sweep_mode)), points(std::move(points)), start(std::move(start)), end(std::move(end)), data_table_name(std::move(data_table_name)), print_parameters(std::move(print_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
 
 std::optional<AcSimulationParameters> AcSimulationParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // init defaults
@@ -16,7 +16,6 @@ std::optional<AcSimulationParameters> AcSimulationParameters::from_xyce_directiv
     std::string start;
     std::string end;
     std::string data_table_name;
-    bool replace_ground = true;
     std::optional<PrintParameters> print_parameters;
     std::vector<MeasureEntry> measure_parameters;
     std::optional<SensParameter> sensitivity;
@@ -47,13 +46,6 @@ std::optional<AcSimulationParameters> AcSimulationParameters::from_xyce_directiv
                     continue;
                 }
             }
-        }
-        // handle preprocess replaceground
-        if (cmd == ".PREPROCESS" && tokens.size() > 2 && to_upper(tokens[1]) == "REPLACEGROUND") {
-            // set replace_ground based on the third token
-            replace_ground = (to_upper(tokens[2]) == "TRUE");
-            // next
-            continue;
         }
         // parse measure directives
         if (cmd == ".MEASURE" || cmd == ".MEAS") {
@@ -127,15 +119,12 @@ std::optional<AcSimulationParameters> AcSimulationParameters::from_xyce_directiv
     if (!found)
         return std::nullopt;
     // exit with a new instance of AcSimulationParameters
-    return AcSimulationParameters(sweep_mode, points, start, end, data_table_name, replace_ground, print_parameters, measure_parameters, sensitivity);
+    return AcSimulationParameters(sweep_mode, points, start, end, data_table_name, print_parameters, measure_parameters, sensitivity);
 }
 
 std::vector<std::string> AcSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
-    // prepend replaceground preprocessing when enabled
-    if (replace_ground)
-        directives.push_back(".PREPROCESS REPLACEGROUND TRUE");
     // build the core ac directive
     std::string ac_directive = ".AC";
     // append sweep mode and parameters based on the sweep type
@@ -172,5 +161,5 @@ std::vector<std::string> AcSimulationParameters::to_xyce_directives(const Netlis
 
 bool AcSimulationParameters::operator==(const AcSimulationParameters& other) const {
     // compare all fields for equality
-    return sweep_mode == other.sweep_mode && points == other.points && start == other.start && end == other.end && data_table_name == other.data_table_name && replace_ground == other.replace_ground && print_parameters == other.print_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
+    return sweep_mode == other.sweep_mode && points == other.points && start == other.start && end == other.end && data_table_name == other.data_table_name && print_parameters == other.print_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
 }
