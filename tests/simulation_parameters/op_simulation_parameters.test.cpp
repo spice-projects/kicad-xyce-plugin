@@ -450,6 +450,45 @@ TEST(OpSimulationParametersChecks, nodeset_ignores_pair_without_equals) {
     ASSERT_EQ(result->nodeset_entries.size(), 0);
 }
 
+TEST(OpSimulationParametersChecks, parses_nodeset_positional_form) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET 2 3.1"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->nodeset_entries.size(), 1);
+    ASSERT_EQ(result->nodeset_entries[0].node, "2");
+    ASSERT_EQ(result->nodeset_entries[0].voltage, "3.1");
+}
+
+TEST(OpSimulationParametersChecks, parses_nodeset_mixed_forms) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET V(2)=3.1 3 1.5"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->nodeset_entries.size(), 2);
+    ASSERT_EQ(result->nodeset_entries[0].node, "2");
+    ASSERT_EQ(result->nodeset_entries[0].voltage, "3.1");
+    ASSERT_EQ(result->nodeset_entries[1].node, "3");
+    ASSERT_EQ(result->nodeset_entries[1].voltage, "1.5");
+}
+
+TEST(OpSimulationParametersChecks, nodeset_positional_form_round_trips_as_v_form) {
+    // arrange / act
+    const auto parsed = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET 2 3.1"});
+    ASSERT_TRUE(parsed.has_value());
+    const auto directives = parsed->to_xyce_directives(NetlistTopology{});
+    // assert serialization uses the canonical V()= form
+    ASSERT_EQ(directives.size(), 2);
+    ASSERT_EQ(directives[0], ".OP");
+    ASSERT_EQ(directives[1], ".NODESET V(2)=3.1");
+    // assert the emitted form reparses back to the same entry
+    const auto reparsed = OpSimulationParameters::from_xyce_directives(directives);
+    ASSERT_TRUE(reparsed.has_value());
+    ASSERT_EQ(reparsed->nodeset_entries.size(), 1);
+    ASSERT_EQ(reparsed->nodeset_entries[0].node, "2");
+    ASSERT_EQ(reparsed->nodeset_entries[0].voltage, "3.1");
+}
+
 TEST(OpSimulationParametersChecks, nodeset_ignores_invalid_node_format) {
     // arrange / act
     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET out=1.2"});

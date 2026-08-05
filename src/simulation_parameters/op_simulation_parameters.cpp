@@ -113,6 +113,11 @@ std::optional<OpSimulationParameters> OpSimulationParameters::from_xyce_directiv
                     // append entry
                     nodeset_entries.emplace_back(std::string(node), std::string(voltage));
                 }
+                else if (i + 1 < tokens.size()) {
+                    // node value pair form (e.g. .NODESET 2 3.1)
+                    nodeset_entries.emplace_back(std::string(pair), std::string(tokens[i + 1]));
+                    ++i;
+                }
             }
             continue;
         }
