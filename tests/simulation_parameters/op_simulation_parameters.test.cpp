@@ -1,618 +1,544 @@
-// #include <gtest/gtest.h>
+#include <algorithm>
+#include <string>
+#include <vector>
 
-// #include "simulation_parameters/op_simulation_parameters.h"
+#include <gtest/gtest.h>
 
-// // ========================================================================================
-// // NodesetEntry
-// // ========================================================================================
+#include "netlist/netlist.h"
+#include "simulation_parameters/op_simulation_parameters.h"
 
-// TEST(NodesetEntryChecks, create_nodeset_entry) {
-//     // arrange
-//     const NodesetEntry entry("V1", "5");
-//     // act/assert
-//     ASSERT_EQ(entry.node, "V1");
-//     ASSERT_EQ(entry.voltage, "5");
-// }
+// ========================================================================================
+// NodesetEntry
+// ========================================================================================
 
-// TEST(NodesetEntryChecks, equality_operator_equal) {
-//     // arrange
-//     const NodesetEntry entry1("V1", "5");
-//     const NodesetEntry entry2("V1", "5");
-//     // act
-//     const bool result = entry1 == entry2;
-//     // assert
-//     ASSERT_TRUE(result);
-// }
+TEST(NodesetEntryChecks, create_nodeset_entry) {
+    // arrange
+    const NodesetEntry entry("V1", "5");
+    // act/assert
+    ASSERT_EQ(entry.node, "V1");
+    ASSERT_EQ(entry.voltage, "5");
+}
 
-// TEST(NodesetEntryChecks, equality_operator_different_node) {
-//     // arrange
-//     const NodesetEntry entry1("V1", "5");
-//     const NodesetEntry entry2("V2", "5");
-//     // act
-//     const bool result = entry1 == entry2;
-//     // assert
-//     ASSERT_FALSE(result);
-// }
+TEST(NodesetEntryChecks, equality_operator_equal) {
+    // arrange
+    const NodesetEntry entry1("V1", "5");
+    const NodesetEntry entry2("V1", "5");
+    // act
+    const bool result = entry1 == entry2;
+    // assert
+    ASSERT_TRUE(result);
+}
 
-// TEST(NodesetEntryChecks, equality_operator_different_voltage) {
-//     // arrange
-//     const NodesetEntry entry1("V1", "5");
-//     const NodesetEntry entry2("V1", "3.3");
-//     // act
-//     const bool result = entry1 == entry2;
-//     // assert
-//     ASSERT_FALSE(result);
-// }
+TEST(NodesetEntryChecks, equality_operator_different_node) {
+    // arrange
+    const NodesetEntry entry1("V1", "5");
+    const NodesetEntry entry2("V2", "5");
+    // act
+    const bool result = entry1 == entry2;
+    // assert
+    ASSERT_FALSE(result);
+}
 
-// // ========================================================================================
-// // IcEntry
-// // ========================================================================================
+TEST(NodesetEntryChecks, equality_operator_different_voltage) {
+    // arrange
+    const NodesetEntry entry1("V1", "5");
+    const NodesetEntry entry2("V1", "3.3");
+    // act
+    const bool result = entry1 == entry2;
+    // assert
+    ASSERT_FALSE(result);
+}
 
-// TEST(IcEntryChecks, create_ic_entry) {
-//     // arrange
-//     const IcEntry entry("V1", "5");
-//     // act/assert
-//     ASSERT_EQ(entry.node, "V1");
-//     ASSERT_EQ(entry.voltage, "5");
-// }
+// ========================================================================================
+// IcEntry
+// ========================================================================================
 
-// TEST(IcEntryChecks, equality_operator_equal) {
-//     // arrange
-//     const IcEntry entry1("V1", "5");
-//     const IcEntry entry2("V1", "5");
-//     // act
-//     const bool result = entry1 == entry2;
-//     // assert
-//     ASSERT_TRUE(result);
-// }
+TEST(IcEntryChecks, create_ic_entry) {
+    // arrange
+    const IcEntry entry("V1", "5");
+    // act/assert
+    ASSERT_EQ(entry.node, "V1");
+    ASSERT_EQ(entry.voltage, "5");
+}
 
-// TEST(IcEntryChecks, equality_operator_different_node) {
-//     // arrange
-//     const IcEntry entry1("V1", "5");
-//     const IcEntry entry2("V2", "5");
-//     // act
-//     const bool result = entry1 == entry2;
-//     // assert
-//     ASSERT_FALSE(result);
-// }
+TEST(IcEntryChecks, equality_operator_equal) {
+    // arrange
+    const IcEntry entry1("V1", "5");
+    const IcEntry entry2("V1", "5");
+    // act
+    const bool result = entry1 == entry2;
+    // assert
+    ASSERT_TRUE(result);
+}
 
-// TEST(IcEntryChecks, equality_operator_different_voltage) {
-//     // arrange
-//     const IcEntry entry1("V1", "5");
-//     const IcEntry entry2("V1", "3.3");
-//     // act
-//     const bool result = entry1 == entry2;
-//     // assert
-//     ASSERT_FALSE(result);
-// }
+TEST(IcEntryChecks, equality_operator_different_node) {
+    // arrange
+    const IcEntry entry1("V1", "5");
+    const IcEntry entry2("V2", "5");
+    // act
+    const bool result = entry1 == entry2;
+    // assert
+    ASSERT_FALSE(result);
+}
 
-// // ========================================================================================
-// // from_xyce_directives
-// // ========================================================================================
+TEST(IcEntryChecks, equality_operator_different_voltage) {
+    // arrange
+    const IcEntry entry1("V1", "5");
+    const IcEntry entry2("V1", "3.3");
+    // act
+    const bool result = entry1 == entry2;
+    // assert
+    ASSERT_FALSE(result);
+}
 
-// TEST(OpSimulationParametersChecks, parses_op_directive) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-// }
+// ========================================================================================
+// from_xyce_directives
+// ========================================================================================
 
-// TEST(OpSimulationParametersChecks, parses_print_dc_directive) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".PRINT DC V(*) I(*)"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_TRUE(result->print_parameters.has_value());
-//     ASSERT_EQ(result->print_parameters->print_type, "DC");
-//     ASSERT_EQ(result->print_parameters->output_variables.size(), 2);
-//     ASSERT_EQ(result->print_parameters->output_variables[0], "V(*)");
-//     ASSERT_EQ(result->print_parameters->output_variables[1], "I(*)");
-// }
+TEST(OpSimulationParametersChecks, parses_op_directive) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+}
 
-// TEST(OpSimulationParametersChecks, parses_nodeset_directives) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET V1=5 V2=3.3"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->nodeset_entries.size(), 2);
-//     ASSERT_EQ(result->nodeset_entries[0].node, "V1");
-//     ASSERT_EQ(result->nodeset_entries[0].voltage, "5");
-//     ASSERT_EQ(result->nodeset_entries[1].node, "V2");
-//     ASSERT_EQ(result->nodeset_entries[1].voltage, "3.3");
-// }
+TEST(OpSimulationParametersChecks, parses_print_dc_directive) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".PRINT DC V(*) I(*)"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_TRUE(result->print_parameters.has_value());
+    ASSERT_EQ(result->print_parameters->print_type, "DC");
+    ASSERT_EQ(result->print_parameters->output_variables.size(), 2);
+    ASSERT_EQ(result->print_parameters->output_variables[0], "V(*)");
+    ASSERT_EQ(result->print_parameters->output_variables[1], "I(*)");
+}
 
-// TEST(OpSimulationParametersChecks, parses_ic_directives) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".IC V1=5 V2=3.3"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->ic_entries.size(), 2);
-//     ASSERT_EQ(result->ic_entries[0].node, "V1");
-//     ASSERT_EQ(result->ic_entries[0].voltage, "5");
-//     ASSERT_EQ(result->ic_entries[1].node, "V2");
-//     ASSERT_EQ(result->ic_entries[1].voltage, "3.3");
-// }
+TEST(OpSimulationParametersChecks, parses_nodeset_directives) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET V1=5 V2=3.3"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->nodeset_entries.size(), 2);
+    ASSERT_EQ(result->nodeset_entries[0].node, "V1");
+    ASSERT_EQ(result->nodeset_entries[0].voltage, "5");
+    ASSERT_EQ(result->nodeset_entries[1].node, "V2");
+    ASSERT_EQ(result->nodeset_entries[1].voltage, "3.3");
+}
 
-// TEST(OpSimulationParametersChecks, parses_replaceground_true) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".PREPROCESS REPLACEGROUND TRUE"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->replace_ground, true);
-// }
+TEST(OpSimulationParametersChecks, parses_ic_directives) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".IC V1=5 V2=3.3"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->ic_entries.size(), 2);
+    ASSERT_EQ(result->ic_entries[0].node, "V1");
+    ASSERT_EQ(result->ic_entries[0].voltage, "5");
+    ASSERT_EQ(result->ic_entries[1].node, "V2");
+    ASSERT_EQ(result->ic_entries[1].voltage, "3.3");
+}
 
-// TEST(OpSimulationParametersChecks, no_op_directive_returns_none) {
-//     // arrange
-//     const std::vector<std::string> directives = {".TRAN 1u 1m"};
-//     // act
-//     const auto result = OpSimulationParameters::from_xyce_directives(directives);
-//     // assert
-//     ASSERT_FALSE(result.has_value());
-// }
+TEST(OpSimulationParametersChecks, no_op_directive_returns_none) {
+    // arrange
+    const std::vector<std::string> directives = {".TRAN 1u 1m"};
+    // act
+    const auto result = OpSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_FALSE(result.has_value());
+}
 
-// TEST(OpSimulationParametersChecks, generates_op_directive_default) {
-//     // arrange
-//     const OpSimulationParameters params(false, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     ASSERT_EQ(directives.size(), 1);
-//     ASSERT_EQ(directives[0], ".OP");
-// }
+TEST(OpSimulationParametersChecks, generates_op_directive_default) {
+    // arrange
+    const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, std::nullopt);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 1);
+    ASSERT_EQ(directives[0], ".OP");
+}
 
-// TEST(OpSimulationParametersChecks, generates_print_dc_directive) {
-//     // arrange
-//     const OpSimulationParameters params(false, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, PrintParameters("DC", "", "", {"V(1)", "I(V1)"}, {}), std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     ASSERT_EQ(directives.size(), 2);
-//     ASSERT_EQ(directives[0], ".OP");
-//     ASSERT_EQ(directives[1], ".PRINT DC V(1) I(V1)");
-// }
+TEST(OpSimulationParametersChecks, generates_print_dc_directive) {
+    // arrange
+    const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, PrintParameters("DC", "", "", {"V(1)", "I(V1)"}, {}));
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 2);
+    ASSERT_EQ(directives[0], ".OP");
+    ASSERT_EQ(directives[1], ".PRINT DC V(1) I(V1)");
+}
 
-// TEST(OpSimulationParametersChecks, generates_save_directive) {
-//     // arrange
-//     const OpSimulationParameters params(false, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, PrintParameters("IC", "", "test.ic", {}, {}));
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     ASSERT_EQ(directives.size(), 2);
-//     ASSERT_EQ(directives[0], ".OP");
-//     ASSERT_EQ(directives[1], ".SAVE TYPE=IC FILE=test.ic");
-// }
+TEST(OpSimulationParametersChecks, generates_save_directive) {
+    // arrange
+    const OpSimulationParameters params(false, false, false, {}, "", "", true, "IC", "test.ic", {}, {}, std::nullopt);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 2);
+    ASSERT_EQ(directives[0], ".OP");
+    ASSERT_EQ(directives[1], ".SAVE TYPE=IC FILE=test.ic");
+}
 
-// TEST(OpSimulationParametersChecks, generates_nodeset_directive) {
-//     // arrange
-//     const std::vector<NodesetEntry> nodeset_entries = {NodesetEntry("out", "1.2")};
-//     const OpSimulationParameters params(false, nodeset_entries, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     ASSERT_EQ(directives.size(), 2);
-//     ASSERT_EQ(directives[0], ".OP");
-//     ASSERT_EQ(directives[1], ".NODESET V(out)=1.2");
-// }
+TEST(OpSimulationParametersChecks, generates_nodeset_directive) {
+    // arrange
+    const std::vector<NodesetEntry> nodeset_entries = {NodesetEntry("out", "1.2")};
+    const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", nodeset_entries, {}, std::nullopt);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 2);
+    ASSERT_EQ(directives[0], ".OP");
+    ASSERT_EQ(directives[1], ".NODESET V(out)=1.2");
+}
 
-// TEST(OpSimulationParametersChecks, generates_with_replace_ground) {
-//     // arrange
-//     const OpSimulationParameters params(true, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     ASSERT_EQ(directives.size(), 2);
-//     ASSERT_EQ(directives[0], ".PREPROCESS REPLACEGROUND TRUE");
-//     ASSERT_EQ(directives[1], ".OP");
-// }
+TEST(OpSimulationParametersChecks, generates_generic_wildcards_via_print_parameters) {
+    // arrange
+    const PrintParameters print_params("DC", "", "", {"V(*)", "I(*)", "P(*)"}, {});
+    const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, print_params);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    bool has_print_dc = false;
+    for (const auto& directive : directives) {
+        if (directive.find(".PRINT DC") == 0) {
+            has_print_dc = true;
+            ASSERT_NE(directive.find("V(*)"), std::string::npos);
+            ASSERT_NE(directive.find("I(*)"), std::string::npos);
+            ASSERT_NE(directive.find("P(*)"), std::string::npos);
+        }
+    }
+    ASSERT_TRUE(has_print_dc);
+}
 
-// TEST(OpSimulationParametersChecks, generates_generic_wildcards_via_print_parameters) {
-//     // arrange
-//     const PrintParameters print_params("DC", "", "", {"V(*)", "I(*)", "P(*)"}, {});
-//     const OpSimulationParameters params(false, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, print_params, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     bool has_print_dc = false;
-//     for (const auto& directive : directives) {
-//         if (directive.find(".PRINT DC") == 0) {
-//             has_print_dc = true;
-//             ASSERT_NE(directive.find("V(*)"), std::string::npos);
-//             ASSERT_NE(directive.find("I(*)"), std::string::npos);
-//             ASSERT_NE(directive.find("P(*)"), std::string::npos);
-//         }
-//     }
-//     ASSERT_TRUE(has_print_dc);
-// }
+TEST(OpSimulationParametersChecks, generates_bjt_lead_wildcards_via_print_parameters) {
+    // arrange
+    const PrintParameters print_params("DC", "", "", {"IB(*)", "IC(*)", "IE(*)", "IS(*)"}, {});
+    const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, print_params);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    bool has_print_dc = false;
+    for (const auto& directive : directives) {
+        if (directive.find(".PRINT DC") == 0) {
+            has_print_dc = true;
+            ASSERT_NE(directive.find("IB(*)"), std::string::npos);
+            ASSERT_NE(directive.find("IC(*)"), std::string::npos);
+            ASSERT_NE(directive.find("IE(*)"), std::string::npos);
+            ASSERT_NE(directive.find("IS(*)"), std::string::npos);
+        }
+    }
+    ASSERT_TRUE(has_print_dc);
+}
 
-// TEST(OpSimulationParametersChecks, generates_bjt_lead_wildcards_via_print_parameters) {
-//     // arrange
-//     const PrintParameters print_params("DC", "", "", {"IB(*)", "IC(*)", "IE(*)", "IS(*)"}, {});
-//     const OpSimulationParameters params(false, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, print_params, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     bool has_print_dc = false;
-//     for (const auto& directive : directives) {
-//         if (directive.find(".PRINT DC") == 0) {
-//             has_print_dc = true;
-//             ASSERT_NE(directive.find("IB(*)"), std::string::npos);
-//             ASSERT_NE(directive.find("IC(*)"), std::string::npos);
-//             ASSERT_NE(directive.find("IE(*)"), std::string::npos);
-//             ASSERT_NE(directive.find("IS(*)"), std::string::npos);
-//         }
-//     }
-//     ASSERT_TRUE(has_print_dc);
-// }
+TEST(OpSimulationParametersChecks, generates_fet_lead_wildcards_via_print_parameters) {
+    // arrange
+    const PrintParameters print_params("DC", "", "", {"IB(*)", "ID(*)", "IG(*)", "IS(*)"}, {});
+    const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, print_params);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    bool has_print_dc = false;
+    for (const auto& directive : directives) {
+        if (directive.find(".PRINT DC") == 0) {
+            has_print_dc = true;
+            ASSERT_NE(directive.find("IB(*)"), std::string::npos);
+            ASSERT_NE(directive.find("ID(*)"), std::string::npos);
+            ASSERT_NE(directive.find("IG(*)"), std::string::npos);
+            ASSERT_NE(directive.find("IS(*)"), std::string::npos);
+        }
+    }
+    ASSERT_TRUE(has_print_dc);
+}
 
-// TEST(OpSimulationParametersChecks, generates_fet_lead_wildcards_via_print_parameters) {
-//     // arrange
-//     const PrintParameters print_params("DC", "", "", {"IB(*)", "ID(*)", "IG(*)", "IS(*)"}, {});
-//     const OpSimulationParameters params(false, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, print_params, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     bool has_print_dc = false;
-//     for (const auto& directive : directives) {
-//         if (directive.find(".PRINT DC") == 0) {
-//             has_print_dc = true;
-//             ASSERT_NE(directive.find("IB(*)"), std::string::npos);
-//             ASSERT_NE(directive.find("ID(*)"), std::string::npos);
-//             ASSERT_NE(directive.find("IG(*)"), std::string::npos);
-//             ASSERT_NE(directive.find("IS(*)"), std::string::npos);
-//         }
-//     }
-//     ASSERT_TRUE(has_print_dc);
-// }
+TEST(OpSimulationParametersChecks, w_star_normalizes_to_p_star_on_parse) {
+    // arrange
+    const std::vector<std::string> directives = {".OP", ".PRINT DC W(*)"};
+    // act
+    const auto result = OpSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_TRUE(result->print_parameters.has_value());
+    ASSERT_NE(std::find(result->print_parameters->output_variables.begin(), result->print_parameters->output_variables.end(), "P(*)"), result->print_parameters->output_variables.end());
+    ASSERT_EQ(std::find(result->print_parameters->output_variables.begin(), result->print_parameters->output_variables.end(), "W(*)"), result->print_parameters->output_variables.end());
+}
 
-// TEST(OpSimulationParametersChecks, w_star_normalizes_to_p_star_on_parse) {
-//     // arrange
-//     const std::vector<std::string> directives = {".OP", ".PRINT DC W(*)"};
-//     // act
-//     const auto result = OpSimulationParameters::from_xyce_directives(directives);
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_TRUE(result->print_parameters.has_value());
-//     ASSERT_NE(std::find(result->print_parameters->output_variables.begin(), result->print_parameters->output_variables.end(), "P(*)"), result->print_parameters->output_variables.end());
-//     ASSERT_EQ(std::find(result->print_parameters->output_variables.begin(), result->print_parameters->output_variables.end(), "W(*)"), result->print_parameters->output_variables.end());
-// }
+TEST(OpSimulationParametersChecks, print_parameters_round_trip) {
+    // arrange
+    const PrintParameters print_params("DC", "", "", {"V(*)", "I(*)", "P(*)", "IB(*)", "IC(*)", "IE(*)", "IS(*)", "ID(*)", "IG(*)"}, {});
+    const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, print_params);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    std::vector<std::string> reparsed_directives = {".OP"};
+    reparsed_directives.insert(reparsed_directives.end(), directives.begin(), directives.end());
+    const auto reparsed = OpSimulationParameters::from_xyce_directives(reparsed_directives);
+    // assert
+    ASSERT_TRUE(reparsed.has_value());
+    ASSERT_TRUE(reparsed->print_parameters.has_value());
+    ASSERT_EQ(reparsed->print_parameters->print_type, "DC");
+    ASSERT_EQ(reparsed->print_parameters->output_variables.size(), 9);
+}
 
-// TEST(OpSimulationParametersChecks, print_parameters_round_trip) {
-//     // arrange
-//     const PrintParameters print_params("DC", "", "", {"V(*)", "I(*)", "P(*)", "IB(*)", "IC(*)", "IE(*)", "IS(*)", "ID(*)", "IG(*)"}, {});
-//     const OpSimulationParameters params(false, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, print_params, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     const auto reparsed = OpSimulationParameters::from_xyce_directives({".OP"} + std::vector<std::string>{directives.begin(), directives.end()});
-//     // assert
-//     ASSERT_TRUE(reparsed.has_value());
-//     ASSERT_TRUE(reparsed->print_parameters.has_value());
-//     ASSERT_EQ(reparsed->print_parameters->print_type, "DC");
-//     ASSERT_EQ(reparsed->print_parameters->output_variables.size(), 9);
-// }
+TEST(OpSimulationParametersChecks, print_parameters_emits_print_dc_directive) {
+    // arrange
+    const PrintParameters print_params("DC", "", "", {"V(*)"}, {});
+    const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, print_params);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    bool has_print_dc = false;
+    bool has_print_tran = false;
+    for (const auto& directive : directives) {
+        if (directive.find(".PRINT DC") == 0) has_print_dc = true;
+        if (directive.find(".PRINT TRAN") == 0) has_print_tran = true;
+    }
+    ASSERT_TRUE(has_print_dc);
+    ASSERT_FALSE(has_print_tran);
+}
 
-// TEST(OpSimulationParametersChecks, print_parameters_emits_print_dc_directive) {
-//     // arrange
-//     const PrintParameters print_params("DC", "", "", {"V(*)"}, {});
-//     const OpSimulationParameters params(false, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, print_params, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     bool has_print_dc = false;
-//     bool has_print_tran = false;
-//     for (const auto& directive : directives) {
-//         if (directive.find(".PRINT DC") == 0) has_print_dc = true;
-//         if (directive.find(".PRINT TRAN") == 0) has_print_tran = true;
-//     }
-//     ASSERT_TRUE(has_print_dc);
-//     ASSERT_FALSE(has_print_tran);
-// }
+// ========================================================================================
+// to_xyce_directives
+// ========================================================================================
 
-// // ========================================================================================
-// // to_xyce_directives
-// // ========================================================================================
+TEST(OpSimulationParametersChecks, generates_op_directive) {
+    // arrange
+    const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, std::nullopt);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 1);
+    ASSERT_EQ(directives[0], ".OP");
+}
 
-// TEST(OpSimulationParametersChecks, generates_op_directive) {
-//     // arrange
-//     const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, false, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     ASSERT_EQ(directives.size(), 1);
-//     ASSERT_EQ(directives[0], ".OP");
-// }
+TEST(OpSimulationParametersChecks, generates_print_dc_directive_with_wildcards) {
+    // arrange
+    const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, PrintParameters("DC", "", "", {"V(*)", "I(*)"}, {}));
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 2);
+    ASSERT_EQ(directives[0], ".OP");
+    ASSERT_EQ(directives[1], ".PRINT DC V(*) I(*)");
+}
 
-// TEST(OpSimulationParametersChecks, generates_print_dc_directive) {
-//     // arrange
-//     const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, false, PrintParameters("DC", "", "", {"V(*)", "I(*)"}, {}));
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     ASSERT_EQ(directives.size(), 2);
-//     ASSERT_EQ(directives[0], ".OP");
-//     ASSERT_EQ(directives[1], ".PRINT DC V(*) I(*)");
-// }
+TEST(OpSimulationParametersChecks, generates_nodeset_directives) {
+    // arrange
+    const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {NodesetEntry("V1", "5"), NodesetEntry("V2", "3.3")}, {}, std::nullopt);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 3);
+    ASSERT_EQ(directives[0], ".OP");
+    ASSERT_EQ(directives[1], ".NODESET V1=5");
+    ASSERT_EQ(directives[2], ".NODESET V2=3.3");
+}
 
-// TEST(OpSimulationParametersChecks, generates_nodeset_directives) {
-//     // arrange
-//     const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {NodesetEntry("V1", "5"), NodesetEntry("V2", "3.3")}, {}, false, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     ASSERT_EQ(directives.size(), 3);
-//     ASSERT_EQ(directives[0], ".OP");
-//     ASSERT_EQ(directives[1], ".NODESET V1=5");
-//     ASSERT_EQ(directives[2], ".NODESET V2=3.3");
-// }
+TEST(OpSimulationParametersChecks, generates_ic_directives) {
+    // arrange
+    const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {IcEntry("V1", "5"), IcEntry("V2", "3.3")}, std::nullopt);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 3);
+    ASSERT_EQ(directives[0], ".OP");
+    ASSERT_EQ(directives[1], ".IC V1=5");
+    ASSERT_EQ(directives[2], ".IC V2=3.3");
+}
 
-// TEST(OpSimulationParametersChecks, generates_ic_directives) {
-//     // arrange
-//     const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {IcEntry("V1", "5"), IcEntry("V2", "3.3")}, false, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     ASSERT_EQ(directives.size(), 3);
-//     ASSERT_EQ(directives[0], ".OP");
-//     ASSERT_EQ(directives[1], ".IC V1=5");
-//     ASSERT_EQ(directives[2], ".IC V2=3.3");
-// }
+// ========================================================================================
+// equality operator
+// ========================================================================================
 
-// TEST(OpSimulationParametersChecks, generates_with_replace_ground) {
-//     // arrange
-//     const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, true, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     ASSERT_EQ(directives.size(), 2);
-//     ASSERT_EQ(directives[0], ".PREPROCESS REPLACEGROUND TRUE");
-//     ASSERT_EQ(directives[1], ".OP");
-// }
+TEST(OpSimulationParametersChecks, equality_operator_equal_params) {
+    // arrange
+    const OpSimulationParameters params1(false, false, false, {}, "", "", false, "", "", {}, {}, std::nullopt);
+    const OpSimulationParameters params2(false, false, false, {}, "", "", false, "", "", {}, {}, std::nullopt);
+    // act
+    const bool result = params1 == params2;
+    // assert
+    ASSERT_TRUE(result);
+}
 
-// // ========================================================================================
-// // equality operator
-// // ========================================================================================
+TEST(OpSimulationParametersChecks, equality_operator_different_print_dc_enabled) {
+    // arrange
+    const OpSimulationParameters params1(true, false, false, {}, "", "", false, "", "", {}, {}, std::nullopt);
+    const OpSimulationParameters params2(false, false, false, {}, "", "", false, "", "", {}, {}, std::nullopt);
+    // act
+    const bool result = params1 == params2;
+    // assert
+    ASSERT_FALSE(result);
+}
 
-// TEST(OpSimulationParametersChecks, equality_operator_equal_params) {
-//     // arrange
-//     const OpSimulationParameters params1(false, false, false, {}, "", "", false, "", "", {}, {}, false, std::nullopt);
-//     const OpSimulationParameters params2(false, false, false, {}, "", "", false, "", "", {}, {}, false, std::nullopt);
-//     // act
-//     const bool result = params1 == params2;
-//     // assert
-//     ASSERT_TRUE(result);
-// }
+TEST(OpSimulationParametersChecks, equality_operator_different_nodeset_entries) {
+    // arrange
+    const OpSimulationParameters params1(false, false, false, {}, "", "", false, "", "", {NodesetEntry("V1", "5")}, {}, std::nullopt);
+    const OpSimulationParameters params2(false, false, false, {}, "", "", false, "", "", {NodesetEntry("V2", "3.3")}, {}, std::nullopt);
+    // act
+    const bool result = params1 == params2;
+    // assert
+    ASSERT_FALSE(result);
+}
 
-// TEST(OpSimulationParametersChecks, equality_operator_different_print_dc_enabled) {
-//     // arrange
-//     const OpSimulationParameters params1(true, false, false, {}, "", "", false, "", "", {}, {}, false, std::nullopt);
-//     const OpSimulationParameters params2(false, false, false, {}, "", "", false, "", "", {}, {}, false, std::nullopt);
-//     // act
-//     const bool result = params1 == params2;
-//     // assert
-//     ASSERT_FALSE(result);
-// }
+TEST(OpSimulationParametersChecks, equality_operator_different_ic_entries) {
+    // arrange
+    const OpSimulationParameters params1(false, false, false, {}, "", "", false, "", "", {}, {IcEntry("V1", "5")}, std::nullopt);
+    const OpSimulationParameters params2(false, false, false, {}, "", "", false, "", "", {}, {IcEntry("V2", "3.3")}, std::nullopt);
+    // act
+    const bool result = params1 == params2;
+    // assert
+    ASSERT_FALSE(result);
+}
 
-// TEST(OpSimulationParametersChecks, equality_operator_different_nodeset_entries) {
-//     // arrange
-//     const OpSimulationParameters params1(false, false, false, {}, "", "", false, "", "", {NodesetEntry("V1", "5")}, {}, false, std::nullopt);
-//     const OpSimulationParameters params2(false, false, false, {}, "", "", false, "", "", {NodesetEntry("V2", "3.3")}, {}, false, std::nullopt);
-//     // act
-//     const bool result = params1 == params2;
-//     // assert
-//     ASSERT_FALSE(result);
-// }
+TEST(OpSimulationParametersChecks, equality_operator_different_print_parameters) {
+    // arrange
+    const OpSimulationParameters params1(false, false, false, {}, "", "", false, "", "", {}, {}, PrintParameters("DC", "", "", {"V(*)"}, {}));
+    const OpSimulationParameters params2(false, false, false, {}, "", "", false, "", "", {}, {}, PrintParameters("DC", "", "", {"I(*)"}, {}));
+    // act
+    const bool result = params1 == params2;
+    // assert
+    ASSERT_FALSE(result);
+}
 
-// TEST(OpSimulationParametersChecks, equality_operator_different_ic_entries) {
-//     // arrange
-//     const OpSimulationParameters params1(false, false, false, {}, "", "", false, "", "", {}, {IcEntry("V1", "5")}, false, std::nullopt);
-//     const OpSimulationParameters params2(false, false, false, {}, "", "", false, "", "", {}, {IcEntry("V2", "3.3")}, false, std::nullopt);
-//     // act
-//     const bool result = params1 == params2;
-//     // assert
-//     ASSERT_FALSE(result);
-// }
+// ========================================================================================
+// Tests for from_xyce_directives edge cases
+// ========================================================================================
 
-// TEST(OpSimulationParametersChecks, equality_operator_different_replace_ground) {
-//     // arrange
-//     const OpSimulationParameters params1(false, false, false, {}, "", "", false, "", "", {}, {}, false, std::nullopt);
-//     const OpSimulationParameters params2(false, false, false, {}, "", "", false, "", "", {}, {}, true, std::nullopt);
-//     // act
-//     const bool result = params1 == params2;
-//     // assert
-//     ASSERT_FALSE(result);
-// }
+TEST(OpSimulationParametersChecks, empty_directives_returns_none) {
+    // arrange
+    const std::vector<std::string> directives = {};
+    // act
+    const auto result = OpSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_FALSE(result.has_value());
+}
 
-// TEST(OpSimulationParametersChecks, equality_operator_different_print_parameters) {
-//     // arrange
-//     const OpSimulationParameters params1(false, false, false, {}, "", "", false, "", "", {}, {}, false, PrintParameters("DC", "", "", {"V(*)"}, {}));
-//     const OpSimulationParameters params2(false, false, false, {}, "", "", false, "", "", {}, {}, false, PrintParameters("DC", "", "", {"I(*)"}, {}));
-//     // act
-//     const bool result = params1 == params2;
-//     // assert
-//     ASSERT_FALSE(result);
-// }
+TEST(OpSimulationParametersChecks, parses_print_dc_with_variables) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".PRINT DC V(1) I(R1)"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->print_dc_enabled, true);
+    ASSERT_EQ(result->print_dc_specific_variables.size(), 2);
+    ASSERT_EQ(result->print_dc_specific_variables[0], "V(1)");
+    ASSERT_EQ(result->print_dc_specific_variables[1], "I(R1)");
+}
 
-// // ========================================================================================
-// // Additional tests for replace_ground
-// // ========================================================================================
+TEST(OpSimulationParametersChecks, parses_save) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".SAVE"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->save_enabled, true);
+}
 
-// TEST(OpSimulationParametersChecks, generates_with_replace_ground_false) {
-//     // arrange
-//     const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, false, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     ASSERT_EQ(directives.size(), 1);
-//     ASSERT_EQ(directives[0], ".OP");
-// }
+TEST(OpSimulationParametersChecks, parses_nodeset) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET V(out)=1.2 V(in)=0.5"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->nodeset_entries.size(), 2);
+    ASSERT_EQ(result->nodeset_entries[0].node, "out");
+    ASSERT_EQ(result->nodeset_entries[0].voltage, "1.2");
+    ASSERT_EQ(result->nodeset_entries[1].node, "in");
+    ASSERT_EQ(result->nodeset_entries[1].voltage, "0.5");
+}
 
-// TEST(OpSimulationParametersChecks, generates_with_replace_ground_true) {
-//     // arrange
-//     const OpSimulationParameters params(false, false, false, {}, "", "", false, "", "", {}, {}, true, std::nullopt);
-//     // act
-//     const auto directives = params.to_xyce_directives();
-//     // assert
-//     ASSERT_EQ(directives.size(), 2);
-//     ASSERT_EQ(directives[0], ".PREPROCESS REPLACEGROUND TRUE");
-//     ASSERT_EQ(directives[1], ".OP");
-// }
+TEST(OpSimulationParametersChecks, nodeset_ignores_pair_without_equals) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET INVALID"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->nodeset_entries.size(), 0);
+}
 
-// // ========================================================================================
-// // Tests for from_xyce_directives edge cases
-// // ========================================================================================
+TEST(OpSimulationParametersChecks, nodeset_ignores_invalid_node_format) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET out=1.2"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->nodeset_entries.size(), 0);
+}
 
-// TEST(OpSimulationParametersChecks, empty_directives_returns_none) {
-//     // arrange
-//     const std::vector<std::string> directives = {};
-//     // act
-//     const auto result = OpSimulationParameters::from_xyce_directives(directives);
-//     // assert
-//     ASSERT_FALSE(result.has_value());
-// }
+TEST(OpSimulationParametersChecks, ignores_unknown_directive) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".TRAN 1ns 1ms"});
+    // assert
+    ASSERT_FALSE(result.has_value());
+}
 
-// TEST(OpSimulationParametersChecks, parses_print_dc_with_variables) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".PRINT DC V(1) I(R1)"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->print_dc_enabled, true);
-//     ASSERT_EQ(result->print_dc_specific_variables.size(), 2);
-//     ASSERT_EQ(result->print_dc_specific_variables[0], "V(1)");
-//     ASSERT_EQ(result->print_dc_specific_variables[1], "I(R1)");
-// }
+TEST(OpSimulationParametersChecks, ignores_print_non_dc) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".PRINT AC V(1)"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->print_dc_enabled, false);
+}
 
-// TEST(OpSimulationParametersChecks, parses_save) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".SAVE"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->save_enabled, true);
-// }
+TEST(OpSimulationParametersChecks, parses_ic_v_node_form) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".IC V(out)=1.0 V(in)=0"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->ic_entries.size(), 2);
+    ASSERT_EQ(result->ic_entries[0].node, "out");
+    ASSERT_EQ(result->ic_entries[0].voltage, "1.0");
+    ASSERT_EQ(result->ic_entries[1].node, "in");
+    ASSERT_EQ(result->ic_entries[1].voltage, "0");
+}
 
-// TEST(OpSimulationParametersChecks, parses_nodeset) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET V(out)=1.2 V(in)=0.5"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->nodeset_entries.size(), 2);
-//     ASSERT_EQ(result->nodeset_entries[0].node, "out");
-//     ASSERT_EQ(result->nodeset_entries[0].voltage, "1.2");
-//     ASSERT_EQ(result->nodeset_entries[1].node, "in");
-//     ASSERT_EQ(result->nodeset_entries[1].voltage, "0.5");
-// }
+TEST(OpSimulationParametersChecks, parses_ic_node_val_form) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".IC out 1.0"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->ic_entries.size(), 1);
+    ASSERT_EQ(result->ic_entries[0].node, "out");
+    ASSERT_EQ(result->ic_entries[0].voltage, "1.0");
+}
 
-// TEST(OpSimulationParametersChecks, nodeset_ignores_pair_without_equals) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET INVALID"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->nodeset_entries.size(), 0);
-// }
+TEST(OpSimulationParametersChecks, parses_dcvolt) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".DCVOLT V(out)=2.5"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->ic_entries.size(), 1);
+    ASSERT_EQ(result->ic_entries[0].node, "out");
+    ASSERT_EQ(result->ic_entries[0].voltage, "2.5");
+}
 
-// TEST(OpSimulationParametersChecks, nodeset_ignores_invalid_node_format) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET out=1.2"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->nodeset_entries.size(), 0);
-// }
+TEST(OpSimulationParametersChecks, ignores_print_without_type) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".PRINT"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->print_dc_enabled, false);
+}
 
-// TEST(OpSimulationParametersChecks, parses_replaceground_true) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".PREPROCESS REPLACEGROUND TRUE"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->replace_ground, true);
-// }
+// ========================================================================================
+// Tests for reference guide examples
+// ========================================================================================
 
-// TEST(OpSimulationParametersChecks, parses_replaceground_false) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".PREPROCESS REPLACEGROUND FALSE"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->replace_ground, false);
-// }
+TEST(OpSimulationParametersChecks, reference_guide_example_basic) {
+    // arrange
+    const std::vector<std::string> directives = {".OP"};
+    // act
+    const auto result = OpSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    const auto generated = result->to_xyce_directives(NetlistTopology{});
+    ASSERT_EQ(generated.size(), 1);
+    ASSERT_EQ(generated[0], ".OP");
+}
 
-// TEST(OpSimulationParametersChecks, ignores_unknown_directive) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".TRAN 1ns 1ms"});
-//     // assert
-//     ASSERT_FALSE(result.has_value());
-// }
-
-// TEST(OpSimulationParametersChecks, ignores_print_non_dc) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".PRINT AC V(1)"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->print_dc_enabled, false);
-// }
-
-// TEST(OpSimulationParametersChecks, parses_ic_v_node_form) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".IC V(out)=1.0 V(in)=0"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->ic_entries.size(), 2);
-//     ASSERT_EQ(result->ic_entries[0].node, "out");
-//     ASSERT_EQ(result->ic_entries[0].voltage, "1.0");
-//     ASSERT_EQ(result->ic_entries[1].node, "in");
-//     ASSERT_EQ(result->ic_entries[1].voltage, "0");
-// }
-
-// TEST(OpSimulationParametersChecks, parses_ic_node_val_form) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".IC out 1.0"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->ic_entries.size(), 1);
-//     ASSERT_EQ(result->ic_entries[0].node, "out");
-//     ASSERT_EQ(result->ic_entries[0].voltage, "1.0");
-// }
-
-// TEST(OpSimulationParametersChecks, parses_dcvolt) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".DCVOLT V(out)=2.5"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->ic_entries.size(), 1);
-//     ASSERT_EQ(result->ic_entries[0].node, "out");
-//     ASSERT_EQ(result->ic_entries[0].voltage, "2.5");
-// }
-
-// TEST(OpSimulationParametersChecks, ignores_print_without_type) {
-//     // arrange / act
-//     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".PRINT"});
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     ASSERT_EQ(result->print_dc_enabled, false);
-// }
-
-// // ========================================================================================
-// // Tests for reference guide examples
-// // ========================================================================================
-
-// TEST(OpSimulationParametersChecks, reference_guide_example_basic) {
-//     // arrange
-//     const std::vector<std::string> directives = {".OP"};
-//     // act
-//     const auto result = OpSimulationParameters::from_xyce_directives(directives);
-//     // assert
-//     ASSERT_TRUE(result.has_value());
-//     const auto generated = result->to_xyce_directives();
-//     ASSERT_EQ(generated.size(), 1);
-//     ASSERT_EQ(generated[0], ".OP");
-// }
-
-// TEST(OpSimulationParametersChecks, reference_guide_example_round_trip) {
-//     // arrange
-//     const std::vector<std::string> directives = {".OP"};
-//     // act
-//     const auto result = OpSimulationParameters::from_xyce_directives(directives);
-//     const auto regenerated = result->to_xyce_directives();
-//     const auto reparsed = OpSimulationParameters::from_xyce_directives(regenerated);
-//     // assert
-//     ASSERT_TRUE(reparsed.has_value());
-//     const auto regenerated2 = reparsed->to_xyce_directives();
-//     ASSERT_EQ(regenerated2.size(), 1);
-//     ASSERT_EQ(regenerated2[0], ".OP");
-// }
+TEST(OpSimulationParametersChecks, reference_guide_example_round_trip) {
+    // arrange
+    const std::vector<std::string> directives = {".OP"};
+    // act
+    const auto result = OpSimulationParameters::from_xyce_directives(directives);
+    const auto regenerated = result->to_xyce_directives(NetlistTopology{});
+    const auto reparsed = OpSimulationParameters::from_xyce_directives(regenerated);
+    // assert
+    ASSERT_TRUE(reparsed.has_value());
+    const auto regenerated2 = reparsed->to_xyce_directives(NetlistTopology{});
+    ASSERT_EQ(regenerated2.size(), 1);
+    ASSERT_EQ(regenerated2[0], ".OP");
+}

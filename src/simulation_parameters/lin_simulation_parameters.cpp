@@ -181,6 +181,8 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
 std::vector<std::string> LinSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
+    // topology reserved for future wildcard expansion; pass-through for now
+    (void)topology;
     // build the embedded ac sweep directive
     std::string ac_directive = ".AC";
     if (sweep_mode == "DATA") {

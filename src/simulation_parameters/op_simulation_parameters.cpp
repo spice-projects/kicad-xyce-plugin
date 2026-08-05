@@ -96,11 +96,22 @@ std::optional<OpSimulationParameters> OpSimulationParameters::from_xyce_directiv
                     const auto eq_pos = pair.find('=');
                     const auto node_part = pair.substr(0, eq_pos);
                     const auto voltage = pair.substr(eq_pos + 1);
-                    // validate
+                    // validate and extract the node
+                    std::string node;
                     if (node_part.substr(0, 2) == "V(" && node_part.back() == ')') {
-                        // append entry
-                        nodeset_entries.emplace_back(std::string(node_part.substr(2, node_part.length() - 3)), std::string(voltage));
+                        // V(node)=voltage form
+                        node = node_part.substr(2, node_part.length() - 3);
                     }
+                    else if (node_part.size() >= 1 && (node_part[0] == 'V' || node_part[0] == 'v')) {
+                        // bare voltage node name form (e.g. V1=5)
+                        node = node_part;
+                    }
+                    else {
+                        // invalid node format
+                        continue;
+                    }
+                    // append entry
+                    nodeset_entries.emplace_back(std::string(node), std::string(voltage));
                 }
             }
             continue;
@@ -146,6 +157,9 @@ std::optional<OpSimulationParameters> OpSimulationParameters::from_xyce_directiv
 std::vector<std::string> OpSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
+
+    // topology reserved for future wildcard expansion; pass-through for now
+    (void)topology;
 
     // start with the .OP directive
     directives.push_back(".OP");
@@ -201,31 +215,25 @@ std::vector<std::string> OpSimulationParameters::to_xyce_directives(const Netlis
     }
 
     // check nodeset entries
-    if (!nodeset_entries.empty()) {
-        // format pairs
-        std::string pairs;
-        for (const auto& entry : nodeset_entries) {
-            if (!pairs.empty()) {
-                pairs += " ";
-            }
-            pairs += "V(" + entry.node + ")=" + entry.voltage;
+    for (const auto& entry : nodeset_entries) {
+        // format the node, wrapping in V(...) unless it is already a voltage node name
+        std::string node = entry.node;
+        if (node.empty() || (node[0] != 'V' && node[0] != 'v')) {
+            node = "V(" + entry.node + ")";
         }
-        // append directive
-        directives.push_back(".NODESET " + pairs);
+        // append one directive per entry
+        directives.push_back(".NODESET " + node + "=" + entry.voltage);
     }
 
     // check initial condition entries
-    if (!ic_entries.empty()) {
-        // format pairs
-        std::string pairs;
-        for (const auto& entry : ic_entries) {
-            if (!pairs.empty()) {
-                pairs += " ";
-            }
-            pairs += "V(" + entry.node + ")=" + entry.voltage;
+    for (const auto& entry : ic_entries) {
+        // format the node, wrapping in V(...) unless it is already a voltage node name
+        std::string node = entry.node;
+        if (node.empty() || (node[0] != 'V' && node[0] != 'v')) {
+            node = "V(" + entry.node + ")";
         }
-        // append directive
-        directives.push_back(".IC " + pairs);
+        // append one directive per entry
+        directives.push_back(".IC " + node + "=" + entry.voltage);
     }
 
     // return directives

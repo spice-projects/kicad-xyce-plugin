@@ -189,6 +189,8 @@ std::optional<HbSimulationParameters> HbSimulationParameters::from_xyce_directiv
 std::vector<std::string> HbSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
     // init output directive list
     std::vector<std::string> directives;
+    // topology reserved for future wildcard expansion; pass-through for now
+    (void)topology;
     // build the hb directive with space-separated fundamental frequencies
     std::string hb_directive = ".HB";
     for (const auto& freq : frequencies) {

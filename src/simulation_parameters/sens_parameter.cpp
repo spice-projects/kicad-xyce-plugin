@@ -124,6 +124,8 @@ std::optional<SensParameter> SensParameter::from_xyce_directives(const std::vect
 std::vector<std::string> SensParameter::to_xyce_directives(const NetlistTopology& topology) const {
     // init line list
     std::vector<std::string> lines;
+    // topology reserved for future wildcard expansion; pass-through for now
+    (void)topology;
     // build objective directive string
     std::string obj_str;
     for (size_t i = 0; i < objective_values.size(); ++i) {

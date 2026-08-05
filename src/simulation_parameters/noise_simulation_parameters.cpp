@@ -53,8 +53,34 @@ std::optional<NoiseSimulationParameters> NoiseSimulationParameters::from_xyce_di
             if (print_statement) {
                 const std::string print_type_upper = to_upper(print_statement->print_type);
                 if (print_type_upper == "NOISE") {
-                    // store the parsed print parameters
-                    print_parameters = *print_statement;
+                    // extract device noise operators (DNI/DNO) from the output variables
+                    std::vector<std::string> filtered_variables;
+                    for (const auto& var : print_statement->output_variables) {
+                        const std::string var_upper = to_upper(var);
+                        if (var_upper.rfind("DNI(", 0) == 0 || var_upper.rfind("DNO(", 0) == 0) {
+                            // parse the operator token DNI(node) or DNI(node,source)
+                            const size_t open = var.find('(');
+                            const size_t close = var.find(')');
+                            if (open != std::string::npos && close != std::string::npos && close > open) {
+                                const std::string inner = var.substr(open + 1, close - open - 1);
+                                const size_t comma = inner.find(',');
+                                std::string node = inner;
+                                std::string source;
+                                if (comma != std::string::npos) {
+                                    node = inner.substr(0, comma);
+                                    source = inner.substr(comma + 1);
+                                }
+                                device_noise_operators.emplace_back(var_upper.substr(0, 3), node, source);
+                            }
+                        }
+                        else {
+                            filtered_variables.push_back(var);
+                        }
+                    }
+                    // store the parsed print parameters without the operator tokens
+                    PrintParameters filtered_print = *print_statement;
+                    filtered_print.output_variables = filtered_variables;
+                    print_parameters = filtered_print;
                     continue;
                 }
             }
@@ -68,53 +94,71 @@ std::optional<NoiseSimulationParameters> NoiseSimulationParameters::from_xyce_di
         // flag indicating a valid NOISE directive was found
         found = true;
 
-        // parse output node (position 1)
+        // parse output node (position 1); supports V(node), V(node,ref), or a bare node
         if (tokens.size() >= 2) {
-            output_node = tokens[1];
+            const std::string_view node_token = tokens[1];
+            if (to_upper(node_token).substr(0, 2) == "V(" && node_token.size() >= 3 && node_token.back() == ')') {
+                // split inner content on comma
+                const std::string inner(node_token.substr(2, node_token.size() - 3));
+                const size_t comma = inner.find(',');
+                if (comma != std::string::npos) {
+                    output_node = inner.substr(0, comma);
+                    ref_node = inner.substr(comma + 1);
+                }
+                else {
+                    output_node = inner;
+                }
+            }
+            else {
+                // bare node
+                output_node = node_token;
+            }
         }
 
-        // parse ref node (position 2)
+        // parse source name (position 2)
         if (tokens.size() >= 3) {
-            ref_node = tokens[2];
+            source_name = tokens[2];
         }
 
-        // parse source name (position 3)
-        if (tokens.size() >= 4) {
-            source_name = tokens[3];
+        // parse the sweep type and frequency triple starting at position 3
+        size_t idx = 3;
+        // check for inline DATA table form (DATA=<table>)
+        if (idx < tokens.size() && to_upper(tokens[idx]).substr(0, 5) == "DATA=") {
+            sweep_type = "DATA";
+            data_table_name = tokens[idx].substr(5);
+            idx++;
         }
-
-        // parse start frequency (position 4)
-        if (tokens.size() >= 5) {
-            start_freq_value = tokens[4];
+        // check for a leading sweep type keyword
+        else if (idx < tokens.size()) {
+            const std::string candidate = to_upper(tokens[idx]);
+            if (candidate == "LIN" || candidate == "DEC" || candidate == "OCT" || candidate == "DATA") {
+                sweep_type = candidate;
+                idx++;
+                // read the table name for DATA sweeps
+                if (candidate == "DATA" && idx < tokens.size()) {
+                    data_table_name = tokens[idx];
+                    idx++;
+                }
+            }
         }
-
-        // parse end frequency (position 5)
-        if (tokens.size() >= 6) {
-            end_freq_value = tokens[5];
+        // parse the frequency triple: number of points, start, end
+        if (sweep_type != "DATA") {
+            if (idx < tokens.size()) {
+                num_points_value = tokens[idx];
+                idx++;
+            }
+            if (idx < tokens.size()) {
+                start_freq_value = tokens[idx];
+                idx++;
+            }
+            if (idx < tokens.size()) {
+                end_freq_value = tokens[idx];
+                idx++;
+            }
         }
-
-        // parse number of points (position 6)
-        if (tokens.size() >= 7) {
-            num_points_value = tokens[6];
-        }
-
-        // parse sweep type (position 7)
-        if (tokens.size() >= 8) {
-            sweep_type = tokens[7];
-        }
-
-        // parse data table name (position 8, DATA sweep only)
-        if (tokens.size() >= 9 && to_upper(tokens[7]) == "DATA") {
-            data_table_name = tokens[8];
-        }
-
-        // parse device noise operators (DNI/DNO)
-        for (size_t i = 9; i + 2 < tokens.size(); i += 3) {
-            const auto type = tokens[i];
-            const auto node = tokens[i + 1];
-            const auto source = tokens[i + 2];
-            // append device noise operator
-            device_noise_operators.emplace_back(std::string(type), std::string(node), std::string(source));
+        // default to a LIN sweep when none is specified
+        if (sweep_type.empty()) {
+            sweep_type = "LIN";
         }
     }
 
@@ -127,26 +171,40 @@ std::optional<NoiseSimulationParameters> NoiseSimulationParameters::from_xyce_di
 }
 
 std::vector<std::string> NoiseSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
+    (void)topology;
     // init output directive list
     std::vector<std::string> directives;
-    // start with the noise analysis directive
-    std::string noise_directive = ".NOISE " + output_node + " " + ref_node + " " + source_name + " " + start_freq_value + " " + end_freq_value + " " + num_points_value + " " + sweep_type;
-
-    // append data table name for DATA sweep
-    if (!data_table_name.empty()) {
-        noise_directive += " " + data_table_name;
+    // build the noise analysis directive
+    std::string noise_directive = ".NOISE V(" + output_node;
+    // append the reference node
+    if (!ref_node.empty()) {
+        noise_directive += "," + ref_node;
     }
-
-    // append device noise operators
-    for (const auto& dno : device_noise_operators) {
-        noise_directive += " " + dno.type + " " + dno.node + " " + dno.source;
+    noise_directive += ") " + source_name + " ";
+    // append the sweep type and frequency triple
+    if (!sweep_type.empty() && sweep_type != "DATA") {
+        noise_directive += sweep_type + " " + num_points_value + " " + start_freq_value + " " + end_freq_value;
     }
-
+    else {
+        // DATA sweep uses the inline table name
+        noise_directive += "DATA=" + data_table_name;
+    }
     directives.push_back(noise_directive);
 
-    // append noise print directive with topology-aware wildcard expansion
-    if (print_parameters) {
-        directives.push_back(print_parameters->to_xyce_statement());
+    // append the noise print directive with device noise operators
+    if (print_parameters && (!print_parameters->output_variables.empty() || !device_noise_operators.empty())) {
+        // build the print directive
+        std::string print_directive = print_parameters->to_xyce_statement();
+        // append the device noise operators
+        for (const auto& dno : device_noise_operators) {
+            print_directive += " " + dno.type + "(" + dno.node;
+            // append the noise source when set
+            if (!dno.source.empty()) {
+                print_directive += "," + dno.source;
+            }
+            print_directive += ")";
+        }
+        directives.push_back(print_directive);
     }
 
     // return the full directive list

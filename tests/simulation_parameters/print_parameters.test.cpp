@@ -230,49 +230,49 @@ TEST(PrintParametersChecks, serializes_with_all_fields) {
     ASSERT_EQ(statement, ".PRINT DC FORMAT=CSV FILE=output.csv WIDTH=20 PRECISION=12 V(*) I(*)");
 }
 
-TEST(PrintParametersChecks, expands_V_star_with_topology) {
+TEST(PrintParametersChecks, passes_through_V_star_with_topology) {
     // arrange
     const auto [netlist, topology] = parse_netlist("Title\nR1 1 0 100\nR2 2 0 200\n.END\n");
     const PrintParameters params("DC", "", "", {"V(*)"}, {});
     // act
     const std::string statement = params.to_xyce_statement(&topology);
     // assert
-    // V(*) should expand to V(0), V(1), V(2) in sorted order
-    ASSERT_NE(statement.find("V(0)"), std::string::npos);
-    ASSERT_NE(statement.find("V(1)"), std::string::npos);
-    ASSERT_NE(statement.find("V(2)"), std::string::npos);
-    // wildcard V(*) should not appear verbatim
-    ASSERT_EQ(statement.find("V(*)"), std::string::npos);
+    // V(*) passes through verbatim for native Xyce expansion
+    ASSERT_NE(statement.find("V(*)"), std::string::npos);
+    // topology nodes are NOT injected by the plugin
+    ASSERT_EQ(statement.find("V(0)"), std::string::npos);
+    ASSERT_EQ(statement.find("V(1)"), std::string::npos);
+    ASSERT_EQ(statement.find("V(2)"), std::string::npos);
 }
 
-TEST(PrintParametersChecks, expands_I_star_with_topology) {
+TEST(PrintParametersChecks, passes_through_I_star_with_topology) {
     // arrange
     const auto [netlist, topology] = parse_netlist("Title\nR1 1 0 100\nC1 2 0 1u\n.END\n");
     const PrintParameters params("DC", "", "", {"I(*)"}, {});
     // act
     const std::string statement = params.to_xyce_statement(&topology);
     // assert
-    // I(*) should expand to I(R1) and I(C1)
-    ASSERT_NE(statement.find("I(R1)"), std::string::npos);
-    ASSERT_NE(statement.find("I(C1)"), std::string::npos);
-    // wildcard I(*) should not appear verbatim
-    ASSERT_EQ(statement.find("I(*)"), std::string::npos);
+    // I(*) passes through verbatim for native Xyce expansion
+    ASSERT_NE(statement.find("I(*)"), std::string::npos);
+    // device currents are NOT injected by the plugin
+    ASSERT_EQ(statement.find("I(R1)"), std::string::npos);
+    ASSERT_EQ(statement.find("I(C1)"), std::string::npos);
 }
 
-TEST(PrintParametersChecks, expands_P_star_with_topology) {
+TEST(PrintParametersChecks, passes_through_P_star_with_topology) {
     // arrange
     const auto [netlist, topology] = parse_netlist("Title\nR1 1 0 100\n.END\n");
     const PrintParameters params("DC", "", "", {"P(*)"}, {});
     // act
     const std::string statement = params.to_xyce_statement(&topology);
     // assert
-    // P(*) should expand to P(R1)
-    ASSERT_NE(statement.find("P(R1)"), std::string::npos);
-    // wildcard P(*) should not appear verbatim
-    ASSERT_EQ(statement.find("P(*)"), std::string::npos);
+    // P(*) passes through verbatim for native Xyce expansion
+    ASSERT_NE(statement.find("P(*)"), std::string::npos);
+    // device powers are NOT injected by the plugin
+    ASSERT_EQ(statement.find("P(R1)"), std::string::npos);
 }
 
-TEST(PrintParametersChecks, expands_mixed_wildcards_and_explicit_with_topology) {
+TEST(PrintParametersChecks, passes_through_mixed_wildcards_and_explicit_with_topology) {
     // arrange
     const auto [netlist, topology] = parse_netlist("Title\nR1 1 0 100\n.END\n");
     const PrintParameters params("DC", "", "", {"V(1)", "V(*)", "I(*)"}, {});
@@ -281,10 +281,9 @@ TEST(PrintParametersChecks, expands_mixed_wildcards_and_explicit_with_topology) 
     // assert
     // explicit V(1) preserved
     ASSERT_NE(statement.find("V(1)"), std::string::npos);
-    // V(*) expanded to V(0) (from topology nodes: 0, 1)
-    ASSERT_NE(statement.find("V(0)"), std::string::npos);
-    // I(*) expanded to I(R1)
-    ASSERT_NE(statement.find("I(R1)"), std::string::npos);
+    // wildcards pass through verbatim
+    ASSERT_NE(statement.find("V(*)"), std::string::npos);
+    ASSERT_NE(statement.find("I(*)"), std::string::npos);
 }
 
 TEST(PrintParametersChecks, passes_through_wildcards_without_topology) {

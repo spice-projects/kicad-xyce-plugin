@@ -66,6 +66,115 @@ static std::vector<std::string> measure_tokenize(const std::string& statement) {
     return tokens;
 }
 
+// parse TRIG-TARG clause pairs starting at the TRIG keyword; fills the trig_*/targ_*
+// fields of the entry and returns the index past the parsed clauses
+static size_t parse_trig_targ_clauses(const std::vector<std::string>& tokens, size_t idx, MeasureEntry& entry) {
+    // expect the TRIG keyword
+    if (to_upper(tokens[idx]) != "TRIG") {
+        return idx;
+    }
+    // parse a single clause into the given entry
+    auto parse_clause = [&](size_t start_idx, MeasureEntry& clause_entry) -> size_t {
+        // init index
+        size_t c_idx = start_idx;
+        // check for AT form (AT=<value>)
+        if (c_idx < tokens.size() && to_upper(tokens[c_idx]).substr(0, 3) == "AT=") {
+            // set at value
+            const auto& token = tokens[c_idx];
+            const size_t eq_pos = token.find('=');
+            // check for equals sign
+            if (eq_pos != std::string::npos)
+                clause_entry.trig_at_val = token.substr(eq_pos + 1);
+            // advance index
+            return c_idx + 1;
+        }
+        // check for variable form
+        if (c_idx < tokens.size()) {
+            // split variable and condition at a comparison operator
+            const auto& token = tokens[c_idx];
+            const size_t op_pos = token.find_first_of("=<>");
+            if (op_pos != std::string::npos) {
+                clause_entry.trig_variable = token.substr(0, op_pos);
+                clause_entry.trig_condition = token.substr(op_pos);
+            }
+            else {
+                clause_entry.trig_variable = token;
+            }
+            // advance index
+            c_idx++;
+            // parse qualifiers
+            while (c_idx < tokens.size()) {
+                // check for qualifier with equals sign
+                const auto& qual_token = tokens[c_idx];
+                const size_t qual_eq_pos = qual_token.find('=');
+                // stop on tokens without an equals sign (e.g. TARG)
+                if (qual_eq_pos == std::string::npos) {
+                    break;
+                }
+                // split qualifier key and value
+                const std::string qual_key = to_upper(qual_token.substr(0, qual_eq_pos));
+                const std::string qual_val = qual_token.substr(qual_eq_pos + 1);
+                // map known qualifiers
+                if (qual_key == "VAL") {
+                    clause_entry.trig_val = qual_val;
+                }
+                else if (qual_key == "TD") {
+                    clause_entry.trig_td = qual_val;
+                }
+                else if (qual_key == "RISE") {
+                    clause_entry.trig_rise = qual_val;
+                }
+                else if (qual_key == "FALL") {
+                    clause_entry.trig_fall = qual_val;
+                }
+                else if (qual_key == "CROSS") {
+                    clause_entry.trig_cross = qual_val;
+                }
+                else if (qual_key == "FRAC_MAX") {
+                    clause_entry.trig_frac_max = qual_val;
+                }
+                else {
+                    // stop on unknown qualifiers
+                    break;
+                }
+                c_idx++;
+            }
+        }
+        return c_idx;
+    };
+
+    // parse the TRIG clause into a temporary entry
+    idx++;
+    MeasureEntry trig_fields;
+    idx = parse_clause(idx, trig_fields);
+    entry.trig_variable = trig_fields.trig_variable;
+    entry.trig_condition = trig_fields.trig_condition;
+    entry.trig_val = trig_fields.trig_val;
+    entry.trig_frac_max = trig_fields.trig_frac_max;
+    entry.trig_td = trig_fields.trig_td;
+    entry.trig_rise = trig_fields.trig_rise;
+    entry.trig_fall = trig_fields.trig_fall;
+    entry.trig_cross = trig_fields.trig_cross;
+    entry.trig_at_val = trig_fields.trig_at_val;
+
+    // parse the TARG clause if present
+    if (idx < tokens.size() && to_upper(tokens[idx]) == "TARG") {
+        idx++;
+        MeasureEntry targ_fields;
+        idx = parse_clause(idx, targ_fields);
+        entry.targ_variable = targ_fields.trig_variable;
+        entry.targ_condition = targ_fields.trig_condition;
+        entry.targ_val = targ_fields.trig_val;
+        entry.targ_frac_max = targ_fields.trig_frac_max;
+        entry.targ_td = targ_fields.trig_td;
+        entry.targ_rise = targ_fields.trig_rise;
+        entry.targ_fall = targ_fields.trig_fall;
+        entry.targ_cross = targ_fields.trig_cross;
+        entry.targ_at_val = targ_fields.trig_at_val;
+    }
+    return idx;
+}
+
 // construct a MeasureEntry with default empty fields
 MeasureEntry::MeasureEntry(std::string analysis_type, std::string result_name, std::string measure_type, std::string variable, std::string from_val, std::string to_val, std::string td_val, std::string rise_val, std::string fall_val, std::string cross_val, std::string minval, std::string default_val, std::string precision, std::string print_val, std::string at_val, std::string on_val, std::string off_val, std::string rfc_level, std::string output, std::string min_thresh, std::string max_thresh, std::string frac_max, std::string when_variable, std::string when_condition, std::string variable2, std::string trig_variable, std::string trig_condition, std::string trig_val, std::string trig_frac_max, std::string trig_td, std::string trig_rise, std::string trig_fall, std::string trig_cross, std::string trig_at_val, std::string targ_variable, std::string targ_condition, std::string targ_val, std::string targ_frac_max, std::string targ_td, std::string targ_rise, std::string targ_fall, std::string targ_cross, std::string targ_at_val, std::string error_file, std::string indepvarcol, std::string depvarcol, std::string comp_function, std::string numfreq, std::string gridsize, std::string binsiz, std::string maxfreq, std::string minfreq, std::string nbharm, std::string goal, std::string weight) :
     analysis_type(std::move(analysis_type)), result_name(std::move(result_name)), measure_type(std::move(measure_type)), variable(std::move(variable)), from_val(std::move(from_val)), to_val(std::move(to_val)), td_val(std::move(td_val)), rise_val(std::move(rise_val)), fall_val(std::move(fall_val)), cross_val(std::move(cross_val)), minval(std::move(minval)), default_val(std::move(default_val)), precision(std::move(precision)), print_val(std::move(print_val)), at_val(std::move(at_val)), on_val(std::move(on_val)), off_val(std::move(off_val)), rfc_level(std::move(rfc_level)), output(std::move(output)), min_thresh(std::move(min_thresh)), max_thresh(std::move(max_thresh)), frac_max(std::move(frac_max)), when_variable(std::move(when_variable)), when_condition(std::move(when_condition)), variable2(std::move(variable2)), trig_variable(std::move(trig_variable)), trig_condition(std::move(trig_condition)), trig_val(std::move(trig_val)), trig_frac_max(std::move(trig_frac_max)), trig_td(std::move(trig_td)), trig_rise(std::move(trig_rise)), trig_fall(std::move(trig_fall)), trig_cross(std::move(trig_cross)), trig_at_val(std::move(trig_at_val)), targ_variable(std::move(targ_variable)), targ_condition(std::move(targ_condition)), targ_val(std::move(targ_val)), targ_frac_max(std::move(targ_frac_max)), targ_td(std::move(targ_td)), targ_rise(std::move(targ_rise)), targ_fall(std::move(targ_fall)), targ_cross(std::move(targ_cross)), targ_at_val(std::move(targ_at_val)), error_file(std::move(error_file)), indepvarcol(std::move(indepvarcol)), depvarcol(std::move(depvarcol)), comp_function(std::move(comp_function)), numfreq(std::move(numfreq)), gridsize(std::move(gridsize)), binsiz(std::move(binsiz)), maxfreq(std::move(maxfreq)), minfreq(std::move(minfreq)), nbharm(std::move(nbharm)), goal(std::move(goal)), weight(std::move(weight)) {}
@@ -85,15 +194,15 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
         // return none
         return std::nullopt;
     }
-    // parse analysis type and result name
-    const std::string analysis_type = to_upper(tokens[1]);
+    // parse analysis type and result name (preserving the original case)
+    const std::string analysis_type = tokens[1];
     const std::string result_name = tokens[2];
     // flag indicating whether the analysis type is valid
     bool analysis_type_valid = false;
     // loop allowd analysis types
     for (const auto& allowed : ALLOWED_ANALYSIS_TYPES) {
         // check for match
-        if (analysis_type == allowed) {
+        if (to_upper(analysis_type) == allowed) {
             // set flag and break
             analysis_type_valid = true;
             break;
@@ -154,106 +263,8 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
     entry.measure_type = measure_type;
     // handle TRIG-TARG syntax
     if (measure_type == "TRIG") {
-        // parse TRIG clause
-        auto parse_clause = [&](size_t start_idx, const std::string&) -> std::pair<size_t, MeasureEntry> {
-            // init index and clause entry
-            size_t c_idx = start_idx;
-            MeasureEntry clause_entry;
-            // check for AT form (AT=<value>)
-            if (c_idx < tokens.size() && to_upper(tokens[c_idx]).substr(0, 3) == "AT=") {
-                // set at value
-                const auto& token = tokens[c_idx];
-                const size_t eq_pos = token.find('=');
-                // check for equals sign
-                if (eq_pos != std::string::npos)
-                    clause_entry.trig_at_val = token.substr(eq_pos + 1);
-                // advance index
-                c_idx++;
-            }
-            // check for variable form
-            else if (c_idx < tokens.size()) {
-                // split variable and condition
-                const auto& token = tokens[c_idx];
-                // check for equals sign in token
-                const size_t eq_pos = token.find('=');
-                // check for variable=condition form
-                if (eq_pos != std::string::npos) {
-                    // variable=condition form
-                    clause_entry.trig_variable = token.substr(0, eq_pos);
-                    clause_entry.trig_condition = token.substr(eq_pos);
-                }
-                else {
-                    // just variable
-                    clause_entry.trig_variable = token;
-                }
-                // advance index
-                c_idx++;
-                // parse qualifiers
-                while (c_idx < tokens.size()) {
-                    // check for qualifier with equals sign
-                    const auto& qual_token = tokens[c_idx];
-                    const size_t qual_eq_pos = qual_token.find('=');
-                    // check for known qualifiers
-                    if (qual_eq_pos != std::string::npos) {
-                        // split qualifier key and value
-                        const std::string qual_key = to_upper(qual_token.substr(0, qual_eq_pos));
-                        const std::string qual_val = qual_token.substr(qual_eq_pos + 1);
-                        // 
-                        if (qual_key == "TD") {
-                            clause_entry.trig_td = qual_val;
-                        }
-                        else if (qual_key == "RISE") {
-                            clause_entry.trig_rise = qual_val;
-                        }
-                        else if (qual_key == "FALL") {
-                            clause_entry.trig_fall = qual_val;
-                        }
-                        else if (qual_key == "CROSS") {
-                            clause_entry.trig_cross = qual_val;
-                        }
-                        else if (qual_key == "FRAC_MAX") {
-                            clause_entry.trig_frac_max = qual_val;
-                        }
-                    }
-                    c_idx++;
-                }
-            }
-            return {c_idx, clause_entry};
-        };
-
-        size_t trig_idx;
-        MeasureEntry trig_fields;
-        std::tie(trig_idx, trig_fields) = parse_clause(idx, "trig");
-        idx = trig_idx;
-
-        entry.trig_variable = trig_fields.trig_variable;
-        entry.trig_condition = trig_fields.trig_condition;
-        entry.trig_val = trig_fields.trig_val;
-        entry.trig_frac_max = trig_fields.trig_frac_max;
-        entry.trig_td = trig_fields.trig_td;
-        entry.trig_rise = trig_fields.trig_rise;
-        entry.trig_fall = trig_fields.trig_fall;
-        entry.trig_cross = trig_fields.trig_cross;
-        entry.trig_at_val = trig_fields.trig_at_val;
-
-        // parse TARG clause
-        if (idx < tokens.size() && to_upper(tokens[idx]) == "TARG") {
-            idx++;
-            size_t targ_idx;
-            MeasureEntry targ_fields;
-            std::tie(targ_idx, targ_fields) = parse_clause(idx, "targ");
-            idx = targ_idx;
-
-            entry.targ_variable = targ_fields.targ_variable;
-            entry.targ_condition = targ_fields.targ_condition;
-            entry.targ_val = targ_fields.targ_val;
-            entry.targ_frac_max = targ_fields.targ_frac_max;
-            entry.targ_td = targ_fields.targ_td;
-            entry.targ_rise = targ_fields.targ_rise;
-            entry.targ_fall = targ_fields.targ_fall;
-            entry.targ_cross = targ_fields.targ_cross;
-            entry.targ_at_val = targ_fields.targ_at_val;
-        }
+        // parse the TRIG-TARG clauses
+        idx = parse_trig_targ_clauses(tokens, idx - 1, entry);
 
         // Standard qualifiers can follow TRIG-TARG
         for (size_t i = idx; i < tokens.size(); i++) {
@@ -278,6 +289,12 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
                 else if (key == "FRAC_MAX") {
                     entry.frac_max = val;
                 }
+                else if (key == "FROM") {
+                    entry.from_val = val;
+                }
+                else if (key == "TO") {
+                    entry.to_val = val;
+                }
             }
         }
 
@@ -297,11 +314,11 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
                 const auto& when_token = tokens[idx];
                 idx++;
 
-                // check for equals sign in token
-                const size_t eq_pos = when_token.find('=');
-                if (eq_pos != std::string::npos) {
-                    entry.when_variable = when_token.substr(0, eq_pos);
-                    entry.when_condition = when_token.substr(eq_pos);
+                // split variable and condition at a comparison operator
+                const size_t op_pos = when_token.find_first_of("=<>");
+                if (op_pos != std::string::npos) {
+                    entry.when_variable = when_token.substr(0, op_pos);
+                    entry.when_condition = when_token.substr(op_pos);
                 }
                 else {
                     entry.when_variable = when_token;
@@ -315,14 +332,24 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
             }
         }
 
-        // handle ERR1/ERR2 two-variable syntax
-        if (measure_type == "ERR1" || measure_type == "ERR2") {
+        // handle ERR/ERR1/ERR2 two-variable syntax
+        if (measure_type == "ERR" || measure_type == "ERR1" || measure_type == "ERR2") {
             // check for second variable
             if (idx < tokens.size()) {
-                // set second variable
-                entry.variable2 = tokens[idx];
-                idx++;
+                // check the second token is not a keyword
+                const std::string next = to_upper(tokens[idx]);
+                if (next != "WHEN" && next != "TRIG" && next != "TARG") {
+                    // set second variable
+                    entry.variable2 = tokens[idx];
+                    idx++;
+                }
             }
+        }
+
+        // check that a required variable is present
+        if (measure_type != "WHEN" && measure_type != "EQN" && entry.variable.empty()) {
+            // return none
+            return std::nullopt;
         }
 
         // iterate remaining tokens
@@ -335,21 +362,30 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
                 entry.when_variable = tokens[i + 1];
                 i++;
 
-                // check for condition in same token
-                const size_t eq_pos = entry.when_variable.find('=');
-                if (eq_pos != std::string::npos) {
-                    entry.when_condition = entry.when_variable.substr(eq_pos);
-                    entry.when_variable = entry.when_variable.substr(0, eq_pos);
-                }
-                // check for separate condition token
-                else if (i + 1 < tokens.size() && tokens[i + 1].find('=') != std::string::npos) {
-                    entry.when_condition = tokens[i + 1];
-                    i++;
+                // split variable and condition at a comparison operator
+                const size_t op_pos = entry.when_variable.find_first_of("=<>");
+                if (op_pos != std::string::npos) {
+                    entry.when_condition = entry.when_variable.substr(op_pos);
+                    entry.when_variable = entry.when_variable.substr(0, op_pos);
                 }
                 // no condition
                 else {
                     entry.when_condition = "";
                 }
+
+                // check for a trailing second variable (WHEN var=var2 form)
+                if (i + 1 < tokens.size() && tokens[i + 1].find('(') != std::string::npos) {
+                    entry.variable2 = tokens[i + 1];
+                    i++;
+                }
+                // continue to next token
+                continue;
+            }
+
+            // check for TRIG keyword (TRIG-TARG windowing on other measures)
+            if (to_upper(token) == "TRIG") {
+                // parse the TRIG-TARG clauses
+                i = parse_trig_targ_clauses(tokens, i, entry);
                 // continue to next token
                 continue;
             }
@@ -433,6 +469,10 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
                 else if (key == "FILE") {
                     entry.error_file = val;
                 }
+                // map ERROR_FILE (ERROR-specific)
+                else if (key == "ERROR_FILE") {
+                    entry.error_file = val;
+                }
                 // map INDEPVARCOL (ERROR-specific)
                 else if (key == "INDEPVARCOL") {
                     entry.indepvarcol = val;
@@ -467,6 +507,10 @@ std::optional<MeasureEntry> MeasureEntry::from_xyce_statement(const std::string&
                 }
                 // map NBHARM (FFT-specific)
                 else if (key == "NBHARM") {
+                    entry.nbharm = val;
+                }
+                // map HARM (FOUR-specific)
+                else if (key == "HARM") {
                     entry.nbharm = val;
                 }
                 // map GOAL (HSPICE compatibility)

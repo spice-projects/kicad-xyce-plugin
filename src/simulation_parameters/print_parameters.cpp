@@ -271,39 +271,10 @@ std::string PrintParameters::to_xyce_statement() const {
 }
 
 std::string PrintParameters::to_xyce_statement(const NetlistTopology* topology) const {
-    // init token list
-    std::vector<std::string> tokens = {".PRINT", print_type};
-    // append format option
-    if (!print_format.empty())
-        tokens.push_back("FORMAT=" + print_format);
-    // append file option
-    if (!print_file.empty())
-        tokens.push_back("FILE=" + print_file);
-    // append extra options
-    for (const auto& opt : extra_options)
-        tokens.push_back(opt);
-    // append output variables with wildcard expansion
-    for (const auto& var : output_variables) {
-        // check for topology-aware wildcard expansion
-        if (topology && var == "V(*)") {
-            // expand to one V(node) per topology node, in sorted order
-            for (const auto& node : topology->m_nodes) {
-                tokens.push_back("V(" + node + ")");
-            }
-        }
-        else if (topology && (var == "I(*)" || var == "P(*)")) {
-            // I(*) and P(*) expand to one entry per topology device
-            for (const auto& dev : topology->m_devices) {
-                tokens.push_back(var.substr(0, 1) + "(" + dev.m_name + ")");
-            }
-        }
-        else {
-            // pass through verbatim
-            tokens.push_back(var);
-        }
-    }
-    // build joined statement
-    return join_tokens(tokens);
+    // topology-based wildcard expansion is removed; V(*)/I(*)/P(*) pass
+    // through verbatim and are expanded natively by Xyce
+    (void)topology;
+    return to_xyce_statement();
 }
 
 bool PrintParameters::operator==(const PrintParameters& other) const {
