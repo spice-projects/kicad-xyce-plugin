@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <vector>
 
 #include <wx/wxprec.h>
@@ -48,6 +49,8 @@ private:
     wxPanel* create_lin_parameters_panel(wxWindow*);
 
     void on_page_changed(wxCommandEvent& event);
+
+    void on_apply();
 
     void apply_config(const SimulationConfig& config);
 

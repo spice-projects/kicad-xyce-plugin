@@ -1,10 +1,61 @@
 #include <cctype>
+#include <cmath>
+#include <cstdlib>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "../util.h"
 #include "dc_simulation_parameters.h"
+
+namespace
+{
+    // parse the leading numeric portion of a value (supports SI suffixes like 1k);
+    // returns false when the value does not start with a number
+    [[nodiscard]] bool parse_number(const std::string& text, double& value) {
+        if (text.empty()) {
+            return false;
+        }
+        const char* start = text.c_str();
+        char* end = nullptr;
+        value = std::strtod(start, &end);
+        return end != start;
+    }
+
+    // validate one sweep tuple; returns an error message or nullopt when valid
+    [[nodiscard]] std::optional<std::string> validate_sweep(const std::string& mode, const std::string& variable, const std::string& start, const std::string& stop, const std::string& step, const std::string& points) {
+        if (variable.empty()) {
+            return "sweep variable is required";
+        }
+        if (start.empty()) {
+            return "start value is required";
+        }
+        if (stop.empty()) {
+            return "stop value is required";
+        }
+        if (mode == "LIN") {
+            if (step.empty()) {
+                return "step value is required";
+            }
+        }
+        else {
+            if (points.empty()) {
+                return "points value is required";
+            }
+            // a log sweep requires a positive integer number of points per decade/octave
+            double points_value = 0.0;
+            if (parse_number(points, points_value) && (points_value < 1.0 || std::floor(points_value) != points_value)) {
+                return "points value must be a positive integer";
+            }
+            // a log sweep cannot start at or below zero
+            double start_value = 0.0;
+            if (parse_number(start, start_value) && start_value <= 0.0) {
+                return "start value must be greater than zero";
+            }
+        }
+        return std::nullopt;
+    }
+} // namespace
 
 DCSimulationParameters::DCSimulationParameters(std::string sweep_mode, std::string primary_variable, std::string start, std::string stop, std::string step, std::string points, std::vector<std::string> list_values, std::string data_table_name, std::string secondary_variable, std::string secondary_start, std::string secondary_stop, std::string secondary_step, std::string secondary_points, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
     sweep_mode(std::move(sweep_mode)), primary_variable(std::move(primary_variable)), start(std::move(start)), stop(std::move(stop)), step(std::move(step)), points(std::move(points)), list_values(std::move(list_values)), data_table_name(std::move(data_table_name)), secondary_variable(std::move(secondary_variable)), secondary_start(std::move(secondary_start)), secondary_stop(std::move(secondary_stop)), secondary_step(std::move(secondary_step)), secondary_points(std::move(secondary_points)), print_parameters(std::move(print_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
@@ -228,4 +279,37 @@ std::vector<std::string> DCSimulationParameters::to_xyce_directives(const Netlis
 bool DCSimulationParameters::operator==(const DCSimulationParameters& other) const {
     // compare all fields for equality
     return sweep_mode == other.sweep_mode && primary_variable == other.primary_variable && start == other.start && stop == other.stop && step == other.step && points == other.points && list_values == other.list_values && data_table_name == other.data_table_name && secondary_variable == other.secondary_variable && secondary_start == other.secondary_start && secondary_stop == other.secondary_stop && secondary_step == other.secondary_step && secondary_points == other.secondary_points && print_parameters == other.print_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
+}
+
+std::optional<std::string> DCSimulationParameters::validate() const {
+    // data sweeps require a data table name
+    if (sweep_mode == "DATA") {
+        if (data_table_name.empty()) {
+            return "DC DATA sweep requires a data table name";
+        }
+        return std::nullopt;
+    }
+    // list sweeps require a sweep variable and at least one value
+    if (sweep_mode == "LIST") {
+        if (primary_variable.empty()) {
+            return "DC LIST sweep requires a sweep variable";
+        }
+        if (list_values.empty()) {
+            return "DC LIST sweep requires at least one value";
+        }
+        return std::nullopt;
+    }
+    // validate the primary sweep
+    auto primary_error = validate_sweep(sweep_mode, primary_variable, start, stop, step, points);
+    if (primary_error) {
+        return "DC " + sweep_mode + " sweep: " + *primary_error;
+    }
+    // validate the secondary sweep when a secondary variable is present
+    if (!secondary_variable.empty()) {
+        auto secondary_error = validate_sweep(sweep_mode, secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points);
+        if (secondary_error) {
+            return "DC " + sweep_mode + " secondary sweep: " + *secondary_error;
+        }
+    }
+    return std::nullopt;
 }

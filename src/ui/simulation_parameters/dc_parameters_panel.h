@@ -28,6 +28,11 @@ public:
     [[nodiscard]] PrintSectionPanel* get_print_section() const;
 
 private:
+    // sync the step/points fields when the sweep mode changes
+    void on_sweep_mode_changed();
+
+    friend class DcParametersPanelTest;
+
     SimulationCard* m_card = nullptr;
     GlobalSettingsPanel* m_global_settings = nullptr;
     PrintSectionPanel* m_print_section = nullptr;

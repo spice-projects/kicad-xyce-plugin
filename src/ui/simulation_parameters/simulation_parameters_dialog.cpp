@@ -167,7 +167,7 @@ SimulationParametersDialog::SimulationParametersDialog(wxWindow* parent, const S
     footer_sizer->Add(m_error_label, 1, wxALIGN_CENTER_VERTICAL, 0);
 
     auto* button_sizer = CreateStdDialogButtonSizer(wxAPPLY | wxCANCEL);
-    Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { EndModal(wxID_OK); }, wxID_APPLY);
+    Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { on_apply(); }, wxID_APPLY);
     footer_sizer->Add(button_sizer, 0, wxLEFT, FromDIP(8));
 
     main_sizer->Add(footer_sizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, FromDIP(8));
@@ -343,6 +343,26 @@ void SimulationParametersDialog::on_page_changed(wxCommandEvent&) {
     int page = m_tabbed_panel->get_selection();
     m_analysis_type = std::string(PAGE_ANALYSIS_TYPES[page].ToUTF8());
     Layout();
+}
+
+void SimulationParametersDialog::on_apply() {
+    // validate the currently configured analysis before accepting
+    const auto config = build_preview_config();
+    std::optional<std::string> error;
+    if (config.analysis_type == "DC") {
+        error = std::get<DCSimulationParameters>(config.analysis).validate();
+    }
+    // block acceptance and surface the error when the parameters are invalid
+    if (error) {
+        m_error_label->SetLabel(wxString::FromUTF8(*error));
+        m_error_label->Show(true);
+        Layout();
+        return;
+    }
+    // clear any stale error and accept the configuration
+    m_error_label->SetLabel(wxEmptyString);
+    m_error_label->Show(false);
+    EndModal(wxID_OK);
 }
 
 SimulationConfig SimulationParametersDialog::build_preview_config() const {

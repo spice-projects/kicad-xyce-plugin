@@ -95,6 +95,7 @@ DcParametersPanel::DcParametersPanel(wxWindow* parent) :
     mode_choices.Add("DATA");
     m_sweep_mode_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, mode_choices);
     m_sweep_mode_choice->SetSelection(0);
+    m_sweep_mode_choice->Bind(wxEVT_CHOICE, [this](wxCommandEvent&) { on_sweep_mode_changed(); });
     mode_sizer->Add(m_sweep_mode_choice, 0, wxALL, 0);
     content_sizer->Add(mode_sizer, 0, wxBOTTOM, FromDIP(12));
 
@@ -227,10 +228,18 @@ DCSimulationParameters DcParametersPanel::build_dc_parameters() const {
     // use step for LIN sweeps
     if (sweep_mode == "LIN") {
         step = std::string(m_step_text->GetValue().ToUTF8());
+        // carry over the points value when switching from DEC/OCT and step is unset
+        if (step.empty()) {
+            step = std::string(m_points_text->GetValue().ToUTF8());
+        }
     }
     // use points for DEC/OCT log sweeps
     else if (sweep_mode == "DEC" || sweep_mode == "OCT") {
         points = std::string(m_points_text->GetValue().ToUTF8());
+        // carry over the step value when switching from LIN and points is unset
+        if (points.empty()) {
+            points = std::string(m_step_text->GetValue().ToUTF8());
+        }
     }
     // use list values for LIST mode
     else if (sweep_mode == "LIST") {
@@ -252,10 +261,18 @@ DCSimulationParameters DcParametersPanel::build_dc_parameters() const {
     // use step for LIN sweeps
     if (sweep_mode == "LIN") {
         secondary_step = std::string(m_secondary_step_text->GetValue().ToUTF8());
+        // carry over the points value when switching from DEC/OCT and step is unset
+        if (secondary_step.empty()) {
+            secondary_step = std::string(m_secondary_points_text->GetValue().ToUTF8());
+        }
     }
     // use points for DEC/OCT log sweeps
     else if (sweep_mode == "DEC" || sweep_mode == "OCT") {
         secondary_points = std::string(m_secondary_points_text->GetValue().ToUTF8());
+        // carry over the step value when switching from LIN and points is unset
+        if (secondary_points.empty()) {
+            secondary_points = std::string(m_secondary_step_text->GetValue().ToUTF8());
+        }
     }
 
     // read print parameters from print section
@@ -322,3 +339,29 @@ void DcParametersPanel::apply(const DCSimulationParameters& params) {
 GlobalSettingsPanel* DcParametersPanel::get_global_settings() const { return m_global_settings; }
 
 PrintSectionPanel* DcParametersPanel::get_print_section() const { return m_print_section; }
+
+void DcParametersPanel::on_sweep_mode_changed() {
+    // carry the numeric value between the step and points fields when switching modes
+    // so the parameter is visible and editable in the newly selected mode
+    const wxString mode = m_sweep_mode_choice->GetStringSelection();
+    if (mode == "DEC" || mode == "OCT") {
+        // carry the LIN step value into the points field when points is unset
+        if (m_points_text->GetValue().IsEmpty() && !m_step_text->GetValue().IsEmpty()) {
+            m_points_text->SetValue(m_step_text->GetValue());
+        }
+        // carry the secondary LIN step value into the secondary points field
+        if (m_secondary_points_text->GetValue().IsEmpty() && !m_secondary_step_text->GetValue().IsEmpty()) {
+            m_secondary_points_text->SetValue(m_secondary_step_text->GetValue());
+        }
+    }
+    else if (mode == "LIN") {
+        // carry the log points value into the step field when step is unset
+        if (m_step_text->GetValue().IsEmpty() && !m_points_text->GetValue().IsEmpty()) {
+            m_step_text->SetValue(m_points_text->GetValue());
+        }
+        // carry the secondary log points value into the secondary step field
+        if (m_secondary_step_text->GetValue().IsEmpty() && !m_secondary_points_text->GetValue().IsEmpty()) {
+            m_secondary_step_text->SetValue(m_secondary_points_text->GetValue());
+        }
+    }
+}

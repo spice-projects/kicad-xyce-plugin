@@ -12,18 +12,26 @@
 #include "simulation_parameters/dc_simulation_parameters.h"
 #include "ui/simulation_parameters/dc_parameters_panel.h"
 
-namespace
+// fixture declared at global scope so it can act as a friend of DcParametersPanel
+class DcParametersPanelTest : public ::testing::Test
 {
-    class DcParametersPanelTest : public ::testing::Test
-    {
-    protected:
-        void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
+protected:
+    void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
 
-        void TearDown() override { delete m_parent; }
+    void TearDown() override { delete m_parent; }
 
-        wxFrame* m_parent = nullptr;
-    };
-} // namespace
+    // switch the sweep mode choice, acting as a friend to simulate a UI mode change
+    static void set_sweep_mode(DcParametersPanel& panel, const std::string& mode) {
+        panel.m_sweep_mode_choice->SetSelection(panel.m_sweep_mode_choice->FindString(wxString::FromUTF8(mode)));
+    }
+
+    // run the mode-change handler, acting as a friend
+    static void fire_sweep_mode_change(DcParametersPanel& panel) {
+        panel.on_sweep_mode_changed();
+    }
+
+    wxFrame* m_parent = nullptr;
+};
 
 // ========================================================================================
 // constructor
@@ -205,4 +213,89 @@ TEST_F(DcParametersPanelTest, build_with_dec_sweep) {
     EXPECT_EQ(result.stop, "10k");
     EXPECT_EQ(result.points, "10");
     EXPECT_TRUE(result.step.empty());
+}
+
+// ========================================================================================
+// build — switching from LIN to DEC retains the sweep value as points
+// ========================================================================================
+
+TEST_F(DcParametersPanelTest, build_after_mode_change_lin_to_dec_keeps_value) {
+    // arrange — load a LIN sweep so only the step field is populated
+    DcParametersPanel panel(m_parent);
+    DCSimulationParameters lin_input("LIN", "V1", "0", "5", "0.5", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
+    panel.apply(lin_input);
+    // act — simulate the user changing the sweep mode to DEC
+    set_sweep_mode(panel, "DEC");
+    auto result = panel.build_dc_parameters();
+    // assert
+    EXPECT_EQ(result.sweep_mode, "DEC");
+    EXPECT_EQ(result.primary_variable, "V1");
+    EXPECT_EQ(result.start, "0");
+    EXPECT_EQ(result.stop, "5");
+    EXPECT_EQ(result.points, "0.5");
+    EXPECT_TRUE(result.step.empty());
+}
+
+TEST_F(DcParametersPanelTest, build_after_mode_change_dec_to_lin_keeps_value) {
+    // arrange — load a DEC sweep so only the points field is populated
+    DcParametersPanel panel(m_parent);
+    DCSimulationParameters dec_input("DEC", "V1", "1", "10k", "", "10", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
+    panel.apply(dec_input);
+    // act — simulate the user changing the sweep mode to LIN
+    set_sweep_mode(panel, "LIN");
+    auto result = panel.build_dc_parameters();
+    // assert
+    EXPECT_EQ(result.sweep_mode, "LIN");
+    EXPECT_EQ(result.primary_variable, "V1");
+    EXPECT_EQ(result.start, "1");
+    EXPECT_EQ(result.stop, "10k");
+    EXPECT_EQ(result.step, "10");
+    EXPECT_TRUE(result.points.empty());
+}
+
+TEST_F(DcParametersPanelTest, build_after_mode_change_lin_to_dec_keeps_secondary_value) {
+    // arrange — load a LIN sweep with a secondary sweep
+    DcParametersPanel panel(m_parent);
+    DCSimulationParameters lin_input("LIN", "V1", "0", "5", "0.5", "", {}, "", "R1", "0", "1k", "10", "", std::nullopt, {}, std::nullopt);
+    panel.apply(lin_input);
+    // act — simulate the user changing the sweep mode to DEC
+    set_sweep_mode(panel, "DEC");
+    auto result = panel.build_dc_parameters();
+    // assert
+    EXPECT_EQ(result.sweep_mode, "DEC");
+    EXPECT_EQ(result.secondary_variable, "R1");
+    EXPECT_EQ(result.secondary_start, "0");
+    EXPECT_EQ(result.secondary_stop, "1k");
+    EXPECT_EQ(result.secondary_points, "10");
+    EXPECT_TRUE(result.secondary_step.empty());
+}
+
+// ========================================================================================
+// on_sweep_mode_changed — visible fields are synced on mode change
+// ========================================================================================
+
+TEST_F(DcParametersPanelTest, on_sweep_mode_changed_copies_step_to_points_for_dec) {
+    // arrange — load a LIN sweep so only the step field is populated
+    DcParametersPanel panel(m_parent);
+    DCSimulationParameters lin_input("LIN", "V1", "0", "5", "0.5", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
+    panel.apply(lin_input);
+    // act — switch to DEC and run the mode-change handler
+    set_sweep_mode(panel, "DEC");
+    fire_sweep_mode_change(panel);
+    // assert — the carried value is visible in the points field for the user to edit
+    auto result = panel.build_dc_parameters();
+    EXPECT_EQ(result.points, "0.5");
+}
+
+TEST_F(DcParametersPanelTest, on_sweep_mode_changed_copies_points_to_step_for_lin) {
+    // arrange — load a DEC sweep so only the points field is populated
+    DcParametersPanel panel(m_parent);
+    DCSimulationParameters dec_input("DEC", "V1", "1", "10k", "", "10", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
+    panel.apply(dec_input);
+    // act — switch to LIN and run the mode-change handler
+    set_sweep_mode(panel, "LIN");
+    fire_sweep_mode_change(panel);
+    // assert — the carried value is visible in the step field for the user to edit
+    auto result = panel.build_dc_parameters();
+    EXPECT_EQ(result.step, "10");
 }
