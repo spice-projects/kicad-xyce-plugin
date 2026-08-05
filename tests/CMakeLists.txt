@@ -41,7 +41,7 @@ elseif (WINDOWS)
     # combine remaining cpp sources with .mm sources
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 elseif (LINUX)
-    // additional package for linux to link against OpenGL
+    # additional package for linux to link against OpenGL
     find_package(OpenGL REQUIRED)
     # gather linux sources
     file(GLOB_RECURSE PLATFORM_SOURCES "../src/*.linux.c++" "../src/ui/*.linux.c++")
