@@ -430,6 +430,75 @@ TEST(OpSimulationParametersChecks, parses_save) {
     ASSERT_EQ(result->save_enabled, true);
 }
 
+TEST(OpSimulationParametersChecks, parses_save_with_type_and_file) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".SAVE TYPE=IC FILE=mycircuit.ic"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->save_enabled, true);
+    ASSERT_EQ(result->save_type, "IC");
+    ASSERT_EQ(result->save_file, "mycircuit.ic");
+}
+
+TEST(OpSimulationParametersChecks, parses_save_with_level) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".SAVE LEVEL=none"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->save_enabled, true);
+    ASSERT_EQ(result->save_level, "none");
+}
+
+TEST(OpSimulationParametersChecks, parses_save_defaults_to_nodeset) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".SAVE"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->save_type, "NODESET");
+    ASSERT_EQ(result->save_file, "");
+    ASSERT_EQ(result->save_level, "");
+}
+
+TEST(OpSimulationParametersChecks, parses_save_ignores_unsupported_time) {
+    // arrange / act
+    const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".SAVE TYPE=IC FILE=mycircuit.ic TIME=5.0"});
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->save_enabled, true);
+    ASSERT_EQ(result->save_type, "IC");
+    ASSERT_EQ(result->save_file, "mycircuit.ic");
+    ASSERT_EQ(result->save_level, "");
+}
+
+TEST(OpSimulationParametersChecks, save_full_round_trip) {
+    // arrange / act
+    const auto parsed = OpSimulationParameters::from_xyce_directives({".OP", ".SAVE TYPE=IC FILE=mycircuit.ic LEVEL=none"});
+    ASSERT_TRUE(parsed.has_value());
+    const auto directives = parsed->to_xyce_directives(NetlistTopology{});
+    // assert serialization preserves all save options
+    ASSERT_EQ(directives.size(), 2);
+    ASSERT_EQ(directives[0], ".OP");
+    ASSERT_EQ(directives[1], ".SAVE TYPE=IC FILE=mycircuit.ic LEVEL=none");
+    // assert the emitted form reparses back to the same entry
+    const auto reparsed = OpSimulationParameters::from_xyce_directives(directives);
+    ASSERT_TRUE(reparsed.has_value());
+    ASSERT_EQ(reparsed->save_enabled, true);
+    ASSERT_EQ(reparsed->save_type, "IC");
+    ASSERT_EQ(reparsed->save_file, "mycircuit.ic");
+    ASSERT_EQ(reparsed->save_level, "none");
+}
+
+TEST(OpSimulationParametersChecks, generates_save_directive_with_level) {
+    // arrange
+    const OpSimulationParameters params(false, false, false, {}, "", "", true, "NODESET", "", {}, {}, std::nullopt, "all");
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 2);
+    ASSERT_EQ(directives[0], ".OP");
+    ASSERT_EQ(directives[1], ".SAVE TYPE=NODESET LEVEL=all");
+}
+
 TEST(OpSimulationParametersChecks, parses_nodeset) {
     // arrange / act
     const auto result = OpSimulationParameters::from_xyce_directives({".OP", ".NODESET V(out)=1.2 V(in)=0.5"});

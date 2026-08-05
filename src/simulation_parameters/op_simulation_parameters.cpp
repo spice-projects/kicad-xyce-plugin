@@ -23,8 +23,8 @@ bool IcEntry::operator==(const IcEntry& other) const {
     return node == other.node && voltage == other.voltage;
 }
 
-OpSimulationParameters::OpSimulationParameters(bool print_dc_enabled, bool print_dc_all_nodes, bool print_dc_all_currents, std::vector<std::string> print_dc_specific_variables, std::string print_dc_format, std::string print_dc_file, bool save_enabled, std::string save_type, std::string save_file, std::vector<NodesetEntry> nodeset_entries, std::vector<IcEntry> ic_entries, std::optional<PrintParameters> print_parameters) :
-    print_dc_enabled(print_dc_enabled), print_dc_all_nodes(print_dc_all_nodes), print_dc_all_currents(print_dc_all_currents), print_dc_specific_variables(std::move(print_dc_specific_variables)), print_dc_format(std::move(print_dc_format)), print_dc_file(std::move(print_dc_file)), save_enabled(save_enabled), save_type(std::move(save_type)), save_file(std::move(save_file)), nodeset_entries(std::move(nodeset_entries)), ic_entries(std::move(ic_entries)), print_parameters(std::move(print_parameters)) {}
+OpSimulationParameters::OpSimulationParameters(bool print_dc_enabled, bool print_dc_all_nodes, bool print_dc_all_currents, std::vector<std::string> print_dc_specific_variables, std::string print_dc_format, std::string print_dc_file, bool save_enabled, std::string save_type, std::string save_file, std::vector<NodesetEntry> nodeset_entries, std::vector<IcEntry> ic_entries, std::optional<PrintParameters> print_parameters, std::string save_level) :
+    print_dc_enabled(print_dc_enabled), print_dc_all_nodes(print_dc_all_nodes), print_dc_all_currents(print_dc_all_currents), print_dc_specific_variables(std::move(print_dc_specific_variables)), print_dc_format(std::move(print_dc_format)), print_dc_file(std::move(print_dc_file)), save_enabled(save_enabled), save_type(std::move(save_type)), save_file(std::move(save_file)), save_level(std::move(save_level)), nodeset_entries(std::move(nodeset_entries)), ic_entries(std::move(ic_entries)), print_parameters(std::move(print_parameters)) {}
 
 std::optional<OpSimulationParameters> OpSimulationParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // init flag
@@ -35,6 +35,10 @@ std::optional<OpSimulationParameters> OpSimulationParameters::from_xyce_directiv
     std::optional<PrintParameters> print_parameters_parsed;
     // init flag
     bool save_enabled = false;
+    // save options default per reference guide (TYPE=NODESET); empty FILE/LEVEL mean not specified
+    std::string save_type = "NODESET";
+    std::string save_file;
+    std::string save_level;
     // init list
     std::vector<NodesetEntry> nodeset_entries;
     // init list
@@ -82,6 +86,29 @@ std::optional<OpSimulationParameters> OpSimulationParameters::from_xyce_directiv
         if (cmd == ".SAVE") {
             // set enabled
             save_enabled = true;
+            // parse the optional TYPE, FILE and LEVEL arguments
+            for (size_t i = 1; i < tokens.size(); ++i) {
+                const auto& token = tokens[i];
+                const auto eq_pos = token.find('=');
+                if (eq_pos == std::string::npos) {
+                    continue;
+                }
+                const auto key = to_upper(token.substr(0, eq_pos));
+                const auto value = token.substr(eq_pos + 1);
+                // handle TYPE
+                if (key == "TYPE") {
+                    save_type = value;
+                }
+                // handle FILE
+                else if (key == "FILE") {
+                    save_file = value;
+                }
+                // handle LEVEL (HSPICE compatibility, default all)
+                else if (key == "LEVEL") {
+                    save_level = value;
+                }
+                // TIME is an HSPICE compatibility parameter and unsupported in Xyce; ignore it
+            }
             continue;
         }
 
@@ -156,7 +183,7 @@ std::optional<OpSimulationParameters> OpSimulationParameters::from_xyce_directiv
         return std::nullopt;
     }
 
-    return OpSimulationParameters(print_dc_enabled, false, false, print_dc_vars, "", "", save_enabled, "NODESET", "", nodeset_entries, ic_entries, print_parameters_parsed);
+    return OpSimulationParameters(print_dc_enabled, false, false, print_dc_vars, "", "", save_enabled, save_type, save_file, nodeset_entries, ic_entries, print_parameters_parsed, save_level);
 }
 
 std::vector<std::string> OpSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
@@ -216,6 +243,11 @@ std::vector<std::string> OpSimulationParameters::to_xyce_directives(const Netlis
             // append file
             tokens += " FILE=" + save_file;
         }
+        // check level
+        if (!save_level.empty()) {
+            // append level
+            tokens += " LEVEL=" + save_level;
+        }
         directives.push_back(tokens);
     }
 
@@ -247,5 +279,5 @@ std::vector<std::string> OpSimulationParameters::to_xyce_directives(const Netlis
 
 bool OpSimulationParameters::operator==(const OpSimulationParameters& other) const {
     // compare all fields for equality
-    return print_dc_enabled == other.print_dc_enabled && print_dc_all_nodes == other.print_dc_all_nodes && print_dc_all_currents == other.print_dc_all_currents && print_dc_specific_variables == other.print_dc_specific_variables && print_dc_format == other.print_dc_format && print_dc_file == other.print_dc_file && save_enabled == other.save_enabled && save_type == other.save_type && save_file == other.save_file && nodeset_entries == other.nodeset_entries && ic_entries == other.ic_entries && print_parameters == other.print_parameters;
+    return print_dc_enabled == other.print_dc_enabled && print_dc_all_nodes == other.print_dc_all_nodes && print_dc_all_currents == other.print_dc_all_currents && print_dc_specific_variables == other.print_dc_specific_variables && print_dc_format == other.print_dc_format && print_dc_file == other.print_dc_file && save_enabled == other.save_enabled && save_type == other.save_type && save_file == other.save_file && save_level == other.save_level && nodeset_entries == other.nodeset_entries && ic_entries == other.ic_entries && print_parameters == other.print_parameters;
 }
