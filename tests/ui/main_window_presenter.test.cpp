@@ -69,8 +69,6 @@ public:
         netlist_view_shown = false;
     }
 
-    bool charts_shown() const override { return charts_view_shown; }
-
     void set_netlist_editor_content(const std::string& value, bool) override { editor_content = value; }
 
     std::string netlist_editor_content() const override { return editor_content; }
@@ -84,10 +82,6 @@ public:
     void clear_simulation_output() override { output_content.clear(); }
 
     void append_simulation_output_line(const std::string& line) override { output_content += line + "\n"; }
-
-    bool simulation_output_panel_hidden() const override { return output_panel_hidden; }
-
-    bool simulation_output_has_content() const override { return !output_content.empty(); }
 
     void update_charts(ExpressionManager&, const StepInformation&, const std::string&, AbscissaScale) override {
         // count the chart updates
@@ -107,11 +101,6 @@ public:
         // record the launch without starting a real process
         start_process_calls++;
         start_program = program;
-    }
-
-    void cancel_simulation_process() override {
-        // count the cancel requests
-        cancel_process_calls++;
     }
 
     void spawn_raw_file_window(std::shared_ptr<XyceOutputFile>) override {
@@ -137,7 +126,6 @@ public:
     int update_charts_calls = 0;
     int delete_all_charts_calls = 0;
     int start_process_calls = 0;
-    int cancel_process_calls = 0;
     int spawn_raw_file_calls = 0;
     ActionStateEnablement applied_enablement;
 };
@@ -298,6 +286,16 @@ TEST(MainWindowPresenterChecks, simulation_finished_success_without_runner_sets_
     presenter.handle_simulation_finished(0, false);
     // assert
     EXPECT_EQ(view.status_text, "Simulation finished but runner reference is missing");
+}
+
+TEST(MainWindowPresenterChecks, cancel_simulation_without_runner_is_noop) {
+    // arrange
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, nullptr, PluginConfig());
+    // act (must not crash or modify state)
+    presenter.cancel_simulation();
+    // assert
+    EXPECT_TRUE(view.status_text.empty());
 }
 
 // ========================================================================================

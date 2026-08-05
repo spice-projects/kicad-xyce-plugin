@@ -40,6 +40,7 @@ public:
 
     // simulation
     void run_simulation();
+    void cancel_simulation();
     void handle_simulation_finished(int exit_code, bool was_canceled);
     void handle_simulation_stdout(const std::string& line);
     void handle_simulation_stderr(const std::string& line);
@@ -71,6 +72,10 @@ private:
     bool m_netlist_editor_dirty = false;
     AppState m_app_state = AppState::Empty;
     bool m_simulation_running = false;
+    bool m_netlist_has_content = false;
+    bool m_charts_shown = false;
+    bool m_simulation_output_hidden = true;
+    bool m_simulation_output_has_content = false;
 
     std::optional<std::shared_ptr<XyceOutputFile>> m_xyce_raw_file;
 

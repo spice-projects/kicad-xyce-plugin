@@ -12,11 +12,7 @@
 #include "xyce_simulation_runner.h"
 
 MainWindowPresenter::MainWindowPresenter(MainWindowView& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config) :
-    m_view(view),
-    m_netlist_source(std::move(netlist_source)),
-    m_simulation_config(SimulationConfig::from_xyce_directives({})),
-    m_plugin_config(std::move(plugin_config)) {
-}
+    m_view(view), m_netlist_source(std::move(netlist_source)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(std::move(plugin_config)) {}
 
 MainWindowPresenter::~MainWindowPresenter() = default;
 
@@ -35,6 +31,7 @@ void MainWindowPresenter::open_netlist_file(const std::filesystem::path& path) {
     m_xyce_raw_file = std::nullopt;
     // show the netlist view over the charts view
     m_view.show_netlist_view();
+    m_charts_shown = false;
     // refresh toolbar/menu states
     refresh_action_states();
 }
@@ -48,8 +45,10 @@ void MainWindowPresenter::open_raw_file(const std::filesystem::path& path) {
         update_netlist_editor_content("", false);
         // show the charts view over the netlist editor
         m_view.show_charts_view();
+        m_charts_shown = true;
         // hide the simulation output panel for the raw-file view
         m_view.hide_simulation_output_panel();
+        m_simulation_output_hidden = true;
         // refresh toolbar/menu states
         refresh_action_states();
     }
@@ -64,8 +63,10 @@ void MainWindowPresenter::load_raw_file(std::shared_ptr<XyceOutputFile> raw_file
         update_netlist_editor_content("", false);
         // show the charts view over the netlist editor
         m_view.show_charts_view();
+        m_charts_shown = true;
         // hide the simulation output panel for the raw-file view
         m_view.hide_simulation_output_panel();
+        m_simulation_output_hidden = true;
         // refresh toolbar/menu states
         refresh_action_states();
     }
@@ -82,6 +83,8 @@ void MainWindowPresenter::save_netlist() {
 void MainWindowPresenter::show_netlist_view() {
     // hide the charts panel and show the netlist editor
     m_view.show_netlist_view();
+    // the charts view is no longer shown
+    m_charts_shown = false;
     // refresh toolbar/menu states
     refresh_action_states();
 }
@@ -89,6 +92,8 @@ void MainWindowPresenter::show_netlist_view() {
 void MainWindowPresenter::show_charts_view() {
     // hide the netlist editor and show the charts panel
     m_view.show_charts_view();
+    // the charts view is now shown
+    m_charts_shown = true;
     // refresh toolbar/menu states
     refresh_action_states();
 }
@@ -96,6 +101,8 @@ void MainWindowPresenter::show_charts_view() {
 void MainWindowPresenter::show_simulation_output() {
     // re-show the simulation output panel
     m_view.show_simulation_output_panel();
+    // the output panel is no longer hidden
+    m_simulation_output_hidden = false;
     // refresh toolbar/menu states
     refresh_action_states();
 }
@@ -103,6 +110,8 @@ void MainWindowPresenter::show_simulation_output() {
 void MainWindowPresenter::close_simulation_output() {
     // unsplit the bottom pane to dismiss the simulation output panel
     m_view.hide_simulation_output_panel();
+    // the output panel is now hidden
+    m_simulation_output_hidden = true;
     // refresh toolbar/menu states
     refresh_action_states();
 }
@@ -215,14 +224,22 @@ void MainWindowPresenter::run_simulation() {
     m_simulation_running = true;
     // show the simulation output panel for this run
     m_view.show_simulation_output_panel();
+    m_simulation_output_hidden = false;
     // reset the log for this run
     m_view.clear_simulation_output();
+    m_simulation_output_has_content = false;
     // launch the simulation through the view, which wires the wx process events
     m_view.start_simulation_process(m_plugin_config.xyce_executable_path(), temp_path, working_directory);
     // refresh toolbar/menu states
     refresh_action_states();
     // update the statusbar
     m_view.set_status_text("Simulation started...");
+}
+
+void MainWindowPresenter::cancel_simulation() {
+    // cancel the running simulation when present
+    if (m_simulation_runner)
+        m_simulation_runner->cancel();
 }
 
 void MainWindowPresenter::handle_simulation_finished(int exit_code, bool was_canceled) {
@@ -262,6 +279,7 @@ void MainWindowPresenter::handle_simulation_finished(int exit_code, bool was_can
                 update_xyce_raw_file(std::move(raw_file), true);
                 // switch to the charts view
                 m_view.show_charts_view();
+                m_charts_shown = true;
                 // update the window title from the raw file
                 set_base_title(m_xyce_raw_file.value()->title());
                 // update the statusbar
@@ -290,6 +308,8 @@ void MainWindowPresenter::handle_simulation_finished(int exit_code, bool was_can
 void MainWindowPresenter::handle_simulation_stdout(const std::string& line) {
     // forward the stdout line to the view for display
     m_view.append_simulation_output_line(line);
+    // the simulation output log now holds content
+    m_simulation_output_has_content = true;
 }
 
 void MainWindowPresenter::handle_simulation_stderr(const std::string& line) {
@@ -300,6 +320,8 @@ void MainWindowPresenter::handle_simulation_stderr(const std::string& line) {
 }
 
 void MainWindowPresenter::handle_netlist_editor_modified() {
+    // track whether the editor still holds content
+    m_netlist_has_content = !m_view.netlist_editor_content().empty();
     // mark the editor dirty and refresh states when the flag changed
     if (set_netlist_editor_dirty(true))
         refresh_action_states();
@@ -314,6 +336,7 @@ void MainWindowPresenter::extract_schematic_netlist() {
     m_view.set_netlist_editor_read_only(true);
     // show the netlist editor over the charts view
     m_view.show_netlist_view();
+    m_charts_shown = false;
     // refresh toolbar/menu states
     refresh_action_states();
 }
@@ -329,25 +352,16 @@ const std::optional<std::shared_ptr<XyceOutputFile>>& MainWindowPresenter::raw_f
 }
 
 void MainWindowPresenter::refresh_action_states() {
-    // netlist content is available when the editor holds text
-    const bool has_netlist = !m_view.netlist_editor_content().empty();
-    // raw output data is available
-    const bool has_raw = m_xyce_raw_file.has_value();
-    // charts view is the active content view
-    const bool charts_shown = m_view.charts_shown();
-    // simulation output can be re-shown when the splitter is hidden and the log holds content
-    const bool output_hidden = m_view.simulation_output_panel_hidden();
-    const bool log_has_content = m_view.simulation_output_has_content();
     // gather the input flags describing the current window state
     ActionStateInput input;
-    input.has_netlist = has_netlist;
+    input.has_netlist = m_netlist_has_content;
     input.has_netlist_file = m_netlist_source != nullptr && !m_netlist_source->is_read_only();
-    input.has_raw = has_raw;
-    input.charts_shown = charts_shown;
+    input.has_raw = m_xyce_raw_file.has_value();
+    input.charts_shown = m_charts_shown;
     input.simulation_running = m_simulation_running;
     input.netlist_editor_dirty = m_netlist_editor_dirty;
-    input.output_hidden = output_hidden;
-    input.log_has_content = log_has_content;
+    input.output_hidden = m_simulation_output_hidden;
+    input.log_has_content = m_simulation_output_has_content;
     // derive the current application state
     const AppState state = derive_app_state(input);
     // log state transitions
@@ -402,6 +416,8 @@ bool MainWindowPresenter::set_netlist_editor_dirty(bool flag) {
 bool MainWindowPresenter::update_netlist_editor_content(const std::string& content, bool dirty_flag) {
     // set the editor content through the view and reset the dirty flag
     m_view.set_netlist_editor_content(content, dirty_flag);
+    // track whether the editor holds content
+    m_netlist_has_content = !content.empty();
     // return whether the dirty flag changed
     return set_netlist_editor_dirty(dirty_flag);
 }

@@ -501,11 +501,6 @@ void MainWindow::show_charts_view() {
     m_content_sizer->Layout();
 }
 
-bool MainWindow::charts_shown() const {
-    // charts view is visible when the charts panel is shown
-    return m_charts_panel != nullptr && m_charts_panel->IsShown();
-}
-
 void MainWindow::set_netlist_editor_content(const std::string& content, bool) {
     // prevent dirty analysis during programmatic updates
     m_netlist_editor_updating = true;
@@ -572,16 +567,6 @@ void MainWindow::append_simulation_output_line(const std::string& line) {
     m_simulation_output_panel->GotoPos(m_simulation_output_panel->GetLength());
 }
 
-bool MainWindow::simulation_output_panel_hidden() const {
-    // the output panel is hidden when the splitter is not split
-    return m_body_splitter == nullptr || !m_body_splitter->IsSplit();
-}
-
-bool MainWindow::simulation_output_has_content() const {
-    // the log holds content when it is non-empty
-    return m_simulation_output_panel != nullptr && m_simulation_output_panel->GetLength() > 0;
-}
-
 void MainWindow::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) {
     // refresh the charts panel with the given data
     m_charts_panel->update(expression_manager, step_information, abscissa_label, abscissa_scale);
@@ -614,19 +599,13 @@ std::optional<PluginConfig> MainWindow::show_plugin_config_dialog(const PluginCo
 
 void MainWindow::start_simulation_process(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory) {
     // get the active simulation runner from the presenter
-    auto runner = m_presenter->simulation_runner();
+    std::shared_ptr<XyceSimulationRunner> runner = m_presenter->simulation_runner();
     // bind simulation events from the runner to this window
     runner->Bind(wxEVT_SIMULATION_FINISHED, &MainWindow::on_simulation_finished, this);
     runner->Bind(wxEVT_SIMULATION_STDOUT, &MainWindow::on_simulation_stdout, this);
     runner->Bind(wxEVT_SIMULATION_STDERR, &MainWindow::on_simulation_stderr, this);
     // launch the simulation
     runner->start(program, netlist_path, working_directory);
-}
-
-void MainWindow::cancel_simulation_process() {
-    // cancel the running simulation when present
-    if (auto runner = m_presenter->simulation_runner())
-        runner->cancel();
 }
 
 void MainWindow::spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) {

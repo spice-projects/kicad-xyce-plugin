@@ -39,7 +39,6 @@ public:
 
     void show_netlist_view() override;
     void show_charts_view() override;
-    bool charts_shown() const override;
     void set_netlist_editor_content(const std::string& content, bool) override;
     std::string netlist_editor_content() const override;
     void set_netlist_editor_read_only(bool read_only) override;
@@ -48,8 +47,6 @@ public:
     void hide_simulation_output_panel() override;
     void clear_simulation_output() override;
     void append_simulation_output_line(const std::string& line) override;
-    bool simulation_output_panel_hidden() const override;
-    bool simulation_output_has_content() const override;
 
     void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) override;
     void delete_all_charts() override;
@@ -58,7 +55,6 @@ public:
     std::optional<PluginConfig> show_plugin_config_dialog(const PluginConfig& current) override;
 
     void start_simulation_process(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory) override;
-    void cancel_simulation_process() override;
 
     void spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) override;
 
