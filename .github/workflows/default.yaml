@@ -1,19 +1,39 @@
 name: C++ CI Workflow
 
 on:
-  push:
-    branches:
-      - '**'
-    tags:
-      - 'v*'
   pull_request:
+    branches:
+      - main
+  push:
 
 permissions:
+  pull-requests: write
   contents: read
 
 jobs:
+  check-pr:
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    outputs:
+      has_pr: ${{ steps.check.outputs.has_pr }}
+    steps:
+      - name: Check for open PR
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          response=$(curl -skf -H "Authorization: token $GITHUB_TOKEN" "${GITHUB_API_URL}/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:${{ github.ref_name }}&state=open&per_page=1" 2>&1)
+          echo "API response: ${response}"
+          count=$(echo "$response" | grep -c '"number"' || true)
+          echo "has_pr=$( [ "$count" -gt 0 ] && echo true || echo false )" >> $GITHUB_OUTPUT
+
   build-and-test:
     name: Build & Test (${{ matrix.os }})
+    needs: [check-pr]
+    if: |-
+      !cancelled() &&
+      (github.event_name != 'push' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || needs.check-pr.outputs.has_pr != 'true')
     strategy:
       fail-fast: false
       matrix:
@@ -24,12 +44,9 @@ jobs:
             build_enabled: true
           - os: ubuntu-latest
             build_enabled: false
-
     runs-on: ${{ matrix.os }}
-
     env:
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
-
     steps:
       - name: Checkout repository
         if: ${{ matrix.build_enabled }}
