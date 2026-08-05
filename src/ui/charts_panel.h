@@ -1,16 +1,29 @@
 #pragma once
 
+#include <chrono>
+#include <memory>
+
 #include <wx/wxprec.h>
 
 #ifndef WX_PRECOMP
 #include <wx/panel.h>
 #endif
 
+#ifdef __linux__
+#include <wx/glcanvas.h>
+#endif
+
 #include "../expression/expression_manager.h"
 #include "../step_information.h"
 #include "chart.h"
 
-class ChartsPanel : public wxPanel
+#ifdef __linux__
+using ChartsPanelBase = wxGLCanvas;
+#else
+using ChartsPanelBase = wxPanel;
+#endif
+
+class ChartsPanel : public ChartsPanelBase
 {
 public:
     explicit ChartsPanel(wxWindow* parent, wxWindowID id = wxID_ANY);
@@ -28,7 +41,12 @@ public:
     void display_changed();
 
 private:
+    friend class ContextScope;
+
     WXWidget m_charts_panel = nullptr;
+    void* m_imgui_context = nullptr;
+    void* m_implot_context = nullptr;
+    std::chrono::steady_clock::time_point m_last_frame_time;
     int m_render_chart_frames = 0;
 
     ExpressionManager* m_expression_manager = nullptr;
@@ -50,9 +68,19 @@ private:
     void* m_command_queue = nullptr;
 #endif
 
+#ifdef __linux__
+    std::unique_ptr<wxGLContext> m_gl_context;
+#endif
+
     void initialize();
 
     void terminate();
+
+    void initialize_contexts();
+
+    void terminate_contexts();
+
+    void update_delta_time();
 
     bool update_bounds();
 
@@ -64,11 +92,31 @@ private:
 
     void render();
 
+    void process_mouse_event(const wxMouseEvent&);
+
+    void process_mouse_wheel_event(const wxMouseEvent&);
+
+    void process_key_event(const wxKeyEvent&, bool pressed);
+
+    void process_character_event(const wxKeyEvent&);
+
+    void process_focus_event(bool focused);
+
     void on_mouse_move(wxMouseEvent&);
 
     void on_mouse_button(wxMouseEvent&);
 
     void on_mouse_wheel(wxMouseEvent&);
+
+    void on_key_down(wxKeyEvent&);
+
+    void on_key_up(wxKeyEvent&);
+
+    void on_character(wxKeyEvent&);
+
+    void on_set_focus(wxFocusEvent&);
+
+    void on_kill_focus(wxFocusEvent&);
 
     void on_idle(wxIdleEvent&);
 
@@ -89,7 +137,7 @@ private:
     void on_menu_delete_all_plots(wxCommandEvent&);
 
     void on_menu_step_tool(wxCommandEvent&);
-    
+
     void on_menu_add_chart(wxCommandEvent&);
 
     void on_menu_delete_chart(wxCommandEvent&);

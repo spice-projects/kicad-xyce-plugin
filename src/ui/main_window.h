@@ -79,6 +79,7 @@ private:
     std::shared_ptr<KiCadSession> m_kicad_session;
     std::unique_ptr<MainWindowPresenter> m_presenter;
     bool m_netlist_editor_updating = false;
+    bool m_registered = false;
 
     void on_system_colour_changed(wxSysColourChangedEvent&);
 

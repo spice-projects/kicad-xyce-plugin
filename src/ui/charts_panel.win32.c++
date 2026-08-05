@@ -9,7 +9,6 @@
 #include <dxgi.h>
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
-#include <imgui_impl_win32.h>
 #include <implot.h>
 #include <spdlog/spdlog.h>
 #include <windows.h>
@@ -294,10 +293,10 @@ void ChartsPanel::initialize() {
         return;
     }
 
-    // create imgui isolated context for this panel
-    IMGUI_CHECKVERSION();
-    ImGui::SetCurrentContext(ImGui::CreateContext());
-    ImPlot::SetCurrentContext(ImPlot::CreateContext());
+    // create isolated contexts for this panel
+    initialize_contexts();
+    // activate this panel's isolated contexts for backend initialization
+    ContextScope context_scope(*this);
     // style
     PlatformStyle();
     // DPI scaling for high-DPI displays
@@ -317,32 +316,14 @@ void ChartsPanel::initialize() {
     style.AntiAliasedLines = true;
     style.AntiAliasedLinesUseTex = true;
 
-    // initialize the Win32 backend
-    if (!ImGui_ImplWin32_Init(hwnd)) {
-        // log the error
-        spdlog::error("Failed to initialize the Dear ImGui Win32 backend for the charts panel");
-        // release the render context
-        release_render_context(context);
-        // destroy the ImPlot context
-        ImPlot::DestroyContext();
-        // destroy the ImGui context
-        ImGui::DestroyContext();
-        // exit
-        return;
-    }
-
     // initialize the Direct3D 11 backend
     if (!ImGui_ImplDX11_Init(device, device_context)) {
         // log the error
         spdlog::error("Failed to initialize the Dear ImGui Direct3D 11 backend for the charts panel");
-        // shutdown the Win32 backend
-        ImGui_ImplWin32_Shutdown();
         // release the render context
         release_render_context(context);
-        // destroy the ImPlot context
-        ImPlot::DestroyContext();
-        // destroy the ImGui context
-        ImGui::DestroyContext();
+        // release the isolated contexts
+        terminate_contexts();
         // exit
         return;
     }
@@ -363,15 +344,20 @@ void ChartsPanel::terminate() {
         // get the render context
         auto& context = *it->second;
         if (context.initialized) {
+            // preserve the active contexts while releasing this panel's renderer
+            auto* previous_imgui_context = ImGui::GetCurrentContext();
+            auto* previous_implot_context = ImPlot::GetCurrentContext();
+            // activate this panel's isolated contexts for backend teardown
+            ImGui::SetCurrentContext(static_cast<ImGuiContext*>(m_imgui_context));
+            ImPlot::SetCurrentContext(static_cast<ImPlotContext*>(m_implot_context));
             // shutdown the Direct3D backend
             ImGui_ImplDX11_Shutdown();
-            // shutdown the Win32 backend
-            ImGui_ImplWin32_Shutdown();
-            // destroy the ImPlot context
-            ImPlot::DestroyContext();
-            // destroy the ImGui context
-            ImGui::DestroyContext();
+            // restore the contexts active before renderer teardown
+            ImPlot::SetCurrentContext(previous_implot_context);
+            ImGui::SetCurrentContext(previous_imgui_context);
         }
+        // release isolated contexts after the renderer backend
+        terminate_contexts();
         // release the render context resources
         release_render_context(context);
         // erase the render context from the map
@@ -393,6 +379,8 @@ void ChartsPanel::render_frame(const std::function<void()>& renderer) {
     if (!context.initialized || !context.device_context || !context.swap_chain || !context.render_target_view)
         return;
 
+    // activate this panel's isolated contexts for the complete frame
+    ContextScope context_scope(*this);
     // resize the render target if needed
     resize_render_target(context);
 
@@ -406,7 +394,8 @@ void ChartsPanel::render_frame(const std::function<void()>& renderer) {
 
     // start a new ImGui frame
     ImGui_ImplDX11_NewFrame();
-    ImGui_ImplWin32_NewFrame();
+    // update the per-panel frame duration
+    update_delta_time();
     ImGui::NewFrame();
 
     // get the panel client size

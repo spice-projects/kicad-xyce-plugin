@@ -7,7 +7,6 @@
       "version>=": "1.92.8#1",
       "platform": "osx",
       "features": [
-        "osx-binding",
         "metal-binding"
       ]
     },
@@ -16,8 +15,15 @@
       "version>=": "1.92.8#1",
       "platform": "windows",
       "features": [
-        "win32-binding",
         "dx11-binding"
+      ]
+    },
+    {
+      "name": "imgui",
+      "version>=": "1.92.8#1",
+      "platform": "linux",
+      "features": [
+        "opengl3-binding"
       ]
     },
     {

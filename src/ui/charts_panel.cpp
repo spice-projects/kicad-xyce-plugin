@@ -14,11 +14,13 @@
 #include <cmath>
 
 #include <imgui.h>
+#include <implot.h>
 #include <spdlog/spdlog.h>
 
 #include "add_plot_dialog.h"
 #include "charts_panel.h"
 #include "events.h"
+#include "im_context.h"
 #include "step_tool_dialog.h"
 
 namespace
@@ -39,13 +41,28 @@ namespace
     };
 }
 
+#ifdef __linux__
+ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
+    wxGLCanvas(parent, id, nullptr, wxDefaultPosition, wxDefaultSize, wxNO_BORDER | wxFULL_REPAINT_ON_RESIZE) {
+#else
 ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
     wxPanel(parent, id, wxDefaultPosition, wxDefaultSize, wxNO_BORDER | wxFULL_REPAINT_ON_RESIZE) {
+#endif
     // mouse events
     Bind(wxEVT_MOTION, &ChartsPanel::on_mouse_move, this);
     // Bind(wxEVT_LEFT_DCLICK, &ChartsPanel::on_mouse_button, this);
     Bind(wxEVT_LEFT_DOWN, &ChartsPanel::on_mouse_button, this);
     Bind(wxEVT_LEFT_UP, &ChartsPanel::on_mouse_button, this);
+    Bind(wxEVT_RIGHT_DOWN, &ChartsPanel::on_mouse_button, this);
+    Bind(wxEVT_RIGHT_UP, &ChartsPanel::on_mouse_button, this);
+    Bind(wxEVT_MIDDLE_DOWN, &ChartsPanel::on_mouse_button, this);
+    Bind(wxEVT_MIDDLE_UP, &ChartsPanel::on_mouse_button, this);
+    Bind(wxEVT_MOUSEWHEEL, &ChartsPanel::on_mouse_wheel, this);
+    Bind(wxEVT_KEY_DOWN, &ChartsPanel::on_key_down, this);
+    Bind(wxEVT_KEY_UP, &ChartsPanel::on_key_up, this);
+    Bind(wxEVT_CHAR, &ChartsPanel::on_character, this);
+    Bind(wxEVT_SET_FOCUS, &ChartsPanel::on_set_focus, this);
+    Bind(wxEVT_KILL_FOCUS, &ChartsPanel::on_kill_focus, this);
     // other events
     Bind(wxEVT_IDLE, &ChartsPanel::on_idle, this);
     Bind(wxEVT_PAINT, &ChartsPanel::on_paint, this);
@@ -71,6 +88,59 @@ ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
 ChartsPanel::~ChartsPanel() {
     // terminate
     terminate();
+}
+
+void ChartsPanel::initialize_contexts() {
+    // contexts are created exactly once for the panel lifetime
+    if (m_imgui_context != nullptr)
+        return;
+    // preserve the context that was active before this panel initialized
+    auto* previous_imgui_context = ImGui::GetCurrentContext();
+    auto* previous_implot_context = ImPlot::GetCurrentContext();
+    // create and retain the ImGui context
+    IMGUI_CHECKVERSION();
+    m_imgui_context = ImGui::CreateContext();
+    // create and retain the matching ImPlot context
+    m_implot_context = ImPlot::CreateContext();
+    // restore the prior active contexts
+    ImPlot::SetCurrentContext(previous_implot_context);
+    ImGui::SetCurrentContext(previous_imgui_context);
+}
+
+void ChartsPanel::terminate_contexts() {
+    // contexts have already been released
+    if (m_imgui_context == nullptr)
+        return;
+    // preserve the active contexts while releasing this panel's contexts
+    auto* previous_imgui_context = ImGui::GetCurrentContext();
+    auto* previous_implot_context = ImPlot::GetCurrentContext();
+    // retain the context addresses while clearing the members below
+    auto* imgui_context = static_cast<ImGuiContext*>(m_imgui_context);
+    auto* implot_context = static_cast<ImPlotContext*>(m_implot_context);
+    // activate this panel's isolated contexts
+    ImGui::SetCurrentContext(imgui_context);
+    ImPlot::SetCurrentContext(implot_context);
+    // destroy the plot context before its ImGui dependency
+    ImPlot::DestroyContext(implot_context);
+    m_implot_context = nullptr;
+    // destroy the ImGui context
+    ImGui::DestroyContext(imgui_context);
+    m_imgui_context = nullptr;
+    // never restore a context that was released above
+    ImPlot::SetCurrentContext(previous_implot_context == implot_context ? nullptr : previous_implot_context);
+    ImGui::SetCurrentContext(previous_imgui_context == imgui_context ? nullptr : previous_imgui_context);
+}
+
+void ChartsPanel::update_delta_time() {
+    // read the monotonic clock once for this panel's frame
+    const auto current_time = std::chrono::steady_clock::now();
+    // use a conventional initial duration before a prior frame exists
+    if (m_last_frame_time.time_since_epoch().count() == 0)
+        ImGui::GetIO().DeltaTime = 1.0f / 60.0f;
+    else
+        ImGui::GetIO().DeltaTime = std::chrono::duration<float>(current_time - m_last_frame_time).count();
+    // retain the timestamp for the next frame
+    m_last_frame_time = current_time;
 }
 
 void ChartsPanel::render() {
@@ -115,6 +185,8 @@ void ChartsPanel::render() {
 }
 
 void ChartsPanel::on_mouse_move(wxMouseEvent& event) {
+    // forward native input to the panel's ImGui context
+    process_mouse_event(event);
     // check the user is dragging the mouse
     if (event.LeftIsDown()) {
         // check we are dragging inside a plot
@@ -153,6 +225,8 @@ void ChartsPanel::on_mouse_move(wxMouseEvent& event) {
 }
 
 void ChartsPanel::on_mouse_button(wxMouseEvent& event) {
+    // forward native input to the panel's ImGui context
+    process_mouse_event(event);
     // events when charts are present
     if (m_charts.empty())
         return;
@@ -228,6 +302,138 @@ void ChartsPanel::on_mouse_button(wxMouseEvent& event) {
     }
     // skip event
     event.Skip();
+}
+
+void ChartsPanel::on_mouse_wheel(wxMouseEvent& event) {
+    // forward native input to the panel's ImGui context
+    process_mouse_wheel_event(event);
+    // retain wxWidgets' normal event propagation
+    event.Skip();
+}
+
+void ChartsPanel::on_key_down(wxKeyEvent& event) {
+    // forward native input to the panel's ImGui context
+    process_key_event(event, true);
+    // retain wxWidgets' normal event propagation
+    event.Skip();
+}
+
+void ChartsPanel::on_key_up(wxKeyEvent& event) {
+    // forward native input to the panel's ImGui context
+    process_key_event(event, false);
+    // retain wxWidgets' normal event propagation
+    event.Skip();
+}
+
+void ChartsPanel::on_character(wxKeyEvent& event) {
+    // forward native text input to the panel's ImGui context
+    process_character_event(event);
+    // retain wxWidgets' normal event propagation
+    event.Skip();
+}
+
+void ChartsPanel::on_set_focus(wxFocusEvent& event) {
+    // notify the panel's ImGui context that it received focus
+    process_focus_event(true);
+    // retain wxWidgets' normal event propagation
+    event.Skip();
+}
+
+void ChartsPanel::on_kill_focus(wxFocusEvent& event) {
+    // notify the panel's ImGui context that it lost focus
+    process_focus_event(false);
+    // retain wxWidgets' normal event propagation
+    event.Skip();
+}
+
+void ChartsPanel::process_mouse_event(const wxMouseEvent& event) {
+    // input can arrive before the first paint initializes the renderer
+    if (m_imgui_context == nullptr)
+        return;
+    // activate this panel's input context
+    ContextScope context_scope(*this);
+    // add the absolute client position
+    ImGui::GetIO().AddMousePosEvent(static_cast<float>(event.GetX()), static_cast<float>(event.GetY()));
+    // add the button transition when one occurred
+    if (event.LeftDown() || event.LeftUp())
+        ImGui::GetIO().AddMouseButtonEvent(ImGuiMouseButton_Left, event.LeftDown());
+    if (event.RightDown() || event.RightUp())
+        ImGui::GetIO().AddMouseButtonEvent(ImGuiMouseButton_Right, event.RightDown());
+    if (event.MiddleDown() || event.MiddleUp())
+        ImGui::GetIO().AddMouseButtonEvent(ImGuiMouseButton_Middle, event.MiddleDown());
+}
+
+void ChartsPanel::process_mouse_wheel_event(const wxMouseEvent& event) {
+    // input can arrive before the first paint initializes the renderer
+    if (m_imgui_context == nullptr)
+        return;
+    // activate this panel's input context
+    ContextScope context_scope(*this);
+    // scale the wheel rotation to standard ImGui wheel units
+    const float wheel = static_cast<float>(event.GetWheelRotation()) / static_cast<float>(event.GetWheelDelta());
+    // add vertical or horizontal wheel input
+    if (event.GetWheelAxis() == wxMOUSE_WHEEL_HORIZONTAL)
+        ImGui::GetIO().AddMouseWheelEvent(wheel, 0.0f);
+    else
+        ImGui::GetIO().AddMouseWheelEvent(0.0f, wheel);
+}
+
+void ChartsPanel::process_key_event(const wxKeyEvent& event, const bool pressed) {
+    // input can arrive before the first paint initializes the renderer
+    if (m_imgui_context == nullptr)
+        return;
+    // activate this panel's input context
+    ContextScope context_scope(*this);
+    // update modifier state before the key transition
+    auto& io = ImGui::GetIO();
+    io.AddKeyEvent(ImGuiMod_Ctrl, event.ControlDown());
+    io.AddKeyEvent(ImGuiMod_Shift, event.ShiftDown());
+    io.AddKeyEvent(ImGuiMod_Alt, event.AltDown());
+    io.AddKeyEvent(ImGuiMod_Super, event.MetaDown());
+    // map wxWidgets virtual key codes to Dear ImGui keys
+    const int key_code = event.GetKeyCode();
+    if (key_code >= 'a' && key_code <= 'z')
+        io.AddKeyEvent(static_cast<ImGuiKey>(ImGuiKey_A + key_code - 'a'), pressed);
+    else if (key_code >= 'A' && key_code <= 'Z')
+        io.AddKeyEvent(static_cast<ImGuiKey>(ImGuiKey_A + key_code - 'A'), pressed);
+    else if (key_code >= '0' && key_code <= '9')
+        io.AddKeyEvent(static_cast<ImGuiKey>(ImGuiKey_0 + key_code - '0'), pressed);
+    else if (key_code == WXK_SPACE)
+        io.AddKeyEvent(ImGuiKey_Space, pressed);
+    else if (key_code == WXK_RETURN || key_code == WXK_NUMPAD_ENTER)
+        io.AddKeyEvent(ImGuiKey_Enter, pressed);
+    else if (key_code == WXK_ESCAPE)
+        io.AddKeyEvent(ImGuiKey_Escape, pressed);
+    else if (key_code == WXK_TAB)
+        io.AddKeyEvent(ImGuiKey_Tab, pressed);
+    else if (key_code == WXK_BACK)
+        io.AddKeyEvent(ImGuiKey_Backspace, pressed);
+    else if (key_code == WXK_DELETE)
+        io.AddKeyEvent(ImGuiKey_Delete, pressed);
+}
+
+void ChartsPanel::process_character_event(const wxKeyEvent& event) {
+    // input can arrive before the first paint initializes the renderer
+    if (m_imgui_context == nullptr)
+        return;
+    // use the Unicode code point supplied by wxWidgets
+    const wxChar character = event.GetUnicodeKey();
+    if (character == WXK_NONE)
+        return;
+    // activate this panel's input context
+    ContextScope context_scope(*this);
+    // add UTF-32 text input
+    ImGui::GetIO().AddInputCharacter(static_cast<unsigned int>(character));
+}
+
+void ChartsPanel::process_focus_event(const bool focused) {
+    // focus can change before the first paint initializes the renderer
+    if (m_imgui_context == nullptr)
+        return;
+    // activate this panel's input context
+    ContextScope context_scope(*this);
+    // notify ImGui of the focus transition
+    ImGui::GetIO().AddFocusEvent(focused);
 }
 
 void ChartsPanel::on_idle(wxIdleEvent& event) {

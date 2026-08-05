@@ -10,12 +10,12 @@
 
 #include <imgui.h>
 #include <imgui_impl_metal.h>
-#include <imgui_impl_osx.h>
 #include <implot.h>
 #include <spdlog/spdlog.h>
 
 #include "apple_metal.h"
 #include "charts_panel.h"
+#include "im_context.h"
 #include "wxwidgets_imgui.h"
 
 static constexpr const char *FONT_PATH = KICAD_XYCE_FONTS_DIR "/Inter-Regular.ttf";
@@ -48,10 +48,10 @@ void ChartsPanel::initialize() {
     metal_layer.bounds = CGRectMake(0, 0, sz.x, sz.y);
     metal_layer.drawableSize = CGSizeMake(sz.x * scale, sz.y * scale);
     metal_layer.contentsScale = scale;
-    // create imgui isolated context for this panel
-    IMGUI_CHECKVERSION();
-    ImGui::SetCurrentContext(ImGui::CreateContext());
-    ImPlot::SetCurrentContext(ImPlot::CreateContext());
+    // create isolated contexts for this panel
+    initialize_contexts();
+    // activate this panel's isolated contexts for renderer initialization
+    ContextScope context_scope(*this);
     // style
     PlatformStyle();
     // ImGui configuration
@@ -65,8 +65,7 @@ void ChartsPanel::initialize() {
     ImGuiStyle &style = ImGui::GetStyle();
     style.AntiAliasedLines = true;
     style.AntiAliasedLinesUseTex = true;
-    // bind platform specific hooks
-    ImGui_ImplOSX_Init(m_charts_panel);
+    // bind the renderer backend
     ImGui_ImplMetal_Init((__bridge id<MTLDevice>)gpu.device);
     // update class fields
     m_metal_layer = metal_layer;
@@ -79,12 +78,22 @@ void ChartsPanel::terminate() {
     // check flag
     if (!m_charts_panel)
         return;
-    // shudown backend
+    // preserve the active contexts while releasing this panel's renderer
+    auto* previous_imgui_context = ImGui::GetCurrentContext();
+    auto* previous_implot_context = ImPlot::GetCurrentContext();
+    // retain this panel's context addresses before releasing them
+    auto* imgui_context = static_cast<ImGuiContext*>(m_imgui_context);
+    auto* implot_context = static_cast<ImPlotContext*>(m_implot_context);
+    // activate this panel's isolated contexts for renderer teardown
+    ImGui::SetCurrentContext(imgui_context);
+    ImPlot::SetCurrentContext(implot_context);
+    // shutdown renderer backend
     ImGui_ImplMetal_Shutdown();
-    ImGui_ImplOSX_Shutdown();
-    // imgui and implot
-    ImPlot::DestroyContext();
-    ImGui::DestroyContext();
+    // release isolated contexts after the renderer backend
+    terminate_contexts();
+    // restore the contexts that were active before teardown
+    ImPlot::SetCurrentContext(previous_implot_context == implot_context ? nullptr : previous_implot_context);
+    ImGui::SetCurrentContext(previous_imgui_context == imgui_context ? nullptr : previous_imgui_context);
     // update flag
     m_charts_panel = nullptr;
 }
@@ -117,6 +126,8 @@ void ChartsPanel::render_frame(const std::function<void()> &renderer) {
         return;
     // use objective-c++ memory management
     @autoreleasepool {
+        // activate this panel's isolated contexts for the complete frame
+        ContextScope context_scope(*this);
         // cast fields as apple types
         auto metal_layer = (__bridge CAMetalLayer *)m_metal_layer;
         auto command_queue = (__bridge id<MTLCommandQueue>)m_command_queue;
@@ -135,7 +146,8 @@ void ChartsPanel::render_frame(const std::function<void()> &renderer) {
         id<MTLRenderCommandEncoder> renderEncoder = [command_buffer renderCommandEncoderWithDescriptor:render_pass_descriptor];
         // create metal frame
         ImGui_ImplMetal_NewFrame(render_pass_descriptor);
-        ImGui_ImplOSX_NewFrame(m_charts_panel);
+        // update the per-panel frame duration
+        update_delta_time();
         // scale used in the metal layer for retina displays
         auto scale = [metal_layer contentsScale];
         // position and size

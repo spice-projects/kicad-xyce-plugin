@@ -71,6 +71,7 @@ elseif (WIN32)
     # combine remaining cpp sources with .mm sources
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 elseif (LINUX)
+    find_package(OpenGL REQUIRED)
     # gather linux sources
     file(GLOB_RECURSE PLATFORM_SOURCES "src/*.linux.c++")
     # combine remaining cpp sources with .mm sources
@@ -110,6 +111,8 @@ if(APPLE)
 elseif(WIN32)
     # link windows graphics and system libraries required by the ui backend
     target_link_libraries(kicad-xyce-plugin PRIVATE d3d11 d3dcompiler dxgi gdi32 user32 shell32 ole32 oleaut32 uuid comdlg32 advapi32 version ws2_32 wininet oleacc uxtheme)
+elseif(LINUX)
+    target_link_libraries(kicad-xyce-plugin PRIVATE wx::gl OpenGL::GL)
 endif()
 
 if (BUILD_TESTS)

@@ -11,6 +11,8 @@ bool App::OnInit() {
     // initialize base
     if (!wxApp::OnInit())
         return false;
+    // keep the event loop alive until every application frame is closed
+    SetExitOnFrameDelete(false);
     // log information
     spdlog::info("Starting KiCad Xyce Plugin on macOS");
     // initialize image handlers

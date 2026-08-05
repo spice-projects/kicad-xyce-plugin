@@ -26,6 +26,28 @@ bool App::OnCmdLineParsed(wxCmdLineParser& parser) {
     return true;
 }
 
+void App::register_frame() {
+    // track each application frame independently of transient top-level windows
+    m_frame_count++;
+}
+
+void App::unregister_frame() {
+    // close notifications only originate from registered application frames
+    if (m_frame_count == 0)
+        return;
+    // remove the frame from the application lifetime count
+    m_frame_count--;
+    // if the last frame has been closed, exit the application
+    if (m_frame_count == 0) {
+        // exit after the final frame's close event schedules its destruction
+        CallAfter([this]() {
+            // another frame may have been created before the deferred exit runs
+            if (m_frame_count == 0)
+                ExitMainLoop();
+        });
+    }
+}
+
 void App::setup_logger(const wxString& log_level) {
     // set log level
     if (log_level == "debug") {
