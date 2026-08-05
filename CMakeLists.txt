@@ -15,6 +15,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # do not use precompiled headers (keeps wx/wxprec.h include blocks active)
 add_compile_definitions(NOPCH)
 
+# on Windows, prevent winsock.h (WinSock 1.1) from being auto-included by
+# windows.h, which conflicts with winsock2.h pulled in by wxWidgets headers
+if(WIN32)
+    add_compile_definitions(WIN32_LEAN_AND_MEAN)
+endif()
+
 # generate compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
