@@ -64,49 +64,61 @@ SensitivitySectionPanel::SensitivitySectionPanel(wxWindow* parent) :
     m_enable_checkbox->SetValue(false);
     content_sizer->Add(m_enable_checkbox, 0, wxBOTTOM, FromDIP(8));
 
+    // body panel holding all field controls, enabled/disabled with the checkbox
+    m_body = new wxPanel(content);
+    auto* body_sizer = new wxBoxSizer(wxVERTICAL);
+
     // --- sensitivity fields ---
     // field grid for sensitivity parameters: 2 columns (label | control)
     auto* field_grid = new wxFlexGridSizer(2, FromDIP(8), FromDIP(12));
     field_grid->AddGrowableCol(1, 1);
 
     // objective mode row
-    auto* mode_label = new wxStaticText(content, wxID_ANY, "Objective mode");
+    auto* mode_label = new wxStaticText(m_body, wxID_ANY, "Objective mode");
     field_grid->Add(mode_label, 0, wxALIGN_CENTER_VERTICAL, 0);
     wxArrayString mode_choices;
     for (const auto& label : OBJECTIVE_MODE_LABELS) {
         mode_choices.Add(label);
     }
-    m_objective_mode_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, mode_choices);
+    m_objective_mode_choice = new wxChoice(m_body, wxID_ANY, wxDefaultPosition, wxDefaultSize, mode_choices);
     m_objective_mode_choice->SetSelection(0);
     field_grid->Add(m_objective_mode_choice, 0, wxEXPAND, 0);
 
     // objective values row
-    auto* obj_vals_label = new wxStaticText(content, wxID_ANY, "Objective values");
+    auto* obj_vals_label = new wxStaticText(m_body, wxID_ANY, "Objective values");
     field_grid->Add(obj_vals_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_objective_values_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_objective_values_text = new wxTextCtrl(m_body, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     m_objective_values_text->SetHint("comma-separated");
     field_grid->Add(m_objective_values_text, 0, wxEXPAND, 0);
 
     // parameters row
-    auto* params_label = new wxStaticText(content, wxID_ANY, "Parameters");
+    auto* params_label = new wxStaticText(m_body, wxID_ANY, "Parameters");
     field_grid->Add(params_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_parameters_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_parameters_text = new wxTextCtrl(m_body, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     m_parameters_text->SetHint("comma-separated device parameters");
     field_grid->Add(m_parameters_text, 0, wxEXPAND, 0);
 
-    content_sizer->Add(field_grid, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+    body_sizer->Add(field_grid, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
 
     // --- direct / adjoint checkboxes ---
     auto* method_sizer = new wxBoxSizer(wxHORIZONTAL);
-    m_direct_checkbox = new wxCheckBox(content, wxID_ANY, "Direct");
+    m_direct_checkbox = new wxCheckBox(m_body, wxID_ANY, "Direct");
     method_sizer->Add(m_direct_checkbox, 0, wxRIGHT, FromDIP(12));
-    m_adjoint_checkbox = new wxCheckBox(content, wxID_ANY, "Adjoint");
+    m_adjoint_checkbox = new wxCheckBox(m_body, wxID_ANY, "Adjoint");
     method_sizer->Add(m_adjoint_checkbox, 0, 0, 0);
-    content_sizer->Add(method_sizer, 0, wxBOTTOM, FromDIP(8));
+    body_sizer->Add(method_sizer, 0, wxBOTTOM, FromDIP(8));
 
     // --- print section for .PRINT SENS ---
-    m_print_section = new PrintSectionPanel(content, "SENS", {"SENS"}, false, false, false);
-    content_sizer->Add(m_print_section, 0, wxEXPAND, 0);
+    m_print_section = new PrintSectionPanel(m_body, "SENS", {"SENS"}, false, false, false);
+    body_sizer->Add(m_print_section, 0, wxEXPAND, 0);
+
+    m_body->SetSizer(body_sizer);
+    m_body->Enable(false);
+
+    // bind the enable checkbox to toggle the body panel
+    m_enable_checkbox->Bind(wxEVT_CHECKBOX, &SensitivitySectionPanel::on_enable_toggle, this);
+
+    content_sizer->Add(m_body, 1, wxEXPAND, 0);
 
     // attach content sizer and card to outer layout
     content->SetSizer(content_sizer);
@@ -147,6 +159,7 @@ void SensitivitySectionPanel::apply(const SensParameter* params) {
     if (!params) {
         // disable section and reset to defaults
         m_enable_checkbox->SetValue(false);
+        m_body->Enable(false);
         m_objective_mode_choice->SetSelection(0);
         m_objective_values_text->SetValue(wxEmptyString);
         m_parameters_text->SetValue(wxEmptyString);
@@ -158,6 +171,7 @@ void SensitivitySectionPanel::apply(const SensParameter* params) {
 
     // enable section and populate controls
     m_enable_checkbox->SetValue(true);
+    m_body->Enable(true);
 
     // restore objective mode
     int mode_index = m_objective_mode_choice->FindString(wxString::FromUTF8(params->objective_mode));
@@ -178,4 +192,8 @@ void SensitivitySectionPanel::apply(const SensParameter* params) {
 
     // restore print parameters
     m_print_section->apply(params->print_parameters ? &*params->print_parameters : nullptr, false, false);
+}
+
+void SensitivitySectionPanel::on_enable_toggle(wxCommandEvent& event) {
+    m_body->Enable(event.IsChecked());
 }

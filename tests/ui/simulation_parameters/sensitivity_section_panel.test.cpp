@@ -296,3 +296,82 @@ TEST_F(SensitivitySectionPanelTest, apply_restores_without_print) {
     EXPECT_FALSE(result->adjoint);
     EXPECT_FALSE(result->print_parameters.has_value());
 }
+
+// ========================================================================================
+// enable / disable body controls
+// ========================================================================================
+
+TEST_F(SensitivitySectionPanelTest, body_controls_disabled_by_default) {
+    // arrange / act
+    SensitivitySectionPanel panel(m_parent);
+    auto* mode_choice = find_choice_by_string(panel, "objfunc");
+    ASSERT_NE(mode_choice, nullptr);
+    // assert — all gated fields are disabled initially
+    ASSERT_FALSE(mode_choice->IsEnabled());
+}
+
+TEST_F(SensitivitySectionPanelTest, checking_enable_checkbox_enables_body_controls) {
+    // arrange
+    SensitivitySectionPanel panel(m_parent);
+    auto* enable_cb = find_cb_by_label(panel, "Enable");
+    ASSERT_NE(enable_cb, nullptr);
+    auto* mode_choice = find_choice_by_string(panel, "objfunc");
+    ASSERT_NE(mode_choice, nullptr);
+    ASSERT_FALSE(mode_choice->IsEnabled());
+    // act — simulate checking the enable checkbox
+    enable_cb->SetValue(true);
+    wxCommandEvent evt(wxEVT_CHECKBOX, enable_cb->GetId());
+    evt.SetInt(1);
+    enable_cb->GetEventHandler()->ProcessEvent(evt);
+    // assert
+    EXPECT_TRUE(mode_choice->IsEnabled());
+}
+
+TEST_F(SensitivitySectionPanelTest, unchecking_enable_checkbox_disables_body_controls) {
+    // arrange
+    SensitivitySectionPanel panel(m_parent);
+    auto* enable_cb = find_cb_by_label(panel, "Enable");
+    ASSERT_NE(enable_cb, nullptr);
+    auto* mode_choice = find_choice_by_string(panel, "objfunc");
+    ASSERT_NE(mode_choice, nullptr);
+    // enable first
+    enable_cb->SetValue(true);
+    wxCommandEvent evt_on(wxEVT_CHECKBOX, enable_cb->GetId());
+    evt_on.SetInt(1);
+    enable_cb->GetEventHandler()->ProcessEvent(evt_on);
+    ASSERT_TRUE(mode_choice->IsEnabled());
+    // act — simulate unchecking the enable checkbox
+    enable_cb->SetValue(false);
+    wxCommandEvent evt_off(wxEVT_CHECKBOX, enable_cb->GetId());
+    evt_off.SetInt(0);
+    enable_cb->GetEventHandler()->ProcessEvent(evt_off);
+    // assert — all gated controls should be disabled
+    EXPECT_FALSE(mode_choice->IsEnabled());
+}
+
+TEST_F(SensitivitySectionPanelTest, apply_enables_body_when_params_provided) {
+    // arrange
+    SensitivitySectionPanel panel(m_parent);
+    auto sens = SensParameter("AC", "objfunc", {}, {}, false, false, std::nullopt);
+    auto* mode_choice = find_choice_by_string(panel, "objfunc");
+    ASSERT_NE(mode_choice, nullptr);
+    ASSERT_FALSE(mode_choice->IsEnabled());
+    // act
+    panel.apply(&sens);
+    // assert
+    EXPECT_TRUE(mode_choice->IsEnabled());
+}
+
+TEST_F(SensitivitySectionPanelTest, apply_disables_body_when_nullptr) {
+    // arrange
+    SensitivitySectionPanel panel(m_parent);
+    auto sens = SensParameter("AC", "objfunc", {}, {}, false, false, std::nullopt);
+    panel.apply(&sens);
+    auto* mode_choice = find_choice_by_string(panel, "objfunc");
+    ASSERT_NE(mode_choice, nullptr);
+    ASSERT_TRUE(mode_choice->IsEnabled());
+    // act
+    panel.apply(nullptr);
+    // assert
+    EXPECT_FALSE(mode_choice->IsEnabled());
+}

@@ -7,6 +7,7 @@
 #ifndef WX_PRECOMP
 #include <wx/checkbox.h>
 #include <wx/choice.h>
+#include <wx/event.h>
 #include <wx/panel.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
@@ -32,8 +33,11 @@ public:
     void apply(const SensParameter* params);
 
 private:
+    void on_enable_toggle(wxCommandEvent& event);
+
     SimulationCard* m_card = nullptr;
     wxCheckBox* m_enable_checkbox = nullptr;
+    wxPanel* m_body = nullptr;
     wxChoice* m_objective_mode_choice = nullptr;
     wxTextCtrl* m_objective_values_text = nullptr;
     wxTextCtrl* m_parameters_text = nullptr;
