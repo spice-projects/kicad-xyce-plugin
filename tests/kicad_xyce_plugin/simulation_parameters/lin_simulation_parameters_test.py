@@ -36,9 +36,18 @@ class TestLinSimulationParameters:
         assert ".AC LIN 100 1 1MEG" in directives
         lin_line = next(d for d in directives if d.startswith(".LIN"))
         assert "FORMAT=TOUCHSTONE" in lin_line
-        assert "TYPE=Y" in lin_line
+        assert "LINTYPE=Y" in lin_line
         assert "DATAFORMAT=MA" in lin_line
         assert "FILE=output.s2p" in lin_line
+
+    def test_lin_emits_lintype_not_type(self):
+        # arrange
+        params = LinSimulationParameters(sweep_mode="LIN", points="100", start="1", end="1MEG", replace_ground=False, lintype="Z",)
+        # act
+        directives = params.to_xyce_directives()
+        # assert
+        lin_line = next(d for d in directives if d.startswith(".LIN"))
+        assert lin_line == ".LIN LINTYPE=Z"
 
     def test_sparcalc_false(self):
         # arrange
@@ -84,13 +93,55 @@ class TestLinFromXyceDirectives:
 
     def test_parses_lin_keyword_args(self):
         # arrange / act
-        params = LinSimulationParameters.from_xyce_directives([".AC LIN 100 1 1MEG", ".LIN FORMAT=TOUCHSTONE TYPE=Y DATAFORMAT=MA FILE=output.s2p",])
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 100 1 1MEG", ".LIN FORMAT=TOUCHSTONE LINTYPE=Y DATAFORMAT=MA FILE=output.s2p",])
         # assert
         assert params is not None
         assert params.format == "TOUCHSTONE"
         assert params.lintype == "Y"
         assert params.dataformat == "MA"
         assert params.file == "output.s2p"
+
+    def test_parses_lintype_keyword(self):
+        # arrange / act
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 100 1 1MEG", ".LIN LINTYPE=Z"])
+        # assert
+        assert params is not None
+        assert params.lintype == "Z"
+
+    def test_parses_lintype_keyword_lowercase(self):
+        # arrange / act
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 100 1 1MEG", ".LIN lintype=z"])
+        # assert
+        assert params is not None
+        assert params.lintype == "Z"
+
+    def test_parses_type_keyword_backward_compatibility(self):
+        # arrange / act — TYPE= is accepted for backward compatibility
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 100 1 1MEG", ".LIN TYPE=Y"])
+        # assert
+        assert params is not None
+        assert params.lintype == "Y"
+
+    def test_parses_filename_synonym(self):
+        # arrange / act
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 100 1 1MEG", ".LIN FILENAME=foo.s2p"])
+        # assert
+        assert params is not None
+        assert params.file == "foo.s2p"
+
+    def test_file_wins_over_filename_when_both_given(self):
+        # arrange / act — FILE= appears after FILENAME=
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 100 1 1MEG", ".LIN FILENAME=foo.s2p FILE=bar.s2p"])
+        # assert
+        assert params is not None
+        assert params.file == "bar.s2p"
+
+    def test_file_wins_over_filename_when_both_given_reversed(self):
+        # arrange / act — FILE= appears before FILENAME=
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 100 1 1MEG", ".LIN FILE=bar.s2p FILENAME=foo.s2p"])
+        # assert
+        assert params is not None
+        assert params.file == "bar.s2p"
 
     def test_parses_sparcalc_false(self):
         # arrange / act
@@ -244,3 +295,33 @@ class TestReferenceGuideExamples:
         assert "FORMAT=TOUCHSTONE" in lin_line
         assert "DATAFORMAT=MA" in lin_line
         assert "FILE=foo" in lin_line
+
+    def test_reference_guide_round_trip_lintype(self):
+        # arrange - .LIN LINTYPE=Z (RG 2.1.17 documented keyword)
+        directive = ".LIN LINTYPE=Z"
+        # act
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 100 1 1MEG", directive])
+        assert params is not None
+        assert params.lintype == "Z"
+        regenerated = params.to_xyce_directives()
+        lin_line = next(d for d in regenerated if d.startswith(".LIN"))
+        assert lin_line == ".LIN LINTYPE=Z"
+        # reparse the regenerated directive to confirm the round trip
+        reparsed = LinSimulationParameters.from_xyce_directives(regenerated)
+        assert reparsed is not None
+        assert reparsed.lintype == "Z"
+
+    def test_reference_guide_round_trip_filename(self):
+        # arrange - .LIN FILENAME=foo (RG 2.1.17 HSPICE synonym for FILE=)
+        directive = ".LIN FILENAME=foo.s2p"
+        # act
+        params = LinSimulationParameters.from_xyce_directives([".AC LIN 100 1 1MEG", directive])
+        assert params is not None
+        assert params.file == "foo.s2p"
+        regenerated = params.to_xyce_directives()
+        lin_line = next(d for d in regenerated if d.startswith(".LIN"))
+        assert "FILE=foo.s2p" in lin_line
+        # reparse the regenerated directive to confirm the round trip
+        reparsed = LinSimulationParameters.from_xyce_directives(regenerated)
+        assert reparsed is not None
+        assert reparsed.file == "foo.s2p"

@@ -27,6 +27,8 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
 
     // flag indicating whether a valid directive was found
     bool found = false;
+    // flag indicating whether FILE= has been seen (gives FILE= precedence over FILENAME=)
+    bool file_seen = false;
 
     // parse directives
     for (const auto& directive : directives) {
@@ -137,8 +139,9 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
                 // set the output format
                 format = to_upper(val);
             }
-            else if (key_upper == "TYPE") {
+            else if (key_upper == "TYPE" || key_upper == "LINTYPE") {
                 // set the s-parameter type
+                // LINTYPE is the documented RG keyword; TYPE is accepted for backward compatibility
                 lintype = to_upper(val);
             }
             else if (key_upper == "DATAFORMAT") {
@@ -148,6 +151,13 @@ std::optional<LinSimulationParameters> LinSimulationParameters::from_xyce_direct
             else if (key_upper == "FILE") {
                 // set the output file name
                 file = val;
+                file_seen = true;
+            }
+            else if (key_upper == "FILENAME") {
+                // HSPICE synonym for FILE=; FILE= takes precedence when both are given
+                if (!file_seen) {
+                    file = val;
+                }
             }
             else if (key_upper == "WIDTH") {
                 // set the column width
@@ -194,7 +204,7 @@ std::vector<std::string> LinSimulationParameters::to_xyce_directives(const Netli
         lin_directive += " FORMAT=" + format;
     }
     if (lintype != "S") {
-        lin_directive += " TYPE=" + lintype;
+        lin_directive += " LINTYPE=" + lintype;
     }
     if (dataformat != "RI") {
         lin_directive += " DATAFORMAT=" + dataformat;

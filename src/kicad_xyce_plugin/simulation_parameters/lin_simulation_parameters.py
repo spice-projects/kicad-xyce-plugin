@@ -55,6 +55,8 @@ class LinSimulationParameters:
         print_parameters = None
         # flag indicating whether a valid directive was found
         found = False
+        # flag indicating whether FILE= has been seen (gives FILE= precedence over FILENAME=)
+        file_seen = False
         # parse directives
         for directive in directives:
             # tokenize the directive
@@ -136,8 +138,9 @@ class LinSimulationParameters:
                 elif key_upper == "FORMAT":
                     # set the output format
                     lin_format = val.upper()
-                elif key_upper == "TYPE":
+                elif key_upper in ("TYPE", "LINTYPE"):
                     # set the s-parameter type
+                    # LINTYPE is the documented RG keyword; TYPE is accepted for backward compatibility
                     lintype = val.upper()
                 elif key_upper == "DATAFORMAT":
                     # set the data format
@@ -145,6 +148,11 @@ class LinSimulationParameters:
                 elif key_upper == "FILE":
                     # set the output file name
                     lin_file = val
+                    file_seen = True
+                elif key_upper == "FILENAME":
+                    # HSPICE synonym for FILE=; FILE= takes precedence when both are given
+                    if not file_seen:
+                        lin_file = val
                 elif key_upper == "WIDTH":
                     # set the column width
                     width = val
@@ -202,7 +210,7 @@ class LinSimulationParameters:
         # append parameter type keyword when non-default
         if self.lintype != "S":
             # set the parameter type
-            parts.append(f"TYPE={self.lintype}")
+            parts.append(f"LINTYPE={self.lintype}")
         # append data format keyword when non-default
         if self.dataformat != "RI":
             # set the data representation format
