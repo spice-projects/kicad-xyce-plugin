@@ -30,8 +30,8 @@ static std::map<std::string, std::string> parse_option_tokens(const std::vector<
     return options;
 }
 
-OptionParameters::OptionParameters(std::map<std::string, std::string> device, std::map<std::string, std::string> timeint, std::map<std::string, std::string> nonlin, std::map<std::string, std::string> linsol) :
-    device(std::move(device)), timeint(std::move(timeint)), nonlin(std::move(nonlin)), linsol(std::move(linsol)) {}
+OptionParameters::OptionParameters(std::map<std::string, std::string> device, std::map<std::string, std::string> timeint, std::map<std::string, std::string> nonlin, std::map<std::string, std::string> linsol, std::map<std::string, std::string> fft) :
+    device(std::move(device)), timeint(std::move(timeint)), nonlin(std::move(nonlin)), linsol(std::move(linsol)), fft(std::move(fft)) {}
 
 OptionParameters OptionParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // init option groups
@@ -39,6 +39,7 @@ OptionParameters OptionParameters::from_xyce_directives(const std::vector<std::s
     std::map<std::string, std::string> timeint;
     std::map<std::string, std::string> nonlin;
     std::map<std::string, std::string> linsol;
+    std::map<std::string, std::string> fft;
 
     // parse each directive looking for supported option packages
     for (const auto& directive : directives) {
@@ -88,9 +89,13 @@ OptionParameters OptionParameters::from_xyce_directives(const std::vector<std::s
             linsol = parse_option_tokens(std::vector<std::string>(tokens.begin() + 2, tokens.end()));
             continue;
         }
+        if (package == "FFT") {
+            fft = parse_option_tokens(std::vector<std::string>(tokens.begin() + 2, tokens.end()));
+            continue;
+        }
     }
 
-    return OptionParameters(device, timeint, nonlin, linsol);
+    return OptionParameters(device, timeint, nonlin, linsol, fft);
 }
 
 std::vector<std::string> OptionParameters::to_xyce_directives(const NetlistTopology& topology) const {
@@ -127,11 +132,14 @@ std::vector<std::string> OptionParameters::to_xyce_directives(const NetlistTopol
     if (!linsol.empty()) {
         directives.push_back(".OPTIONS LINSOL " + format_options(linsol));
     }
+    if (!fft.empty()) {
+        directives.push_back(".OPTIONS FFT " + format_options(fft));
+    }
 
     return directives;
 }
 
 bool OptionParameters::operator==(const OptionParameters& other) const {
     // compare all fields for equality
-    return device == other.device && timeint == other.timeint && nonlin == other.nonlin && linsol == other.linsol;
+    return device == other.device && timeint == other.timeint && nonlin == other.nonlin && linsol == other.linsol && fft == other.fft;
 }

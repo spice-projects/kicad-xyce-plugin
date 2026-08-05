@@ -35,7 +35,7 @@ namespace
     };
 
     // empty option parameters used as default in all test configs
-    const OptionParameters EMPTY_OPTIONS({}, {}, {}, {});
+    const OptionParameters EMPTY_OPTIONS({}, {}, {}, {}, {});
 } // namespace
 
 // ========================================================================================

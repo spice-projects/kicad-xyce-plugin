@@ -20,7 +20,7 @@ TEST(SimulationConfigReplaceGroundChecks, from_xyce_directives_defaults_to_true_
 
 TEST(SimulationConfigReplaceGroundChecks, to_xyce_directives_emits_disabled_statement) {
     // arrange
-    const SimulationConfig config("OP", OpSimulationParameters(false, false, false, {}, "", "", false, "NODESET", "", {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}), {}, false);
+    const SimulationConfig config("OP", OpSimulationParameters(false, false, false, {}, "", "", false, "NODESET", "", {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, false);
     // act
     const auto directives = config.to_xyce_directives(NetlistTopology{});
     // assert
@@ -30,7 +30,7 @@ TEST(SimulationConfigReplaceGroundChecks, to_xyce_directives_emits_disabled_stat
 
 TEST(SimulationConfigReplaceGroundChecks, disabled_state_round_trips_through_directives) {
     // arrange
-    const SimulationConfig input("OP", OpSimulationParameters(false, false, false, {}, "", "", false, "NODESET", "", {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}), {}, false);
+    const SimulationConfig input("OP", OpSimulationParameters(false, false, false, {}, "", "", false, "NODESET", "", {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, false);
     // act
     const auto directives = input.to_xyce_directives(NetlistTopology{});
     const auto output = SimulationConfig::from_xyce_directives(directives);
@@ -40,7 +40,7 @@ TEST(SimulationConfigReplaceGroundChecks, disabled_state_round_trips_through_dir
 
 TEST(SimulationConfigReplaceGroundChecks, enabled_state_round_trips_through_directives) {
     // arrange
-    const SimulationConfig input("OP", OpSimulationParameters(false, false, false, {}, "", "", false, "NODESET", "", {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}), {}, true);
+    const SimulationConfig input("OP", OpSimulationParameters(false, false, false, {}, "", "", false, "NODESET", "", {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
     // act
     const auto directives = input.to_xyce_directives(NetlistTopology{});
     const auto output = SimulationConfig::from_xyce_directives(directives);

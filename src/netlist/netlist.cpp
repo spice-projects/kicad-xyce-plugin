@@ -37,7 +37,7 @@ namespace
 
     // .OPTIONS packages that are managed and stored as directives
     const std::vector<std::string_view> MANAGED_OPTIONS_PACKAGES = {
-        "HBINT", "NONLIN-HB", "LINSOL-HB", "DEVICE", "TIMEINT", "NONLIN", "LINSOL",
+        "HBINT", "NONLIN-HB", "LINSOL-HB", "DEVICE", "TIMEINT", "NONLIN", "LINSOL", "FFT",
     };
 
     // join lines that start with '+' into the preceding logical line

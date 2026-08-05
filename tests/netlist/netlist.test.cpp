@@ -107,6 +107,18 @@ TEST(NetlistParserChecks, extracts_options_packages) {
     ASSERT_GE(topology.m_directives.size(), 2);
 }
 
+TEST(NetlistParserChecks, extracts_fft_options_package) {
+    // arrange / act
+    const auto [netlist, topology] = parse_netlist("Title\n.OPTIONS FFT FFT_ACCURATE=0 FFTOUT=1 FFT_MODE=1\nR1 1 0 100\n.END\n");
+    // assert
+    bool has_fft = false;
+    for (const auto& d : topology.m_directives) {
+        if (d.find(".OPTIONS FFT") == 0) has_fft = true;
+    }
+    ASSERT_TRUE(has_fft);
+    ASSERT_EQ(netlist.find(".OPTIONS FFT"), std::string::npos);
+}
+
 TEST(NetlistParserChecks, handles_end_short_circuit) {
     // arrange / act
     const auto [netlist, topology] = parse_netlist("Title\nR1 1 0 100\n.END\nextra stuff\n");

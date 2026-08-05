@@ -273,7 +273,7 @@ def parse_netlist(text: str) -> tuple[str, NetlistTopology]:
                 # continue loop
                 continue
             # option packages that are managed separately from the sanitized netlist
-            if first_upper == ".OPTIONS" and len(tokens) > 1 and tokens[1].upper() in ("HBINT", "NONLIN-HB", "LINSOL-HB", "DEVICE", "TIMEINT", "NONLIN", "LINSOL",):
+            if first_upper == ".OPTIONS" and len(tokens) > 1 and tokens[1].upper() in ("HBINT", "NONLIN-HB", "LINSOL-HB", "DEVICE", "TIMEINT", "NONLIN", "LINSOL", "FFT",):
                 # add to directives
                 directives.append(stripped)
                 # continue loop

@@ -33,6 +33,8 @@ class OptionParameters:
     nonlin: dict[str, str] = field(default_factory=dict)
     # generic linear solver parameters
     linsol: dict[str, str] = field(default_factory=dict)
+    # options controlling all .FFT statements (FFT_ACCURATE, FFTOUT, FFT_MODE)
+    fft: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_xyce_directives(cls, directives: list[str]) -> "OptionParameters":
@@ -41,6 +43,7 @@ class OptionParameters:
         timeint: dict[str, str] = {}
         nonlin: dict[str, str] = {}
         linsol: dict[str, str] = {}
+        fft: dict[str, str] = {}
         # parse each directive looking for supported option packages
         for directive in directives:
             # break directive into tokens
@@ -65,7 +68,10 @@ class OptionParameters:
             if package == "LINSOL":
                 linsol = _parse_option_tokens(tokens[2:])
                 continue
-        return cls(device=device, timeint=timeint, nonlin=nonlin, linsol=linsol)
+            if package == "FFT":
+                fft = _parse_option_tokens(tokens[2:])
+                continue
+        return cls(device=device, timeint=timeint, nonlin=nonlin, linsol=linsol, fft=fft)
 
     def to_xyce_directives(self, topology: NetlistTopology | None = None) -> list[str]:
         # serialize configured option blocks in a deterministic order
@@ -78,4 +84,6 @@ class OptionParameters:
             directives.append(".OPTIONS NONLIN " + " ".join(f"{k}={v}" if v else k for k, v in self.nonlin.items()))
         if self.linsol:
             directives.append(".OPTIONS LINSOL " + " ".join(f"{k}={v}" if v else k for k, v in self.linsol.items()))
+        if self.fft:
+            directives.append(".OPTIONS FFT " + " ".join(f"{k}={v}" if v else k for k, v in self.fft.items()))
         return directives

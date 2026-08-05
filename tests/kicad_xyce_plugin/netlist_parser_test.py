@@ -646,3 +646,12 @@ class TestNetlistParser:
         # assert
         assert ".OPTIONS NONLIN-HB ABSTOL=1e-9" in topology.directives
         assert ".OPTIONS LINSOL-HB TYPE=AZTECOO" in topology.directives
+
+    def test_fft_options_are_stripped(self):
+        # arrange
+        netlist = "Title\n.OPTIONS FFT FFT_ACCURATE=0 FFTOUT=1 FFT_MODE=1\n.END\n"
+        # act
+        sanitized, topology = parse_netlist(netlist)
+        # assert
+        assert ".OPTIONS FFT FFT_ACCURATE=0 FFTOUT=1 FFT_MODE=1" in topology.directives
+        assert ".OPTIONS FFT" not in sanitized

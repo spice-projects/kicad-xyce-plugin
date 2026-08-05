@@ -10,6 +10,7 @@ class TestOptionParameters:
             ".OPTIONS TIMEINT RELTOL=1e-3 ABSTOL=1e-12",
             ".OPTIONS NONLIN MAXSTEP=10",
             ".OPTIONS LINSOL TYPE=AZTECOO",
+            ".OPTIONS FFT FFT_ACCURATE=1 FFTOUT=1 FFT_MODE=0",
         ]
         # act
         params = OptionParameters.from_xyce_directives(directives)
@@ -18,6 +19,15 @@ class TestOptionParameters:
         assert params.timeint == {"RELTOL": "1e-3", "ABSTOL": "1e-12"}
         assert params.nonlin == {"MAXSTEP": "10"}
         assert params.linsol == {"TYPE": "AZTECOO"}
+        assert params.fft == {"FFT_ACCURATE": "1", "FFTOUT": "1", "FFT_MODE": "0"}
+
+    def test_parse_fft_options_with_mixed_case(self):
+        # arrange
+        directives = [".OPTIONS fft FFT_ACCURATE=0 fFtOut=1 FFT_MODE=1"]
+        # act
+        params = OptionParameters.from_xyce_directives(directives)
+        # assert
+        assert params.fft == {"FFT_ACCURATE": "0", "FFTOUT": "1", "FFT_MODE": "1"}
 
     def test_generate_directives(self):
         # arrange
@@ -26,6 +36,7 @@ class TestOptionParameters:
             timeint={"RELTOL": "1e-3"},
             nonlin={"MAXSTEP": "10"},
             linsol={"TYPE": "AZTECOO"},
+            fft={"FFT_ACCURATE": "0", "FFTOUT": "1"},
         )
         # act
         directives = params.to_xyce_directives()
@@ -34,12 +45,14 @@ class TestOptionParameters:
         assert ".OPTIONS TIMEINT RELTOL=1e-3" in directives
         assert ".OPTIONS NONLIN MAXSTEP=10" in directives
         assert ".OPTIONS LINSOL TYPE=AZTECOO" in directives
+        assert ".OPTIONS FFT FFT_ACCURATE=0 FFTOUT=1" in directives
 
     def test_round_trip_directives(self):
         # arrange
         directives = [
             ".OPTIONS DEVICE TEMP=25",
             ".OPTIONS NONLIN MAXSTEP=10",
+            ".OPTIONS FFT FFTOUT=1",
         ]
         # act
         params = OptionParameters.from_xyce_directives(directives)
@@ -48,4 +61,5 @@ class TestOptionParameters:
         assert round_trip == [
             ".OPTIONS DEVICE TEMP=25",
             ".OPTIONS NONLIN MAXSTEP=10",
+            ".OPTIONS FFT FFTOUT=1",
         ]

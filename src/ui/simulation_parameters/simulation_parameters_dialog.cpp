@@ -446,7 +446,7 @@ SimulationConfig SimulationParametersDialog::build_preview_config() const {
     if (global_settings != nullptr)
         replace_ground = global_settings->get_replace_ground();
     // exit
-    return SimulationConfig(std::move(analysis_type), std::move(analysis), std::move(steps), m_data_blocks, OptionParameters({}, {}, {}, {}), {}, replace_ground);
+    return SimulationConfig(std::move(analysis_type), std::move(analysis), std::move(steps), m_data_blocks, OptionParameters({}, {}, {}, {}, {}), {}, replace_ground);
 }
 
 void SimulationParametersDialog::apply_config(const SimulationConfig& config) {
