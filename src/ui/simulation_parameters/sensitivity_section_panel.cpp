@@ -54,11 +54,15 @@ SensitivitySectionPanel::SensitivitySectionPanel(wxWindow* parent) :
     wxPanel(parent) {
     // outer vertical sizer for the whole section
     auto* outer_sizer = new wxBoxSizer(wxVERTICAL);
+    // simulation card wrapping all controls
+    m_card = new SimulationCard(this, "Sensitivity (.SENS)");
+    auto* content = m_card->get_content();
+    auto* content_sizer = new wxBoxSizer(wxVERTICAL);
 
     // enable checkbox for the sensitivity section
-    m_enable_checkbox = new wxCheckBox(this, wxID_ANY, "Enable sensitivity (.SENS)");
+    m_enable_checkbox = new wxCheckBox(content, wxID_ANY, "Enable sensitivity (.SENS)");
     m_enable_checkbox->SetValue(false);
-    outer_sizer->Add(m_enable_checkbox, 0, wxBOTTOM, FromDIP(8));
+    content_sizer->Add(m_enable_checkbox, 0, wxBOTTOM, FromDIP(8));
 
     // --- sensitivity fields ---
     // field grid for sensitivity parameters: 2 columns (label | control)
@@ -66,44 +70,47 @@ SensitivitySectionPanel::SensitivitySectionPanel(wxWindow* parent) :
     field_grid->AddGrowableCol(1, 1);
 
     // objective mode row
-    auto* mode_label = new wxStaticText(this, wxID_ANY, "Objective mode");
+    auto* mode_label = new wxStaticText(content, wxID_ANY, "Objective mode");
     field_grid->Add(mode_label, 0, wxALIGN_CENTER_VERTICAL, 0);
     wxArrayString mode_choices;
     for (const auto& label : OBJECTIVE_MODE_LABELS) {
         mode_choices.Add(label);
     }
-    m_objective_mode_choice = new wxChoice(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, mode_choices);
+    m_objective_mode_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, mode_choices);
     m_objective_mode_choice->SetSelection(0);
     field_grid->Add(m_objective_mode_choice, 0, wxEXPAND, 0);
 
     // objective values row
-    auto* obj_vals_label = new wxStaticText(this, wxID_ANY, "Objective values");
+    auto* obj_vals_label = new wxStaticText(content, wxID_ANY, "Objective values");
     field_grid->Add(obj_vals_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_objective_values_text = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_objective_values_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     m_objective_values_text->SetHint("comma-separated");
     field_grid->Add(m_objective_values_text, 0, wxEXPAND, 0);
 
     // parameters row
-    auto* params_label = new wxStaticText(this, wxID_ANY, "Parameters");
+    auto* params_label = new wxStaticText(content, wxID_ANY, "Parameters");
     field_grid->Add(params_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_parameters_text = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_parameters_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     m_parameters_text->SetHint("comma-separated device parameters");
     field_grid->Add(m_parameters_text, 0, wxEXPAND, 0);
 
-    outer_sizer->Add(field_grid, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
+    content_sizer->Add(field_grid, 0, wxEXPAND | wxBOTTOM, FromDIP(8));
 
     // --- direct / adjoint checkboxes ---
     auto* method_sizer = new wxBoxSizer(wxHORIZONTAL);
-    m_direct_checkbox = new wxCheckBox(this, wxID_ANY, "Direct");
+    m_direct_checkbox = new wxCheckBox(content, wxID_ANY, "Direct");
     method_sizer->Add(m_direct_checkbox, 0, wxRIGHT, FromDIP(12));
-    m_adjoint_checkbox = new wxCheckBox(this, wxID_ANY, "Adjoint");
+    m_adjoint_checkbox = new wxCheckBox(content, wxID_ANY, "Adjoint");
     method_sizer->Add(m_adjoint_checkbox, 0, 0, 0);
-    outer_sizer->Add(method_sizer, 0, wxBOTTOM, FromDIP(8));
+    content_sizer->Add(method_sizer, 0, wxBOTTOM, FromDIP(8));
 
     // --- print section for .PRINT SENS ---
-    m_print_section = new PrintSectionPanel(this, "SENS", {"SENS"}, false, false, false);
-    outer_sizer->Add(m_print_section, 0, wxEXPAND, 0);
+    m_print_section = new PrintSectionPanel(content, "SENS", {"SENS"}, false, false, false);
+    content_sizer->Add(m_print_section, 0, wxEXPAND, 0);
 
+    // attach content sizer and card to outer layout
+    content->SetSizer(content_sizer);
+    outer_sizer->Add(m_card, 1, wxEXPAND, 0);
     SetSizer(outer_sizer);
 }
 

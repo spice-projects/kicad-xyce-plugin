@@ -15,6 +15,7 @@
 
 #include "../../simulation_parameters/sens_parameter.h"
 #include "print_section_panel.h"
+#include "simulation_card.h"
 
 // embedded .SENS section shared by AC, DC, and TRAN panels
 class SensitivitySectionPanel : public wxPanel
@@ -31,6 +32,7 @@ public:
     void apply(const SensParameter* params);
 
 private:
+    SimulationCard* m_card = nullptr;
     wxCheckBox* m_enable_checkbox = nullptr;
     wxChoice* m_objective_mode_choice = nullptr;
     wxTextCtrl* m_objective_values_text = nullptr;

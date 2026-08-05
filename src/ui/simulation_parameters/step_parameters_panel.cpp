@@ -55,11 +55,15 @@ StepParametersPanel::StepParametersPanel(wxWindow* parent) :
     wxPanel(parent) {
     // outer vertical sizer for the whole section
     auto* outer_sizer = new wxBoxSizer(wxVERTICAL);
+    // simulation card wrapping all controls
+    m_card = new SimulationCard(this, "Step Sweep");
+    auto* content = m_card->get_content();
+    auto* content_sizer = new wxBoxSizer(wxVERTICAL);
 
     // enable checkbox for the step section
-    m_enable_cb = new wxCheckBox(this, wxID_ANY, "Enable step sweep");
+    m_enable_cb = new wxCheckBox(content, wxID_ANY, "Enable step sweep");
     m_enable_cb->SetValue(false);
-    outer_sizer->Add(m_enable_cb, 0, wxBOTTOM, FromDIP(4));
+    content_sizer->Add(m_enable_cb, 0, wxBOTTOM, FromDIP(4));
 
     // --- step fields ---
     // field grid for step parameters: 2 columns (label | control)
@@ -67,62 +71,65 @@ StepParametersPanel::StepParametersPanel(wxWindow* parent) :
     field_grid->AddGrowableCol(1, 1);
 
     // sweep mode row
-    auto* mode_label = new wxStaticText(this, wxID_ANY, "Sweep mode");
+    auto* mode_label = new wxStaticText(content, wxID_ANY, "Sweep mode");
     field_grid->Add(mode_label, 0, wxALIGN_CENTER_VERTICAL, 0);
     wxArrayString mode_choices;
     for (const auto& mode : STEP_SWEEP_MODES) {
         mode_choices.Add(mode);
     }
-    m_sweep_mode_choice = new wxChoice(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, mode_choices);
+    m_sweep_mode_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, mode_choices);
     m_sweep_mode_choice->SetSelection(0);
     field_grid->Add(m_sweep_mode_choice, 0, wxEXPAND, 0);
 
     // variable row
-    auto* var_label = new wxStaticText(this, wxID_ANY, "Variable");
+    auto* var_label = new wxStaticText(content, wxID_ANY, "Variable");
     field_grid->Add(var_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_variable_text = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_variable_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     m_variable_text->SetHint("e.g. TEMP");
     field_grid->Add(m_variable_text, 0, wxEXPAND, 0);
 
     // start row
-    auto* start_label = new wxStaticText(this, wxID_ANY, "Start");
+    auto* start_label = new wxStaticText(content, wxID_ANY, "Start");
     field_grid->Add(start_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_start_text = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_start_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     field_grid->Add(m_start_text, 0, wxEXPAND, 0);
 
     // stop row
-    auto* stop_label = new wxStaticText(this, wxID_ANY, "Stop");
+    auto* stop_label = new wxStaticText(content, wxID_ANY, "Stop");
     field_grid->Add(stop_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_stop_text = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_stop_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     field_grid->Add(m_stop_text, 0, wxEXPAND, 0);
 
     // step row
-    auto* step_label = new wxStaticText(this, wxID_ANY, "Step");
+    auto* step_label = new wxStaticText(content, wxID_ANY, "Step");
     field_grid->Add(step_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_step_text = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_step_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     field_grid->Add(m_step_text, 0, wxEXPAND, 0);
 
     // points row
-    auto* points_label = new wxStaticText(this, wxID_ANY, "Points");
+    auto* points_label = new wxStaticText(content, wxID_ANY, "Points");
     field_grid->Add(points_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_points_text = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_points_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     field_grid->Add(m_points_text, 0, wxEXPAND, 0);
 
     // list values row
-    auto* list_vals_label = new wxStaticText(this, wxID_ANY, "List values");
+    auto* list_vals_label = new wxStaticText(content, wxID_ANY, "List values");
     field_grid->Add(list_vals_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_list_values_text = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_list_values_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     m_list_values_text->SetHint("space-separated");
     field_grid->Add(m_list_values_text, 0, wxEXPAND, 0);
 
     // data table row
-    auto* data_table_label = new wxStaticText(this, wxID_ANY, "Data table");
+    auto* data_table_label = new wxStaticText(content, wxID_ANY, "Data table");
     field_grid->Add(data_table_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    m_data_table_text = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
+    m_data_table_text = new wxTextCtrl(content, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0);
     field_grid->Add(m_data_table_text, 0, wxEXPAND, 0);
 
-    outer_sizer->Add(field_grid, 0, wxEXPAND | wxLEFT, FromDIP(16));
+    content_sizer->Add(field_grid, 0, wxEXPAND, 0);
 
+    // attach content sizer and card to outer layout
+    content->SetSizer(content_sizer);
+    outer_sizer->Add(m_card, 1, wxEXPAND, 0);
     SetSizer(outer_sizer);
 }
 

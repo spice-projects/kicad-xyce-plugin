@@ -12,6 +12,7 @@
 #endif
 
 #include "simulation_parameters/step_parameters.h"
+#include "simulation_card.h"
 
 // embedded .STEP section for each simulation tab page
 class StepParametersPanel : public wxPanel
@@ -26,6 +27,7 @@ public:
     void apply(const StepParameters& params);
 
 private:
+    SimulationCard* m_card = nullptr;
     wxCheckBox* m_enable_cb = nullptr;
     wxChoice* m_sweep_mode_choice = nullptr;
     wxTextCtrl* m_variable_text = nullptr;

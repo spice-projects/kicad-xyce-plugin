@@ -21,4 +21,5 @@ public:
 
 private:
     wxCheckBox* m_replace_ground_checkbox = nullptr;
+    wxStaticText* m_explanation = nullptr;
 };
