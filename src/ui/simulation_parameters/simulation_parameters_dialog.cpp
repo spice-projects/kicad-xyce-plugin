@@ -446,7 +446,7 @@ SimulationConfig SimulationParametersDialog::build_preview_config() const {
     if (global_settings != nullptr)
         replace_ground = global_settings->get_replace_ground();
     // exit
-    return SimulationConfig(std::move(analysis_type), std::move(analysis), std::move(steps), m_data_blocks, OptionParameters({}, {}, {}, {}, {}), {}, replace_ground);
+    return SimulationConfig(std::move(analysis_type), std::move(analysis), std::move(steps), m_data_blocks, OptionParameters({}, {}, {}, {}, {}), m_unassociated_prints, replace_ground);
 }
 
 void SimulationParametersDialog::apply_config(const SimulationConfig& config) {
@@ -533,6 +533,8 @@ void SimulationParametersDialog::apply_config(const SimulationConfig& config) {
 
     // store data blocks
     m_data_blocks = config.data_blocks;
+    // store unassociated print directives (no UI, preserved verbatim for round-trip)
+    m_unassociated_prints = config.unassociated_prints;
 }
 
 SimulationConfig SimulationParametersDialog::get_config() const { return build_preview_config(); }

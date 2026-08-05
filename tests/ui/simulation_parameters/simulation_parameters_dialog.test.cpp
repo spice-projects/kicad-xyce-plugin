@@ -399,6 +399,26 @@ TEST_F(SimulationParametersDialogTest, get_config_preserves_data_blocks) {
 }
 
 // ========================================================================================
+// get_config — unassociated prints are preserved
+// ========================================================================================
+
+TEST_F(SimulationParametersDialogTest, get_config_preserves_unassociated_prints) {
+    // arrange
+    PrintParameters print_params("AC", "", "", {"V(1)"}, {});
+    std::vector<PrintParameters> unassociated_prints = {print_params};
+    OpSimulationParameters op_params(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, std::nullopt);
+    SimulationConfig input("OP", op_params, {}, {}, EMPTY_OPTIONS, unassociated_prints);
+    SimulationParametersDialog dialog(m_parent, input);
+    // act
+    auto output = dialog.get_config();
+    // assert
+    ASSERT_EQ(output.unassociated_prints.size(), 1);
+    EXPECT_EQ(output.unassociated_prints[0].print_type, "AC");
+    ASSERT_EQ(output.unassociated_prints[0].output_variables.size(), 1);
+    EXPECT_EQ(output.unassociated_prints[0].output_variables[0], "V(1)");
+}
+
+// ========================================================================================
 // get_config — transient with full print section and sensitivity
 // ========================================================================================
 

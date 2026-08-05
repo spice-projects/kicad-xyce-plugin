@@ -85,6 +85,9 @@ private:
     // data blocks
     std::vector<DataBlock> m_data_blocks;
 
+    // print directives not associated with any analysis (no UI, preserved verbatim)
+    std::vector<PrintParameters> m_unassociated_prints;
+
     // current analysis type string
     std::string m_analysis_type;
 };
