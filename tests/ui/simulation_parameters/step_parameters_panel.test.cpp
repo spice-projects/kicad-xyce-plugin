@@ -10,6 +10,8 @@
 #include <wx/textctrl.h>
 #endif
 
+#include <wx/window.h>
+
 #include "simulation_parameters/step_parameters.h"
 #include "ui/simulation_parameters/step_parameters_panel.h"
 
@@ -295,4 +297,84 @@ TEST_F(StepParametersPanelTest, build_after_apply_with_empty_data_table_name) {
     EXPECT_TRUE(result.enabled);
     EXPECT_EQ(result.sweep_mode, "DATA");
     EXPECT_TRUE(result.data_table_name.empty());
+}
+
+// ========================================================================================
+// enable/disable behavior — unchecking "Enable step sweep" disables all controls
+// ========================================================================================
+
+TEST_F(StepParametersPanelTest, body_controls_disabled_by_default) {
+    // arrange / act
+    StepParametersPanel panel(m_parent);
+    // assert — controls inside the gated body should be disabled initially
+    auto* mode_label = wxWindow::FindWindowByLabel("Sweep mode", &panel);
+    ASSERT_NE(mode_label, nullptr);
+    EXPECT_FALSE(mode_label->IsEnabled());
+}
+
+TEST_F(StepParametersPanelTest, checking_enable_checkbox_enables_body_controls) {
+    // arrange
+    StepParametersPanel panel(m_parent);
+    auto* cb = dynamic_cast<wxCheckBox*>(wxWindow::FindWindowByLabel("Enable step sweep", &panel));
+    ASSERT_NE(cb, nullptr);
+    auto* mode_label = wxWindow::FindWindowByLabel("Sweep mode", &panel);
+    ASSERT_NE(mode_label, nullptr);
+    ASSERT_FALSE(mode_label->IsEnabled());
+    // act — simulate checking the enable checkbox
+    cb->SetValue(true);
+    wxCommandEvent evt(wxEVT_CHECKBOX, cb->GetId());
+    evt.SetInt(1);
+    cb->GetEventHandler()->ProcessEvent(evt);
+    // assert
+    EXPECT_TRUE(mode_label->IsEnabled());
+}
+
+TEST_F(StepParametersPanelTest, unchecking_enable_checkbox_disables_body_controls) {
+    // arrange
+    StepParametersPanel panel(m_parent);
+    auto* cb = dynamic_cast<wxCheckBox*>(wxWindow::FindWindowByLabel("Enable step sweep", &panel));
+    ASSERT_NE(cb, nullptr);
+    auto* mode_label = wxWindow::FindWindowByLabel("Sweep mode", &panel);
+    ASSERT_NE(mode_label, nullptr);
+    // enable first
+    cb->SetValue(true);
+    wxCommandEvent evt_on(wxEVT_CHECKBOX, cb->GetId());
+    evt_on.SetInt(1);
+    cb->GetEventHandler()->ProcessEvent(evt_on);
+    ASSERT_TRUE(mode_label->IsEnabled());
+    // act — simulate unchecking the enable checkbox
+    cb->SetValue(false);
+    wxCommandEvent evt_off(wxEVT_CHECKBOX, cb->GetId());
+    evt_off.SetInt(0);
+    cb->GetEventHandler()->ProcessEvent(evt_off);
+    // assert — all gated controls should be disabled
+    EXPECT_FALSE(mode_label->IsEnabled());
+}
+
+TEST_F(StepParametersPanelTest, apply_enables_body_when_enabled_true) {
+    // arrange
+    StepParametersPanel panel(m_parent);
+    auto* mode_label = wxWindow::FindWindowByLabel("Sweep mode", &panel);
+    ASSERT_NE(mode_label, nullptr);
+    ASSERT_FALSE(mode_label->IsEnabled());
+    StepParameters params("LIN", "TEMP", "0", "100", "1", "", {}, "", true);
+    // act
+    panel.apply(params);
+    // assert
+    EXPECT_TRUE(mode_label->IsEnabled());
+}
+
+TEST_F(StepParametersPanelTest, apply_disables_body_when_enabled_false) {
+    // arrange
+    StepParametersPanel panel(m_parent);
+    auto* mode_label = wxWindow::FindWindowByLabel("Sweep mode", &panel);
+    ASSERT_NE(mode_label, nullptr);
+    StepParameters enabled_params("LIN", "TEMP", "0", "100", "1", "", {}, "", true);
+    panel.apply(enabled_params);
+    ASSERT_TRUE(mode_label->IsEnabled());
+    // act
+    StepParameters disabled_params("LIN", "TEMP", "0", "100", "1", "", {}, "", false);
+    panel.apply(disabled_params);
+    // assert
+    EXPECT_FALSE(mode_label->IsEnabled());
 }

@@ -27,8 +27,11 @@ public:
     void apply(const StepParameters& params);
 
 private:
+    void on_enable_toggle(wxCommandEvent& event);
+
     SimulationCard* m_card = nullptr;
     wxCheckBox* m_enable_cb = nullptr;
+    wxPanel* m_body = nullptr;
     wxChoice* m_sweep_mode_choice = nullptr;
     wxTextCtrl* m_variable_text = nullptr;
     wxTextCtrl* m_start_text = nullptr;
