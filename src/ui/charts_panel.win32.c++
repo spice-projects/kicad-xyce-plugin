@@ -15,6 +15,7 @@
 #include <wx/wx.h>
 
 #include "charts_panel.h"
+#include "im_context.h"
 #include "wxwidgets_imgui.h"
 
 static constexpr const char* FONT_PATH = KICAD_XYCE_FONTS_DIR "\\Inter-Regular.ttf";
