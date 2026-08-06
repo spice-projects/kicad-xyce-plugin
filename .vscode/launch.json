@@ -25,20 +25,7 @@
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [
-                {
-                    "name": "KICAD_API_SOCKET",
-                    "value": "ipc:///tmp/kicad/api.sock"
-                },
-                {
-                    "name": "KICAD_API_TOKEN",
-                    "value": "123"
-                },
-                {
-                    "name": "KIPRJMOD",
-                    "value": "111"
-                }
-            ],
+            // "envFile": "${workspaceFolder}/.env",
             "externalConsole": false,
             "MIMode": "lldb"
         },
@@ -81,42 +68,6 @@
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false
-        },
-        {
-            "name": "Run Plugin",
-            "type": "debugpy",
-            "request": "launch",
-            "cwd": "${workspaceFolder}/src",
-            "module": "kicad_xyce_plugin",
-            "console": "integratedTerminal",
-            "env": {
-                "KICAD_API_SOCKET": "ipc:///tmp/kicad/api.sock",
-                "KICAD_API_TOKEN": "",
-                "KIPRJMOD": ""
-            },
-            "args": [
-                "--log-level=DEBUG"
-            ],
-            "justMyCode": true
-        },
-        {
-            "name": "Run App",
-            "type": "debugpy",
-            "request": "launch",
-            "cwd": "${workspaceFolder}/src",
-            "module": "kicad_xyce_plugin",
-            "console": "integratedTerminal",
-            "args": [
-                "--log-level=DEBUG"
-            ],
-            "justMyCode": true
-        },
-        {
-            "name": "Run App (Profiler)",
-            "type": "node-terminal",
-            "request": "launch",
-            "cwd": "${workspaceFolder}/src",
-            "command": "${workspaceFolder}/.venv/bin/python -m cProfile -o ${workspaceFolder}/.plugin.prof -s cumtime -m kicad_xyce_plugin --log-level=DEBUG"
         }
     ]
 }
