@@ -1,102 +1,89 @@
-# This file is used to ignore files which are generated
-# ----------------------------------------------------------------------------
+# Build directories (CMake presets write to .build-*)
+.build-*/
+build/
 
-*~
-*.autosave
-*.a
-*.core
-*.moc
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+build.ninja
+.ninja_deps
+.ninja_log
+artifacts/
+Testing/
+
+# vcpkg
+/vcpkg_installed/
+vcpkg-manifest-install.log
+
+# Compiled executables and objects
 *.o
 *.obj
-*.orig
-*.rej
+*.a
+*.lib
 *.so
 *.so.*
-*_pch.h.cpp
-*_resource.rc
-*.qm
-.#*
-*.*#
-core
-!core/
-tags
-.DS_Store
-.directory
-*.debug
-Makefile*
-*.prl
-*.app
-moc_*.cpp
-ui_*.h
-qrc_*.cpp
-Thumbs.db
-*.res
-*.rc
-/.qmake.cache
-/.qmake.stash
-
-# qtcreator generated files
-*.pro.user*
-*.qbs.user*
-CMakeLists.txt.user*
-
-# xemacs temporary files
-*.flc
-
-# Vim temporary files
-.*.swp
-
-# Visual Studio generated files
-*.ib_pdb_index
-*.idb
-*.ilk
-*.pdb
-*.sln
-*.suo
-*.vcproj
-*vcproj.*.*.user
-*.ncb
-*.sdf
-*.opensdf
-*.vcxproj
-*vcxproj.*
-
-# MinGW generated files
-*.Debug
-*.Release
-
-# Python byte code
-*.pyc
-
-# Binaries
-# --------
 *.dll
+*.dylib
 *.exe
+*.moc
 
-# Directories with generated files
-.moc/
-.obj/
-.pch/
-.rcc/
-.uic/
-dist
+# Profile / coverage data
+*.prof
+*.profdata
+*.profraw
+*.gcda
+*.gcno
 
-*.egg-info
-.coverage
-coverage.xml
-.pytest_cache
+# Clangd / editor index cache
+.clangd/
 
-.env*
-.venv*
+# IDE and editor files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+*.swp
+*~
 
-.idea
-cmake-*
-.build-*
-
-/kicad-icons
+# KiCad / Xyce generated output
 *.raw
 *.fft*
-*.prof
+
+# Xyce text/log outputs
+*.y0
+*.print_*
+
+# ImageMagick-style temporary/backup files
+*~.orig
+*.orig
+*.rej
+
+# ImGui layout/status files
 imgui.ini
-*.profraw
-*.profdata
+src/ui/imgui.ini
+
+# Fonts: keep source TTFs in git, ignore generated subsets
+src/ui/fonts/*.ttf
+!src/ui/fonts/Inter-Regular.ttf
+
+# Python (legacy package, tracked sources only)
+*.pyc
+__pycache__/
+.pytest_cache/
+.coverage
+*.egg-info/
+.venv/
+
+# Local environment file (use template.env as a reference)
+.env
+
+# Distribution / packaging output
+dist/
+
+# KiCad vendored icon trees that are copied in, not authored here
+/kicad-icons
