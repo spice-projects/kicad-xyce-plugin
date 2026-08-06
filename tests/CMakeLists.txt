@@ -58,6 +58,7 @@ add_executable(kicad-xyce-plugin-tests ${TEST_FILES} ${SOURCE_FILES})
 add_dependencies(kicad-xyce-plugin-tests kicad-proto)
 
 target_compile_definitions(kicad-xyce-plugin-tests PRIVATE KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
+target_include_directories(kicad-xyce-plugin-tests PRIVATE ${POCKETFFT_INCLUDE_DIRS})
 
 target_link_libraries(kicad-xyce-plugin-tests PRIVATE wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog GTest::gtest_main nng::nng protobuf::libprotobuf kicad-proto)
 
