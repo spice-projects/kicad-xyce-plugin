@@ -1,4 +1,4 @@
-DC Sweep with Resistor Stepping for Xyce
+* DC Sweep with Resistor Stepping for Xyce
 
 V1 1 0 DC 0V
 R1 1 2 1k

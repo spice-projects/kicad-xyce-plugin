@@ -89,7 +89,14 @@ coverage.xml
 .env*
 .venv*
 
+.idea
+cmake-*
+.build-*
+
 /kicad-icons
 *.raw
 *.fft*
 *.prof
+imgui.ini
+*.profraw
+*.profdata

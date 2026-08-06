@@ -1,0 +1,70 @@
+{
+    "version": 2,
+    "configurePresets": [
+        {
+            "name": "debug",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/.build-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+            }
+        },
+        {
+            "name": "release",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/.build-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+            }
+        },
+        {
+            "name": "profile",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/.build-profile",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Profile",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "description": "",
+            "displayName": "",
+            "configurePreset": "debug",
+            "targets": [
+                "kicad-xyce-plugin",
+                "kicad-xyce-plugin-tests"
+            ],
+            "configuration": "Debug",
+            "inheritConfigureEnvironment": true
+        },
+        {
+            "name": "release",
+            "description": "",
+            "displayName": "",
+            "configurePreset": "release",
+            "targets": [
+                "kicad-xyce-plugin",
+                "kicad-xyce-plugin-tests"
+            ],
+            "configuration": "Release",
+            "inheritConfigureEnvironment": true
+        },
+        {
+            "name": "profile",
+            "description": "",
+            "displayName": "",
+            "configurePreset": "profile",
+            "targets": [
+                "kicad-xyce-plugin",
+                "kicad-xyce-plugin-tests"
+            ],
+            "configuration": "Release",
+            "inheritConfigureEnvironment": true
+        }
+    ]
+}

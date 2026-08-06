@@ -2,120 +2,107 @@
 
 This document defines the code style preferences for this project.
 
-## Python Formatting
+## C++ Formatting
 
 ### Indentation
 
-- Spaces or tabs: Spaces
-- Width: 4 spaces
+- 4 spaces per indent
+- No tabs
 
 ### Line Length
 
-- Maximum line length: Standard (appears to follow PEP 8)
+- No hard limit; prefer readability over strict wrapping
 
-### Quotes
+### Braces
 
-- Single or double quotes: Double quotes
-- When to use docstrings: TBD
+- Class definitions: opening brace on its own line
+- Function definitions: opening brace on the same line as the signature
+- Control structures (`if`, `for`, `while`): opening brace on the same line
+- Braces required unless the body is a single line (no braces for single-line bodies); if a comment makes the body span two lines, braces are required
 
-### Imports
+### Naming
 
-- Import order: three sections separated by a blank line:
-  1. Standard library
-  2. Third-party libraries
-  3. Project files (local imports)
-- Within each section: `import ...` statements first (alphabetical), then `from ... import ...` statements (alphabetical)
-- One import per line
+- Class names: `PascalCase`
+- Functions and variables: `snake_case`
+- Member variables: `m_` prefix with snake_case
+- Template parameters: `T`, `U`, `Key`, `Value`
+- Constants: `UPPER_SNAKE_CASE` for file-scope constants and enum values
 
-### Function/Variable Naming
+### Includes
 
-- Snake case, camelCase, PascalCase: snake_case for functions and variables
-- Private methods prefix (_): '_'
+- Three sections separated by a blank line:
+  1. Standard library (alphabetical)
+  2. Third-party libraries (alphabetical)
+  3. Project files (relative paths, alphabetical)
+- No `#include` paths with `..` when the file lives in a nearby directory
 
-### Class Formatting
+### Header Guards
 
-- Class names (PascalCase): PascalCase
-- Spacing around class definitions: TBD
+- `#pragma once` only
 
 ### Comments
 
-- Inline comments style: Comments placed above the code they describe, not inline. Format: `# comment text` (starts with lowercase letter, no period)
+- Comments are placed **above** the code they describe, not inline
+- Format: `// comment text` (starts with lowercase letter, no period)
 - Every non-trivial statement gets its own comment line above it — including statements inside `if` blocks, loops, and other control structures
-- Docstring format (Google, NumPy, etc.): TBD
+- No docstring format; use plain `//` comments
+
+### Classes
+
+- Public section first, then private
+- Use `= default` and `= delete` for special member functions
+- Prefer `explicit` for single-argument constructors
+- Prefer `[[nodiscard]]` for accessors and functions where ignoring the return value is likely an error
+- Use member initializer lists in constructors
 
 ### Line Breaks
 
-- Blank lines between functions: Two blank lines
-- Blank lines between classes: Two blank lines
-- Within function bodies: No blank lines — comments above each statement serve as the only visual separators
+- One blank line between function definitions
+- A maximum of one blank line between sections inside a function
+- One blank line between include sections
 
-### Type Hints
+### Misc
 
-- Use type hints: TBD
-- Format preference: TBD
-
-### Other Preferences
-
-- Two blank lines between import block and first function definition
-- Two blank lines between function definitions and `if __name__ == '__main__'` block
-- Function calls are always written on a single line — no multiline call syntax (no trailing `(`, no argument continuation lines)
-- Function definitions are always written on a single line — no multiline definition syntax (no trailing `(`, no argument continuation lines)
-
-## QML Formatting
-
-### Declarations
-
-- Signal and property declarations are always written on a single line — no multiline continuation
+- Use `auto` where it aids readability (iterators, casts, long type names)
+- Prefer `std::span` and `std::string_view` for non-owning views
+- Use `nullptr`, not `NULL` or `0`
+- Use `override` on all overridden virtual functions
+- Return `const&` from accessors
+- Pass by value and `std::move` for sink parameters
 
 ## Testing
 
 ### Framework
 
-- Use the library `pytest`
+- Use Google Test (`gtest`)
 
-### File & Class Naming
+### File Naming
 
-- Test files live under the `tests/` directory and are named `<module>_test.py`
-- Use plain `Test...` classes for grouping related tests
+- Test files live under the `tests/` directory and mirror the source tree layout
+- Named `<module>.test.cpp`
 
-### Method Naming
+### Naming
 
-- Test method names use snake_case: `test_<what_is_being_tested>`
-- Names should be descriptive enough to understand the scenario without reading the body
+- Test suite name: `PascalCase` (e.g. `DCSimulationParametersChecks`)
+- Test case name: descriptive `snake_case` string (e.g. `parses_lin_sweep`)
 
 ### Structure — Arrange / Act / Assert
 
-- Test bodies are commonly divided into sections marked with lowercase comments:
-  ```python
-  # arrange
+- Every test **must** use the `arrange, act, assert` format with explicit section-comment markers
+  ```cpp
+  // arrange
   ...
-  # act
+  // act
   ...
-  # assert
+  // assert
   ...
   ```
-- `# act/assert` is also acceptable when a single step both executes and verifies behavior
-- Separate each section with a single blank line for readability
-- All test methods should be self-contained whenever possible. Avoid `setUp`, `tearDown`, or class-level test fixtures unless there is a strong reason to share setup across multiple tests
+- `// arrange / act` is also acceptable when setup and execution are a single step
+- Do not separate each section with blank lines
+- All test methods should be self-contained whenever possible, avoid utility functions
 
 ### Assertions
 
-- Use bare `assert` statements, not `unittest.TestCase` assertion methods
-- Prefer explicit expressions and specific helpers such as `pytest.approx` for fuzzy numeric comparisons
+- Use `ASSERT_*` and `EXPECT_*` macros from Google Test, not `assert`
+- Prefer `ASSERT_EQ`, `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_THROW`
 - Use one assertion per line and group related assertions together without blank lines between them
-
-### Fixtures & Test Data
-
-- Fixture files are kept near the tests, for example under `tests/<subdir>/test-suite`
-- Define fixture directory paths with a module-level constant when needed:
-  ```python
-  FIXTURES_DIR = Path(__file__).parent / "test-suite"
-  ```
-- Construct fixture paths inside the test using the constant: `FIXTURES_DIR / "file.txt"`
-- Keep test data setup local to the test method unless sharing makes the tests clearer and avoids duplication
-
-### Comments
-
-- Follow the same comment style as production code: above the line, lowercase, no period
-- The `# arrange`, `# act`, `# assert` markers are the primary section headings
-- Add extra comments only when the intent of a step is not obvious from the code

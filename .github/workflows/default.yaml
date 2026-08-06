@@ -1,0 +1,98 @@
+name: C++ CI Workflow
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  check-pr:
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    outputs:
+      has_pr: ${{ steps.check.outputs.has_pr }}
+    steps:
+      - name: Check for open PR
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          response=$(curl -skf -H "Authorization: token $GITHUB_TOKEN" "${GITHUB_API_URL}/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:${{ github.ref_name }}&state=open&per_page=1" 2>&1)
+          echo "API response: ${response}"
+          count=$(echo "$response" | grep -c '"number"' || true)
+          echo "has_pr=$( [ "$count" -gt 0 ] && echo true || echo false )" >> $GITHUB_OUTPUT
+
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    needs: [check-pr]
+    if: |-
+      !cancelled() &&
+      (github.event_name != 'push' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || needs.check-pr.outputs.has_pr != 'true')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            build_enabled: true
+          - os: windows-latest
+            build_enabled: true
+          - os: ubuntu-latest
+            build_enabled: false
+    runs-on: ${{ matrix.os }}
+    env:
+      VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
+    steps:
+      - name: Checkout repository
+        if: ${{ matrix.build_enabled }}
+        uses: actions/checkout@v7
+
+      - name: Setup Ninja
+        if: ${{ matrix.build_enabled }}
+        uses: llvm/actions/install-ninja@main
+
+      - name: Setup MSVC toolchain
+        if: ${{ matrix.build_enabled && runner.os == 'Windows' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Restore vcpkg binary cache
+        if: ${{ matrix.build_enabled }}
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.vcpkg-cache
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      - name: Setup vcpkg
+        if: ${{ matrix.build_enabled }}
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: 'vcpkg.json'
+
+      - name: Configure CMake
+        if: ${{ matrix.build_enabled }}
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cmake --preset release -DCMAKE_CXX_COMPILER=clang-cl
+          else
+            cmake --preset release
+          fi
+
+      - name: Build C++ Target
+        if: ${{ matrix.build_enabled }}
+        run: |
+          cmake --build --preset release
+
+      # - name: Run C++ Tests
+      #   if: ${{ matrix.build_enabled }}
+      #   run: |
+      #     ./.build-release/tests/kicad-xyce-plugin-tests

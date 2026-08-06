@@ -2,40 +2,72 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run Plugin",
-            "type": "debugpy",
+            "name": "kicad-xyce-plugin (lldb)",
+            "type": "cppdbg",
             "request": "launch",
-            "cwd": "${workspaceFolder}/src",
-            "module": "kicad_xyce_plugin",
-            "console": "integratedTerminal",
-            "env": {
-                "KICAD_API_SOCKET": "ipc:///tmp/kicad/api.sock",
-                "KICAD_API_TOKEN": "",
-                "KIPRJMOD": ""
-            },
+            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
             "args": [
-                "--log-level=DEBUG"
+                "--log-level=debug"
             ],
-            "justMyCode": true
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            // "envFile": "${workspaceFolder}/.env",
+            "externalConsole": false,
+            "MIMode": "lldb"
+        },        
+        {
+            "name": "kicad-xyce-plugin (plugin)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
+            "args": [
+                "--log-level=debug"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            // "envFile": "${workspaceFolder}/.env",
+            "externalConsole": false,
+            "MIMode": "lldb"
         },
         {
-            "name": "Run App",
-            "type": "debugpy",
+            "name": "kicad-xyce-plugin (profile)",
+            "type": "cppdbg",
             "request": "launch",
-            "cwd": "${workspaceFolder}/src",
-            "module": "kicad_xyce_plugin",
-            "console": "integratedTerminal",
-            "args": [
-                "--log-level=DEBUG"
+            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "LLVM_PROFILE_FILE",
+                    "value": "${workspaceFolder}/.plugin.profraw"
+                }
             ],
-            "justMyCode": true
+            "externalConsole": false,
+            "MIMode": "lldb"
         },
         {
-            "name": "Run App (Profiler)",
-            "type": "node-terminal",
+            "name": "kicad-xyce-plugin-tests (lldb)",
+            "type": "cppdbg",
             "request": "launch",
-            "cwd": "${workspaceFolder}/src",
-            "command": "${workspaceFolder}/.venv/bin/python -m cProfile -o ${workspaceFolder}/.plugin.prof -s cumtime -m kicad_xyce_plugin --log-level=DEBUG"
+            "program": "${workspaceFolder}/.build-debug/tests/kicad-xyce-plugin-tests",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb"
+        },
+        {
+            "name": "kicad-xyce-plugin (Windows)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false
         }
     ]
 }
