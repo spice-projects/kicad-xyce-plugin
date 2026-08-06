@@ -20,7 +20,7 @@ find_package(gtest CONFIG REQUIRED)
 find_package(nng CONFIG REQUIRED)
 find_package(protobuf CONFIG REQUIRED)
 
-file(GLOB_RECURSE CPP_SOURCES "../src/app.cpp" "../src/step_information.cpp" "../src/util.cpp" "../src/config/*.cpp" "../src/expression/*.cpp" "../src/file/*.cpp" "../src/kicad/*.cpp" "../src/netlist/*.cpp" "../src/simulation_parameters/*.cpp" "../src/ui/*.cpp")
+file(GLOB_RECURSE CPP_SOURCES "../src/app.cpp" "../src/step_information.cpp" "../src/util.cpp" "../src/config/*.cpp" "../src/expression/*.cpp" "../src/file/*.cpp" "../src/fft/*.cpp" "../src/kicad/*.cpp" "../src/netlist/*.cpp" "../src/simulation_parameters/*.cpp" "../src/ui/*.cpp")
 file(GLOB_RECURSE TEST_FILES "./*.cpp")
 
 include_directories("../src")
