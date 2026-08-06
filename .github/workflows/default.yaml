@@ -47,13 +47,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
+      # opt into Node 24 runtime: ilammy/msvc-dev-cmd and llvm/actions/install-ninja still target Node 20
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout repository
         if: ${{ matrix.build_enabled }}
         uses: actions/checkout@v7
 
       - name: Setup Ninja
-        if: ${{ matrix.build_enabled }}
+        # ninja 1.13.x ships preinstalled on github-hosted windows runners; skip the
+        # node-20-based llvm/actions/install-ninja step there to avoid the Node deprecation
+        # warning and use the bundled ninja instead.
+        if: ${{ matrix.build_enabled && runner.os != 'Windows' }}
         uses: llvm/actions/install-ninja@main
 
       - name: Setup MSVC toolchain

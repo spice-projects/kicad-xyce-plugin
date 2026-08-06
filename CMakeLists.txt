@@ -102,6 +102,14 @@ add_library(kicad-proto STATIC ${KICAD_PROTO_GENERATED_SOURCES})
 target_include_directories(kicad-proto PUBLIC "${KICAD_PROTO_OUT_DIR}")
 target_link_libraries(kicad-proto PUBLIC protobuf::libprotobuf)
 
+# clang-cl (LLVM) raises -Winvalid-offsetof when compiling protobuf's generated
+# TcParser tables, which reference private impl-members on non-standard-layout
+# message classes. This is generated third-party code, so silence it for this
+# target only under clang-cl on Windows.
+if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(kicad-proto PRIVATE -Wno-invalid-offsetof)
+endif()
+
 # shared application code, compiled once and linked into both consumers
 add_library(kicad-xyce-core STATIC ${SOURCE_FILES})
 # expose the application header directory to consumers (executable and tests)
