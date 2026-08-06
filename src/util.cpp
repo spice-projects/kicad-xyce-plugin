@@ -13,13 +13,12 @@
 
 #ifdef _WIN32
 // note: _dupenv_s is the CRT-recommended, secure replacement for std::getenv
-std::optional<std::string> get_environment_variable(std::string_view name) {
-    // _dupenv_s requires a null-terminated variable name
-    std::string name_owned{name};
+std::optional<std::string> get_environment_variable(const std::string& name) {
+    // output value and size
     char* value = nullptr;
     size_t size = 0;
     // query the variable, allocating a CRT-owned buffer for the value
-    const errno_t err = _dupenv_s(&value, &size, name_owned.c_str());
+    const errno_t err = _dupenv_s(&value, &size, name.c_str());
     if (err != 0)
         return std::nullopt;
     // the variable is not set when no buffer is returned
@@ -28,14 +27,13 @@ std::optional<std::string> get_environment_variable(std::string_view name) {
     // copy the value (size includes the null terminator) and release the buffer
     std::string result{value, size - 1};
     std::free(value);
+    // exit
     return result;
 }
 #else
-std::optional<std::string> get_environment_variable(std::string_view name) {
-    // std::getenv requires a null-terminated variable name
-    std::string name_owned{name};
+std::optional<std::string> get_environment_variable(const std::string& name) {
     // the variable is not set when no value is returned
-    const char* value = std::getenv(name_owned.c_str());
+    const char* value = std::getenv(name.c_str());
     if (value == nullptr)
         return std::nullopt;
     // return a copy so the result does not depend on later getenv calls

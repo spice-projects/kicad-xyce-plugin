@@ -108,41 +108,58 @@ namespace
         // return a per-seed unix domain socket url
         return "ipc:///tmp/kicad_xyce_test_" + std::to_string(seed) + ".sock";
     }
+
+#ifdef _WIN32
+    // _putenv_s is the CRT replacement for setenv; passing an empty value removes the variable
+    void set_environment_variable(const char* name, const char* value, int) {
+        _putenv_s(name, value);
+    }
+    void unset_environment_variable(const char* name) {
+        _putenv_s(name, "");
+    }
+#else
+    void set_environment_variable(const char* name, const char* value, int overwrite) {
+        ::setenv(name, value, overwrite);
+    }
+    void unset_environment_variable(const char* name) {
+        ::unsetenv(name);
+    }
+#endif
 } // namespace
 
 TEST(KiCadConnectionChecks, is_kicad_mode_false_when_environment_unset) {
     // clear the environment variables
-    unsetenv("KICAD_API_SOCKET");
-    unsetenv("KICAD_API_TOKEN");
+    unset_environment_variable("KICAD_API_SOCKET");
+    unset_environment_variable("KICAD_API_TOKEN");
     // assert
     ASSERT_FALSE(KiCadConnection::is_kicad_mode());
 }
 
 TEST(KiCadConnectionChecks, is_kicad_mode_true_when_environment_set) {
     // set both environment variables
-    setenv("KICAD_API_SOCKET", "ipc:///tmp/example.sock", 1);
-    setenv("KICAD_API_TOKEN", "example-token", 1);
+    set_environment_variable("KICAD_API_SOCKET", "ipc:///tmp/example.sock", 1);
+    set_environment_variable("KICAD_API_TOKEN", "example-token", 1);
     // assert
     ASSERT_TRUE(KiCadConnection::is_kicad_mode());
     // clean up the environment
-    unsetenv("KICAD_API_SOCKET");
-    unsetenv("KICAD_API_TOKEN");
+    unset_environment_variable("KICAD_API_SOCKET");
+    unset_environment_variable("KICAD_API_TOKEN");
 }
 
 TEST(KiCadConnectionChecks, is_kicad_mode_false_when_socket_missing) {
     // set only the token
-    unsetenv("KICAD_API_SOCKET");
-    setenv("KICAD_API_TOKEN", "example-token", 1);
+    unset_environment_variable("KICAD_API_SOCKET");
+    set_environment_variable("KICAD_API_TOKEN", "example-token", 1);
     // assert
     ASSERT_FALSE(KiCadConnection::is_kicad_mode());
     // clean up the environment
-    unsetenv("KICAD_API_TOKEN");
+    unset_environment_variable("KICAD_API_TOKEN");
 }
 
 TEST(KiCadConnectionChecks, from_environment_returns_null_when_standalone) {
     // clear the environment variables
-    unsetenv("KICAD_API_SOCKET");
-    unsetenv("KICAD_API_TOKEN");
+    unset_environment_variable("KICAD_API_SOCKET");
+    unset_environment_variable("KICAD_API_TOKEN");
     // act
     const auto connection = KiCadConnection::from_environment();
     // assert
