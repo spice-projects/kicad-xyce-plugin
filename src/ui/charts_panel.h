@@ -14,6 +14,7 @@
 #endif
 
 #include "../expression/expression_manager.h"
+#include "../file/xyce_output_file.h"
 #include "../step_information.h"
 #include "chart.h"
 
@@ -26,6 +27,8 @@ using ChartsPanelBase = wxPanel;
 class ChartsPanel : public ChartsPanelBase
 {
 public:
+    using FftResultCallback = std::function<void(std::shared_ptr<XyceOutputFile>)>;
+
     explicit ChartsPanel(wxWindow* parent, wxWindowID id = wxID_ANY);
 
     ~ChartsPanel() override;
@@ -39,6 +42,8 @@ public:
     void refresh_charts(int frames = 3);
 
     void display_changed();
+
+    void set_fft_result_callback(FftResultCallback callback) { m_fft_result_callback = std::move(callback); }
 
 private:
     friend class ContextScope;
@@ -62,6 +67,8 @@ private:
     std::tuple<double, double, double, double> m_zoom_window = {-1, -1, -1, -1};
 
     ImVec4 m_background_color;
+
+    FftResultCallback m_fft_result_callback;
 
 #ifdef __APPLE__
     void* m_metal_layer = nullptr;
@@ -143,4 +150,8 @@ private:
     void on_menu_delete_chart(wxCommandEvent&);
 
     void on_menu_new_window(wxCommandEvent&);
+
+    void on_menu_calculate_fft(wxCommandEvent&);
+
+    static double compute_default_max_frequency(Expression<double>& abscissa);
 };

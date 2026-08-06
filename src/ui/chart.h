@@ -83,6 +83,8 @@ public:
 
     [[nodiscard]] const std::tuple<float, float, float, float>& get_plot_rect() const;
 
+    [[nodiscard]] const std::tuple<double, double, double, double>& zoom_window() const { return m_zoom_window; }
+
 private:
     ExpressionManager* m_expression_manager;
     const StepInformation* m_step_information;

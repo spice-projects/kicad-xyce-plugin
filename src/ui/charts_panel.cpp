@@ -1,3 +1,4 @@
+#include <vector>
 #include <wx/wxprec.h>
 
 #ifndef WX_PRECOMP
@@ -6,6 +7,7 @@
 #include <wx/display.h>
 #include <wx/event.h>
 #include <wx/menu.h>
+#include <wx/msgdlg.h>
 #include <wx/settings.h>
 #include <wx/window.h>
 #endif
@@ -20,6 +22,7 @@
 #include "add_plot_dialog.h"
 #include "charts_panel.h"
 #include "events.h"
+#include "fft_dialog.h"
 #include "im_context.h"
 #include "step_tool_dialog.h"
 
@@ -30,10 +33,11 @@ namespace
         ID_CONTEXT_ZOOM_TO_FIT = wxID_HIGHEST + 100,
         ID_CONTEXT_AUTORANGE,
         ID_CONTEXT_ZOOM_ABSCISSA_EXTENT,
-        ID_CONTEXT_OPTION_2,
 
         ID_CONTEXT_ADD_REMOVE_PLOTS,
         ID_CONTEXT_DELETE_ALL_PLOTS,
+        ID_CONTEXT_CALCULATE_FFT,
+        ID_CONTEXT_OPEN_XYCE_FFT_CALCULATION,
         ID_CONTEXT_STEP_TOOL,
         ID_CONTEXT_ADD_CHART,
         ID_CONTEXT_DELETE_CHART,
@@ -79,6 +83,7 @@ ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_add_chart, this, ID_CONTEXT_ADD_CHART);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_delete_chart, this, ID_CONTEXT_DELETE_CHART);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_new_window, this, ID_CONTEXT_NEW_WINDOW);
+    Bind(wxEVT_MENU, &ChartsPanel::on_menu_calculate_fft, this, ID_CONTEXT_CALCULATE_FFT);
     // fetch the platform's active workspace background color
     wxColour wxBgColor = wxSystemSettings::GetColour(wxSYS_COLOUR_APPWORKSPACE);
     // convert it to ImVec4
@@ -520,11 +525,12 @@ void ChartsPanel::on_context_menu(const wxContextMenuEvent& event) {
     if (m_expression_manager->abscissa().unit() == "s" || m_step_information->length() > 1) {
         // separator
         contextMenu.AppendSeparator();
-        // FFT
+        // FFT, transient analysis
         if (m_expression_manager->abscissa().unit() == "s") {
-            // calculate FFT always available
-            contextMenu.Append(ID_CONTEXT_OPTION_2, "Calculate FFT on selected plots");
-            contextMenu.Append(ID_CONTEXT_OPTION_2, "Open Xyce FFT Calculation");
+            // calculate FFT always available (user can select any real-valued expression to compute FFT)
+            contextMenu.Append(ID_CONTEXT_CALCULATE_FFT, "Calculate FFT on selected plots");
+            // TODO: check FFT calculation is available in the current Xyce run, then enable this menu item
+            contextMenu.Append(ID_CONTEXT_OPEN_XYCE_FFT_CALCULATION, "Open Xyce FFT Calculation");
         }
         // append step tool only on multiple steps (otherwise it is not useful)
         if (m_step_information->length() > 1)
@@ -541,7 +547,7 @@ void ChartsPanel::on_context_menu(const wxContextMenuEvent& event) {
     PopupMenu(&contextMenu, mousePosition);
 }
 
-void ChartsPanel::on_menu_zoom_to_fit(wxCommandEvent& event) {
+void ChartsPanel::on_menu_zoom_to_fit(wxCommandEvent&) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -565,11 +571,9 @@ void ChartsPanel::on_menu_zoom_to_fit(wxCommandEvent& event) {
         // refresh
         refresh_charts();
     }
-    // skip event
-    event.Skip();
 }
 
-void ChartsPanel::on_menu_autorange(wxCommandEvent& event) {
+void ChartsPanel::on_menu_autorange(wxCommandEvent&) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -581,11 +585,9 @@ void ChartsPanel::on_menu_autorange(wxCommandEvent& event) {
         // refresh
         refresh_charts();
     }
-    // skip event
-    event.Skip();
 }
 
-void ChartsPanel::on_menu_zoom_abscissa_extent(wxCommandEvent& event) {
+void ChartsPanel::on_menu_zoom_abscissa_extent(wxCommandEvent&) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -600,11 +602,9 @@ void ChartsPanel::on_menu_zoom_abscissa_extent(wxCommandEvent& event) {
         // refresh
         refresh_charts();
     }
-    // skip event
-    event.Skip();
 }
 
-void ChartsPanel::on_menu_add_remove_plots(wxCommandEvent& event) {
+void ChartsPanel::on_menu_add_remove_plots(wxCommandEvent&) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -623,11 +623,9 @@ void ChartsPanel::on_menu_add_remove_plots(wxCommandEvent& event) {
         // reset selected chart
         m_selected_chart = nullptr;
     }
-    // skip event
-    event.Skip();
 }
 
-void ChartsPanel::on_menu_delete_all_plots(wxCommandEvent& event) {
+void ChartsPanel::on_menu_delete_all_plots(wxCommandEvent&) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -639,11 +637,9 @@ void ChartsPanel::on_menu_delete_all_plots(wxCommandEvent& event) {
         // refresh
         refresh_charts();
     }
-    // skip event
-    event.Skip();
 }
 
-void ChartsPanel::on_menu_step_tool(wxCommandEvent& event) {
+void ChartsPanel::on_menu_step_tool(wxCommandEvent&) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -660,11 +656,9 @@ void ChartsPanel::on_menu_step_tool(wxCommandEvent& event) {
         // reset selected chart
         m_selected_chart = nullptr;
     }
-    // skip event
-    event.Skip();
 }
 
-void ChartsPanel::on_menu_add_chart(wxCommandEvent& event) {
+void ChartsPanel::on_menu_add_chart(wxCommandEvent&) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
@@ -676,15 +670,13 @@ void ChartsPanel::on_menu_add_chart(wxCommandEvent& event) {
         // refresh
         refresh_charts();
     }
-    // skip event
-    event.Skip();
 }
 
-void ChartsPanel::on_menu_delete_chart(wxCommandEvent& event) {
+void ChartsPanel::on_menu_delete_chart(wxCommandEvent&) {
     // check we have a selected chart
     if (m_selected_chart != nullptr) {
         // log information
-        spdlog::debug("User requested deleting the new chart at index: {}", m_selected_chart_index);
+        spdlog::debug("User requested deleting chart at index: {}", m_selected_chart_index);
         // delete chart at index
         m_charts.erase(m_charts.begin() + static_cast<int>(m_selected_chart_index));
         // ensure at leat one chart in panel
@@ -695,8 +687,6 @@ void ChartsPanel::on_menu_delete_chart(wxCommandEvent& event) {
         // refresh
         refresh_charts();
     }
-    // skip event
-    event.Skip();
 }
 
 void ChartsPanel::on_menu_new_window(wxCommandEvent& event) {
@@ -708,6 +698,231 @@ void ChartsPanel::on_menu_new_window(wxCommandEvent& event) {
     GetEventHandler()->ProcessEvent(e);
     // skip event
     event.Skip();
+}
+
+double ChartsPanel::compute_default_max_frequency(Expression<double>& abscissa) {
+    // minimum sampling interval across all steps
+    double min_dt = (std::numeric_limits<double>::max)();
+    // loop steps to find the smallest time delta within any single step
+    for (size_t step = 0; step < abscissa.step_count(); ++step) {
+        // abscissa values for this step — zero copy per-step view
+        auto step_data = abscissa.step_data(step);
+        // require at least two samples to measure a time step
+        if (step_data.size() < 2)
+            continue;
+        // measure the smallest delta between adjacent samples within this step
+        for (size_t i = 1; i < step_data.size(); ++i) {
+            // compute the time delta between adjacent samples
+            double dt = step_data[i] - step_data[i - 1];
+            if (dt > 0.0)
+                min_dt = (std::min)(min_dt, dt);
+        }
+    }
+    // conservative fallback when no valid time delta exists
+    if (min_dt == (std::numeric_limits<double>::max)())
+        return 1e5;
+    // choose a default max frequency as 40% of Nyquist for stable defaults
+    double nyquist = 0.5 / min_dt;
+    // return the maximum of 100 Hz or 40% of Nyquist frequency
+    return (std::max)(100.0, 0.4 * nyquist);
+}
+
+void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
+    // check we have a selected chart
+    if (m_selected_chart == nullptr) {
+        // exit
+        return;
+    }
+    // log information
+    spdlog::debug("User requested Calculate FFT on chart at index: {}", m_selected_chart_index);
+    // compute min/max abscissa values
+    double min_abscissa_value = m_step_information->abscissa_left_value();
+    double max_abscissa_value = m_step_information->abscissa_right_value();
+    // compute current chart zoom window
+    const auto& zoom_window = m_selected_chart->zoom_window();
+    // left and right ratios of the zoom window in the abscissa range
+    double x_left_ratio = std::get<0>(zoom_window);
+    double x_right_ratio = std::get<2>(zoom_window);
+    // apply selected chart zoom (use full range if zoom is reset)
+    double min_abscissa_value_zoomed = min_abscissa_value + (x_left_ratio < 0.0 ? 0.0 : x_left_ratio) * (max_abscissa_value - min_abscissa_value);
+    double max_abscissa_value_zoomed = min_abscissa_value + (x_right_ratio < 0.0 ? 1.0 : x_right_ratio) * (max_abscissa_value - min_abscissa_value);
+    // compute default max frequency from the abscissa sampling
+    double default_max_frequency = compute_default_max_frequency(m_expression_manager->abscissa());
+    // current expressions plotted on the selected chart
+    auto plotted_expressions = m_selected_chart->selected_expressions();
+    // open FFT settings dialog (pre-select all real expressions)
+    FftDialog dialog(this, m_expression_manager, std::vector<AnyExpression*>(plotted_expressions.begin(), plotted_expressions.end()), min_abscissa_value, max_abscissa_value, min_abscissa_value_zoomed, max_abscissa_value_zoomed, default_max_frequency);
+    // center in the screen
+    dialog.Centre(wxCENTER_ON_SCREEN);
+    // open modal
+    if (dialog.ShowModal() != wxID_OK) {
+        // exit
+        return;
+    }
+    // get dialog results
+    auto selected_expressions = std::vector(dialog.selected_expressions());
+    double from_abscissa_value = dialog.from_index();
+    double to_abscissa_value = dialog.to_index();
+    double max_frequency = dialog.max_frequency();
+    auto window_fn = dialog.window_function();
+    bool normalize = dialog.normalize();
+    bool keep_dc = dialog.keep_dc();
+    auto output = dialog.output();
+    // validate selection
+    if (selected_expressions.empty()) {
+        // show error message
+        wxMessageBox("No expressions selected.", "Error", wxOK | wxICON_ERROR, this);
+        // exit
+        return;
+    }
+    // list of frequency bins for each step, to be concatenated across steps later
+    std::vector<std::vector<double>> frequency_chunks;
+    // fft data chunks for each expression, to be concatenated across steps later
+    std::vector<std::vector<std::vector<double>>> fft_chunks(selected_expressions.size());
+    // fft step & step indices
+    std::vector<size_t> fft_steps;
+    std::vector<std::pair<size_t, size_t>> fft_abscissa_indices;
+    // step abscissa value ranges
+    std::vector<std::pair<double, double>> fft_abscissa_value_ranges;
+    // fft step index offset
+    size_t fft_offset = 0;
+    // loop steps
+    for (size_t step = 0; step < m_step_information->length(); ++step) {
+        // abscissa values for this step — zero copy per-step view
+        std::span<const double> step_abscissa = m_expression_manager->abscissa().step_data(step);
+        // find indices corresponding to the selected abscissa range
+        auto it_left = std::lower_bound(step_abscissa.begin(), step_abscissa.end(), from_abscissa_value);
+        auto it_right = std::upper_bound(step_abscissa.begin(), step_abscissa.end(), to_abscissa_value);
+        // from and to indeces for the selected abscissa range (inclusive of from_index, exclusive of to_index)
+        size_t from_index = static_cast<size_t>(std::distance(step_abscissa.begin(), it_left));
+        size_t to_index = static_cast<size_t>(std::distance(step_abscissa.begin(), it_right));
+        // require at least 2 samples
+        if (to_index - from_index < 2) {
+            // log information
+            spdlog::warn("Skipping FFT for chart {} step {}: selected range has fewer than 2 samples", m_selected_chart_index, step);
+            // next
+            continue;
+        }
+        // expressions in this step
+        std::vector<std::span<const double>> y_matrix;
+        // reserve memory
+        y_matrix.reserve(selected_expressions.size());
+        // loop expression
+        for (AnyExpression* expression : selected_expressions) {
+            // ensure it is a real-valued expression (Expression<double>)
+            if (std::holds_alternative<Expression<double>>(*expression)) {
+                // get the Expression<double> variant
+                auto& double_expr = std::get<Expression<double>>(*expression);
+                // step data
+                auto y_data = double_expr.step_data(step);
+                // append the selected range to the y_matrix
+                y_matrix.push_back(y_data.subspan(from_index, to_index - from_index));
+            }
+        }
+        // skip empty matrix (should not happen since we filtered for real expressions)
+        if (y_matrix.empty())
+            continue;
+        // extract the x interval for the FFT
+        auto x_interval = step_abscissa.subspan(from_index, to_index - from_index);
+        try {
+            // compute FFT, all expressions in y_matrix are processed together for this step
+            auto result = fft::compute_fft_many2(x_interval, y_matrix, max_frequency, window_fn, normalize, 0, x_interval.size() - 1, output, keep_dc);
+            // check if the frequency axis is empty
+            if (result.frequencies.empty()) {
+                // log information
+                spdlog::error("FFT computation returned an empty frequency axis for chart {} step {}", m_selected_chart_index, step);
+                // exit
+                return;
+            }
+            // store frequency bins
+            frequency_chunks.push_back(result.frequencies);
+            // store per-expression FFT values
+            for (size_t i = 0; i < result.values.size(); ++i)
+                fft_chunks[i].push_back(result.values[i]);
+            // store step output slice
+            fft_abscissa_indices.emplace_back(fft_offset, fft_offset + result.frequencies.size());
+            // update offset
+            fft_offset += result.frequencies.size();
+            // append step
+            fft_steps.push_back(step);
+            // store abscissa value range for this step
+            fft_abscissa_value_ranges.emplace_back(result.frequencies[0], result.frequencies.back());
+        }
+        catch (const std::exception& e) {
+            // log information
+            spdlog::error("FFT computation failed for chart {} step {}: {}", m_selected_chart_index, step, e.what());
+            // exit
+            return;
+        }
+    }
+
+    // require at least one processed step
+    if (fft_steps.empty()) {
+        spdlog::warn("FFT computation skipped: no step has at least 2 samples in the selected range");
+        return;
+    }
+    // build expression name for the title
+    std::string fft_title = "FFT - ";
+    // loop selected expressions to build the title
+    for (size_t i = 0; i < selected_expressions.size(); ++i) {
+        // real expression
+        auto& real_expression = std::get<Expression<double>>(*selected_expressions[i]);
+        // append separator
+        if (i > 0)
+            fft_title += ", ";
+        // append expression name
+        fft_title += real_expression.name();
+    }
+    // build FFT expressions using the Expression<double> constructor with step slices
+    std::vector<AnyExpression> fft_expressions;
+    {
+        // create flat frequency data
+        std::vector<double> freq_data;
+        // reserve memory for the concatenated frequency data
+        freq_data.reserve(fft_offset);
+        // concatenate frequency chunks across steps
+        for (const auto& chunk : frequency_chunks)
+            freq_data.insert(freq_data.end(), chunk.begin(), chunk.end());
+        // append expression for frequency abscissa with unit "Hz" and the corresponding step slices
+        fft_expressions.emplace_back(Expression<double>("Frequency", std::move(freq_data), fft_abscissa_indices, "Hz"));
+    }
+    // create FFT expressions
+    for (size_t i = 0; i < selected_expressions.size(); ++i) {
+        // current expression
+        auto* expression = selected_expressions[i];
+        // real expression
+        auto& real_expression = std::get<Expression<double>>(*expression);
+        // determine unit
+        std::string unit;
+        if (output == fft::FftOutput::PHASE)
+            unit = "°";
+        else if (output == fft::FftOutput::MAGNITUDE_DB)
+            unit = "dB";
+        else
+            unit = real_expression.unit();
+        // expression name for the FFT result
+        auto expr_name = "FFT(" + real_expression.name() + ")";
+        // create flat data
+        std::vector<double> data;
+        // reserve memory for the concatenated FFT data
+        data.reserve(fft_offset);
+        // concatenate FFT chunks across steps
+        for (const auto& chunk : fft_chunks[i])
+            data.insert(data.end(), chunk.begin(), chunk.end());
+        // append expression for the FFT result with the corresponding step slices
+        fft_expressions.emplace_back(Expression<double>(expr_name, std::move(data), fft_abscissa_indices, unit));
+    }
+    // step information for FFT output (only include steps that were processed)
+    StepInformation fft_step_information(m_step_information->keys(), m_step_information->values(), fft_abscissa_value_ranges);
+    // build expression manager (moves from expr_list)
+    ExpressionManager fft_expression_manager(fft_expressions, fft_abscissa_indices);
+    // create raw file with FFT results
+    auto fft_raw = std::make_shared<XyceOutputFile>("", fft_title, false, std::move(fft_step_information), AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr);
+    // spawn a new window with the FFT results via callback
+    if (m_fft_result_callback)
+        m_fft_result_callback(fft_raw);
+    // reset selected chart
+    m_selected_chart = nullptr;
 }
 
 void ChartsPanel::update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, const AbscissaScale abscissa_scale) {

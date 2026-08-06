@@ -207,7 +207,7 @@ namespace fft
                     // find peak value
                     double peak = 0.0;
                     for (double val : raw_magnitude) {
-                        peak = std::max(peak, val);
+                        peak = (std::max)(peak, val);
                     }
                     if (peak <= 0.0)
                         peak = 1.0;
@@ -234,7 +234,7 @@ namespace fft
                     // compute decibels for each bin
                     for (size_t i = 0; i < num_bins; ++i) {
                         // clamp to avoid log of zero
-                        const double clamped = std::max(raw_magnitude[i], 1e-300);
+                        const double clamped = (std::max)(raw_magnitude[i], 1e-300);
                         // convert to decibels
                         output_values[row_index][i] = 20.0 * std::log10(clamped);
                     }
