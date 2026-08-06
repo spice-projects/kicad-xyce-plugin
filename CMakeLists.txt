@@ -63,6 +63,9 @@ protobuf_generate(
 # gather cpp sources (all platforms)
 file(GLOB_RECURSE CPP_SOURCES "src/*.cpp")
 
+# header only library: pocketfft
+find_path(POCKETFFT_INCLUDE_DIRS "pocketfft_hdronly.h")
+
 # include should be relative to src
 include_directories("src")
 
@@ -91,6 +94,9 @@ add_library(kicad-proto STATIC ${KICAD_PROTO_GENERATED_SOURCES})
 # expose the generated proto headers
 target_include_directories(kicad-proto PUBLIC "${KICAD_PROTO_OUT_DIR}")
 target_link_libraries(kicad-proto PUBLIC protobuf::libprotobuf)
+
+# link the plugin with the vendored pocketfft library
+target_include_directories(kicad-xyce-plugin PRIVATE ${POCKETFFT_INCLUDE_DIRS})
 
 if(WIN32)
     set_target_properties(kicad-xyce-plugin PROPERTIES WIN32_EXECUTABLE TRUE)
