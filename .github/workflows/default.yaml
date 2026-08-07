@@ -97,7 +97,13 @@ jobs:
         run: |
           cmake --build --preset release
 
-      # - name: Run C++ Tests
-      #   if: ${{ matrix.build_enabled }}
-      #   run: |
-      #     ./.build-release/tests/kicad-xyce-plugin-tests
+      - name: Run C++ Tests
+        if: ${{ matrix.build_enabled }}
+        shell: bash
+        # run the test executable directly, not ctest (see AGENTS.md)
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            ./.build-release/tests/kicad-xyce-plugin-tests.exe
+          else
+            ./.build-release/tests/kicad-xyce-plugin-tests
+          fi

@@ -367,3 +367,117 @@ TEST(MainWindowPresenterChecks, editing_after_open_enables_save_via_enablement) 
     // cleanup
     std::filesystem::remove(path);
 }
+
+// ========================================================================================
+// configure plugin
+// ========================================================================================
+
+TEST(MainWindowPresenterChecks, configure_plugin_accepting_valid_executable_is_used_by_run) {
+    // arrange
+    const auto path = temp_file_path("presenter_plugin.cir");
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, make_source(path, kNetlist), PluginConfig());
+    view.plugin_config_result = PluginConfig(kExecutablePath);
+    // act
+    presenter.configure_plugin();
+    // run now passes the executable guard and reaches the analysis prompt instead
+    presenter.run_simulation();
+    // assert
+    EXPECT_NE(view.status_text, "Configured Xyce executable path is invalid");
+    EXPECT_EQ(view.start_process_calls, 0);
+    // cleanup
+    std::filesystem::remove(path);
+}
+
+// ========================================================================================
+// run simulation — empty netlist
+// ========================================================================================
+
+TEST(MainWindowPresenterChecks, run_simulation_with_empty_netlist_prompts_and_aborts) {
+    // arrange
+    const auto path = temp_file_path("presenter_empty.cir");
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, make_source(path, ""), PluginConfig(kExecutablePath));
+    // act
+    presenter.run_simulation();
+    // assert (empty content parses to no analysis directive, so the run prompts and aborts without starting)
+    EXPECT_EQ(view.start_process_calls, 0);
+    EXPECT_TRUE(view.status_text.empty());
+    // cleanup
+    std::filesystem::remove(path);
+}
+
+// ========================================================================================
+// extract schematic netlist
+// ========================================================================================
+
+TEST(MainWindowPresenterChecks, extract_schematic_netlist_sets_read_only_editor) {
+    // arrange
+    const auto path = temp_file_path("presenter_extract.cir");
+    std::ofstream(path) << kNetlist;
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, make_source(path, kNetlist), PluginConfig());
+    // act
+    presenter.extract_schematic_netlist();
+    // assert
+    EXPECT_TRUE(view.editor_read_only);
+    EXPECT_TRUE(view.netlist_view_shown);
+    EXPECT_FALSE(view.charts_view_shown);
+    EXPECT_EQ(view.editor_content, kNetlist);
+    // cleanup
+    std::filesystem::remove(path);
+}
+
+// ========================================================================================
+// simulation output forwarding
+// ========================================================================================
+
+TEST(MainWindowPresenterChecks, simulation_stdout_forwarded_to_output) {
+    // arrange
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, nullptr, PluginConfig());
+    // act
+    presenter.handle_simulation_stdout("line one");
+    presenter.handle_simulation_stdout("line two");
+    // assert
+    EXPECT_EQ(view.output_content, "line one\nline two\n");
+}
+
+TEST(MainWindowPresenterChecks, simulation_stderr_sets_status) {
+    // arrange
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, nullptr, PluginConfig());
+    // act
+    presenter.handle_simulation_stderr("boom");
+    // assert
+    EXPECT_EQ(view.status_text, "Simulation error: boom");
+}
+
+// ========================================================================================
+// raw file state reset
+// ========================================================================================
+
+TEST(MainWindowPresenterChecks, open_netlist_file_clears_previous_raw_file) {
+    // arrange
+    std::vector<std::string> keys;
+    std::vector<std::vector<double>> values;
+    std::vector<std::pair<double, double>> ranges;
+    StepInformation step_info(keys, values, ranges);
+    ExpressionManager manager;
+    auto raw_file = std::make_shared<XyceOutputFile>("/tmp/presenter_reset.raw", "Raw Title", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    const auto path = temp_file_path("presenter_reset.cir");
+    std::ofstream(path) << kNetlist;
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, make_source(path, kNetlist), PluginConfig());
+    presenter.load_raw_file(raw_file);
+    ASSERT_TRUE(view.charts_view_shown);
+    ASSERT_TRUE(presenter.raw_file().has_value());
+    // act
+    presenter.open_netlist_file(path);
+    // assert
+    EXPECT_TRUE(view.netlist_view_shown);
+    EXPECT_FALSE(view.charts_view_shown);
+    EXPECT_FALSE(presenter.raw_file().has_value());
+    // cleanup
+    std::filesystem::remove(path);
+}
