@@ -26,15 +26,18 @@ public:
     // content views (netlist editor vs charts, mutually exclusive)
     virtual void show_netlist_view() = 0;
     virtual void show_charts_view() = 0;
-    virtual void set_netlist_editor_content(const std::string& content, bool dirty) = 0;
+    virtual void set_netlist_editor_content(const std::string& content) = 0;
     [[nodiscard]] virtual std::string netlist_editor_content() const = 0;
     virtual void set_netlist_editor_read_only(bool read_only) = 0;
+    [[nodiscard]] virtual bool charts_shown() const = 0;
 
     // simulation output panel / log
     virtual void show_simulation_output_panel() = 0;
     virtual void hide_simulation_output_panel() = 0;
     virtual void clear_simulation_output() = 0;
     virtual void append_simulation_output_line(const std::string& line) = 0;
+    [[nodiscard]] virtual bool simulation_output_panel_hidden() const = 0;
+    [[nodiscard]] virtual bool simulation_output_has_content() const = 0;
 
     // charts
     virtual void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) = 0;

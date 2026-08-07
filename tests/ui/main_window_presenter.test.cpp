@@ -69,11 +69,13 @@ public:
         netlist_view_shown = false;
     }
 
-    void set_netlist_editor_content(const std::string& value, bool) override { editor_content = value; }
+    void set_netlist_editor_content(const std::string& value) override { editor_content = value; }
 
     std::string netlist_editor_content() const override { return editor_content; }
 
     void set_netlist_editor_read_only(bool read_only) override { editor_read_only = read_only; }
+
+    bool charts_shown() const override { return charts_view_shown; }
 
     void show_simulation_output_panel() override { output_panel_hidden = false; }
 
@@ -82,6 +84,10 @@ public:
     void clear_simulation_output() override { output_content.clear(); }
 
     void append_simulation_output_line(const std::string& line) override { output_content += line + "\n"; }
+
+    bool simulation_output_panel_hidden() const override { return output_panel_hidden; }
+
+    bool simulation_output_has_content() const override { return !output_content.empty(); }
 
     void update_charts(ExpressionManager&, const StepInformation&, const std::string&, AbscissaScale) override {
         // count the chart updates
@@ -286,16 +292,6 @@ TEST(MainWindowPresenterChecks, simulation_finished_success_without_runner_sets_
     presenter.handle_simulation_finished(0, false);
     // assert
     EXPECT_EQ(view.status_text, "Simulation finished but runner reference is missing");
-}
-
-TEST(MainWindowPresenterChecks, cancel_simulation_without_runner_is_noop) {
-    // arrange
-    FakeMainWindowView view;
-    MainWindowPresenter presenter(view, nullptr, PluginConfig());
-    // act (must not crash or modify state)
-    presenter.cancel_simulation();
-    // assert
-    EXPECT_TRUE(view.status_text.empty());
 }
 
 // ========================================================================================

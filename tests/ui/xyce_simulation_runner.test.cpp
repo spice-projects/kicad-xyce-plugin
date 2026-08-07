@@ -102,13 +102,6 @@ TEST(XyceSimulationRunnerChecks, create_temp_netlist_file_is_writable) {
 }
 
 // simulation event tests
-TEST(XyceSimulationEventChecks, started_event_type_exists) {
-    // arrange / act
-    wxThreadEvent event(wxEVT_SIMULATION_STARTED);
-    // assert
-    ASSERT_EQ(event.GetEventType(), wxEVT_SIMULATION_STARTED);
-}
-
 TEST(XyceSimulationEventChecks, stdout_event_carries_string_payload) {
     // arrange
     wxThreadEvent event(wxEVT_SIMULATION_STDOUT);

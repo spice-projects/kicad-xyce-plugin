@@ -162,9 +162,6 @@ void XyceSimulationRunner::start(const std::string& program, const std::filesyst
     m_pid = pid;
     // state
     m_running = true;
-    // emit started event
-    wxThreadEvent started_event(wxEVT_SIMULATION_STARTED);
-    ProcessEvent(started_event);
     // start I/O polling timer
     m_io_timer.Start(IO_POLL_MS);
     // log information

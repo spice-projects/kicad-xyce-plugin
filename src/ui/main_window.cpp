@@ -335,18 +335,24 @@ void MainWindow::on_menu_file_save(wxCommandEvent&) {
 }
 
 void MainWindow::on_show_netlist(wxCommandEvent&) {
-    // forward to the presenter
-    m_presenter->show_netlist_view();
+    // switch to the netlist view
+    show_netlist_view();
+    // refresh toolbar/menu states
+    m_presenter->refresh_action_states();
 }
 
 void MainWindow::on_show_charts(wxCommandEvent&) {
-    // forward to the presenter
-    m_presenter->show_charts_view();
+    // switch to the charts view
+    show_charts_view();
+    // refresh toolbar/menu states
+    m_presenter->refresh_action_states();
 }
 
 void MainWindow::on_show_simulation_output(wxCommandEvent&) {
-    // forward to the presenter
-    m_presenter->show_simulation_output();
+    // show the simulation output panel
+    show_simulation_output_panel();
+    // refresh toolbar/menu states
+    m_presenter->refresh_action_states();
 }
 
 void MainWindow::on_configure_simulation(wxCommandEvent&) {
@@ -380,8 +386,10 @@ void MainWindow::on_simulation_stderr(wxThreadEvent& event) {
 }
 
 void MainWindow::on_close_simulation_output(wxCommandEvent&) {
-    // forward to the presenter
-    m_presenter->close_simulation_output();
+    // hide the simulation output panel
+    hide_simulation_output_panel();
+    // refresh toolbar/menu states
+    m_presenter->refresh_action_states();
 }
 
 void MainWindow::on_netlist_editor_modified(wxStyledTextEvent&) {
@@ -519,7 +527,7 @@ void MainWindow::show_charts_view() {
     m_content_sizer->Layout();
 }
 
-void MainWindow::set_netlist_editor_content(const std::string& content, bool) {
+void MainWindow::set_netlist_editor_content(const std::string& content) {
     // prevent dirty analysis during programmatic updates
     m_netlist_editor_updating = true;
     // current read-only state of the editor
@@ -540,6 +548,11 @@ std::string MainWindow::netlist_editor_content() const {
 void MainWindow::set_netlist_editor_read_only(bool read_only) {
     // set the editor read-only state
     m_netlist_editor->SetReadOnly(read_only);
+}
+
+bool MainWindow::charts_shown() const {
+    // the charts panel is the active content view
+    return m_charts_panel != nullptr && m_charts_panel->IsShown();
 }
 
 void MainWindow::show_simulation_output_panel() {
@@ -583,6 +596,16 @@ void MainWindow::append_simulation_output_line(const std::string& line) {
     m_simulation_output_panel->SetReadOnly(true);
     // scroll to the end so the latest output is visible
     m_simulation_output_panel->GotoPos(m_simulation_output_panel->GetLength());
+}
+
+bool MainWindow::simulation_output_panel_hidden() const {
+    // the output panel is hidden when the splitter holds only the content panel
+    return m_body_splitter != nullptr && !m_body_splitter->IsSplit();
+}
+
+bool MainWindow::simulation_output_has_content() const {
+    // the log holds content when the output panel text is not empty
+    return m_simulation_output_panel != nullptr && m_simulation_output_panel->GetLength() > 0;
 }
 
 void MainWindow::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) {
