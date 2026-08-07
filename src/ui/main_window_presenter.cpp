@@ -328,7 +328,7 @@ bool MainWindowPresenter::update_xyce_raw_file(std::optional<std::shared_ptr<Xyc
         if (delete_charts)
             m_view.delete_all_charts();
         // update the charts with the parsed data
-        m_view.update_charts(file->expression_manager(), file->step_information(), "", file->abscissa_scale());
+        m_view.update_charts(file->expression_manager(), file->step_information(), "", file->abscissa_scale(), file->suggested_plots());
         // indicate success
         return true;
     }

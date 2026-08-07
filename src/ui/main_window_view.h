@@ -40,7 +40,7 @@ public:
     [[nodiscard]] virtual bool simulation_output_has_content() const = 0;
 
     // charts
-    virtual void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) = 0;
+    virtual void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) = 0;
     virtual void delete_all_charts() = 0;
 
     // modal dialogs (still the view's job, they need a wx parent window)

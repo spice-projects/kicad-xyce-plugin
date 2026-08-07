@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <set>
 
 #include <imgui.h>
 #include <implot.h>
@@ -897,7 +898,7 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
     m_selected_chart = nullptr;
 }
 
-void ChartsPanel::update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, const AbscissaScale abscissa_scale) {
+void ChartsPanel::update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, const AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
     // recompute the decimation target from the current panel size and display scale
     update_decimation_target();
     // update fields
@@ -911,6 +912,31 @@ void ChartsPanel::update(ExpressionManager& expression_manager, const StepInform
         for (const auto& chart : m_charts) {
             // update chart with new information
             chart->update(m_expression_manager, m_step_information, m_abscissa_label, m_abscissa_scale);
+        }
+    }
+    else if (!suggested_plots.empty()) {
+        // create one chart per suggested plot group
+        for (const auto& plot_names : suggested_plots) {
+            // add a chart for the group
+            auto* chart = add_chart();
+            // resolved expressions for this group
+            std::set<AnyExpression*> resolved_expressions;
+            // resolve each expression name to its pointer
+            for (const auto& name : plot_names) {
+                // evaluate the expression name
+                auto* expression = m_expression_manager->evaluate(name);
+                // check it resolved to an existing expression
+                if (expression == nullptr) {
+                    // log information
+                    spdlog::warn("Suggested plot expression '{}' not found in expression manager", name);
+                    // skip unresolved expression
+                    continue;
+                }
+                // append resolved expression
+                resolved_expressions.insert(expression);
+            }
+            // plot the resolved expressions on the chart
+            chart->plot_series(resolved_expressions);
         }
     }
     else {

@@ -608,9 +608,9 @@ bool MainWindow::simulation_output_has_content() const {
     return m_simulation_output_panel != nullptr && m_simulation_output_panel->GetLength() > 0;
 }
 
-void MainWindow::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) {
+void MainWindow::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
     // refresh the charts panel with the given data
-    m_charts_panel->update(expression_manager, step_information, abscissa_label, abscissa_scale);
+    m_charts_panel->update(expression_manager, step_information, abscissa_label, abscissa_scale, suggested_plots);
 }
 
 void MainWindow::delete_all_charts() {

@@ -51,7 +51,7 @@ public:
     bool simulation_output_panel_hidden() const override;
     bool simulation_output_has_content() const override;
 
-    void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) override;
+    void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) override;
     void delete_all_charts() override;
 
     std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig& current) override;

@@ -33,7 +33,7 @@ public:
 
     ~ChartsPanel() override;
 
-    void update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale);
+    void update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots);
 
     Chart* add_chart();
 

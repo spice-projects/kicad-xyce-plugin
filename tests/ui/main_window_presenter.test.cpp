@@ -89,8 +89,9 @@ public:
 
     bool simulation_output_has_content() const override { return !output_content.empty(); }
 
-    void update_charts(ExpressionManager&, const StepInformation&, const std::string&, AbscissaScale) override {
-        // count the chart updates
+    void update_charts(ExpressionManager&, const StepInformation&, const std::string&, AbscissaScale, const std::vector<std::vector<std::string>>& suggested_plots) override {
+        // record the suggested plots and count the chart updates
+        update_charts_suggested_plots = suggested_plots;
         update_charts_calls++;
     }
 
@@ -134,6 +135,7 @@ public:
     int start_process_calls = 0;
     int spawn_raw_file_calls = 0;
     ActionStateEnablement applied_enablement;
+    std::vector<std::vector<std::string>> update_charts_suggested_plots;
 };
 
 // ========================================================================================
@@ -317,6 +319,24 @@ TEST(MainWindowPresenterChecks, load_raw_file_shows_charts_and_sets_title) {
     EXPECT_EQ(view.update_charts_calls, 1);
     EXPECT_EQ(view.delete_all_charts_calls, 1);
     EXPECT_TRUE(presenter.raw_file().has_value());
+}
+
+TEST(MainWindowPresenterChecks, load_raw_file_forwards_suggested_plots_to_charts) {
+    // arrange
+    const std::vector<std::vector<std::string>> expected_suggested_plots = {{"V(out)", "I(R1)"}, {"V(in)"}};
+    std::vector<std::string> keys;
+    std::vector<std::vector<double>> values;
+    std::vector<std::pair<double, double>> ranges;
+    StepInformation step_info(keys, values, ranges);
+    ExpressionManager manager;
+    auto raw_file = std::make_shared<XyceOutputFile>("/tmp/presenter.raw", "Raw Title", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, expected_suggested_plots);
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, nullptr, PluginConfig());
+    // act
+    presenter.load_raw_file(raw_file);
+    // assert
+    EXPECT_EQ(view.update_charts_calls, 1);
+    EXPECT_EQ(view.update_charts_suggested_plots, expected_suggested_plots);
 }
 
 // ========================================================================================
