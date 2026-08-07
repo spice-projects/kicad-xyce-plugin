@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 #include "../expression/expression.h"
 #include "../expression/expression_manager.h"
@@ -25,7 +26,7 @@ public:
 
     XyceOutputFile(XyceOutputFile&&) noexcept;
 
-    XyceOutputFile(std::filesystem::path filename, std::string title, bool is_complex, StepInformation&& step_info, AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, std::unique_ptr<MappedFile>&& mapped_file);
+    XyceOutputFile(std::filesystem::path filename, std::string title, bool is_complex, StepInformation&& step_info, AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, std::unique_ptr<MappedFile>&& mapped_file, std::unordered_map<std::string, std::string> metadata = {});
 
     ~XyceOutputFile();
 
@@ -47,6 +48,8 @@ public:
 
     [[nodiscard]] ExpressionManager& expression_manager();
 
+    [[nodiscard]] const std::unordered_map<std::string, std::string>& metadata() const;
+
 private:
     std::filesystem::path m_filename;
     std::string m_title;
@@ -56,4 +59,5 @@ private:
     ExpressionManager m_expression_manager;
 
     std::unique_ptr<MappedFile> m_mapped_file;
+    std::unordered_map<std::string, std::string> m_metadata;
 };

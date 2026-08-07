@@ -6,6 +6,7 @@
 #include <functional>
 #include <span>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -24,14 +25,14 @@ public:
 
     Expression(Expression&&) noexcept = default;
 
-    Expression(std::string name, std::vector<View<T>>&& steps, std::string unit, std::string source = "", std::string variable_type = "") :
-        m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)) {}
+    Expression(std::string name, std::vector<View<T>>&& steps, std::string unit, std::string source = "", std::string variable_type = "", std::vector<std::unordered_map<std::string, std::string>> metadata = {}) :
+        m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)), m_metadata(std::move(metadata)) {}
 
-    Expression(std::string name, std::vector<T>&& data, std::vector<std::span<const T>>&& steps, std::string unit, std::string source = "", std::string variable_type = "") :
-        m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)), m_cached_data(std::move(data)) {}
+    Expression(std::string name, std::vector<T>&& data, std::vector<std::span<const T>>&& steps, std::string unit, std::string source = "", std::string variable_type = "", std::vector<std::unordered_map<std::string, std::string>> metadata = {}) :
+        m_name(std::move(name)), m_steps(std::move(steps)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)), m_cached_data(std::move(data)), m_metadata(std::move(metadata)) {}
 
-    Expression(std::string name, std::vector<T>&& data, const std::vector<std::pair<size_t, size_t>>& step_slices, std::string unit, std::string source = "", std::string variable_type = "") :
-        m_name(std::move(name)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)), m_cached_data(std::move(data)) {
+    Expression(std::string name, std::vector<T>&& data, const std::vector<std::pair<size_t, size_t>>& step_slices, std::string unit, std::string source = "", std::string variable_type = "", std::vector<std::unordered_map<std::string, std::string>> metadata = {}) :
+        m_name(std::move(name)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)), m_cached_data(std::move(data)), m_metadata(std::move(metadata)) {
         // steps
         std::vector<std::span<const T>> steps;
         // reserve space for steps
@@ -45,8 +46,8 @@ public:
         m_steps = std::move(steps);
     }
 
-    Expression(std::string name, View<T>&& view, const std::vector<std::pair<size_t, size_t>>& step_slices, std::string unit, std::string source = "", std::string variable_type = "") :
-        m_name(std::move(name)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)) {
+    Expression(std::string name, View<T>&& view, const std::vector<std::pair<size_t, size_t>>& step_slices, std::string unit, std::string source = "", std::string variable_type = "", std::vector<std::unordered_map<std::string, std::string>> metadata = {}) :
+        m_name(std::move(name)), m_unit(std::move(unit)), m_source(std::move(source)), m_variable_type(std::move(variable_type)), m_metadata(std::move(metadata)) {
         // check view does not own data
         if (view.m_data.empty()) {
             // data vector
@@ -89,6 +90,8 @@ public:
     [[nodiscard]] const std::string& source() const { return m_source; }
 
     [[nodiscard]] const std::string& variable_type() const { return m_variable_type; }
+
+    [[nodiscard]] const std::vector<std::unordered_map<std::string, std::string>>& metadata() const { return m_metadata; }
 
     [[nodiscard]] size_t step_count() const {
         return std::visit([](auto&& v) { return v.size(); }, m_steps);
@@ -160,6 +163,7 @@ private:
     std::string m_source;
     std::string m_variable_type;
     std::variant<std::monostate, std::vector<T>> m_cached_data;
+    std::vector<std::unordered_map<std::string, std::string>> m_metadata;
 
     void initialize_expression_data() {
         // record start time
