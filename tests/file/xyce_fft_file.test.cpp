@@ -4,6 +4,7 @@
 #include <fstream>
 #include <gtest/gtest.h>
 #include <iomanip>
+#include <set>
 #include <sstream>
 #include <span>
 #include <string>
@@ -550,4 +551,85 @@ TEST(XyceFftFileTest, strips_braces_before_unit_inference) {
     ASSERT_NE(mag_expr, nullptr);
     ASSERT_EQ(mag_expr->unit(), "V");
     ASSERT_NE(evaluate_real(result->front()->expression_manager(), "FFT(V(OUT))"), nullptr);
+}
+
+// ========================================================================================
+// suggested plots
+// ========================================================================================
+
+TEST(XyceFftFileTest, suggests_magnitude_and_phase_plots_for_single_signal) {
+    // arrange
+    const TempDirRAII tmp;
+    tmp.write_file("suggest.fft0", make_fft_content());
+    const StepInformation step_info = make_step_information(1);
+    // act
+    const auto result = xyce_fft_file_parser(tmp.path() / "suggest.fft*", step_info);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    const auto& suggested_plots = result->front()->suggested_plots();
+    ASSERT_EQ(suggested_plots.size(), 1);
+    ASSERT_EQ(suggested_plots[0], (std::vector<std::string>{"FFT(V(OUT))", "FFT(phase(V(OUT)))"}));
+    // the suggested plot names resolve to expressions in the output manager
+    ASSERT_NE(evaluate_real(result->front()->expression_manager(), suggested_plots[0][0]), nullptr);
+    ASSERT_NE(evaluate_real(result->front()->expression_manager(), suggested_plots[0][1]), nullptr);
+}
+
+TEST(XyceFftFileTest, suggests_magnitude_and_phase_plots_for_each_signal) {
+    // arrange
+    const TempDirRAII tmp;
+    const std::string first_block = make_fft_content("I(L1)", "HANN", "1.000000e+02", "1.000000e+02", "1.000000e+03", "4.000000e-01", "0.000000e+00", true, {{"1", "1.000000e+02", "5.000000e-01", "0.000000e+00"}});
+    const std::string second_block = make_fft_content("V(OUT)", "HANN", "1.000000e+02", "1.000000e+02", "1.000000e+03", "2.000000e-01", "1.800000e+02", true, {{"1", "1.000000e+02", "6.000000e-01", "9.000000e+01"}});
+    tmp.write_file("suggest_multi.fft0", first_block + "\n" + second_block);
+    const StepInformation step_info = make_step_information(1);
+    // act
+    const auto result = xyce_fft_file_parser(tmp.path() / "suggest_multi.fft*", step_info);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->size(), 1);
+    const auto& suggested_plots = result->front()->suggested_plots();
+    ASSERT_EQ(suggested_plots.size(), 2);
+    // collect the suggested plot names
+    std::set<std::vector<std::string>> plot_groups(suggested_plots.begin(), suggested_plots.end());
+    ASSERT_NE(plot_groups.find({"FFT(I(L1))", "FFT(phase(I(L1)))"}), plot_groups.end());
+    ASSERT_NE(plot_groups.find({"FFT(V(OUT))", "FFT(phase(V(OUT)))"}), plot_groups.end());
+}
+
+TEST(XyceFftFileTest, caps_suggested_plots_at_three_signals) {
+    // arrange
+    const TempDirRAII tmp;
+    const std::vector<std::string> signals = {"V(A)", "V(B)", "V(C)", "V(D)"};
+    std::string content;
+    for (const auto& signal : signals)
+        content += make_fft_content(signal) + "\n";
+    tmp.write_file("suggest_cap.fft0", content);
+    const StepInformation step_info = make_step_information(1);
+    // act
+    const auto result = xyce_fft_file_parser(tmp.path() / "suggest_cap.fft*", step_info);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->size(), 1);
+    const auto& suggested_plots = result->front()->suggested_plots();
+    // only three signal groups are suggested regardless of the signal count
+    ASSERT_EQ(suggested_plots.size(), 3);
+    // every suggested group carries a magnitude and a phase expression resolving in the manager
+    auto& manager = result->front()->expression_manager();
+    for (const auto& group : suggested_plots) {
+        ASSERT_EQ(group.size(), 2);
+        ASSERT_NE(evaluate_real(manager, group[0]), nullptr);
+        ASSERT_NE(evaluate_real(manager, group[1]), nullptr);
+    }
+}
+
+TEST(XyceFftFileTest, strips_braces_in_suggested_plot_names) {
+    // arrange
+    const TempDirRAII tmp;
+    tmp.write_file("suggest_braces.fft0", make_fft_content("{V(OUT)}"));
+    const StepInformation step_info = make_step_information(1);
+    // act
+    const auto result = xyce_fft_file_parser(tmp.path() / "suggest_braces.fft*", step_info);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    const auto& suggested_plots = result->front()->suggested_plots();
+    ASSERT_EQ(suggested_plots.size(), 1);
+    ASSERT_EQ(suggested_plots[0], (std::vector<std::string>{"FFT(V(OUT))", "FFT(phase(V(OUT)))"}));
 }

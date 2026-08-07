@@ -512,12 +512,15 @@ namespace
             // initialize the expressions with the abscissa expression
             std::vector<AnyExpression> expressions;
             expressions.emplace_back(Expression<double>("frequency", std::move(abscissa_values), step_slices, "Hz", "FFT", "frequency"));
+            // suggested plots
+            std::vector<std::vector<std::string>> suggested_plots;
             // process each signal in this abscissa
             for (const auto& [signal_name, steps] : entry.signals) {
                 // validate the step count matches the step information
                 if (steps.size() != step_information.length()) {
                     // log the error
                     spdlog::error("invalid Xyce FFT file: inconsistent step count for signal '{}' in '{}': expected {}, found {}", signal_name, matching_files[0].string(), step_information.length(), steps.size());
+                    // exit
                     return std::nullopt;
                 }
                 // strip the braces from the signal name
@@ -544,6 +547,9 @@ namespace
                     // append the step metadata
                     metadata_steps.push_back(*step.metadata);
                 }
+                // append to suggested plots (a maximum of three charts are suggested for plotting)
+                if (suggested_plots.size() < 3)
+                    suggested_plots.push_back({"FFT(" + clean_name + ")", "FFT(phase(" + clean_name + "))"});
                 // create the magnitude and phase expressions
                 expressions.emplace_back(Expression<double>("FFT(" + clean_name + ")", std::move(magnitude_data), step_slices, magnitude_unit, "FFT", "", metadata_steps));
                 expressions.emplace_back(Expression<double>("FFT(phase(" + clean_name + "))", std::move(phase_data), step_slices, "°", "FFT", "", metadata_steps));
@@ -564,7 +570,7 @@ namespace
                 {"First Harmonic", std::to_string(key.first_harmonic)},
             };
             // create the output file
-            output_files.push_back(std::make_shared<XyceOutputFile>(matching_files[0], "FFT analysis", false, std::move(fft_step_information), AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, std::vector<std::vector<std::string>>{}, std::move(metadata)));
+            output_files.push_back(std::make_shared<XyceOutputFile>(matching_files[0], "FFT analysis", false, std::move(fft_step_information), AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, suggested_plots, std::move(metadata)));
         }
         // return the output files
         return output_files;
