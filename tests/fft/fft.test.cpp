@@ -15,7 +15,7 @@ TEST(FftChecks, throws_on_too_few_elements_in_x) {
     const std::vector<double> y = {1.0};
     const std::vector<std::span<const double>> y_matrix = {y};
     // act / assert
-    EXPECT_THROW(fft::compute_fft_many2(x, y_matrix, 10.0), std::invalid_argument);
+    EXPECT_THROW(fft::compute_fft_many(x, y_matrix, 10.0), std::invalid_argument);
 }
 
 TEST(FftChecks, throws_on_empty_y_matrix) {
@@ -23,7 +23,7 @@ TEST(FftChecks, throws_on_empty_y_matrix) {
     const std::vector<double> x = {0.0, 1.0, 2.0};
     const std::vector<std::span<const double>> y_matrix;
     // act / assert
-    EXPECT_THROW(fft::compute_fft_many2(x, y_matrix, 10.0), std::invalid_argument);
+    EXPECT_THROW(fft::compute_fft_many(x, y_matrix, 10.0), std::invalid_argument);
 }
 
 TEST(FftChecks, throws_on_mismatched_row_size) {
@@ -32,7 +32,7 @@ TEST(FftChecks, throws_on_mismatched_row_size) {
     const std::vector<double> y = {1.0, 2.0};
     const std::vector<std::span<const double>> y_matrix = {y};
     // act / assert
-    EXPECT_THROW(fft::compute_fft_many2(x, y_matrix, 10.0), std::invalid_argument);
+    EXPECT_THROW(fft::compute_fft_many(x, y_matrix, 10.0), std::invalid_argument);
 }
 
 TEST(FftChecks, throws_on_non_positive_max_frequency) {
@@ -41,7 +41,7 @@ TEST(FftChecks, throws_on_non_positive_max_frequency) {
     const std::vector<double> y = {1.0, 2.0, 3.0};
     const std::vector<std::span<const double>> y_matrix = {y};
     // act / assert
-    EXPECT_THROW(fft::compute_fft_many2(x, y_matrix, -5.0), std::invalid_argument);
+    EXPECT_THROW(fft::compute_fft_many(x, y_matrix, -5.0), std::invalid_argument);
 }
 
 TEST(FftChecks, throws_on_invalid_bounds) {
@@ -50,8 +50,8 @@ TEST(FftChecks, throws_on_invalid_bounds) {
     const std::vector<double> y = {1.0, 2.0, 3.0};
     const std::vector<std::span<const double>> y_matrix = {y};
     // act / assert
-    EXPECT_THROW(fft::compute_fft_many2(x, y_matrix, 10.0, fft::WindowFunction::RECTANGULAR, false, 2, 1), std::invalid_argument);
-    EXPECT_THROW(fft::compute_fft_many2(x, y_matrix, 10.0, fft::WindowFunction::RECTANGULAR, false, 0, 4), std::invalid_argument);
+    EXPECT_THROW(fft::compute_fft_many(x, y_matrix, 10.0, fft::WindowFunction::RECTANGULAR, false, 2, 1), std::invalid_argument);
+    EXPECT_THROW(fft::compute_fft_many(x, y_matrix, 10.0, fft::WindowFunction::RECTANGULAR, false, 0, 4), std::invalid_argument);
 }
 
 TEST(FftChecks, throws_on_too_few_interval_samples) {
@@ -60,7 +60,7 @@ TEST(FftChecks, throws_on_too_few_interval_samples) {
     const std::vector<double> y = {1.0, 2.0, 3.0};
     const std::vector<std::span<const double>> y_matrix = {y};
     // act / assert
-    EXPECT_THROW(fft::compute_fft_many2(x, y_matrix, 10.0, fft::WindowFunction::RECTANGULAR, false, 0, 1), std::invalid_argument);
+    EXPECT_THROW(fft::compute_fft_many(x, y_matrix, 10.0, fft::WindowFunction::RECTANGULAR, false, 0, 1), std::invalid_argument);
 }
 
 TEST(FftChecks, throws_on_non_monotonically_increasing_x) {
@@ -69,7 +69,7 @@ TEST(FftChecks, throws_on_non_monotonically_increasing_x) {
     const std::vector<double> y = {1.0, 2.0, 3.0, 4.0};
     const std::vector<std::span<const double>> y_matrix = {y};
     // act / assert
-    EXPECT_THROW(fft::compute_fft_many2(x, y_matrix, 10.0), std::invalid_argument);
+    EXPECT_THROW(fft::compute_fft_many(x, y_matrix, 10.0), std::invalid_argument);
 }
 
 TEST(FftChecks, computes_fft_for_constant_signal_with_keep_dc) {
@@ -78,7 +78,7 @@ TEST(FftChecks, computes_fft_for_constant_signal_with_keep_dc) {
     const std::vector<double> y = {5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0};
     const std::vector<std::span<const double>> y_matrix = {y};
     // act
-    const auto result = fft::compute_fft_many2(x, y_matrix, 1.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, true);
+    const auto result = fft::compute_fft_many(x, y_matrix, 1.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, true);
     // assert
     ASSERT_FALSE(result.frequencies.empty());
     ASSERT_EQ(result.values.size(), 1u);
@@ -93,7 +93,7 @@ TEST(FftChecks, computes_fft_for_constant_signal_subtracts_dc) {
     const std::vector<double> y = {5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0};
     const std::vector<std::span<const double>> y_matrix = {y};
     // act
-    const auto result = fft::compute_fft_many2(x, y_matrix, 1.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
+    const auto result = fft::compute_fft_many(x, y_matrix, 1.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
     // assert
     ASSERT_FALSE(result.frequencies.empty());
     ASSERT_EQ(result.values.size(), 1u);
@@ -111,7 +111,7 @@ TEST(FftChecks, computes_fft_for_sine_wave_correct_frequency_and_amplitude) {
     }
     const std::vector<std::span<const double>> y_matrix = {y};
     // act
-    const auto result = fft::compute_fft_many2(x, y_matrix, 4.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
+    const auto result = fft::compute_fft_many(x, y_matrix, 4.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
     // assert
     ASSERT_FALSE(result.frequencies.empty());
     size_t peak_bin = 0;
@@ -137,7 +137,7 @@ TEST(FftChecks, computes_fft_normalization_peaks_at_one) {
     }
     const std::vector<std::span<const double>> y_matrix = {y};
     // act
-    const auto result = fft::compute_fft_many2(x, y_matrix, 4.0, fft::WindowFunction::RECTANGULAR, true, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
+    const auto result = fft::compute_fft_many(x, y_matrix, 4.0, fft::WindowFunction::RECTANGULAR, true, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
     // assert
     ASSERT_FALSE(result.frequencies.empty());
     double max_mag = 0.0;
@@ -153,7 +153,7 @@ TEST(FftChecks, computes_fft_with_magnitude_db_output) {
     const std::vector<double> y = {5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0};
     const std::vector<std::span<const double>> y_matrix = {y};
     // act
-    const auto result = fft::compute_fft_many2(x, y_matrix, 1.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE_DB, true);
+    const auto result = fft::compute_fft_many(x, y_matrix, 1.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE_DB, true);
     // assert
     ASSERT_FALSE(result.frequencies.empty());
     EXPECT_NEAR(result.values[0][0], 20.0 * std::log10(5.0 * (128.0 / 71.0)), 1e-4);
@@ -170,8 +170,8 @@ TEST(FftChecks, computes_fft_with_phase_output) {
     }
     const std::vector<std::span<const double>> y_matrix = {y};
     // act
-    const auto result_mag = fft::compute_fft_many2(x, y_matrix, 4.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
-    const auto result_phase = fft::compute_fft_many2(x, y_matrix, 4.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::PHASE, false);
+    const auto result_mag = fft::compute_fft_many(x, y_matrix, 4.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
+    const auto result_phase = fft::compute_fft_many(x, y_matrix, 4.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::PHASE, false);
     // assert
     ASSERT_EQ(result_mag.values[0].size(), result_phase.values[0].size());
     size_t peak_bin = 0;
@@ -201,7 +201,7 @@ TEST(FftChecks, integer_cycle_sine_has_single_bin_peak) {
     }
     const std::vector<std::span<const double>> y_matrix = {y};
     // act
-    const auto result = fft::compute_fft_many2(x, y_matrix, 204.8, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
+    const auto result = fft::compute_fft_many(x, y_matrix, 204.8, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
     // assert
     ASSERT_EQ(result.frequencies.size(), 1025u);
     size_t peak_bin = 0;
@@ -240,7 +240,7 @@ TEST(FftChecks, two_tone_amplitudes_preserved) {
     }
     const std::vector<std::span<const double>> y_matrix = {y};
     // act
-    const auto result = fft::compute_fft_many2(x, y_matrix, 819.2, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
+    const auto result = fft::compute_fft_many(x, y_matrix, 819.2, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
     // assert
     size_t idx1 = 0;
     size_t idx2 = 0;
@@ -278,7 +278,7 @@ TEST(FftChecks, parseval_energy_conservation) {
     }
     const std::vector<std::span<const double>> y_matrix = {y};
     // act
-    const auto result = fft::compute_fft_many2(x, y_matrix, 100.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, true);
+    const auto result = fft::compute_fft_many(x, y_matrix, 100.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, true);
     // assert
     double time_energy = 0.0;
     for (double val : y) {
@@ -311,7 +311,7 @@ TEST(FftChecks, dc_amplitude_is_one_for_unit_dc_signal) {
     }
     const std::vector<std::span<const double>> y_matrix = {y};
     // act
-    const auto result = fft::compute_fft_many2(x, y_matrix, 100.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, true);
+    const auto result = fft::compute_fft_many(x, y_matrix, 100.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, true);
     // assert
     EXPECT_NEAR(result.values[0][0], 1.0, 0.001);
 }
@@ -332,7 +332,7 @@ TEST(FftChecks, nyquist_bin_not_doubled_for_even_n) {
     }
     const std::vector<std::span<const double>> y_matrix = {y};
     // act
-    const auto result = fft::compute_fft_many2(x, y_matrix, 100.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
+    const auto result = fft::compute_fft_many(x, y_matrix, 100.0, fft::WindowFunction::RECTANGULAR, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
     // assert
     const size_t nyq_bin = 256;
     EXPECT_NEAR(result.values[0][nyq_bin], 1.0, 0.01);
@@ -357,7 +357,7 @@ TEST(FftChecks, all_window_functions_recover_unit_amplitude) {
     const double tolerances[] = {0.01, 0.05, 0.05, 0.05};
     for (size_t w = 0; w < 4; ++w) {
         // act
-        const auto result = fft::compute_fft_many2(x, y_matrix, 102.4, windows[w], false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
+        const auto result = fft::compute_fft_many(x, y_matrix, 102.4, windows[w], false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
         // assert
         double max_mag = 0.0;
         for (size_t i = 0; i < result.values[0].size(); ++i) {
@@ -389,9 +389,9 @@ TEST(FftChecks, many2_matches_individual_runs) {
     const std::vector<std::span<const double>> y_matrix1 = {y1};
     const std::vector<std::span<const double>> y_matrix2 = {y2};
     // act
-    const auto result_many = fft::compute_fft_many2(x, y_matrix, 409.6, fft::WindowFunction::HANNING, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
-    const auto result1 = fft::compute_fft_many2(x, y_matrix1, 409.6, fft::WindowFunction::HANNING, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
-    const auto result2 = fft::compute_fft_many2(x, y_matrix2, 409.6, fft::WindowFunction::HANNING, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
+    const auto result_many = fft::compute_fft_many(x, y_matrix, 409.6, fft::WindowFunction::HANNING, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
+    const auto result1 = fft::compute_fft_many(x, y_matrix1, 409.6, fft::WindowFunction::HANNING, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
+    const auto result2 = fft::compute_fft_many(x, y_matrix2, 409.6, fft::WindowFunction::HANNING, false, 0, std::nullopt, fft::FftOutput::MAGNITUDE, false);
     // assert
     ASSERT_EQ(result_many.frequencies.size(), result1.frequencies.size());
     ASSERT_EQ(result_many.frequencies.size(), result2.frequencies.size());

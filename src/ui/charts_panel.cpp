@@ -700,33 +700,6 @@ void ChartsPanel::on_menu_new_window(wxCommandEvent& event) {
     event.Skip();
 }
 
-double ChartsPanel::compute_default_max_frequency(Expression<double>& abscissa) {
-    // minimum sampling interval across all steps
-    double min_dt = (std::numeric_limits<double>::max)();
-    // loop steps to find the smallest time delta within any single step
-    for (size_t step = 0; step < abscissa.step_count(); ++step) {
-        // abscissa values for this step — zero copy per-step view
-        auto step_data = abscissa.step_data(step);
-        // require at least two samples to measure a time step
-        if (step_data.size() < 2)
-            continue;
-        // measure the smallest delta between adjacent samples within this step
-        for (size_t i = 1; i < step_data.size(); ++i) {
-            // compute the time delta between adjacent samples
-            double dt = step_data[i] - step_data[i - 1];
-            if (dt > 0.0)
-                min_dt = (std::min)(min_dt, dt);
-        }
-    }
-    // conservative fallback when no valid time delta exists
-    if (min_dt == (std::numeric_limits<double>::max)())
-        return 1e5;
-    // choose a default max frequency as 40% of Nyquist for stable defaults
-    double nyquist = 0.5 / min_dt;
-    // return the maximum of 100 Hz or 40% of Nyquist frequency
-    return (std::max)(100.0, 0.4 * nyquist);
-}
-
 void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
     // check we have a selected chart
     if (m_selected_chart == nullptr) {
@@ -746,8 +719,8 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
     // apply selected chart zoom (use full range if zoom is reset)
     double min_abscissa_value_zoomed = min_abscissa_value + (x_left_ratio < 0.0 ? 0.0 : x_left_ratio) * (max_abscissa_value - min_abscissa_value);
     double max_abscissa_value_zoomed = min_abscissa_value + (x_right_ratio < 0.0 ? 1.0 : x_right_ratio) * (max_abscissa_value - min_abscissa_value);
-    // compute default max frequency from the abscissa sampling
-    double default_max_frequency = compute_default_max_frequency(m_expression_manager->abscissa());
+    // use a stable default that is independent of adaptive solver time steps
+    constexpr double default_max_frequency = 1e5;
     // current expressions plotted on the selected chart
     auto plotted_expressions = m_selected_chart->selected_expressions();
     // open FFT settings dialog (pre-select all real expressions)
@@ -826,7 +799,7 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
         auto x_interval = step_abscissa.subspan(from_index, to_index - from_index);
         try {
             // compute FFT, all expressions in y_matrix are processed together for this step
-            auto result = fft::compute_fft_many2(x_interval, y_matrix, max_frequency, window_fn, normalize, 0, x_interval.size() - 1, output, keep_dc);
+            auto result = fft::compute_fft_many(x_interval, y_matrix, max_frequency, window_fn, normalize, 0, x_interval.size() - 1, output, keep_dc);
             // check if the frequency axis is empty
             if (result.frequencies.empty()) {
                 // log information

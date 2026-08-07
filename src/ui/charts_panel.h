@@ -152,6 +152,4 @@ private:
     void on_menu_new_window(wxCommandEvent&);
 
     void on_menu_calculate_fft(wxCommandEvent&);
-
-    static double compute_default_max_frequency(Expression<double>& abscissa);
 };

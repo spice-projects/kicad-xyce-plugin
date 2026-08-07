@@ -166,8 +166,8 @@ FftDialog::FftDialog(wxWindow* parent, ExpressionManager* expressions_manager, s
 
     main_sizer->Add(output_sizer, 0, wxLEFT | wxRIGHT, FromDIP(16));
 
-    // max frequency section
-    auto freq_label = new wxStaticText(this, wxID_ANY, "Maximum Frequency:");
+    // interpolation frequency section
+    auto freq_label = new wxStaticText(this, wxID_ANY, "Interpolation Frequency:");
     freq_label->SetFont(label_font);
     main_sizer->Add(freq_label, 0, wxTOP | wxLEFT | wxRIGHT, FromDIP(8));
 

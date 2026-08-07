@@ -36,7 +36,7 @@ namespace fft
         };
     }
 
-    FftResult compute_fft_many2(std::span<const double> x, const std::vector<std::span<const double>>& y_matrix, double max_frequency, WindowFunction window, bool normalize, size_t x_left_index, std::optional<size_t> x_right_index, FftOutput output, bool keep_dc, InterpolationAlgorithm algo) {
+    FftResult compute_fft_many(std::span<const double> x, const std::vector<std::span<const double>>& y_matrix, double max_frequency, WindowFunction window, bool normalize, size_t x_left_index, std::optional<size_t> x_right_index, FftOutput output, bool keep_dc, InterpolationAlgorithm algo) {
         // validate that x has at least 2 elements
         if (x.size() < 2)
             throw std::invalid_argument("x must contain at least 2 elements");
