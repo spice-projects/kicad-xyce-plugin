@@ -85,9 +85,7 @@ MainWindow::MainWindow(const wxString& title, std::shared_ptr<KiCadSession> sess
     m_content_sizer->Add(m_charts_panel, 1, wxEXPAND | wxALL, 0);
     m_content_sizer->Hide(m_charts_panel);
     // set FFT result callback to spawn new window
-    m_charts_panel->set_fft_result_callback([this](std::shared_ptr<XyceOutputFile> raw_file) {
-        spawn_raw_file_window(std::move(raw_file));
-    });
+    m_charts_panel->set_fft_result_callback([this](std::shared_ptr<XyceOutputFile> raw_file) { spawn_raw_file_window(std::move(raw_file)); });
     // set sizer for content panel
     m_content_panel->SetSizer(m_content_sizer);
     // create simulation output container, holds a header bar and the log area
