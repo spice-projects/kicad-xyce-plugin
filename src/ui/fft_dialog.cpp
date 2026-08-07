@@ -20,24 +20,35 @@
 
 namespace
 {
-    struct MaxFrequencyOption
-    {
-        const char* label;
-        double value;
-    };
+    // preset np options exposed by the dialog, defaulting to the xyce default of 1024
+    const std::vector<size_t> NP_OPTIONS = {256, 512, 1024, 2048, 4096, 8192, 16384};
 
-    const std::vector<MaxFrequencyOption> MAX_FREQUENCY_OPTIONS = {{"100 Hz", 100.0}, {"1 kHz", 1e3}, {"10 kHz", 1e4}, {"100 kHz", 1e5}, {"1 MHz", 1e6}, {"10 MHz", 1e7}, {"100 MHz", 1e8}, {"1 GHz", 1e9}, {"10 GHz", 1e10}, {"100 GHz", 1e11}};
+    const int CUSTOM_NP_INDEX = static_cast<int>(NP_OPTIONS.size());
 
-    const int CUSTOM_FREQUENCY_INDEX = static_cast<int>(MAX_FREQUENCY_OPTIONS.size());
+    // canonicalize a requested np value to the nearest power of two, rounding up on the midpoint
+    size_t resolve_np(size_t requested_np) {
+        // find the exponent bounds around the requested value
+        const double log2_value = std::log2(static_cast<double>(requested_np));
+        // lower power of two exponent
+        const size_t lower_exponent = static_cast<size_t>(std::floor(log2_value));
+        // upper power of two exponent
+        const size_t upper_exponent = static_cast<size_t>(std::ceil(log2_value));
+        // lower power of two value
+        const size_t lower = static_cast<size_t>(1) << lower_exponent;
+        // upper power of two value
+        const size_t upper = static_cast<size_t>(1) << upper_exponent;
+        // round down unless closer to the upper bound
+        return (requested_np - lower < upper - requested_np) ? lower : upper;
+    }
 
-    int find_closest_frequency_index(double target) {
-        // search for the option closest to the target
-        return static_cast<int>(std::distance(MAX_FREQUENCY_OPTIONS.begin(), std::min_element(MAX_FREQUENCY_OPTIONS.begin(), MAX_FREQUENCY_OPTIONS.end(), [target](const MaxFrequencyOption& a, const MaxFrequencyOption& b) { return std::abs(a.value - target) < std::abs(b.value - target); })));
+    size_t find_default_np_index(size_t default_np) {
+        // search for the preset closest to the target
+        return static_cast<size_t>(std::distance(NP_OPTIONS.begin(), std::min_element(NP_OPTIONS.begin(), NP_OPTIONS.end(), [default_np](size_t a, size_t b) { return std::abs(static_cast<long long>(a) - static_cast<long long>(default_np)) < std::abs(static_cast<long long>(b) - static_cast<long long>(default_np)); })));
     }
 } // namespace
 
-FftDialog::FftDialog(wxWindow* parent, ExpressionManager* expressions_manager, std::vector<AnyExpression*> selected_expressions, double min_abscissa_value, double max_abscissa_value, double min_abscissa_value_zoomed, double max_abscissa_value_zoomed, double default_max_frequency) :
-    wxDialog(parent, wxID_ANY, "FFT", wxDefaultPosition, FromDIP(wxSize(600, 550)), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER), m_min_abscissa_value(min_abscissa_value), m_max_abscissa_value(max_abscissa_value), m_min_abscissa_value_zoomed(min_abscissa_value_zoomed), m_max_abscissa_value_zoomed(max_abscissa_value_zoomed), m_from_index(min_abscissa_value_zoomed), m_to_index(max_abscissa_value_zoomed), m_max_frequency(default_max_frequency > 0.0 ? default_max_frequency : 1e5) {
+FftDialog::FftDialog(wxWindow* parent, ExpressionManager* expressions_manager, std::vector<AnyExpression*> selected_expressions, double min_abscissa_value, double max_abscissa_value, double min_abscissa_value_zoomed, double max_abscissa_value_zoomed) :
+    wxDialog(parent, wxID_ANY, "FFT", wxDefaultPosition, FromDIP(wxSize(600, 550)), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER), m_min_abscissa_value(min_abscissa_value), m_max_abscissa_value(max_abscissa_value), m_min_abscissa_value_zoomed(min_abscissa_value_zoomed), m_max_abscissa_value_zoomed(max_abscissa_value_zoomed), m_from_index(min_abscissa_value_zoomed), m_to_index(max_abscissa_value_zoomed), m_parameters{.np = 1024, .window = fft::WindowFunction::HANNING, .format = fft::FftFormat::NORM, .start = min_abscissa_value_zoomed, .stop = max_abscissa_value_zoomed, .output = fft::FftOutput::MAGNITUDE, .keep_dc = true} {
     // min size
     SetMinSize(FromDIP(wxSize(600, 550)));
 
@@ -96,9 +107,9 @@ FftDialog::FftDialog(wxWindow* parent, ExpressionManager* expressions_manager, s
     m_custom_to_input->SetHint("to");
 
     // add custom range fields to sizer
-    range_sizer->Add(new wxStaticText(this, wxID_ANY, "From:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
+    range_sizer->Add(new wxStaticText(this, wxID_ANY, "START:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
     range_sizer->Add(m_custom_from_input, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
-    range_sizer->Add(new wxStaticText(this, wxID_ANY, "To:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
+    range_sizer->Add(new wxStaticText(this, wxID_ANY, "STOP:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
     range_sizer->Add(m_custom_to_input, 0, wxALIGN_CENTER_VERTICAL);
 
     main_sizer->Add(range_sizer, 0, wxLEFT | wxRIGHT, FromDIP(16));
@@ -122,7 +133,7 @@ FftDialog::FftDialog(wxWindow* parent, ExpressionManager* expressions_manager, s
     window_label->SetFont(label_font);
     main_sizer->Add(window_label, 0, wxTOP | wxLEFT | wxRIGHT, FromDIP(8));
 
-    // create horizontal sizer for window function and normalize
+    // create horizontal sizer for window function and format
     auto window_sizer = new wxBoxSizer(wxHORIZONTAL);
     m_window_choice = new wxChoice(this, wxID_ANY);
     m_window_choice->Append("Rectangular");
@@ -133,12 +144,15 @@ FftDialog::FftDialog(wxWindow* parent, ExpressionManager* expressions_manager, s
     m_window_choice->SetSelection(2);
     window_sizer->Add(m_window_choice, 0, wxRIGHT, FromDIP(12));
 
-    // normalize checkbox
-    auto normalize_label = new wxStaticText(this, wxID_ANY, "Normalize:");
-    window_sizer->Add(normalize_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
-    m_normalize_checkbox = new wxCheckBox(this, wxID_ANY, "");
-    m_normalize_checkbox->SetValue(true);
-    window_sizer->Add(m_normalize_checkbox, 0, wxALIGN_CENTER_VERTICAL);
+    // format choice
+    auto format_label = new wxStaticText(this, wxID_ANY, "Format:");
+    window_sizer->Add(format_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
+    m_format_choice = new wxChoice(this, wxID_ANY);
+    m_format_choice->Append("Normalized (NORM)");
+    m_format_choice->Append("Unnormalized (UNORM)");
+    // default to NORM
+    m_format_choice->SetSelection(0);
+    window_sizer->Add(m_format_choice, 0, wxALIGN_CENTER_VERTICAL);
 
     main_sizer->Add(window_sizer, 0, wxLEFT | wxRIGHT, FromDIP(16));
 
@@ -161,38 +175,38 @@ FftDialog::FftDialog(wxWindow* parent, ExpressionManager* expressions_manager, s
     auto keep_dc_label = new wxStaticText(this, wxID_ANY, "Keep DC:");
     output_sizer->Add(keep_dc_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(4));
     m_keep_dc_checkbox = new wxCheckBox(this, wxID_ANY, "");
-    m_keep_dc_checkbox->SetValue(false);
+    m_keep_dc_checkbox->SetValue(true);
     output_sizer->Add(m_keep_dc_checkbox, 0, wxALIGN_CENTER_VERTICAL);
 
     main_sizer->Add(output_sizer, 0, wxLEFT | wxRIGHT, FromDIP(16));
 
-    // interpolation frequency section
-    auto freq_label = new wxStaticText(this, wxID_ANY, "Interpolation Frequency:");
-    freq_label->SetFont(label_font);
-    main_sizer->Add(freq_label, 0, wxTOP | wxLEFT | wxRIGHT, FromDIP(8));
+    // fft points section
+    auto np_label = new wxStaticText(this, wxID_ANY, "FFT Points (NP):");
+    np_label->SetFont(label_font);
+    main_sizer->Add(np_label, 0, wxTOP | wxLEFT | wxRIGHT, FromDIP(8));
 
-    // create horizontal sizer for frequency choice and custom input
-    auto freq_sizer = new wxBoxSizer(wxHORIZONTAL);
-    m_frequency_choice = new wxChoice(this, wxID_ANY);
-    for (const auto& opt : MAX_FREQUENCY_OPTIONS)
-        m_frequency_choice->Append(opt.label);
-    m_frequency_choice->Append("Custom...");
-    // set selection closest to default max frequency
-    m_frequency_choice->SetSelection(find_closest_frequency_index(m_max_frequency));
-    freq_sizer->Add(m_frequency_choice, 0, wxRIGHT, FromDIP(8));
+    // create horizontal sizer for np choice and custom input
+    auto np_sizer = new wxBoxSizer(wxHORIZONTAL);
+    m_np_choice = new wxChoice(this, wxID_ANY);
+    for (const size_t np : NP_OPTIONS)
+        m_np_choice->Append(std::to_string(np));
+    m_np_choice->Append("Custom...");
+    // set selection closest to default np
+    m_np_choice->SetSelection(static_cast<int>(find_default_np_index(m_parameters.np)));
+    np_sizer->Add(m_np_choice, 0, wxRIGHT, FromDIP(8));
 
-    // custom frequency input
-    m_custom_frequency_input = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, FromDIP(wxSize(80, -1)));
-    m_custom_frequency_input->SetHint("e.g. 50000");
-    m_custom_frequency_input->Enable(false);
-    freq_sizer->Add(m_custom_frequency_input, 0, wxALIGN_CENTER_VERTICAL);
+    // custom np input
+    m_custom_np_input = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, FromDIP(wxSize(80, -1)));
+    m_custom_np_input->SetHint("e.g. 4096");
+    m_custom_np_input->Enable(false);
+    np_sizer->Add(m_custom_np_input, 0, wxALIGN_CENTER_VERTICAL);
 
-    main_sizer->Add(freq_sizer, 0, wxLEFT | wxRIGHT, FromDIP(16));
+    main_sizer->Add(np_sizer, 0, wxLEFT | wxRIGHT, FromDIP(16));
 
-    // bind frequency choice event to toggle custom input
-    m_frequency_choice->Bind(wxEVT_CHOICE, [this](wxCommandEvent&) {
-        bool is_custom = (m_frequency_choice->GetSelection() == CUSTOM_FREQUENCY_INDEX);
-        m_custom_frequency_input->Enable(is_custom);
+    // bind np choice event to toggle custom input
+    m_np_choice->Bind(wxEVT_CHOICE, [this](wxCommandEvent&) {
+        bool is_custom = (m_np_choice->GetSelection() == CUSTOM_NP_INDEX);
+        m_custom_np_input->Enable(is_custom);
     });
 
     // create standard OK/Cancel button sizer using platform conventions
@@ -267,19 +281,19 @@ void FftDialog::on_ok(wxCommandEvent& event) {
     int window_selection = m_window_choice->GetSelection();
     switch (window_selection) {
     case 0:
-        m_window_function = fft::WindowFunction::RECTANGULAR;
+        m_parameters.window = fft::WindowFunction::RECTANGULAR;
         break;
     case 1:
-        m_window_function = fft::WindowFunction::HAMMING;
+        m_parameters.window = fft::WindowFunction::HAMMING;
         break;
     case 2:
-        m_window_function = fft::WindowFunction::HANNING;
+        m_parameters.window = fft::WindowFunction::HANNING;
         break;
     case 3:
-        m_window_function = fft::WindowFunction::BLACKMAN;
+        m_parameters.window = fft::WindowFunction::BLACKMAN;
         break;
     default:
-        m_window_function = fft::WindowFunction::HANNING;
+        m_parameters.window = fft::WindowFunction::HANNING;
         break;
     }
 
@@ -287,64 +301,90 @@ void FftDialog::on_ok(wxCommandEvent& event) {
     int output_selection = m_output_choice->GetSelection();
     switch (output_selection) {
     case 0:
-        m_output = fft::FftOutput::MAGNITUDE;
+        m_parameters.output = fft::FftOutput::MAGNITUDE;
         break;
     case 1:
-        m_output = fft::FftOutput::MAGNITUDE_DB;
+        m_parameters.output = fft::FftOutput::MAGNITUDE_DB;
         break;
     case 2:
-        m_output = fft::FftOutput::PHASE;
+        m_parameters.output = fft::FftOutput::PHASE;
         break;
     default:
-        m_output = fft::FftOutput::MAGNITUDE;
+        m_parameters.output = fft::FftOutput::MAGNITUDE;
         break;
     }
 
-    // read checkbox values
-    m_normalize = m_normalize_checkbox->GetValue();
-    m_keep_dc = m_keep_dc_checkbox->GetValue();
+    // resolve format selection
+    int format_selection = m_format_choice->GetSelection();
+    switch (format_selection) {
+    case 0:
+        m_parameters.format = fft::FftFormat::NORM;
+        break;
+    case 1:
+        m_parameters.format = fft::FftFormat::UNORM;
+        break;
+    default:
+        m_parameters.format = fft::FftFormat::NORM;
+        break;
+    }
 
-    // handle custom frequency input if selected
-    if (m_frequency_choice->GetSelection() == CUSTOM_FREQUENCY_INDEX) {
-        // validate custom frequency input
-        if (m_custom_frequency_input->GetValue().IsEmpty()) {
-            // show error message for empty custom frequency input
-            wxMessageBox("Please enter a custom frequency value.", "Error", wxOK | wxICON_ERROR, this);
+    // read keep dc value
+    m_parameters.keep_dc = m_keep_dc_checkbox->GetValue();
+
+    // handle custom np input if selected
+    if (m_np_choice->GetSelection() == CUSTOM_NP_INDEX) {
+        // validate custom np input
+        if (m_custom_np_input->GetValue().IsEmpty()) {
+            // show error message for empty custom np input
+            wxMessageBox("Please enter a custom number of FFT points.", "Error", wxOK | wxICON_ERROR, this);
             // skip event to prevent dialog from closing
             event.Skip(false);
             // exit
             return;
         }
         try {
-            // parse custom frequency input
-            m_max_frequency = std::stod(m_custom_frequency_input->GetValue().ToStdString());
+            // parse custom np input
+            m_parameters.np = static_cast<size_t>(std::stoll(m_custom_np_input->GetValue().ToStdString()));
         }
         catch (...) {
-            // show error message for invalid frequency input
-            wxMessageBox("Invalid frequency value.", "Error", wxOK | wxICON_ERROR, this);
+            // show error message for invalid np input
+            wxMessageBox("Invalid number of FFT points.", "Error", wxOK | wxICON_ERROR, this);
             // skip event to prevent dialog from closing
             event.Skip(false);
             // exit
             return;
         }
-        // validate frequency is positive
-        if (m_max_frequency <= 0.0) {
-            // show error message for non-positive frequency
-            wxMessageBox("Maximum frequency must be positive.", "Error", wxOK | wxICON_ERROR, this);
+        // validate np is at least 4
+        if (m_parameters.np < 4) {
+            // show error message for np below minimum
+            wxMessageBox("Number of FFT points must be at least 4.", "Error", wxOK | wxICON_ERROR, this);
             // skip event to prevent dialog from closing
             event.Skip(false);
             // exit
             return;
         }
+        // canonicalize to the nearest power of two
+        m_parameters.np = resolve_np(m_parameters.np);
+        // show the resolved value
+        m_custom_np_input->SetValue(std::to_string(m_parameters.np));
     }
     else {
-        // use preset frequency value
-        m_max_frequency = MAX_FREQUENCY_OPTIONS[m_frequency_choice->GetSelection()].value;
+        // use preset np value
+        m_parameters.np = NP_OPTIONS[m_np_choice->GetSelection()];
     }
 
+    // update start/stop from the selected range
+    m_parameters.start = m_from_index;
+    m_parameters.stop = m_to_index;
+
     // log accepted parameters
-    spdlog::debug("FFT dialog accepted: {} expressions, window={}, output={}, max_freq={} Hz, range=[{}, {}], normalize={}, keep_dc={}", m_expression_selector->selected_expressions().size(), static_cast<int>(m_window_function), static_cast<int>(m_output), m_max_frequency, m_from_index, m_to_index, m_normalize, m_keep_dc);
+    spdlog::debug("FFT dialog accepted: {} expressions, window={}, output={}, np={}, range=[{}, {}], format={}, keep_dc={}", m_expression_selector->selected_expressions().size(), static_cast<int>(m_parameters.window), static_cast<int>(m_parameters.output), m_parameters.np, m_parameters.start, m_parameters.stop, static_cast<int>(m_parameters.format), m_parameters.keep_dc);
 
     // skip event to allow default handling (closing the dialog)
     event.Skip();
+}
+
+fft::FftParameters FftDialog::parameters() const {
+    // return the accepted parameters
+    return m_parameters;
 }

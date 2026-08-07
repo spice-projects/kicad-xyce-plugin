@@ -24,7 +24,7 @@
 class FftDialog : public wxDialog
 {
 public:
-    FftDialog(wxWindow* parent, ExpressionManager* expressions_manager, std::vector<AnyExpression*> selected_expressions, double min_abscissa_value, double max_abscissa_value, double min_abscissa_value_zoomed, double max_abscissa_value_zoomed, double default_max_frequency);
+    FftDialog(wxWindow* parent, ExpressionManager* expressions_manager, std::vector<AnyExpression*> selected_expressions, double min_abscissa_value, double max_abscissa_value, double min_abscissa_value_zoomed, double max_abscissa_value_zoomed);
 
     [[nodiscard]] std::vector<AnyExpression*> selected_expressions() const;
 
@@ -32,15 +32,7 @@ public:
 
     [[nodiscard]] double to_index() const { return m_to_index; }
 
-    [[nodiscard]] fft::WindowFunction window_function() const { return m_window_function; }
-
-    [[nodiscard]] double max_frequency() const { return m_max_frequency; }
-
-    [[nodiscard]] bool normalize() const { return m_normalize; }
-
-    [[nodiscard]] bool keep_dc() const { return m_keep_dc; }
-
-    [[nodiscard]] fft::FftOutput output() const { return m_output; }
+    [[nodiscard]] fft::FftParameters parameters() const;
 
 private:
     friend class FftDialogTest;
@@ -59,10 +51,10 @@ private:
 
     wxChoice* m_window_choice{nullptr};
     wxChoice* m_output_choice{nullptr};
-    wxChoice* m_frequency_choice{nullptr};
-    wxTextCtrl* m_custom_frequency_input{nullptr};
+    wxChoice* m_np_choice{nullptr};
+    wxTextCtrl* m_custom_np_input{nullptr};
 
-    wxCheckBox* m_normalize_checkbox{nullptr};
+    wxChoice* m_format_choice{nullptr};
     wxCheckBox* m_keep_dc_checkbox{nullptr};
 
     double m_min_abscissa_value{0.0};
@@ -72,9 +64,5 @@ private:
 
     double m_from_index{0.0};
     double m_to_index{1.0};
-    fft::WindowFunction m_window_function{fft::WindowFunction::HANNING};
-    double m_max_frequency{1e5};
-    bool m_normalize{true};
-    bool m_keep_dc{false};
-    fft::FftOutput m_output{fft::FftOutput::MAGNITUDE};
+    fft::FftParameters m_parameters{};
 };

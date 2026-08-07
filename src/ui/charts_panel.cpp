@@ -719,12 +719,10 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
     // apply selected chart zoom (use full range if zoom is reset)
     double min_abscissa_value_zoomed = min_abscissa_value + (x_left_ratio < 0.0 ? 0.0 : x_left_ratio) * (max_abscissa_value - min_abscissa_value);
     double max_abscissa_value_zoomed = min_abscissa_value + (x_right_ratio < 0.0 ? 1.0 : x_right_ratio) * (max_abscissa_value - min_abscissa_value);
-    // use a stable default that is independent of adaptive solver time steps
-    constexpr double default_max_frequency = 1e5;
     // current expressions plotted on the selected chart
     auto plotted_expressions = m_selected_chart->selected_expressions();
     // open FFT settings dialog (pre-select all real expressions)
-    FftDialog dialog(this, m_expression_manager, std::vector<AnyExpression*>(plotted_expressions.begin(), plotted_expressions.end()), min_abscissa_value, max_abscissa_value, min_abscissa_value_zoomed, max_abscissa_value_zoomed, default_max_frequency);
+    FftDialog dialog(this, m_expression_manager, std::vector<AnyExpression*>(plotted_expressions.begin(), plotted_expressions.end()), min_abscissa_value, max_abscissa_value, min_abscissa_value_zoomed, max_abscissa_value_zoomed);
     // center in the screen
     dialog.Centre(wxCENTER_ON_SCREEN);
     // open modal
@@ -736,11 +734,7 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
     auto selected_expressions = std::vector(dialog.selected_expressions());
     double from_abscissa_value = dialog.from_index();
     double to_abscissa_value = dialog.to_index();
-    double max_frequency = dialog.max_frequency();
-    auto window_fn = dialog.window_function();
-    bool normalize = dialog.normalize();
-    bool keep_dc = dialog.keep_dc();
-    auto output = dialog.output();
+    fft::FftParameters fft_params = dialog.parameters();
     // validate selection
     if (selected_expressions.empty()) {
         // show error message
@@ -799,7 +793,7 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
         auto x_interval = step_abscissa.subspan(from_index, to_index - from_index);
         try {
             // compute FFT, all expressions in y_matrix are processed together for this step
-            auto result = fft::compute_fft_many(x_interval, y_matrix, max_frequency, window_fn, normalize, 0, x_interval.size() - 1, output, keep_dc);
+            auto result = fft::compute_fft_many(x_interval, y_matrix, fft_params.np, fft_params.window, fft_params.format, 0, x_interval.size() - 1, fft_params.output, fft_params.keep_dc);
             // check if the frequency axis is empty
             if (result.frequencies.empty()) {
                 // log information
@@ -867,9 +861,9 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
         auto& real_expression = std::get<Expression<double>>(*expression);
         // determine unit
         std::string unit;
-        if (output == fft::FftOutput::PHASE)
+        if (fft_params.output == fft::FftOutput::PHASE)
             unit = "°";
-        else if (output == fft::FftOutput::MAGNITUDE_DB)
+        else if (fft_params.output == fft::FftOutput::MAGNITUDE_DB)
             unit = "dB";
         else
             unit = real_expression.unit();
