@@ -85,6 +85,7 @@ ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_delete_chart, this, ID_CONTEXT_DELETE_CHART);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_new_window, this, ID_CONTEXT_NEW_WINDOW);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_calculate_fft, this, ID_CONTEXT_CALCULATE_FFT);
+    Bind(wxEVT_MENU, &ChartsPanel::on_menu_open_fft_calculation, this, ID_CONTEXT_OPEN_XYCE_FFT_CALCULATION);
     // fetch the platform's active workspace background color
     wxColour wxBgColor = wxSystemSettings::GetColour(wxSYS_COLOUR_APPWORKSPACE);
     // convert it to ImVec4
@@ -530,8 +531,9 @@ void ChartsPanel::on_context_menu(const wxContextMenuEvent& event) {
         if (m_expression_manager->abscissa().unit() == "s") {
             // calculate FFT always available (user can select any real-valued expression to compute FFT)
             contextMenu.Append(ID_CONTEXT_CALCULATE_FFT, "Calculate FFT on selected plots");
-            // TODO: check FFT calculation is available in the current Xyce run, then enable this menu item
-            contextMenu.Append(ID_CONTEXT_OPEN_XYCE_FFT_CALCULATION, "Open Xyce FFT Calculation");
+            // open Xyce FFT calculation only when FFT output files were produced by the last run
+            if (!m_fft_calculation_files.empty())
+                contextMenu.Append(ID_CONTEXT_OPEN_XYCE_FFT_CALCULATION, "Open Xyce FFT Calculation");
         }
         // append step tool only on multiple steps (otherwise it is not useful)
         if (m_step_information->length() > 1)
@@ -693,6 +695,17 @@ void ChartsPanel::on_menu_delete_chart(wxCommandEvent&) {
 void ChartsPanel::on_menu_new_window(wxCommandEvent& event) {
     // create the custom command event instance
     wxCommandEvent e(wxEVT_NEW_WINDOW, GetId());
+    // set the event's event object to this panel
+    e.SetEventObject(this);
+    // fire the event up to the parent
+    GetEventHandler()->ProcessEvent(e);
+    // skip event
+    event.Skip();
+}
+
+void ChartsPanel::on_menu_open_fft_calculation(wxCommandEvent& event) {
+    // create the custom command event instance
+    wxCommandEvent e(wxEVT_OPEN_XYCE_FFT_CALCULATION, GetId());
     // set the event's event object to this panel
     e.SetEventObject(this);
     // fire the event up to the parent

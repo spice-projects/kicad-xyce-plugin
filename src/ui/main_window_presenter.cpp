@@ -6,6 +6,7 @@
 #include <spdlog/spdlog.h>
 
 #include "../file/xyce_raw_file.h"
+#include "../file/xyce_fft_file.h"
 #include "../netlist/netlist.h"
 #include "editor_netlist_source.h"
 #include "main_window_presenter.h"
@@ -29,6 +30,8 @@ void MainWindowPresenter::open_netlist_file(const std::filesystem::path& path) {
     update_netlist_editor_content(content, false);
     // remove the raw output file reference
     m_xyce_raw_file = std::nullopt;
+    // remove the parsed FFT calculation files, they belong to a previous run
+    m_fft_files.clear();
     // show the netlist view over the charts view
     m_view.show_netlist_view();
     // refresh toolbar/menu states
@@ -37,12 +40,16 @@ void MainWindowPresenter::open_netlist_file(const std::filesystem::path& path) {
 
 void MainWindowPresenter::open_raw_file(const std::filesystem::path& path) {
     // parse the raw file and store it in the presenter state
+    // remove the parsed FFT calculation files, they belong to a previous run
+    m_fft_files.clear();
     if (update_xyce_raw_file(xyce_raw_file_parser(path), true))
         show_raw_file_view();
 }
 
 void MainWindowPresenter::load_raw_file(std::shared_ptr<XyceOutputFile> raw_file) {
     // store the already-parsed raw file
+    // remove the parsed FFT calculation files, they belong to a previous run
+    m_fft_files.clear();
     if (update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>>(std::move(raw_file)), true))
         show_raw_file_view();
 }
@@ -170,6 +177,8 @@ void MainWindowPresenter::run_simulation() {
     }
     // clear any previous runner
     m_simulation_runner.reset();
+    // clear the parsed FFT calculation files, they belong to the previous run
+    m_fft_files.clear();
     // create a new simulation runner
     m_simulation_runner = std::make_shared<XyceSimulationRunner>();
     // mark the simulation as running
@@ -227,6 +236,17 @@ void MainWindowPresenter::handle_simulation_finished(int exit_code, bool was_can
                 set_base_title(m_xyce_raw_file.value()->title());
                 // update the statusbar
                 m_view.set_status_text("Simulation finished successfully");
+                // parse the FFT calculation output files produced by this run, derived from the analysis config
+                m_fft_files.clear();
+                if (const auto fft_pattern = m_simulation_config.fft_output_file_path_pattern(m_simulation_runner->netlist_file_path()); fft_pattern.has_value()) {
+                    // raw file instance
+                    const auto& raw_file_instance = m_xyce_raw_file.value();
+                    // parse the matching FFT output files
+                    if (auto parsed_files = xyce_fft_file_parser(*fft_pattern, raw_file_instance->step_information(), &raw_file_instance->expression_manager()))
+                        m_fft_files = std::move(*parsed_files);
+                    // log the number of loaded FFT files
+                    spdlog::info("Loaded {} Xyce FFT calculation file(s)", m_fft_files.size());
+                }
                 // clear the runner
                 m_simulation_runner.reset();
                 // refresh toolbar/menu states
@@ -291,6 +311,11 @@ const std::optional<std::shared_ptr<XyceOutputFile>>& MainWindowPresenter::raw_f
     return m_xyce_raw_file;
 }
 
+const std::vector<std::shared_ptr<XyceOutputFile>>& MainWindowPresenter::fft_files() const {
+    // return the parsed FFT calculation output files
+    return m_fft_files;
+}
+
 void MainWindowPresenter::refresh_action_states() {
     // gather the input flags describing the current window state
     ActionStateInput input;
@@ -315,6 +340,8 @@ void MainWindowPresenter::refresh_action_states() {
     const ActionStateEnablement enablement = compute_action_enablement(input);
     // apply the enablement to the view
     m_view.apply_action_enablement(enablement);
+    // forward the parsed FFT calculation files so the charts context menu can expose the action
+    m_view.set_open_fft_calculation_files(m_fft_files);
 }
 
 bool MainWindowPresenter::update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>> raw_file, bool delete_charts) {

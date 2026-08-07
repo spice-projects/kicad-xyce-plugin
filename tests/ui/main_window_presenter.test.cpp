@@ -100,6 +100,11 @@ public:
         delete_all_charts_calls++;
     }
 
+    void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) override {
+        // record the forwarded FFT calculation files
+        open_fft_calculation_files = files;
+    }
+
     std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig&) override { return simulation_parameters_result; }
 
     std::optional<PluginConfig> show_plugin_config_dialog(const PluginConfig&) override { return plugin_config_result; }
@@ -136,6 +141,7 @@ public:
     int spawn_raw_file_calls = 0;
     ActionStateEnablement applied_enablement;
     std::vector<std::vector<std::string>> update_charts_suggested_plots;
+    std::vector<std::shared_ptr<XyceOutputFile>> open_fft_calculation_files;
 };
 
 // ========================================================================================

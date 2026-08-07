@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "../config/plugin_config.h"
 #include "../expression/expression_manager.h"
@@ -42,6 +43,9 @@ public:
     // charts
     virtual void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) = 0;
     virtual void delete_all_charts() = 0;
+
+    // parsed Xyce FFT calculation output files, forwarded to the charts context menu
+    virtual void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) = 0;
 
     // modal dialogs (still the view's job, they need a wx parent window)
     [[nodiscard]] virtual std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig& current) = 0;

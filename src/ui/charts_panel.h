@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <memory>
+#include <vector>
 
 #include <wx/wxprec.h>
 
@@ -45,6 +46,9 @@ public:
 
     void set_fft_result_callback(FftResultCallback callback) { m_fft_result_callback = std::move(callback); }
 
+    // store the parsed Xyce FFT calculation output files available to the context menu
+    void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) { m_fft_calculation_files = files; }
+
 private:
     friend class ContextScope;
 
@@ -69,6 +73,8 @@ private:
     ImVec4 m_background_color;
 
     FftResultCallback m_fft_result_callback;
+
+    std::vector<std::shared_ptr<XyceOutputFile>> m_fft_calculation_files;
 
 #ifdef __APPLE__
     void* m_metal_layer = nullptr;
@@ -152,4 +158,6 @@ private:
     void on_menu_new_window(wxCommandEvent&);
 
     void on_menu_calculate_fft(wxCommandEvent&);
+
+    void on_menu_open_fft_calculation(wxCommandEvent&);
 };

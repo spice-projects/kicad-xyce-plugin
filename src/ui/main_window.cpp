@@ -151,6 +151,7 @@ MainWindow::MainWindow(const wxString& title, std::shared_ptr<KiCadSession> sess
     Bind(wxEVT_MENU, &MainWindow::on_menu_file_save, this, wxID_SAVE);
     // bind custom events
     Bind(wxEVT_NEW_WINDOW, &MainWindow::on_new_window, this);
+    Bind(wxEVT_OPEN_XYCE_FFT_CALCULATION, &MainWindow::on_open_xyce_fft_calculation, this);
     // netlist editor events
     Bind(wxEVT_STC_MODIFIED, &MainWindow::on_netlist_editor_modified, this, m_netlist_editor->GetId());
     Bind(wxEVT_STC_STYLENEEDED, &MainWindow::on_netlist_editor_style_needed, this, m_netlist_editor->GetId());
@@ -214,6 +215,12 @@ void MainWindow::on_new_window(wxCommandEvent&) {
     // spawn a new window when a raw file is present
     if (raw.has_value())
         spawn_raw_file_window(raw.value());
+}
+
+void MainWindow::on_open_xyce_fft_calculation(wxCommandEvent&) {
+    // open a new window for each parsed FFT calculation output file
+    for (const auto& fft_file : m_presenter->fft_files())
+        spawn_raw_file_window(fft_file);
 }
 
 void MainWindow::create_menubar() {
@@ -616,6 +623,11 @@ void MainWindow::update_charts(ExpressionManager& expression_manager, const Step
 void MainWindow::delete_all_charts() {
     // clear all charts from the panel
     m_charts_panel->delete_all_charts();
+}
+
+void MainWindow::set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) {
+    // forward the parsed FFT calculation files to the charts panel for the context menu
+    m_charts_panel->set_open_fft_calculation_files(files);
 }
 
 std::optional<SimulationConfig> MainWindow::show_simulation_parameters_dialog(const SimulationConfig& current) {

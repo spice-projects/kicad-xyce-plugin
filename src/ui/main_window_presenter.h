@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "../config/plugin_config.h"
 #include "../file/xyce_output_file.h"
@@ -47,6 +48,7 @@ public:
     // accessors
     [[nodiscard]] std::shared_ptr<XyceSimulationRunner> simulation_runner() const;
     [[nodiscard]] const std::optional<std::shared_ptr<XyceOutputFile>>& raw_file() const;
+    [[nodiscard]] const std::vector<std::shared_ptr<XyceOutputFile>>& fft_files() const;
 
     // recompute and forward the action enablement to the view
     void refresh_action_states();
@@ -70,6 +72,8 @@ private:
     bool m_netlist_has_content = false;
 
     std::optional<std::shared_ptr<XyceOutputFile>> m_xyce_raw_file;
+
+    std::vector<std::shared_ptr<XyceOutputFile>> m_fft_files;
 
     SimulationConfig m_simulation_config;
     PluginConfig m_plugin_config;
