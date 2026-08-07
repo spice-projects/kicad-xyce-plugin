@@ -853,6 +853,8 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
         // append expression for frequency abscissa with unit "Hz" and the corresponding step slices
         fft_expressions.emplace_back(Expression<double>("Frequency", std::move(freq_data), fft_abscissa_indices, "Hz"));
     }
+    // suggested plots
+    std::vector<std::vector<std::string>> suggested_plots;
     // create FFT expressions
     for (size_t i = 0; i < selected_expressions.size(); ++i) {
         // current expression
@@ -876,6 +878,9 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
         // concatenate FFT chunks across steps
         for (const auto& chunk : fft_chunks[i])
             data.insert(data.end(), chunk.begin(), chunk.end());
+        // append expression name to suggested plots (a maximum of three expressions are suggested for plotting)
+        if (suggested_plots.size() < 3)
+            suggested_plots.push_back({expr_name});
         // append expression for the FFT result with the corresponding step slices
         fft_expressions.emplace_back(Expression<double>(expr_name, std::move(data), fft_abscissa_indices, unit));
     }
@@ -884,7 +889,7 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
     // build expression manager (moves from expr_list)
     ExpressionManager fft_expression_manager(fft_expressions, fft_abscissa_indices);
     // create raw file with FFT results
-    auto fft_raw = std::make_shared<XyceOutputFile>("", fft_title, false, std::move(fft_step_information), AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr);
+    auto fft_raw = std::make_shared<XyceOutputFile>("", fft_title, false, std::move(fft_step_information), AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, suggested_plots);
     // spawn a new window with the FFT results via callback
     if (m_fft_result_callback)
         m_fft_result_callback(fft_raw);

@@ -564,7 +564,7 @@ namespace
                 {"First Harmonic", std::to_string(key.first_harmonic)},
             };
             // create the output file
-            output_files.push_back(std::make_shared<XyceOutputFile>(matching_files[0], "FFT analysis", false, std::move(fft_step_information), AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, std::move(metadata)));
+            output_files.push_back(std::make_shared<XyceOutputFile>(matching_files[0], "FFT analysis", false, std::move(fft_step_information), AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, std::vector<std::vector<std::string>>{}, std::move(metadata)));
         }
         // return the output files
         return output_files;

@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "../expression/expression.h"
 #include "../expression/expression_manager.h"
@@ -26,7 +27,7 @@ public:
 
     XyceOutputFile(XyceOutputFile&&) noexcept;
 
-    XyceOutputFile(std::filesystem::path filename, std::string title, bool is_complex, StepInformation&& step_info, AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, std::unique_ptr<MappedFile>&& mapped_file, std::unordered_map<std::string, std::string> metadata = {});
+    XyceOutputFile(std::filesystem::path filename, std::string title, bool is_complex, StepInformation&& step_info, AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, std::unique_ptr<MappedFile>&& mapped_file, std::vector<std::vector<std::string>> suggested_plots = {}, std::unordered_map<std::string, std::string> metadata = {});
 
     ~XyceOutputFile();
 
@@ -50,6 +51,8 @@ public:
 
     [[nodiscard]] const std::unordered_map<std::string, std::string>& metadata() const;
 
+    [[nodiscard]] const std::vector<std::vector<std::string>>& suggested_plots() const;
+
 private:
     std::filesystem::path m_filename;
     std::string m_title;
@@ -60,4 +63,5 @@ private:
 
     std::unique_ptr<MappedFile> m_mapped_file;
     std::unordered_map<std::string, std::string> m_metadata;
+    std::vector<std::vector<std::string>> m_suggested_plots;
 };
