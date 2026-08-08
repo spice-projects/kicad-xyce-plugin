@@ -5,7 +5,9 @@ PROJECT_VERSION=${1:-0.0.1}
 # path to the compiled plugin executable, defaults to the debug build output
 EXECUTABLE=${2:-.build-debug/kicad-xyce-plugin}
 # plugin entrypoint name as referenced by src/plugin.json
-ENTRYPOINT_NAME="kicad-xyce-plugin"
+ENTRYPOINT_NAME=${3:-kicad-xyce-plugin}
+# platform, allowed values: macos, linux, windows
+PLATFORM=${4:-macos}
 
 # fail early when the executable is missing
 if [ ! -f "$EXECUTABLE" ]; then
@@ -23,8 +25,8 @@ temp_dir=$(mktemp -d)
 # initialize folder structure
 mkdir -p "$temp_dir"/plugins
 
-# copy metadata, replace "0.0.0" with version
-sed "s/0.0.0/$PROJECT_VERSION/g" metadata.json > dist/metadata.json
+# copy metadata, replace "0.0.0" with version, replace platform
+sed "s/0.0.0/$PROJECT_VERSION/g; s/\"macos\"/\"$PLATFORM\"/" metadata.json > dist/metadata.json
 cp dist/metadata.json "$temp_dir"/metadata.json
 
 # copy package icon
@@ -32,7 +34,7 @@ mkdir -p "$temp_dir"/resources
 cp plugin-icon-64x64.png "$temp_dir"/resources/icon.png
 
 # copy plugin manifest and icons
-cp src/plugin.json "$temp_dir"/plugins/
+sed "s/ENTRYPOINT_NAME/$ENTRYPOINT_NAME/g" src/plugin.json > "$temp_dir"/plugins/plugin.json
 cp src/plugin-icon-24x24.png "$temp_dir"/plugins/
 
 # copy the compiled executable under the entrypoint name
