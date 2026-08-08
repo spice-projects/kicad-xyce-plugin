@@ -71,9 +71,11 @@ TEST(FileNetlistSourceChecks, save_netlist_writes_content_to_file) {
     // act
     source.save_netlist("R1 1 0 100\n.END\n");
     // assert
-    std::ifstream in(path);
-    const std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    EXPECT_EQ(content, "R1 1 0 100\n.END\n");
+    {
+        std::ifstream in(path);
+        const std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        EXPECT_EQ(content, "R1 1 0 100\n.END\n");
+    }
     // cleanup
     std::filesystem::remove(path);
 }

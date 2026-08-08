@@ -23,12 +23,15 @@ TEST(MappedFileChecks, maps_existing_file_content) {
         std::ofstream out(path, std::ios::binary);
         out.write(content.data(), static_cast<std::streamsize>(content.size()));
     }
-    // act
-    MappedFile mapped(path);
-    // assert
-    ASSERT_TRUE(mapped.is_valid());
-    ASSERT_EQ(mapped.size(), content.size());
-    EXPECT_EQ(std::string(mapped.data(), mapped.size()), content);
+    // scope the mapping so the file handle is released before cleanup
+    {
+        // act
+        MappedFile mapped(path);
+        // assert
+        ASSERT_TRUE(mapped.is_valid());
+        ASSERT_EQ(mapped.size(), content.size());
+        EXPECT_EQ(std::string(mapped.data(), mapped.size()), content);
+    }
     // cleanup
     std::filesystem::remove(path);
 }
@@ -70,13 +73,16 @@ TEST(MappedFileChecks, move_constructor_transfers_mapping) {
     }
     MappedFile original(path);
     ASSERT_TRUE(original.is_valid());
-    // act
-    MappedFile moved(std::move(original));
-    // assert
-    ASSERT_TRUE(moved.is_valid());
-    EXPECT_EQ(std::string(moved.data(), moved.size()), content);
-    EXPECT_FALSE(original.is_valid());
-    EXPECT_EQ(original.data(), nullptr);
+    // scope the mapping so the file handle is released before cleanup
+    {
+        // act
+        MappedFile moved(std::move(original));
+        // assert
+        ASSERT_TRUE(moved.is_valid());
+        EXPECT_EQ(std::string(moved.data(), moved.size()), content);
+        EXPECT_FALSE(original.is_valid());
+        EXPECT_EQ(original.data(), nullptr);
+    }
     // cleanup
     std::filesystem::remove(path);
 }
@@ -99,12 +105,15 @@ TEST(MappedFileChecks, move_assignment_transfers_mapping) {
     MappedFile b(path_b);
     ASSERT_TRUE(a.is_valid());
     ASSERT_TRUE(b.is_valid());
-    // act
-    a = std::move(b);
-    // assert
-    ASSERT_TRUE(a.is_valid());
-    EXPECT_EQ(std::string(a.data(), a.size()), content_b);
-    EXPECT_FALSE(b.is_valid());
+    // scope the mapping so the file handle is released before cleanup
+    {
+        // act
+        a = std::move(b);
+        // assert
+        ASSERT_TRUE(a.is_valid());
+        EXPECT_EQ(std::string(a.data(), a.size()), content_b);
+        EXPECT_FALSE(b.is_valid());
+    }
     // cleanup
     std::filesystem::remove(path_a);
     std::filesystem::remove(path_b);
@@ -120,11 +129,14 @@ TEST(MappedFileChecks, prefetch_keeps_mapping_valid) {
     }
     MappedFile mapped(path);
     ASSERT_TRUE(mapped.is_valid());
-    // act
-    mapped.prefetch();
-    // assert
-    EXPECT_TRUE(mapped.is_valid());
-    EXPECT_EQ(std::string(mapped.data(), mapped.size()), content);
+    // scope the mapping so the file handle is released before cleanup
+    {
+        // act
+        mapped.prefetch();
+        // assert
+        EXPECT_TRUE(mapped.is_valid());
+        EXPECT_EQ(std::string(mapped.data(), mapped.size()), content);
+    }
     // cleanup
     std::filesystem::remove(path);
 }

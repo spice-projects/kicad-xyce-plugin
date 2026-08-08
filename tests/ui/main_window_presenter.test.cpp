@@ -191,9 +191,11 @@ TEST(MainWindowPresenterChecks, edit_then_save_clears_dirty_and_writes_file) {
     // act
     presenter.save_netlist();
     // assert the file was written and the dirty marker cleared
-    std::ifstream in(path);
-    std::string written((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    EXPECT_EQ(written, "R1 1 0 200\n.END\n");
+    {
+        std::ifstream in(path);
+        std::string written((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        EXPECT_EQ(written, "R1 1 0 200\n.END\n");
+    }
     EXPECT_EQ(view.title, path.filename().string());
     EXPECT_EQ(view.title.find("* "), std::string::npos);
     EXPECT_FALSE(view.applied_enablement.save);

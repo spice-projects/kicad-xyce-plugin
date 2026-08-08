@@ -94,9 +94,11 @@ TEST(XyceSimulationRunnerChecks, create_temp_netlist_file_is_writable) {
     file << " appended";
     file.close();
     // assert
-    std::ifstream read_file(path);
-    std::string result((std::istreambuf_iterator<char>(read_file)), std::istreambuf_iterator<char>());
-    ASSERT_EQ(result, "Write test content appended");
+    {
+        std::ifstream read_file(path);
+        std::string result((std::istreambuf_iterator<char>(read_file)), std::istreambuf_iterator<char>());
+        ASSERT_EQ(result, "Write test content appended");
+    }
     // cleanup
     std::filesystem::remove(path);
 }

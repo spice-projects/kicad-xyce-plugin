@@ -58,8 +58,10 @@ std::optional<SensParameter> SensParameter::from_xyce_directives(const std::vect
                 if (key == "objfunc" || key == "objvars" || key == "acobjfunc") {
                     // set objective mode
                     objective_mode = key;
-                    // parse and clean values by stripping braces and splitting by comma
-                    const auto parts = split_by(strip_chars(val, "{}"), ',');
+                    // parse and clean values by stripping braces and splitting by comma;
+                    // keep the stripped string alive so the split views stay valid
+                    const auto stripped = strip_chars(val, "{}");
+                    const auto parts = split_by(stripped, ',');
                     // store objective values
                     for (const auto& part : parts) {
                         // trim whitespace
