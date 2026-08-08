@@ -53,15 +53,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
-      # opt into Node 24 runtime: ilammy/msvc-dev-cmd and llvm/actions/install-ninja still target Node 20
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout repository
         if: ${{ matrix.build_enabled }}
         uses: actions/checkout@v7
 
       - name: Run clang-format check
-        # formatting is platform-independent, so a single run on the dev platform suffices
         if: ${{ matrix.build_enabled && matrix.os == 'macos-latest' }}
         shell: bash
         env:
@@ -73,17 +70,25 @@ jobs:
           bash build/check-format.sh
 
       - name: Setup Ninja
-        # ninja 1.13.x ships preinstalled on github-hosted windows runners; skip the
-        # node-20-based llvm/actions/install-ninja step there to avoid the Node deprecation
-        # warning and use the bundled ninja instead.
         if: ${{ matrix.build_enabled && runner.os != 'Windows' }}
-        uses: llvm/actions/install-ninja@main
+        shell: bash
+        run: pip install ninja
 
       - name: Setup MSVC toolchain
         if: ${{ matrix.build_enabled && runner.os == 'Windows' }}
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
+        shell: bash
+        env:
+          MSYS_NO_PATHCONV: 1
+        run: |
+          VSWHERE="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
+          VS_PATH="$("$VSWHERE" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)"
+          echo "Visual Studio installation path: $VS_PATH"
+          printf '@echo off\r\ncall "%s\\VC\\Auxiliary\\Build\\vcvars64.bat" >nul\r\nset\r\n' "$VS_PATH" > vcvars_env.cmd
+          cmd /c vcvars_env.cmd | tr -d '\r' | grep '=' |
+            while IFS='=' read -r key value; do
+              printf '%s<<EOF\n%s\nEOF\n' "$key" "$value"
+            done >> "$GITHUB_ENV"
+          rm -f vcvars_env.cmd
 
       - name: Restore vcpkg binary cache
         if: ${{ matrix.build_enabled }}
@@ -140,6 +145,7 @@ jobs:
   osx-universal:
     name: macOS Universal Binary
     needs: [build-and-test]
+    if: ${{ always() && !cancelled() && !failure() && startsWith(github.ref, 'refs/tags/v') && needs.build-and-test.result == 'success' }}
     runs-on: macos-latest
     steps:
       - name: Download arm64 artifact
@@ -171,7 +177,7 @@ jobs:
   package-and-release:
     name: Package & Release
     needs: [build-and-test, osx-universal]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: ${{ always() && !cancelled() && !failure() && startsWith(github.ref, 'refs/tags/v') && needs.osx-universal.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
