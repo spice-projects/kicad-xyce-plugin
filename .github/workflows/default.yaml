@@ -40,6 +40,8 @@ jobs:
         include:
           - os: macos-latest
             build_enabled: true
+          - os: macos-26-intel
+            build_enabled: true
           - os: windows-latest
             build_enabled: true
           - os: ubuntu-latest
