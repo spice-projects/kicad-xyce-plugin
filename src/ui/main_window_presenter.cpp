@@ -5,8 +5,8 @@
 
 #include <spdlog/spdlog.h>
 
-#include "../file/xyce_raw_file.h"
 #include "../file/xyce_fft_file.h"
+#include "../file/xyce_raw_file.h"
 #include "../netlist/netlist.h"
 #include "editor_netlist_source.h"
 #include "main_window_presenter.h"

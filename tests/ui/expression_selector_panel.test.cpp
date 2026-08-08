@@ -43,13 +43,9 @@ namespace
 class ExpressionSelectorPanelTest
 {
 public:
-    static const std::vector<ExpressionItem>& all_expressions(const ExpressionSelectorPanel& panel) {
-        return panel.m_all_expressions;
-    }
+    static const std::vector<ExpressionItem>& all_expressions(const ExpressionSelectorPanel& panel) { return panel.m_all_expressions; }
 
-    static void toggle_selection(ExpressionSelectorPanel& panel, size_t index) {
-        panel.toggle_expression_selection(index);
-    }
+    static void toggle_selection(ExpressionSelectorPanel& panel, size_t index) { panel.toggle_expression_selection(index); }
 
     static void simulate_filter(ExpressionSelectorPanel& panel, const std::string& text) {
         panel.m_filter_input->SetValue(text);
@@ -63,17 +59,11 @@ public:
         panel.on_add_custom(event);
     }
 
-    static bool custom_input_shown(const ExpressionSelectorPanel& panel) {
-        return panel.m_custom_input != nullptr;
-    }
+    static bool custom_input_shown(const ExpressionSelectorPanel& panel) { return panel.m_custom_input != nullptr; }
 
-    static wxStaticText* error_label(const ExpressionSelectorPanel& panel) {
-        return panel.m_error_label;
-    }
+    static wxStaticText* error_label(const ExpressionSelectorPanel& panel) { return panel.m_error_label; }
 
-    static wxTextCtrl* custom_input(const ExpressionSelectorPanel& panel) {
-        return panel.m_custom_input;
-    }
+    static wxTextCtrl* custom_input(const ExpressionSelectorPanel& panel) { return panel.m_custom_input; }
 };
 
 // ========================================================================================

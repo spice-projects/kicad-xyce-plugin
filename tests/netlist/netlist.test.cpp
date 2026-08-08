@@ -93,8 +93,10 @@ TEST(NetlistParserChecks, extracts_simulation_directives) {
     bool has_op = false;
     bool has_tran = false;
     for (const auto& d : topology.m_directives) {
-        if (d.find(".OP") == 0) has_op = true;
-        if (d.find(".TRAN") == 0) has_tran = true;
+        if (d.find(".OP") == 0)
+            has_op = true;
+        if (d.find(".TRAN") == 0)
+            has_tran = true;
     }
     ASSERT_TRUE(has_op);
     ASSERT_TRUE(has_tran);
@@ -113,7 +115,8 @@ TEST(NetlistParserChecks, extracts_fft_options_package) {
     // assert
     bool has_fft = false;
     for (const auto& d : topology.m_directives) {
-        if (d.find(".OPTIONS FFT") == 0) has_fft = true;
+        if (d.find(".OPTIONS FFT") == 0)
+            has_fft = true;
     }
     ASSERT_TRUE(has_fft);
     ASSERT_EQ(netlist.find(".OPTIONS FFT"), std::string::npos);

@@ -111,19 +111,11 @@ namespace
 
 #ifdef _WIN32
     // _putenv_s is the CRT replacement for setenv; passing an empty value removes the variable
-    void set_environment_variable(const char* name, const char* value, int) {
-        _putenv_s(name, value);
-    }
-    void unset_environment_variable(const char* name) {
-        _putenv_s(name, "");
-    }
+    void set_environment_variable(const char* name, const char* value, int) { _putenv_s(name, value); }
+    void unset_environment_variable(const char* name) { _putenv_s(name, ""); }
 #else
-    void set_environment_variable(const char* name, const char* value, int overwrite) {
-        ::setenv(name, value, overwrite);
-    }
-    void unset_environment_variable(const char* name) {
-        ::unsetenv(name);
-    }
+    void set_environment_variable(const char* name, const char* value, int overwrite) { ::setenv(name, value, overwrite); }
+    void unset_environment_variable(const char* name) { ::unsetenv(name); }
 #endif
 } // namespace
 

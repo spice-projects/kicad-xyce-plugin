@@ -10,26 +10,14 @@
 
 #include <implot.h>
 
-#include "../step_information.h"
 #include "../expression/expression.h"
 #include "../expression/expression_manager.h"
 #include "../file/xyce_output_file.h"
+#include "../step_information.h"
 
-using OrdinateVariantSeriesSteps = std::tuple<
-    int,
-    std::unordered_map<
-        size_t,
-        std::pair<
-            View<double>,
-            View<double>
-        >
-    >,
-    double, double, ImVec4>;
+using OrdinateVariantSeriesSteps = std::tuple<int, std::unordered_map<size_t, std::pair<View<double>, View<double>>>, double, double, ImVec4>;
 
-using OrdinateVariantSeries = std::unordered_map<
-    Expression<double>*,
-    OrdinateVariantSeriesSteps
->;
+using OrdinateVariantSeries = std::unordered_map<Expression<double>*, OrdinateVariantSeriesSteps>;
 
 using OrdinateSeries = std::tuple<AnyExpression*, OrdinateVariantSeries>;
 

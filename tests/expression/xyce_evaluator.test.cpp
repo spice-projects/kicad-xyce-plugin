@@ -344,7 +344,9 @@ TEST(XyceLanguageEvaluator, unary_negate_and_not_cover_all_value_types) {
     ASSERT_EQ(as_real_vector(eval("!cv", {{"cv", expression_value(std::vector<std::complex<double>>{{0.0, 1.0}, {1.0, 0.0}})}})), std::vector<double>({1.0, 0.0}));
 }
 
-struct UnknownExpressionNode final : ExpressionNode {};
+struct UnknownExpressionNode final : ExpressionNode
+{
+};
 
 TEST(XyceLanguageEvaluator, unsupported_constructs_throw) {
     // assert

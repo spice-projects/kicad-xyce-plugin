@@ -16,13 +16,9 @@ namespace
     class SimulationCardTest : public ::testing::Test
     {
     protected:
-        void SetUp() override {
-            m_parent = new wxFrame(nullptr, wxID_ANY, "test");
-        }
+        void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
 
-        void TearDown() override {
-            delete m_parent;
-        }
+        void TearDown() override { delete m_parent; }
 
         wxFrame* m_parent = nullptr;
     };

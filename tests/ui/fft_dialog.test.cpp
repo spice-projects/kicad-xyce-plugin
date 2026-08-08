@@ -65,37 +65,21 @@ public:
         dialog.m_custom_to_input->SetValue(to);
     }
 
-    static void select_custom_np(FftDialog& dialog) {
-        dialog.m_np_choice->SetSelection(CUSTOM_NP_INDEX);
-    }
+    static void select_custom_np(FftDialog& dialog) { dialog.m_np_choice->SetSelection(CUSTOM_NP_INDEX); }
 
-    static void set_custom_np(FftDialog& dialog, const std::string& np) {
-        dialog.m_custom_np_input->SetValue(np);
-    }
+    static void set_custom_np(FftDialog& dialog, const std::string& np) { dialog.m_custom_np_input->SetValue(np); }
 
-    static void select_window(FftDialog& dialog, int index) {
-        dialog.m_window_choice->SetSelection(index);
-    }
+    static void select_window(FftDialog& dialog, int index) { dialog.m_window_choice->SetSelection(index); }
 
-    static void select_output(FftDialog& dialog, int index) {
-        dialog.m_output_choice->SetSelection(index);
-    }
+    static void select_output(FftDialog& dialog, int index) { dialog.m_output_choice->SetSelection(index); }
 
-    static void select_format(FftDialog& dialog, int index) {
-        dialog.m_format_choice->SetSelection(index);
-    }
+    static void select_format(FftDialog& dialog, int index) { dialog.m_format_choice->SetSelection(index); }
 
-    static void set_keep_dc(FftDialog& dialog, bool keep) {
-        dialog.m_keep_dc_checkbox->SetValue(keep);
-    }
+    static void set_keep_dc(FftDialog& dialog, bool keep) { dialog.m_keep_dc_checkbox->SetValue(keep); }
 
-    static bool custom_inputs_enabled(const FftDialog& dialog) {
-        return dialog.m_custom_from_input->IsEnabled();
-    }
+    static bool custom_inputs_enabled(const FftDialog& dialog) { return dialog.m_custom_from_input->IsEnabled(); }
 
-    static std::string custom_np_text(const FftDialog& dialog) {
-        return dialog.m_custom_np_input->GetValue().ToStdString();
-    }
+    static std::string custom_np_text(const FftDialog& dialog) { return dialog.m_custom_np_input->GetValue().ToStdString(); }
 
     static void simulate_ok(FftDialog& dialog) {
         wxCommandEvent event(wxEVT_BUTTON, wxID_OK);

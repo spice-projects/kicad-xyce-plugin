@@ -11,8 +11,8 @@
 #include <wx/textctrl.h>
 #endif
 
-#include "simulation_parameters/step_parameters.h"
 #include "simulation_card.h"
+#include "simulation_parameters/step_parameters.h"
 
 // embedded .STEP section for each simulation tab page
 class StepParametersPanel : public wxPanel

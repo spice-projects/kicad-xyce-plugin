@@ -5,8 +5,8 @@
 #include <gtest/gtest.h>
 #include <iomanip>
 #include <set>
-#include <sstream>
 #include <span>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -60,9 +60,7 @@ namespace
         }
 
         // directory path getter
-        [[nodiscard]] const std::filesystem::path& path() const {
-            return m_path;
-        }
+        [[nodiscard]] const std::filesystem::path& path() const { return m_path; }
 
     private:
         // directory path field

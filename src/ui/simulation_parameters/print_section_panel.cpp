@@ -5,7 +5,6 @@
 
 #include <wx/wxprec.h>
 
-// wxWidgets precompiled header — individual headers only when PCH is off
 #ifndef WX_PRECOMP
 #include <wx/arrstr.h>
 #include <wx/checkbox.h>

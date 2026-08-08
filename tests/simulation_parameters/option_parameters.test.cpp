@@ -13,11 +13,7 @@
 TEST(OptionParametersChecks, parse_option_directives) {
     // arrange
     const std::vector<std::string> directives = {
-        ".OPTIONS DEVICE TEMP=25 GMIN=1e-12",
-        ".OPTIONS TIMEINT RELTOL=1e-3 ABSTOL=1e-12",
-        ".OPTIONS NONLIN MAXSTEP=10",
-        ".OPTIONS LINSOL TYPE=AZTECOO",
-        ".OPTIONS FFT FFT_ACCURATE=1 FFTOUT=1 FFT_MODE=0",
+        ".OPTIONS DEVICE TEMP=25 GMIN=1e-12", ".OPTIONS TIMEINT RELTOL=1e-3 ABSTOL=1e-12", ".OPTIONS NONLIN MAXSTEP=10", ".OPTIONS LINSOL TYPE=AZTECOO", ".OPTIONS FFT FFT_ACCURATE=1 FFTOUT=1 FFT_MODE=0",
     };
     // act
     const auto params = OptionParameters::from_xyce_directives(directives);

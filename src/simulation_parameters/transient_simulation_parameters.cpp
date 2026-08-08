@@ -39,7 +39,7 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
         // tokenize the directive
         const auto tokens = tokenize(directive);
         // skip empty directives
-        if (tokens.empty()) 
+        if (tokens.empty())
             continue;
         // extract the command (first token) in uppercase
         const std::string cmd = to_upper(tokens[0]);
@@ -97,7 +97,7 @@ std::optional<TransientSimulationParameters> TransientSimulationParameters::from
             continue;
         }
         // skip non-TRAN directives
-        if (cmd != ".TRAN") 
+        if (cmd != ".TRAN")
             continue;
         // flag indicating a valid TRAN directive was found
         found = true;

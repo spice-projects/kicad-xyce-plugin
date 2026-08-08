@@ -288,8 +288,10 @@ TEST(OpSimulationParametersChecks, print_parameters_emits_print_dc_directive) {
     bool has_print_dc = false;
     bool has_print_tran = false;
     for (const auto& directive : directives) {
-        if (directive.find(".PRINT DC") == 0) has_print_dc = true;
-        if (directive.find(".PRINT TRAN") == 0) has_print_tran = true;
+        if (directive.find(".PRINT DC") == 0)
+            has_print_dc = true;
+        if (directive.find(".PRINT TRAN") == 0)
+            has_print_tran = true;
     }
     ASSERT_TRUE(has_print_dc);
     ASSERT_FALSE(has_print_tran);

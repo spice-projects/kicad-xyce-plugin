@@ -21,14 +21,10 @@ protected:
     void TearDown() override { delete m_parent; }
 
     // switch the sweep mode choice, acting as a friend to simulate a UI mode change
-    static void set_sweep_mode(DcParametersPanel& panel, const std::string& mode) {
-        panel.m_sweep_mode_choice->SetSelection(panel.m_sweep_mode_choice->FindString(wxString::FromUTF8(mode)));
-    }
+    static void set_sweep_mode(DcParametersPanel& panel, const std::string& mode) { panel.m_sweep_mode_choice->SetSelection(panel.m_sweep_mode_choice->FindString(wxString::FromUTF8(mode))); }
 
     // run the mode-change handler, acting as a friend
-    static void fire_sweep_mode_change(DcParametersPanel& panel) {
-        panel.on_sweep_mode_changed();
-    }
+    static void fire_sweep_mode_change(DcParametersPanel& panel) { panel.on_sweep_mode_changed(); }
 
     wxFrame* m_parent = nullptr;
 };

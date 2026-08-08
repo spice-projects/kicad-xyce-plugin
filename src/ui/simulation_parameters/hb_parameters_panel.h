@@ -3,8 +3,8 @@
 #include <wx/wxprec.h>
 
 #ifndef WX_PRECOMP
-#include <wx/panel.h>
 #include <wx/choice.h>
+#include <wx/panel.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
