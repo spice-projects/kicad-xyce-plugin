@@ -64,6 +64,8 @@ jobs:
         # formatting is platform-independent, so a single run on the dev platform suffices
         if: ${{ matrix.build_enabled && matrix.os == 'macos-latest' }}
         shell: bash
+        env:
+          HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
         run: |
           if ! command -v clang-format >/dev/null 2>&1; then
             brew install clang-format
@@ -128,7 +130,7 @@ jobs:
 
       - name: Upload build artifact
         if: ${{ matrix.build_enabled }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kicad-xyce-plugin-${{ matrix.platform }}
           path: .build-release/kicad-xyce-plugin${{ runner.os == 'Windows' && '.exe' || '' }}
@@ -141,13 +143,13 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Download arm64 artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: kicad-xyce-plugin-macos-arm64
           path: artifacts/arm64
 
       - name: Download x64 artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: kicad-xyce-plugin-macos-x64
           path: artifacts/x64
@@ -159,7 +161,7 @@ jobs:
             artifacts/x64/kicad-xyce-plugin
 
       - name: Upload Universal artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kicad-xyce-plugin-macos-universal
           path: kicad-xyce-plugin
