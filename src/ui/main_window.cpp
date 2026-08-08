@@ -84,6 +84,8 @@ MainWindow::MainWindow(const wxString& title, std::shared_ptr<KiCadSession> sess
     m_charts_panel = new ChartsPanel(m_content_panel);
     m_content_sizer->Add(m_charts_panel, 1, wxEXPAND | wxALL, 0);
     m_content_sizer->Hide(m_charts_panel);
+    // set FFT result callback to spawn new window
+    m_charts_panel->set_fft_result_callback([this](std::shared_ptr<XyceOutputFile> raw_file) { spawn_raw_file_window(std::move(raw_file)); });
     // set sizer for content panel
     m_content_panel->SetSizer(m_content_sizer);
     // create simulation output container, holds a header bar and the log area
@@ -149,6 +151,7 @@ MainWindow::MainWindow(const wxString& title, std::shared_ptr<KiCadSession> sess
     Bind(wxEVT_MENU, &MainWindow::on_menu_file_save, this, wxID_SAVE);
     // bind custom events
     Bind(wxEVT_NEW_WINDOW, &MainWindow::on_new_window, this);
+    Bind(wxEVT_OPEN_XYCE_FFT_CALCULATION, &MainWindow::on_open_xyce_fft_calculation, this);
     // netlist editor events
     Bind(wxEVT_STC_MODIFIED, &MainWindow::on_netlist_editor_modified, this, m_netlist_editor->GetId());
     Bind(wxEVT_STC_STYLENEEDED, &MainWindow::on_netlist_editor_style_needed, this, m_netlist_editor->GetId());
@@ -212,6 +215,12 @@ void MainWindow::on_new_window(wxCommandEvent&) {
     // spawn a new window when a raw file is present
     if (raw.has_value())
         spawn_raw_file_window(raw.value());
+}
+
+void MainWindow::on_open_xyce_fft_calculation(wxCommandEvent&) {
+    // open a new window for each parsed FFT calculation output file
+    for (const auto& fft_file : m_presenter->fft_files())
+        spawn_raw_file_window(fft_file);
 }
 
 void MainWindow::create_menubar() {
@@ -333,18 +342,24 @@ void MainWindow::on_menu_file_save(wxCommandEvent&) {
 }
 
 void MainWindow::on_show_netlist(wxCommandEvent&) {
-    // forward to the presenter
-    m_presenter->show_netlist_view();
+    // switch to the netlist view
+    show_netlist_view();
+    // refresh toolbar/menu states
+    m_presenter->refresh_action_states();
 }
 
 void MainWindow::on_show_charts(wxCommandEvent&) {
-    // forward to the presenter
-    m_presenter->show_charts_view();
+    // switch to the charts view
+    show_charts_view();
+    // refresh toolbar/menu states
+    m_presenter->refresh_action_states();
 }
 
 void MainWindow::on_show_simulation_output(wxCommandEvent&) {
-    // forward to the presenter
-    m_presenter->show_simulation_output();
+    // show the simulation output panel
+    show_simulation_output_panel();
+    // refresh toolbar/menu states
+    m_presenter->refresh_action_states();
 }
 
 void MainWindow::on_configure_simulation(wxCommandEvent&) {
@@ -378,8 +393,10 @@ void MainWindow::on_simulation_stderr(wxThreadEvent& event) {
 }
 
 void MainWindow::on_close_simulation_output(wxCommandEvent&) {
-    // forward to the presenter
-    m_presenter->close_simulation_output();
+    // hide the simulation output panel
+    hide_simulation_output_panel();
+    // refresh toolbar/menu states
+    m_presenter->refresh_action_states();
 }
 
 void MainWindow::on_netlist_editor_modified(wxStyledTextEvent&) {
@@ -517,7 +534,7 @@ void MainWindow::show_charts_view() {
     m_content_sizer->Layout();
 }
 
-void MainWindow::set_netlist_editor_content(const std::string& content, bool) {
+void MainWindow::set_netlist_editor_content(const std::string& content) {
     // prevent dirty analysis during programmatic updates
     m_netlist_editor_updating = true;
     // current read-only state of the editor
@@ -538,6 +555,11 @@ std::string MainWindow::netlist_editor_content() const {
 void MainWindow::set_netlist_editor_read_only(bool read_only) {
     // set the editor read-only state
     m_netlist_editor->SetReadOnly(read_only);
+}
+
+bool MainWindow::charts_shown() const {
+    // the charts panel is the active content view
+    return m_charts_panel != nullptr && m_charts_panel->IsShown();
 }
 
 void MainWindow::show_simulation_output_panel() {
@@ -583,14 +605,29 @@ void MainWindow::append_simulation_output_line(const std::string& line) {
     m_simulation_output_panel->GotoPos(m_simulation_output_panel->GetLength());
 }
 
-void MainWindow::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) {
+bool MainWindow::simulation_output_panel_hidden() const {
+    // the output panel is hidden when the splitter holds only the content panel
+    return m_body_splitter != nullptr && !m_body_splitter->IsSplit();
+}
+
+bool MainWindow::simulation_output_has_content() const {
+    // the log holds content when the output panel text is not empty
+    return m_simulation_output_panel != nullptr && m_simulation_output_panel->GetLength() > 0;
+}
+
+void MainWindow::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
     // refresh the charts panel with the given data
-    m_charts_panel->update(expression_manager, step_information, abscissa_label, abscissa_scale);
+    m_charts_panel->update(expression_manager, step_information, abscissa_label, abscissa_scale, suggested_plots);
 }
 
 void MainWindow::delete_all_charts() {
     // clear all charts from the panel
     m_charts_panel->delete_all_charts();
+}
+
+void MainWindow::set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) {
+    // forward the parsed FFT calculation files to the charts panel for the context menu
+    m_charts_panel->set_open_fft_calculation_files(files);
 }
 
 std::optional<SimulationConfig> MainWindow::show_simulation_parameters_dialog(const SimulationConfig& current) {

@@ -1,8 +1,11 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
+
+std::optional<std::string> get_environment_variable(const std::string& name);
 
 std::string to_upper(std::string_view);
 

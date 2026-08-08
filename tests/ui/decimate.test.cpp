@@ -182,8 +182,8 @@ TEST(DecimateXYChecks, rdp_output_length_le_target) {
 
 TEST(DecimateXYChecks, lttb_output_length_equals_target) {
     // arrange
-    auto   y      = make_sine(10000);
-    auto   x      = make_linspace(10000);
+    auto y = make_sine(10000);
+    auto x = make_linspace(10000);
     size_t target = 150;
     // act
     auto [x_out, y_out] = decimate_xy(x, y, target, DECIMATE_LTTB);
@@ -333,8 +333,8 @@ TEST(DecimateXYChecks, nth_point_first_and_last_included) {
 TEST(DecimateXYChecks, min_max_output_contains_bucket_extremes) {
     // arrange
     std::vector<double> y(1000, 0.0);
-    y[250]     = 99.0;
-    y[750]     = -99.0;
+    y[250] = 99.0;
+    y[750] = -99.0;
     auto x = make_linspace(1000);
     // act
     auto [x_out, y_out] = decimate_xy(x, y, 100, DECIMATE_MIN_MAX);
@@ -342,8 +342,10 @@ TEST(DecimateXYChecks, min_max_output_contains_bucket_extremes) {
     bool found_pos = false;
     bool found_neg = false;
     for (double v : y_out) {
-        if (v == 99.0)  found_pos = true;
-        if (v == -99.0) found_neg = true;
+        if (v == 99.0)
+            found_pos = true;
+        if (v == -99.0)
+            found_neg = true;
     }
     ASSERT_TRUE(found_pos);
     ASSERT_TRUE(found_neg);
@@ -389,7 +391,7 @@ TEST(DecimateXYChecks, min_max_output_contains_no_nan) {
 TEST(DecimateXYChecks, m4_output_contains_bucket_extremes) {
     // arrange
     std::vector<double> y(1000, 0.0);
-    y[99]  = 50.0;
+    y[99] = 50.0;
     y[900] = -50.0;
     auto x = make_linspace(1000);
     // act
@@ -398,8 +400,10 @@ TEST(DecimateXYChecks, m4_output_contains_bucket_extremes) {
     bool found_pos = false;
     bool found_neg = false;
     for (double v : y_out) {
-        if (v == 50.0)  found_pos = true;
-        if (v == -50.0) found_neg = true;
+        if (v == 50.0)
+            found_pos = true;
+        if (v == -50.0)
+            found_neg = true;
     }
     ASSERT_TRUE(found_pos);
     ASSERT_TRUE(found_neg);
@@ -512,7 +516,7 @@ TEST(DecimateXYChecks, lttb_target_two_returns_first_and_last) {
 
 TEST(DecimateXYChecks, lttb_uses_real_x_axis_from_decimate_xy) {
     // arrange — use a logarithmic x axis to verify the real x is forwarded
-    size_t n      = 10000;
+    size_t n = 10000;
     size_t target = 100;
     std::vector<double> x(n);
     for (size_t i = 0; i < n; ++i)

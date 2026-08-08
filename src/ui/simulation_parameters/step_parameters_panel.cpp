@@ -147,9 +147,7 @@ StepParametersPanel::StepParametersPanel(wxWindow* parent) :
     m_enable_cb->Bind(wxEVT_CHECKBOX, &StepParametersPanel::on_enable_toggle, this);
 }
 
-void StepParametersPanel::on_enable_toggle(wxCommandEvent& event) {
-    m_body->Enable(event.IsChecked());
-}
+void StepParametersPanel::on_enable_toggle(wxCommandEvent& event) { m_body->Enable(event.IsChecked()); }
 
 StepParameters StepParametersPanel::build_step_parameters() const {
     // read enable checkbox

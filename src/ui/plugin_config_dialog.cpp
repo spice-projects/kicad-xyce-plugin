@@ -14,8 +14,7 @@
 #include "plugin_config_dialog.h"
 
 PluginConfigDialog::PluginConfigDialog(wxWindow* parent, const PluginConfig& initial_config) :
-    wxDialog(parent, wxID_ANY, "Plugin Configuration", wxDefaultPosition, wxSize(540, 200), wxDEFAULT_DIALOG_STYLE),
-    m_initial_path(initial_config.xyce_executable_path()) {
+    wxDialog(parent, wxID_ANY, "Plugin Configuration", wxDefaultPosition, wxSize(540, 200), wxDEFAULT_DIALOG_STYLE), m_initial_path(initial_config.xyce_executable_path()) {
     // enforce minimum size
     SetMinSize(wxSize(540, 200));
 
@@ -101,6 +100,4 @@ void PluginConfigDialog::on_ok(wxCommandEvent& event) {
     event.Skip();
 }
 
-PluginConfig PluginConfigDialog::get_config() const {
-    return PluginConfig(m_path_input->GetValue().ToStdString());
-}
+PluginConfig PluginConfigDialog::get_config() const { return PluginConfig(m_path_input->GetValue().ToStdString()); }

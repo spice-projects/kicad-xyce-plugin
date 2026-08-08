@@ -39,17 +39,22 @@ public:
 
     void show_netlist_view() override;
     void show_charts_view() override;
-    void set_netlist_editor_content(const std::string& content, bool) override;
+    void set_netlist_editor_content(const std::string& content) override;
     std::string netlist_editor_content() const override;
     void set_netlist_editor_read_only(bool read_only) override;
+    bool charts_shown() const override;
 
     void show_simulation_output_panel() override;
     void hide_simulation_output_panel() override;
     void clear_simulation_output() override;
     void append_simulation_output_line(const std::string& line) override;
+    bool simulation_output_panel_hidden() const override;
+    bool simulation_output_has_content() const override;
 
-    void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) override;
+    void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) override;
     void delete_all_charts() override;
+
+    void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) override;
 
     std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig& current) override;
     std::optional<PluginConfig> show_plugin_config_dialog(const PluginConfig& current) override;
@@ -88,6 +93,8 @@ private:
     void on_exit(wxCommandEvent&);
 
     void on_new_window(wxCommandEvent&);
+
+    void on_open_xyce_fft_calculation(wxCommandEvent&);
 
     void create_menubar();
 

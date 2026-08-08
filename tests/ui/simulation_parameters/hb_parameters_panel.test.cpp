@@ -13,7 +13,7 @@
 
 namespace
 {
-    class HbParametersPanelTest : public ::testing::Test
+    class UiHbParametersPanelTest : public ::testing::Test
     {
     protected:
         void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -28,7 +28,7 @@ namespace
 // constructor
 // ========================================================================================
 
-TEST_F(HbParametersPanelTest, constructor_creates_panel) {
+TEST_F(UiHbParametersPanelTest, constructor_creates_panel) {
     // arrange / act
     HbParametersPanel panel(m_parent);
     // assert
@@ -40,7 +40,7 @@ TEST_F(HbParametersPanelTest, constructor_creates_panel) {
 // build_hb_parameters — default state
 // ========================================================================================
 
-TEST_F(HbParametersPanelTest, build_returns_defaults_by_default) {
+TEST_F(UiHbParametersPanelTest, build_returns_defaults_by_default) {
     // arrange / act
     HbParametersPanel panel(m_parent);
     auto result = panel.build_hb_parameters();
@@ -59,7 +59,7 @@ TEST_F(HbParametersPanelTest, build_returns_defaults_by_default) {
 // build with field values via apply/round-trip
 // ========================================================================================
 
-TEST_F(HbParametersPanelTest, build_after_apply_returns_same_values) {
+TEST_F(UiHbParametersPanelTest, build_after_apply_returns_same_values) {
     // arrange
     HbParametersPanel panel(m_parent);
     std::map<std::string, std::string> nonlin_opts;
@@ -101,7 +101,7 @@ TEST_F(HbParametersPanelTest, build_after_apply_returns_same_values) {
 // build with print section
 // ========================================================================================
 
-TEST_F(HbParametersPanelTest, build_with_print_section_enabled) {
+TEST_F(UiHbParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     HbParametersPanel panel(m_parent);
     auto print_params = PrintParameters("HB", "RAW", "out.raw", {"V(*)"}, {});
@@ -116,7 +116,7 @@ TEST_F(HbParametersPanelTest, build_with_print_section_enabled) {
     EXPECT_EQ(result.print_parameters->print_file, "out.raw");
 }
 
-TEST_F(HbParametersPanelTest, build_without_print_section) {
+TEST_F(UiHbParametersPanelTest, build_without_print_section) {
     // arrange
     HbParametersPanel panel(m_parent);
     HbSimulationParameters input({}, {}, std::nullopt, std::nullopt, std::nullopt, std::nullopt, {}, {});
@@ -131,7 +131,7 @@ TEST_F(HbParametersPanelTest, build_without_print_section) {
 // apply — disabling print section from a previously enabled state
 // ========================================================================================
 
-TEST_F(HbParametersPanelTest, apply_without_print_params_disables_print_section) {
+TEST_F(UiHbParametersPanelTest, apply_without_print_params_disables_print_section) {
     // arrange
     HbParametersPanel panel(m_parent);
     auto print_params = PrintParameters("HB", "RAW", "out.raw", {}, {});
@@ -150,7 +150,7 @@ TEST_F(HbParametersPanelTest, apply_without_print_params_disables_print_section)
 // build with nonlin options
 // ========================================================================================
 
-TEST_F(HbParametersPanelTest, build_with_nonlin_options) {
+TEST_F(UiHbParametersPanelTest, build_with_nonlin_options) {
     // arrange
     HbParametersPanel panel(m_parent);
     std::map<std::string, std::string> nonlin_opts;

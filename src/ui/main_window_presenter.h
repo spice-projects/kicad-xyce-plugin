@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "../config/plugin_config.h"
 #include "../file/xyce_output_file.h"
@@ -28,19 +29,12 @@ public:
     void load_raw_file(std::shared_ptr<XyceOutputFile> raw_file);
     void save_netlist();
 
-    // view switching
-    void show_netlist_view();
-    void show_charts_view();
-    void show_simulation_output();
-    void close_simulation_output();
-
     // configuration
     void configure_simulation();
     void configure_plugin();
 
     // simulation
     void run_simulation();
-    void cancel_simulation();
     void handle_simulation_finished(int exit_code, bool was_canceled);
     void handle_simulation_stdout(const std::string& line);
     void handle_simulation_stderr(const std::string& line);
@@ -54,12 +48,15 @@ public:
     // accessors
     [[nodiscard]] std::shared_ptr<XyceSimulationRunner> simulation_runner() const;
     [[nodiscard]] const std::optional<std::shared_ptr<XyceOutputFile>>& raw_file() const;
+    [[nodiscard]] const std::vector<std::shared_ptr<XyceOutputFile>>& fft_files() const;
 
     // recompute and forward the action enablement to the view
     void refresh_action_states();
 
 private:
     bool update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>> raw_file, bool delete_charts);
+
+    void show_raw_file_view();
 
     void set_base_title(const std::string& title);
 
@@ -73,11 +70,10 @@ private:
     AppState m_app_state = AppState::Empty;
     bool m_simulation_running = false;
     bool m_netlist_has_content = false;
-    bool m_charts_shown = false;
-    bool m_simulation_output_hidden = true;
-    bool m_simulation_output_has_content = false;
 
     std::optional<std::shared_ptr<XyceOutputFile>> m_xyce_raw_file;
+
+    std::vector<std::shared_ptr<XyceOutputFile>> m_fft_files;
 
     SimulationConfig m_simulation_config;
     PluginConfig m_plugin_config;

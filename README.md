@@ -6,57 +6,59 @@ KiCad plugin that integrates the Xyce circuit simulator into the KiCad UI, so yo
 
 - Development status: in progress
 - Primary action: Run Xyce Circuit Simulator
-- Runtime: Python 3.12+
+- Runtime: native C++23 executable (IPC plugin)
 
 ## What this plugin provides
 
 - Native KiCad plugin action to launch the simulator UI
 - Simulation command dialog supporting Transient, AC, DC, Harmonic Balance, Noise, Operating Point, and Linear analyses
 - Xyce process runner with streamed stdout and stderr handling
+- Interactive wxWidgets desktop UI backed by an ImGui plotting surface (ImPlot) with charts and expression plotting
+- FFT calculations for transient analysis and STEP visualization
 - Persistent plugin configuration for the Xyce executable path
-- Qt/PySide6 desktop UI integrated with KiCad
+- IPC integration with KiCad via NNG and the vendored KiCad protobuf API
 
 ## Repository layout
 
-- src/: main source directory containing the plugin logic and files
-  - src/plugin.py: KiCad plugin entrypoint/bootstrapper
-  - src/plugin.json: KiCad Plugin and Content Manager (PCM) metadata
-  - src/kicad_xyce_plugin/: core Python package containing the UI (Qt/PySide6), netlist parsing, and simulation logic
-- tests/: unit tests
-- xyce-docs/: vendor-provided Xyce documentation PDFs
-- xyce-implementation.md / STYLE-GUIDE.md: project documentation and style guidelines
+- `src/`: main source directory containing the plugin logic and files
+  - `src/main.cpp`: application entry point
+  - `src/app.cpp` / `src/app.h`: wxWidgets application lifecycle
+  - `src/plugin.json`: KiCad Plugin and Content Manager (PCM) executable-plugin metadata
+  - `src/kicad/`: KiCad IPC connection (NNG), session handling, and netlist source
+  - `src/netlist/`: Xyce netlist generation
+  - `src/simulation_parameters/`: simulation parameter models
+  - `src/expression/`: expression parsing/evaluation
+  - `src/fft/`: FFT computation for spectral analysis
+  - `src/config/`: plugin configuration
+  - `src/ui/`: desktop UI (wxWidgets shell with ImGui/ImPlot charts, dialogs, charts panel)
+- `netlists/`: sample/test netlists
+- `tests/`: C++ unit tests (GoogleTest)
+- `xyce-docs/`: vendor-provided Xyce documentation PDFs
+- `STYLE-GUIDE.md`: style guidelines for the codebase
 
 ## Requirements
 
-- Python 3.12 or newer
-- KiCad environment with plugin runtime support
+- C++23 compiler and CMake 3.12+
+- KiCad 10.0 or newer with IPC plugin runtime support
 - Xyce executable installed and available on disk
-
-Python dependencies are declared in pyproject.toml.
+- Dependencies are managed via `vcpkg` (see `vcpkg.json`)
 
 ## Local development setup
 
-1. Create and activate a virtual environment
-2. Install dependencies
+Configure and build with CMake presets. Dependencies come from vcpkg via the toolchain file.
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-
-pip install -r requirements.txt
-pip install -r src/requirements.txt
-pip install -r src/kicad_xyce_plugin/requirements.txt
+cmake --preset debug
+cmake --build --preset debug
 ```
+
+Other presets are available in `CMakePresets.json`: `release` and `profile`.
 
 ## Running the plugin locally
 
-The plugin entrypoint used by KiCad is `src/plugin.py`.
+The plugin entrypoint/metadata referenced by KiCad lives in `src/plugin.json` and `metadata.json`.
 
-For direct local execution of the simulation UI during development:
-
-```bash
-python -m kicad_xyce_plugin --log-level=DEBUG
-```
+The build produces the `kicad-xyce-plugin` executable under the build directory. It is launched by KiCad over IPC.
 
 ## Building the KiCad package
 
@@ -64,27 +66,25 @@ python -m kicad_xyce_plugin --log-level=DEBUG
 ./build/create-kicad-package.sh <version>
 ```
 
+The executable defaults to `.build-debug/kicad-xyce-plugin` and can be overridden as the second argument. The result is written to `dist/`.
+
 ## Testing
 
-```bash
-python -m pytest
-```
-
-## Linter
+Tests are built alongside the plugin. Run the test executable directly:
 
 ```bash
-flake8 .
+./.build-debug/tests/kicad-xyce-plugin-tests
 ```
 
 ## Configuration
 
-At runtime, the plugin expects a valid path to the Xyce executable. Configure it in the plugin UI via the Configuration dialog. The value is persisted using Qt settings.
+At runtime, the plugin expects a valid path to the Xyce executable. Configure it in the plugin UI via the Configuration dialog, along with analysis-specific simulation settings.
 
 ## Troubleshooting
 
 - If simulation fails to start, verify the configured Xyce path points to an executable file
-- If the plugin opens but does not run from KiCad, verify KiCad plugin discovery and runtime environment configuration
-- If Qt import errors occur, verify PySide6 is installed in the active environment
+- If the plugin does not run from KiCad, verify KiCad plugin discovery and IPC runtime environment configuration
+- If the UI fails to initialize, verify the platform graphics backend (Metal/D3D11/OpenGL) is available
 
 ## Contributing
 
@@ -96,10 +96,10 @@ At runtime, the plugin expects a valid path to the Xyce executable. Configure it
 
 Project source code is licensed under Apache-2.0. See LICENSE.
 
-This repository also bundles third-party icon assets from KiCad under CC-BY-SA 4.0 in plugin/kicad-icons. See:
+This repository also bundles third-party icon assets from KiCad under CC-BY-SA 4.0 in kicad-icons (and `src/ui/kicad-icons`). See:
 
-- plugin/kicad-icons/LICENSE
-- plugin/kicad-icons/COPYING
+- kicad-icons/LICENSE
+- kicad-icons/COPYING
 - THIRD_PARTY_NOTICES.txt
 
 This repository also bundles third-party Xyce documentation PDFs in xyce-docs. See:
@@ -111,4 +111,4 @@ This repository also bundles third-party Xyce documentation PDFs in xyce-docs. S
 
 When redistributing this project, include the project LICENSE file and all third-party license and notice files listed above.
 
-Python dependencies (including the KiCad Python API client library) are third-party components distributed under their own licenses. See THIRD_PARTY_NOTICES.txt for attribution and redistribution notes.
+Dependencies (wxWidgets, ImGui, ImPlot, spdlog, protobuf, NNG, pocketfft, GoogleTest) are third-party components distributed under their own licenses. See THIRD_PARTY_NOTICES.txt for attribution and redistribution notes.

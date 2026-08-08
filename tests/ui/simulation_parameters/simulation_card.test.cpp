@@ -13,16 +13,12 @@
 namespace
 {
     // parent frame fixture for wxPanel-based tests
-    class SimulationCardTest : public ::testing::Test
+    class UiSimulationCardTest : public ::testing::Test
     {
     protected:
-        void SetUp() override {
-            m_parent = new wxFrame(nullptr, wxID_ANY, "test");
-        }
+        void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
 
-        void TearDown() override {
-            delete m_parent;
-        }
+        void TearDown() override { delete m_parent; }
 
         wxFrame* m_parent = nullptr;
     };
@@ -32,14 +28,14 @@ namespace
 // constructor
 // ========================================================================================
 
-TEST_F(SimulationCardTest, constructor_creates_card_with_title) {
+TEST_F(UiSimulationCardTest, constructor_creates_card_with_title) {
     // arrange / act
     SimulationCard card(m_parent, "DC Analysis");
     // assert
     ASSERT_NE(card.get_content(), nullptr);
 }
 
-TEST_F(SimulationCardTest, constructor_creates_card_with_title_and_badge) {
+TEST_F(UiSimulationCardTest, constructor_creates_card_with_title_and_badge) {
     // arrange / act
     SimulationCard card(m_parent, "DC Analysis", "optional");
     // assert
@@ -50,7 +46,7 @@ TEST_F(SimulationCardTest, constructor_creates_card_with_title_and_badge) {
 // get_content
 // ========================================================================================
 
-TEST_F(SimulationCardTest, get_content_returns_valid_panel) {
+TEST_F(UiSimulationCardTest, get_content_returns_valid_panel) {
     // arrange / act
     SimulationCard card(m_parent, "AC Analysis");
     // assert
@@ -58,7 +54,7 @@ TEST_F(SimulationCardTest, get_content_returns_valid_panel) {
     ASSERT_TRUE(card.get_content()->IsKindOf(wxCLASSINFO(wxPanel)));
 }
 
-TEST_F(SimulationCardTest, get_content_panel_nests_inside_card) {
+TEST_F(UiSimulationCardTest, get_content_panel_nests_inside_card) {
     // arrange / act
     SimulationCard card(m_parent, "AC Analysis");
     // assert — the content panel is a descendant of the card

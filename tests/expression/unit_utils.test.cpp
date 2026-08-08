@@ -9,45 +9,28 @@
 
 namespace
 {
-    auto make_identifier(const std::string& name)
-    {
-        return std::make_unique<IdentifierNode>(name);
-    }
+    auto make_identifier(const std::string& name) { return std::make_unique<IdentifierNode>(name); }
 
-    auto make_number(const std::string& text)
-    {
-        return std::make_unique<NumberNode>(text);
-    }
+    auto make_number(const std::string& text) { return std::make_unique<NumberNode>(text); }
 
-    struct UnknownNode final : ExpressionNode {};
-
-    template<typename... Args>
-    auto make_call(const std::string& name, Args&&... args)
+    struct UnknownNode final : ExpressionNode
     {
+    };
+
+    template <typename... Args>
+    auto make_call(const std::string& name, Args&&... args) {
         std::vector<ExpressionPtr> argv;
         (argv.push_back(std::forward<Args>(args)), ...);
         return std::make_unique<FunctionCallNode>(name, std::move(argv));
     }
 
-    auto make_unary(UnaryOperator op, ExpressionPtr arg)
-    {
-        return std::make_unique<UnaryOperationNode>(op, std::move(arg));
-    }
+    auto make_unary(UnaryOperator op, ExpressionPtr arg) { return std::make_unique<UnaryOperationNode>(op, std::move(arg)); }
 
-    auto make_binary(ExpressionPtr lhs, BinaryOperator op, ExpressionPtr rhs)
-    {
-        return std::make_unique<BinaryOperationNode>(std::move(lhs), op, std::move(rhs));
-    }
+    auto make_binary(ExpressionPtr lhs, BinaryOperator op, ExpressionPtr rhs) { return std::make_unique<BinaryOperationNode>(std::move(lhs), op, std::move(rhs)); }
 
-    auto make_ternary(ExpressionPtr cond, ExpressionPtr t, ExpressionPtr f)
-    {
-        return std::make_unique<TernaryOperationNode>(std::move(cond), std::move(t), std::move(f));
-    }
+    auto make_ternary(ExpressionPtr cond, ExpressionPtr t, ExpressionPtr f) { return std::make_unique<TernaryOperationNode>(std::move(cond), std::move(t), std::move(f)); }
 
-    auto make_step(ExpressionPtr base, size_t index)
-    {
-        return std::make_unique<StepSelectorNode>(std::move(base), index);
-    }
+    auto make_step(ExpressionPtr base, size_t index) { return std::make_unique<StepSelectorNode>(std::move(base), index); }
 } // namespace
 
 // ========================================================================================

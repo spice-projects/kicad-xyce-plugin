@@ -1,315 +1,444 @@
-// #include <filesystem>
-// #include <span>
-// #include <string>
-// #include <type_traits>
-// #include <vector>
+#include <filesystem>
+#include <string>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
-// #include <gtest/gtest.h>
+#include <gtest/gtest.h>
 
-// #include "expression/expression.h"
-// #include "expression/expression_manager.h"
-// #include "file/xyce_output_file.h"
-// #include "step_information.h"
+#include "expression/expression.h"
+#include "expression/expression_manager.h"
+#include "file/xyce_output_file.h"
+#include "step_information.h"
 
-// namespace
-// {
+// ========================================================================================
+// type traits
+// ========================================================================================
 
-//     Expression<double> make_real_expression(const std::string& name, const std::vector<double>& values, const std::string& unit = "V") {
-//         std::vector<double> data(values);
-//         std::vector<std::span<const double>> steps = {{data.data(), data.size()}};
-//         return Expression(name, data, steps, unit);
-//     }
+static_assert(!std::is_copy_constructible_v<XyceOutputFile>);
+static_assert(!std::is_copy_assignable_v<XyceOutputFile>);
 
-// } // namespace
+// ========================================================================================
+// constructor / filename accessor
+// ========================================================================================
 
-// // ========================================================================================
-// // type traits
-// // ========================================================================================
+TEST(XyceOutputFileChecks, constructor_stores_filename) {
+    // arrange
+    const std::filesystem::path expected_filename = "/tmp/test.raw";
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output(expected_filename, "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // assert
+    ASSERT_EQ(output.filename(), expected_filename);
+}
 
-// static_assert(!std::is_copy_constructible_v<XyceOutputFile>);
-// static_assert(!std::is_copy_assignable_v<XyceOutputFile>);
+TEST(XyceOutputFileChecks, filename_accessor_returns_const_reference) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // act
+    const auto& const_output = output;
+    const auto& filename = const_output.filename();
+    // assert
+    ASSERT_EQ(filename, "/tmp/test.raw");
+}
 
-// // ========================================================================================
-// // constructor / filename accessor
-// // ========================================================================================
+// ========================================================================================
+// title accessor
+// ========================================================================================
 
-// TEST(XyceOutputFileChecks, constructor_stores_filename) {
-//     // arrange
-//     const std::filesystem::path expected_filename = "/tmp/test.raw";
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("time", {0.0}, "s"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
-//     ExpressionManager manager(expressions, slices);
-//     // act
-//     XyceOutputFile output(expected_filename, "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
-//     // assert
-//     ASSERT_EQ(output.filename(), expected_filename);
-// }
+TEST(XyceOutputFileChecks, constructor_stores_title) {
+    // arrange
+    const std::string expected_title = "My Simulation";
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", expected_title, false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // assert
+    ASSERT_EQ(output.title(), expected_title);
+}
 
-// TEST(XyceOutputFileChecks, filename_accessor_returns_const_reference) {
-//     // arrange
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("time", {0.0}, "s"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
-//     ExpressionManager manager(expressions, slices);
-//     XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
-//     // act
-//     const auto& const_output = output;
-//     const auto& filename = const_output.filename();
-//     // assert
-//     ASSERT_EQ(filename, "/tmp/test.raw");
-// }
+// ========================================================================================
+// is_complex accessor
+// ========================================================================================
 
-// // ========================================================================================
-// // title accessor
-// // ========================================================================================
+TEST(XyceOutputFileChecks, is_complex_returns_false_when_set_false) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // assert
+    ASSERT_FALSE(output.is_complex());
+}
 
-// TEST(XyceOutputFileChecks, constructor_stores_title) {
-//     // arrange
-//     const std::string expected_title = "My Simulation";
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("time", {0.0}, "s"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
-//     ExpressionManager manager(expressions, slices);
-//     // act
-//     XyceOutputFile output("/tmp/test.raw", expected_title, false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
-//     // assert
-//     ASSERT_EQ(output.title(), expected_title);
-// }
+TEST(XyceOutputFileChecks, is_complex_returns_true_when_set_true) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", true, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // assert
+    ASSERT_TRUE(output.is_complex());
+}
 
-// // ========================================================================================
-// // is_complex accessor
-// // ========================================================================================
+// ========================================================================================
+// step_information accessor
+// ========================================================================================
 
-// TEST(XyceOutputFileChecks, is_complex_returns_false_when_set_false) {
-//     // arrange
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("time", {0.0}, "s"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
-//     ExpressionManager manager(expressions, slices);
-//     // act
-//     XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
-//     // assert
-//     ASSERT_FALSE(output.is_complex());
-// }
+TEST(XyceOutputFileChecks, step_information_returns_stored_step_information) {
+    // arrange
+    const std::vector<std::string> expected_keys = {"R1", "TEMP"};
+    const std::vector<std::vector<double>> expected_values = {{1000.0, 27.0}, {2000.0, 85.0}};
+    const std::vector<std::pair<double, double>> expected_ranges = {{0.0, 10.0}, {0.0, 10.0}};
+    StepInformation step_info(expected_keys, expected_values, expected_ranges);
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // assert
+    ASSERT_EQ(output.step_information().keys(), expected_keys);
+    ASSERT_EQ(output.step_information().values(), expected_values);
+    ASSERT_EQ(output.step_information().length(), 2);
+}
 
-// TEST(XyceOutputFileChecks, is_complex_returns_true_when_set_true) {
-//     // arrange
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("time", {0.0}, "s"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
-//     ExpressionManager manager(expressions, slices);
-//     // act
-//     XyceOutputFile output("/tmp/test.raw", "Test", true, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
-//     // assert
-//     ASSERT_TRUE(output.is_complex());
-// }
+TEST(XyceOutputFileChecks, step_information_accessor_is_const) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // act
+    const auto& const_output = output;
+    const auto& info = const_output.step_information();
+    // assert
+    ASSERT_EQ(info.length(), 1);
+}
 
-// // ========================================================================================
-// // step_information accessor
-// // ========================================================================================
+// ========================================================================================
+// abscissa accessor
+// ========================================================================================
 
-// TEST(XyceOutputFileChecks, step_information_returns_stored_step_information) {
-//     // arrange
-//     const std::vector<std::string> expected_keys = {"R1", "TEMP"};
-//     const std::vector<std::vector<double>> expected_values = {{1000.0, 27.0}, {2000.0, 85.0}};
-//     StepInformation step_info(expected_keys, expected_values, std::vector<std::pair<double, double>>{{0.0, 10.0}, {0.0, 10.0}});
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("time", {0.0}, "s"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
-//     ExpressionManager manager(expressions, slices);
-//     // act
-//     XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
-//     // assert
-//     ASSERT_EQ(output.step_information().keys(), expected_keys);
-//     ASSERT_EQ(output.step_information().values(), expected_values);
-//     ASSERT_EQ(output.step_information().length(), 2);
-// }
+TEST(XyceOutputFileChecks, abscissa_returns_stored_expression) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // assert
+    ASSERT_EQ(output.abscissa().name(), "time");
+    ASSERT_EQ(output.abscissa().unit(), "s");
+}
 
-// TEST(XyceOutputFileChecks, step_information_accessor_is_const) {
-//     // arrange
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("time", {0.0}, "s"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
-//     ExpressionManager manager(expressions, slices);
-//     XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
-//     // act
-//     const auto& const_output = output;
-//     const auto& info = const_output.step_information();
-//     // assert
-//     ASSERT_EQ(info.length(), 1);
-// }
+TEST(XyceOutputFileChecks, abscissa_returns_mutable_reference) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // act
+    auto& abscissa_ref = output.abscissa();
+    // assert
+    ASSERT_EQ(abscissa_ref.name(), "time");
+}
 
-// // ========================================================================================
-// // abscissa accessor
-// // ========================================================================================
+// ========================================================================================
+// abscissa_scale accessor
+// ========================================================================================
 
-// TEST(XyceOutputFileChecks, abscissa_returns_stored_expression) {
-//     // arrange
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("time", {0.0, 1.0, 2.0}, "s"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
-//     ExpressionManager manager(expressions, slices);
-//     // act
-//     XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
-//     // assert
-//     ASSERT_EQ(output.abscissa().name(), "time");
-//     ASSERT_EQ(output.abscissa().unit(), "s");
-// }
+TEST(XyceOutputFileChecks, abscissa_scale_returns_linear) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // assert
+    ASSERT_EQ(output.abscissa_scale(), AbscissaScale::LINEAR);
+}
 
-// TEST(XyceOutputFileChecks, abscissa_returns_mutable_reference) {
-//     // arrange
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("time", {0.0}, "s"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
-//     ExpressionManager manager(expressions, slices);
-//     XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
-//     // act
-//     auto& abscissa_ref = output.abscissa();
-//     // assert
-//     ASSERT_EQ(abscissa_ref.name(), "time");
-// }
+TEST(XyceOutputFileChecks, abscissa_scale_returns_decade) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::DECADE, std::move(manager), nullptr);
+    // assert
+    ASSERT_EQ(output.abscissa_scale(), AbscissaScale::DECADE);
+}
 
-// // ========================================================================================
-// // abscissa_scale accessor
-// // ========================================================================================
+TEST(XyceOutputFileChecks, abscissa_scale_returns_octave) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::OCTAVE, std::move(manager), nullptr);
+    // assert
+    ASSERT_EQ(output.abscissa_scale(), AbscissaScale::OCTAVE);
+}
 
-// TEST(XyceOutputFileChecks, abscissa_scale_returns_linear) {
-//     // arrange
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("time", {0.0}, "s"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
-//     ExpressionManager manager(expressions, slices);
-//     // act
-//     XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
-//     // assert
-//     ASSERT_EQ(output.abscissa_scale(), AbscissaScale::LINEAR);
-// }
+// ========================================================================================
+// expression_manager accessor
+// ========================================================================================
 
-// TEST(XyceOutputFileChecks, abscissa_scale_returns_decade) {
-//     // arrange
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("freq", {1.0}, "Hz"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
-//     ExpressionManager manager(expressions, slices);
-//     // act
-//     XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::DECADE, std::move(manager), nullptr);
-//     // assert
-//     ASSERT_EQ(output.abscissa_scale(), AbscissaScale::DECADE);
-// }
+TEST(XyceOutputFileChecks, expression_manager_returns_stored_expressions) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // assert
+    ASSERT_EQ(output.expression_manager().expressions().size(), 1);
+}
 
-// TEST(XyceOutputFileChecks, abscissa_scale_returns_octave) {
-//     // arrange
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("freq", {1.0}, "Hz"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
-//     ExpressionManager manager(expressions, slices);
-//     // act
-//     XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::OCTAVE, std::move(manager), nullptr);
-//     // assert
-//     ASSERT_EQ(output.abscissa_scale(), AbscissaScale::OCTAVE);
-// }
+TEST(XyceOutputFileChecks, expression_manager_returns_mutable_reference) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // act
+    auto& manager_ref = output.expression_manager();
+    auto* expr = manager_ref.evaluate("time");
+    // assert
+    ASSERT_NE(expr, nullptr);
+    ASSERT_EQ(std::get<Expression<double>>(*expr).unit(), "s");
+}
 
-// // ========================================================================================
-// // expression_manager accessor
-// // ========================================================================================
+// ========================================================================================
+// metadata accessor
+// ========================================================================================
 
-// TEST(XyceOutputFileChecks, expression_manager_returns_stored_expressions) {
-//     // arrange
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("time", {0.0}, "s"));
-//     expressions.emplace_back(make_real_expression("V(out)", {1.0}, "V"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}, {1, 2}};
-//     ExpressionManager manager(expressions, slices);
-//     // act
-//     XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
-//     // assert
-//     ASSERT_EQ(output.expression_manager().expressions().size(), 2);
-// }
+TEST(XyceOutputFileChecks, metadata_returns_empty_when_defaulted) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // assert
+    ASSERT_TRUE(output.metadata().empty());
+}
 
-// TEST(XyceOutputFileChecks, expression_manager_returns_mutable_reference) {
-//     // arrange
-//     std::vector<std::string> keys = {"R1"};
-//     std::vector<std::vector<double>> values = {{1000.0}};
-//     std::vector<std::pair<double, double>> ranges = {{0.0, 10.0}};
-//     StepInformation step_info(keys, values, ranges);
-//     std::vector<AnyExpression> expressions;
-//     expressions.emplace_back(make_real_expression("V(out)", {1.0}, "V"));
-//     std::vector<std::pair<size_t, size_t>> slices = {{0, 1}};
-//     ExpressionManager manager(expressions, slices);
-//     XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
-//     // act
-//     auto& manager_ref = output.expression_manager();
-//     auto* expr = manager_ref.evaluate("v(out)");
-//     // assert
-//     ASSERT_NE(expr, nullptr);
-//     ASSERT_EQ(std::get<Expression<double>>(*expr).unit(), "V");
-// }
+TEST(XyceOutputFileChecks, metadata_returns_stored_values) {
+    // arrange
+    const std::unordered_map<std::string, std::string> expected_metadata{{"Window", "HANN"}, {"Normalized", "true"}};
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, {}, expected_metadata);
+    // assert
+    ASSERT_EQ(output.metadata(), expected_metadata);
+}
 
-// // ========================================================================================
-// // copy prevention
-// // ========================================================================================
+TEST(XyceOutputFileChecks, metadata_accessor_returns_const_reference) {
+    // arrange
+    const std::unordered_map<std::string, std::string> expected_metadata{{"Window", "HANN"}};
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, {}, expected_metadata);
+    // act
+    const auto& const_output = output;
+    const auto& metadata = const_output.metadata();
+    // assert
+    ASSERT_EQ(metadata, expected_metadata);
+}
 
-// TEST(XyceOutputFileChecks, copy_constructor_is_deleted) {
-//     // arrange
-//     // act
-//     static_assert(!std::is_copy_constructible_v<XyceOutputFile>);
-//     // assert
-//     SUCCEED();
-// }
+// ========================================================================================
+// suggested_plots accessor
+// ========================================================================================
 
-// TEST(XyceOutputFileChecks, copy_assignment_is_deleted) {
-//     // arrange
-//     // act
-//     static_assert(!std::is_copy_assignable_v<XyceOutputFile>);
-//     // assert
-//     SUCCEED();
-// }
+TEST(XyceOutputFileChecks, suggested_plots_returns_empty_when_defaulted) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // assert
+    ASSERT_TRUE(output.suggested_plots().empty());
+}
+
+TEST(XyceOutputFileChecks, suggested_plots_returns_stored_expression_names) {
+    // arrange
+    const std::vector<std::vector<std::string>> expected_plots = {{"V(out)", "I(R1)"}, {"V(in)"}};
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, expected_plots);
+    // assert
+    ASSERT_EQ(output.suggested_plots(), expected_plots);
+}
+
+TEST(XyceOutputFileChecks, suggested_plots_accessor_returns_const_reference) {
+    // arrange
+    const std::vector<std::vector<std::string>> expected_plots = {{"V(out)"}};
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, expected_plots);
+    // act
+    const auto& const_output = output;
+    const auto& plots = const_output.suggested_plots();
+    // assert
+    ASSERT_EQ(plots, expected_plots);
+}
+
+TEST(XyceOutputFileChecks, constructor_suggested_plots_precedes_metadata) {
+    // arrange
+    const std::vector<std::vector<std::string>> expected_plots = {{"V(out)"}, {"I(R1)", "I(R2)"}};
+    const std::unordered_map<std::string, std::string> expected_metadata{{"Window", "HANN"}};
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, expected_plots, expected_metadata);
+    // assert
+    ASSERT_EQ(output.suggested_plots(), expected_plots);
+    ASSERT_EQ(output.metadata(), expected_metadata);
+}
+
+// ========================================================================================
+// move semantics
+// ========================================================================================
+
+TEST(XyceOutputFileChecks, move_constructor_transfers_suggested_plots_and_metadata) {
+    // arrange
+    const std::vector<std::vector<std::string>> expected_plots = {{"V(out)", "I(R1)"}, {"V(in)"}};
+    const std::unordered_map<std::string, std::string> expected_metadata{{"Window", "HANN"}};
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, expected_plots, expected_metadata);
+    // act
+    XyceOutputFile moved(std::move(output));
+    // assert
+    ASSERT_EQ(moved.suggested_plots(), expected_plots);
+    ASSERT_EQ(moved.metadata(), expected_metadata);
+}
+
+TEST(XyceOutputFileChecks, move_assignment_transfers_suggested_plots_and_metadata) {
+    // arrange
+    const std::vector<std::vector<std::string>> expected_plots = {{"V(out)"}, {"V(in)"}};
+    const std::unordered_map<std::string, std::string> expected_metadata{{"Normalized", "true"}};
+    StepInformation step_info_a({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions_a;
+    std::vector<double> abscissa_data_a = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices_a = {{0, 3}};
+    expressions_a.emplace_back(Expression<double>("time", std::move(abscissa_data_a), slices_a, "s"));
+    ExpressionManager manager_a(expressions_a, slices_a);
+    XyceOutputFile source("/tmp/a.raw", "A", false, std::move(step_info_a), AbscissaScale::LINEAR, std::move(manager_a), nullptr, expected_plots, expected_metadata);
+    StepInformation step_info_b({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions_b;
+    std::vector<double> abscissa_data_b = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices_b = {{0, 3}};
+    expressions_b.emplace_back(Expression<double>("time", std::move(abscissa_data_b), slices_b, "s"));
+    ExpressionManager manager_b(expressions_b, slices_b);
+    XyceOutputFile target("/tmp/b.raw", "B", false, std::move(step_info_b), AbscissaScale::LINEAR, std::move(manager_b), nullptr);
+    // act
+    target = std::move(source);
+    // assert
+    ASSERT_EQ(target.suggested_plots(), expected_plots);
+    ASSERT_EQ(target.metadata(), expected_metadata);
+}
+
+// ========================================================================================
+// copy prevention
+// ========================================================================================
+
+TEST(XyceOutputFileChecks, copy_constructor_is_deleted) {
+    // arrange
+    // act
+    static_assert(!std::is_copy_constructible_v<XyceOutputFile>);
+    // assert
+    SUCCEED();
+}
+
+TEST(XyceOutputFileChecks, copy_assignment_is_deleted) {
+    // arrange
+    // act
+    static_assert(!std::is_copy_assignable_v<XyceOutputFile>);
+    // assert
+    SUCCEED();
+}

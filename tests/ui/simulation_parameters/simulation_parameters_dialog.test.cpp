@@ -24,7 +24,7 @@
 namespace
 {
     // parent frame fixture for wxDialog-based tests
-    class SimulationParametersDialogTest : public ::testing::Test
+    class UiSimulationParametersDialogTest : public ::testing::Test
     {
     protected:
         void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -42,7 +42,7 @@ namespace
 // constructor — basic smoke tests
 // ========================================================================================
 
-TEST_F(SimulationParametersDialogTest, constructor_creates_dialog) {
+TEST_F(UiSimulationParametersDialogTest, constructor_creates_dialog) {
     // arrange / act
     OpSimulationParameters op_params(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, std::nullopt);
     SimulationConfig config("OP", op_params, {}, {}, EMPTY_OPTIONS, {});
@@ -55,7 +55,7 @@ TEST_F(SimulationParametersDialogTest, constructor_creates_dialog) {
 // constructor — initial page selection
 // ========================================================================================
 
-TEST_F(SimulationParametersDialogTest, constructor_selects_op_page) {
+TEST_F(UiSimulationParametersDialogTest, constructor_selects_op_page) {
     // arrange / act
     SimulationConfig config("OP", std::monostate{}, {}, {}, EMPTY_OPTIONS, {});
     SimulationParametersDialog dialog(m_parent, config);
@@ -64,7 +64,7 @@ TEST_F(SimulationParametersDialogTest, constructor_selects_op_page) {
     EXPECT_EQ(output.analysis_type, "OP");
 }
 
-TEST_F(SimulationParametersDialogTest, constructor_selects_tran_page) {
+TEST_F(UiSimulationParametersDialogTest, constructor_selects_tran_page) {
     // arrange / act
     SimulationConfig config("TRAN", std::monostate{}, {}, {}, EMPTY_OPTIONS, {});
     SimulationParametersDialog dialog(m_parent, config);
@@ -73,7 +73,7 @@ TEST_F(SimulationParametersDialogTest, constructor_selects_tran_page) {
     EXPECT_EQ(output.analysis_type, "TRAN");
 }
 
-TEST_F(SimulationParametersDialogTest, constructor_selects_dc_page) {
+TEST_F(UiSimulationParametersDialogTest, constructor_selects_dc_page) {
     // arrange / act
     SimulationConfig config("DC", std::monostate{}, {}, {}, EMPTY_OPTIONS, {});
     SimulationParametersDialog dialog(m_parent, config);
@@ -82,7 +82,7 @@ TEST_F(SimulationParametersDialogTest, constructor_selects_dc_page) {
     EXPECT_EQ(output.analysis_type, "DC");
 }
 
-TEST_F(SimulationParametersDialogTest, constructor_selects_ac_page) {
+TEST_F(UiSimulationParametersDialogTest, constructor_selects_ac_page) {
     // arrange / act
     SimulationConfig config("AC", std::monostate{}, {}, {}, EMPTY_OPTIONS, {});
     SimulationParametersDialog dialog(m_parent, config);
@@ -91,7 +91,7 @@ TEST_F(SimulationParametersDialogTest, constructor_selects_ac_page) {
     EXPECT_EQ(output.analysis_type, "AC");
 }
 
-TEST_F(SimulationParametersDialogTest, constructor_selects_noise_page) {
+TEST_F(UiSimulationParametersDialogTest, constructor_selects_noise_page) {
     // arrange / act
     SimulationConfig config("NOISE", std::monostate{}, {}, {}, EMPTY_OPTIONS, {});
     SimulationParametersDialog dialog(m_parent, config);
@@ -100,7 +100,7 @@ TEST_F(SimulationParametersDialogTest, constructor_selects_noise_page) {
     EXPECT_EQ(output.analysis_type, "NOISE");
 }
 
-TEST_F(SimulationParametersDialogTest, constructor_selects_hb_page) {
+TEST_F(UiSimulationParametersDialogTest, constructor_selects_hb_page) {
     // arrange / act
     SimulationConfig config("HB", std::monostate{}, {}, {}, EMPTY_OPTIONS, {});
     SimulationParametersDialog dialog(m_parent, config);
@@ -109,7 +109,7 @@ TEST_F(SimulationParametersDialogTest, constructor_selects_hb_page) {
     EXPECT_EQ(output.analysis_type, "HB");
 }
 
-TEST_F(SimulationParametersDialogTest, constructor_selects_lin_page) {
+TEST_F(UiSimulationParametersDialogTest, constructor_selects_lin_page) {
     // arrange / act
     SimulationConfig config("LIN", std::monostate{}, {}, {}, EMPTY_OPTIONS, {});
     SimulationParametersDialog dialog(m_parent, config);
@@ -122,7 +122,7 @@ TEST_F(SimulationParametersDialogTest, constructor_selects_lin_page) {
 // get_config — round-trip with default parameters
 // ========================================================================================
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_op_defaults) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_op_defaults) {
     // arrange
     OpSimulationParameters op_params(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, std::nullopt);
     SimulationConfig input("OP", op_params, {}, {}, EMPTY_OPTIONS, {});
@@ -136,7 +136,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_op_defaults) {
     EXPECT_TRUE(output.steps.empty());
 }
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_tran_defaults) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_tran_defaults) {
     // arrange
     TransientSimulationParameters tran_params("", "", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt);
     SimulationConfig input("TRAN", tran_params, {}, {}, EMPTY_OPTIONS, {});
@@ -150,7 +150,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_tran_defaults) {
     EXPECT_TRUE(output.steps.empty());
 }
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_dc_defaults) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_dc_defaults) {
     // arrange — panel defaults use sweep_mode="LIN" when not specified
     DCSimulationParameters dc_params("LIN", "", "", "", "", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
     SimulationConfig input("DC", dc_params, {}, {}, EMPTY_OPTIONS, {});
@@ -164,7 +164,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_dc_defaults) {
     EXPECT_TRUE(output.steps.empty());
 }
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_ac_defaults) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_ac_defaults) {
     // arrange — panel defaults use sweep_mode="LIN" when not specified
     AcSimulationParameters ac_params("LIN", "", "", "", "", std::nullopt, {}, std::nullopt);
     SimulationConfig input("AC", ac_params, {}, {}, EMPTY_OPTIONS, {});
@@ -178,7 +178,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_ac_defaults) {
     EXPECT_TRUE(output.steps.empty());
 }
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_noise_defaults) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_noise_defaults) {
     // arrange — panel defaults use sweep_type="LIN" when not specified
     NoiseSimulationParameters noise_params("", "", "", "", "", "", "LIN", {}, "", std::nullopt);
     SimulationConfig input("NOISE", noise_params, {}, {}, EMPTY_OPTIONS, {});
@@ -192,7 +192,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_noise_defaults) {
     EXPECT_TRUE(output.steps.empty());
 }
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_hb_defaults) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_hb_defaults) {
     // arrange
     HbSimulationParameters hb_params({}, {}, std::nullopt, std::nullopt, std::nullopt, std::nullopt, {}, {});
     SimulationConfig input("HB", hb_params, {}, {}, EMPTY_OPTIONS, {});
@@ -206,7 +206,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_hb_defaults) {
     EXPECT_TRUE(output.steps.empty());
 }
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_lin_defaults) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_lin_defaults) {
     // arrange — panel defaults use sparcalc=true, format="TOUCHSTONE2",
     //           lintype="S", dataformat="RI", sweep_mode="LIN"
     LinSimulationParameters lin_params(true, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "", "", "", "", std::nullopt);
@@ -225,7 +225,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_lin_defaults) {
 // get_config — round-trip with custom values and step parameters
 // ========================================================================================
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_op_with_step) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_op_with_step) {
     // arrange
     OpSimulationParameters op_params(false, false, false, std::vector<std::string>{}, "", "", true, "IC", "save.dat", {}, {}, std::nullopt);
     StepParameters step("LIN", "TEMP", "0", "100", "1", "", {}, "", true);
@@ -241,7 +241,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_op_with_step) {
     EXPECT_EQ(output.steps[0], step);
 }
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_tran_with_sensitivity_and_step) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_tran_with_sensitivity_and_step) {
     // arrange
     std::vector<TransientSchedulePoint> schedule = {TransientSchedulePoint("1u", "10n")};
     auto print_params = PrintParameters("TRAN", "RAW", "tran.raw", {"V(1)"}, {});
@@ -260,7 +260,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_tran_with_sensitivit
     EXPECT_EQ(output.steps[0], step);
 }
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_dc_with_sensitivity_and_step) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_dc_with_sensitivity_and_step) {
     // arrange
     auto print_params = PrintParameters("DC", "RAW", "dc.raw", {"V(1)"}, {});
     auto sens = SensParameter("DC", "objfunc", {}, {"R1"}, false, true, std::nullopt);
@@ -278,7 +278,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_dc_with_sensitivity_
     EXPECT_EQ(output.steps[0], step);
 }
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_ac_with_sensitivity_and_step) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_ac_with_sensitivity_and_step) {
     // arrange
     auto print_params = PrintParameters("AC", "CSV", "ac.csv", {"V(out)"}, {});
     auto sens = SensParameter("AC", "objvars", {"V(out)"}, {"C1", "R1"}, true, false, std::nullopt);
@@ -296,7 +296,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_ac_with_sensitivity_
     EXPECT_EQ(output.steps[0], step);
 }
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_noise_with_step) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_noise_with_step) {
     // arrange
     std::vector<DeviceNoiseOperator> dno;
     dno.emplace_back("DNI", "OUT", "V1");
@@ -315,7 +315,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_noise_with_step) {
     EXPECT_EQ(output.steps[0], step);
 }
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_hb_with_step) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_hb_with_step) {
     // arrange
     std::map<std::string, std::string> nonlin_opts;
     nonlin_opts["MAXITER"] = "100";
@@ -336,7 +336,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_hb_with_step) {
     EXPECT_EQ(output.steps[0], step);
 }
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_lin_with_step) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_lin_with_step) {
     // arrange
     auto print_params = PrintParameters("AC", "RAW", "lin.raw", {"V(*)"}, {});
     LinSimulationParameters lin_params(true, "CITIFILE", "Z", "DB", "out.s2p", "10", "6", "DEC", "100", "1k", "1M", "", print_params);
@@ -357,7 +357,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_lin_with_step) {
 // get_config — no step returned when step is disabled
 // ========================================================================================
 
-TEST_F(SimulationParametersDialogTest, get_config_returns_no_step_when_disabled) {
+TEST_F(UiSimulationParametersDialogTest, get_config_returns_no_step_when_disabled) {
     // arrange
     OpSimulationParameters op_params(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, std::nullopt);
     StepParameters step("LIN", "TEMP", "0", "100", "1", "", {}, "", false);
@@ -373,7 +373,7 @@ TEST_F(SimulationParametersDialogTest, get_config_returns_no_step_when_disabled)
 // get_config — data blocks are preserved
 // ========================================================================================
 
-TEST_F(SimulationParametersDialogTest, get_config_preserves_data_blocks) {
+TEST_F(UiSimulationParametersDialogTest, get_config_preserves_data_blocks) {
     // arrange
     std::vector<std::string> params = {"TIME", "V(1)"};
     std::vector<std::vector<std::string>> records = {{"0.0", "0.0"}, {"1e-6", "1.5"}};
@@ -402,7 +402,7 @@ TEST_F(SimulationParametersDialogTest, get_config_preserves_data_blocks) {
 // get_config — unassociated prints are preserved
 // ========================================================================================
 
-TEST_F(SimulationParametersDialogTest, get_config_preserves_unassociated_prints) {
+TEST_F(UiSimulationParametersDialogTest, get_config_preserves_unassociated_prints) {
     // arrange
     PrintParameters print_params("AC", "", "", {"V(1)"}, {});
     std::vector<PrintParameters> unassociated_prints = {print_params};
@@ -422,7 +422,7 @@ TEST_F(SimulationParametersDialogTest, get_config_preserves_unassociated_prints)
 // get_config — transient with full print section and sensitivity
 // ========================================================================================
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_tran_full) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_tran_full) {
     // arrange
     std::vector<TransientSchedulePoint> schedule = {TransientSchedulePoint("1u", "10n"), TransientSchedulePoint("10u", "100n")};
     std::vector<PrintParameters> print_params;
@@ -465,7 +465,7 @@ TEST_F(SimulationParametersDialogTest, get_config_roundtrip_tran_full) {
 // get_config — dc with full print section and sensitivity
 // ========================================================================================
 
-TEST_F(SimulationParametersDialogTest, get_config_roundtrip_dc_full) {
+TEST_F(UiSimulationParametersDialogTest, get_config_roundtrip_dc_full) {
     // arrange
     std::vector<std::string> list_vals = {"0.5", "1.0", "1.5"};
     auto sens = SensParameter("DC", "objfunc", {"V(1)", "I(V1)"}, {"R1"}, true, false, std::nullopt);

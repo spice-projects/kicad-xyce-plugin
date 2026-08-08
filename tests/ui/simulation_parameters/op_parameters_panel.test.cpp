@@ -17,7 +17,7 @@
 namespace
 {
     // parent frame fixture for wxPanel-based tests
-    class OpParametersPanelTest : public ::testing::Test
+    class UiOpParametersPanelTest : public ::testing::Test
     {
     protected:
         void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -32,7 +32,7 @@ namespace
 // constructor
 // ========================================================================================
 
-TEST_F(OpParametersPanelTest, constructor_creates_panel) {
+TEST_F(UiOpParametersPanelTest, constructor_creates_panel) {
     // arrange / act
     OpParametersPanel panel(m_parent);
     // assert
@@ -44,7 +44,7 @@ TEST_F(OpParametersPanelTest, constructor_creates_panel) {
 // build_op_parameters — default state
 // ========================================================================================
 
-TEST_F(OpParametersPanelTest, build_returns_defaults_by_default) {
+TEST_F(UiOpParametersPanelTest, build_returns_defaults_by_default) {
     // arrange / act
     OpParametersPanel panel(m_parent);
     auto result = panel.build_op_parameters();
@@ -61,7 +61,7 @@ TEST_F(OpParametersPanelTest, build_returns_defaults_by_default) {
 // build with field values via apply/round-trip
 // ========================================================================================
 
-TEST_F(OpParametersPanelTest, build_after_apply_returns_same_values) {
+TEST_F(UiOpParametersPanelTest, build_after_apply_returns_same_values) {
     // arrange
     OpParametersPanel panel(m_parent);
     auto print_params = PrintParameters("DC", "RAW", "out.raw", {"V(*)", "IC(*)"}, {});
@@ -105,7 +105,7 @@ TEST_F(OpParametersPanelTest, build_after_apply_returns_same_values) {
 // build with save section enabled
 // ========================================================================================
 
-TEST_F(OpParametersPanelTest, build_with_save_section) {
+TEST_F(UiOpParametersPanelTest, build_with_save_section) {
     // arrange
     OpParametersPanel panel(m_parent);
     auto nodeset = std::vector<NodesetEntry>{};
@@ -124,7 +124,7 @@ TEST_F(OpParametersPanelTest, build_with_save_section) {
 // build with nodeset entries
 // ========================================================================================
 
-TEST_F(OpParametersPanelTest, build_with_nodeset_entries) {
+TEST_F(UiOpParametersPanelTest, build_with_nodeset_entries) {
     // arrange
     OpParametersPanel panel(m_parent);
     auto nodeset = std::vector<NodesetEntry>{NodesetEntry("1", "5.0"), NodesetEntry("2", "3.3")};
@@ -144,7 +144,7 @@ TEST_F(OpParametersPanelTest, build_with_nodeset_entries) {
 // build with IC entries
 // ========================================================================================
 
-TEST_F(OpParametersPanelTest, build_with_ic_entries) {
+TEST_F(UiOpParametersPanelTest, build_with_ic_entries) {
     // arrange
     OpParametersPanel panel(m_parent);
     auto ic = std::vector<IcEntry>{IcEntry("out", "1.0"), IcEntry("in", "0")};
@@ -164,7 +164,7 @@ TEST_F(OpParametersPanelTest, build_with_ic_entries) {
 // build with print section
 // ========================================================================================
 
-TEST_F(OpParametersPanelTest, build_with_print_section_enabled) {
+TEST_F(UiOpParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     OpParametersPanel panel(m_parent);
     auto print_params = PrintParameters("DC", "CSV", "data.csv", {"V(1)", "V(2)"}, {});
@@ -179,7 +179,7 @@ TEST_F(OpParametersPanelTest, build_with_print_section_enabled) {
     EXPECT_EQ(result.print_parameters->print_file, "data.csv");
 }
 
-TEST_F(OpParametersPanelTest, build_without_print_section) {
+TEST_F(UiOpParametersPanelTest, build_without_print_section) {
     // arrange
     OpParametersPanel panel(m_parent);
     OpSimulationParameters input(false, false, false, std::vector<std::string>{}, "", "", false, "NODESET", "", {}, {}, std::nullopt);
@@ -194,7 +194,7 @@ TEST_F(OpParametersPanelTest, build_without_print_section) {
 // apply — disabling print section from a previously enabled state
 // ========================================================================================
 
-TEST_F(OpParametersPanelTest, apply_without_print_params_disables_print_section) {
+TEST_F(UiOpParametersPanelTest, apply_without_print_params_disables_print_section) {
     // arrange
     OpParametersPanel panel(m_parent);
     auto print_params = PrintParameters("DC", "RAW", "out.raw", {}, {});

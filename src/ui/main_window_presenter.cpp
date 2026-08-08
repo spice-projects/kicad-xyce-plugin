@@ -5,6 +5,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include "../file/xyce_fft_file.h"
 #include "../file/xyce_raw_file.h"
 #include "../netlist/netlist.h"
 #include "editor_netlist_source.h"
@@ -29,47 +30,41 @@ void MainWindowPresenter::open_netlist_file(const std::filesystem::path& path) {
     update_netlist_editor_content(content, false);
     // remove the raw output file reference
     m_xyce_raw_file = std::nullopt;
+    // remove the parsed FFT calculation files, they belong to a previous run
+    m_fft_files.clear();
     // show the netlist view over the charts view
     m_view.show_netlist_view();
-    m_charts_shown = false;
     // refresh toolbar/menu states
     refresh_action_states();
 }
 
 void MainWindowPresenter::open_raw_file(const std::filesystem::path& path) {
     // parse the raw file and store it in the presenter state
-    if (update_xyce_raw_file(xyce_raw_file_parser(path), true)) {
-        // update the window title from the raw file
-        set_base_title(m_xyce_raw_file.value()->title());
-        // clear the netlist editor content
-        update_netlist_editor_content("", false);
-        // show the charts view over the netlist editor
-        m_view.show_charts_view();
-        m_charts_shown = true;
-        // hide the simulation output panel for the raw-file view
-        m_view.hide_simulation_output_panel();
-        m_simulation_output_hidden = true;
-        // refresh toolbar/menu states
-        refresh_action_states();
-    }
+    // remove the parsed FFT calculation files, they belong to a previous run
+    m_fft_files.clear();
+    if (update_xyce_raw_file(xyce_raw_file_parser(path), true))
+        show_raw_file_view();
 }
 
 void MainWindowPresenter::load_raw_file(std::shared_ptr<XyceOutputFile> raw_file) {
     // store the already-parsed raw file
-    if (update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>>(std::move(raw_file)), true)) {
-        // update the window title from the raw file
-        set_base_title(m_xyce_raw_file.value()->title());
-        // clear the netlist editor content
-        update_netlist_editor_content("", false);
-        // show the charts view over the netlist editor
-        m_view.show_charts_view();
-        m_charts_shown = true;
-        // hide the simulation output panel for the raw-file view
-        m_view.hide_simulation_output_panel();
-        m_simulation_output_hidden = true;
-        // refresh toolbar/menu states
-        refresh_action_states();
-    }
+    // remove the parsed FFT calculation files, they belong to a previous run
+    m_fft_files.clear();
+    if (update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>>(std::move(raw_file)), true))
+        show_raw_file_view();
+}
+
+void MainWindowPresenter::show_raw_file_view() {
+    // update the window title from the raw file
+    set_base_title(m_xyce_raw_file.value()->title());
+    // clear the netlist editor content
+    update_netlist_editor_content("", false);
+    // show the charts view over the netlist editor
+    m_view.show_charts_view();
+    // hide the simulation output panel for the raw-file view
+    m_view.hide_simulation_output_panel();
+    // refresh toolbar/menu states
+    refresh_action_states();
 }
 
 void MainWindowPresenter::save_netlist() {
@@ -78,42 +73,6 @@ void MainWindowPresenter::save_netlist() {
     // reset the dirty flag and refresh states when it changed
     if (set_netlist_editor_dirty(false))
         refresh_action_states();
-}
-
-void MainWindowPresenter::show_netlist_view() {
-    // hide the charts panel and show the netlist editor
-    m_view.show_netlist_view();
-    // the charts view is no longer shown
-    m_charts_shown = false;
-    // refresh toolbar/menu states
-    refresh_action_states();
-}
-
-void MainWindowPresenter::show_charts_view() {
-    // hide the netlist editor and show the charts panel
-    m_view.show_charts_view();
-    // the charts view is now shown
-    m_charts_shown = true;
-    // refresh toolbar/menu states
-    refresh_action_states();
-}
-
-void MainWindowPresenter::show_simulation_output() {
-    // re-show the simulation output panel
-    m_view.show_simulation_output_panel();
-    // the output panel is no longer hidden
-    m_simulation_output_hidden = false;
-    // refresh toolbar/menu states
-    refresh_action_states();
-}
-
-void MainWindowPresenter::close_simulation_output() {
-    // unsplit the bottom pane to dismiss the simulation output panel
-    m_view.hide_simulation_output_panel();
-    // the output panel is now hidden
-    m_simulation_output_hidden = true;
-    // refresh toolbar/menu states
-    refresh_action_states();
 }
 
 void MainWindowPresenter::configure_simulation() {
@@ -218,28 +177,22 @@ void MainWindowPresenter::run_simulation() {
     }
     // clear any previous runner
     m_simulation_runner.reset();
+    // clear the parsed FFT calculation files, they belong to the previous run
+    m_fft_files.clear();
     // create a new simulation runner
     m_simulation_runner = std::make_shared<XyceSimulationRunner>();
     // mark the simulation as running
     m_simulation_running = true;
     // show the simulation output panel for this run
     m_view.show_simulation_output_panel();
-    m_simulation_output_hidden = false;
     // reset the log for this run
     m_view.clear_simulation_output();
-    m_simulation_output_has_content = false;
     // launch the simulation through the view, which wires the wx process events
     m_view.start_simulation_process(m_plugin_config.xyce_executable_path(), temp_path, working_directory);
     // refresh toolbar/menu states
     refresh_action_states();
     // update the statusbar
     m_view.set_status_text("Simulation started...");
-}
-
-void MainWindowPresenter::cancel_simulation() {
-    // cancel the running simulation when present
-    if (m_simulation_runner)
-        m_simulation_runner->cancel();
 }
 
 void MainWindowPresenter::handle_simulation_finished(int exit_code, bool was_canceled) {
@@ -279,11 +232,21 @@ void MainWindowPresenter::handle_simulation_finished(int exit_code, bool was_can
                 update_xyce_raw_file(std::move(raw_file), true);
                 // switch to the charts view
                 m_view.show_charts_view();
-                m_charts_shown = true;
                 // update the window title from the raw file
                 set_base_title(m_xyce_raw_file.value()->title());
                 // update the statusbar
                 m_view.set_status_text("Simulation finished successfully");
+                // parse the FFT calculation output files produced by this run, derived from the analysis config
+                m_fft_files.clear();
+                if (const auto fft_pattern = m_simulation_config.fft_output_file_path_pattern(m_simulation_runner->netlist_file_path()); fft_pattern.has_value()) {
+                    // raw file instance
+                    const auto& raw_file_instance = m_xyce_raw_file.value();
+                    // parse the matching FFT output files
+                    if (auto parsed_files = xyce_fft_file_parser(*fft_pattern, raw_file_instance->step_information(), &raw_file_instance->expression_manager()))
+                        m_fft_files = std::move(*parsed_files);
+                    // log the number of loaded FFT files
+                    spdlog::info("Loaded {} Xyce FFT calculation file(s)", m_fft_files.size());
+                }
                 // clear the runner
                 m_simulation_runner.reset();
                 // refresh toolbar/menu states
@@ -308,8 +271,6 @@ void MainWindowPresenter::handle_simulation_finished(int exit_code, bool was_can
 void MainWindowPresenter::handle_simulation_stdout(const std::string& line) {
     // forward the stdout line to the view for display
     m_view.append_simulation_output_line(line);
-    // the simulation output log now holds content
-    m_simulation_output_has_content = true;
 }
 
 void MainWindowPresenter::handle_simulation_stderr(const std::string& line) {
@@ -336,7 +297,6 @@ void MainWindowPresenter::extract_schematic_netlist() {
     m_view.set_netlist_editor_read_only(true);
     // show the netlist editor over the charts view
     m_view.show_netlist_view();
-    m_charts_shown = false;
     // refresh toolbar/menu states
     refresh_action_states();
 }
@@ -351,17 +311,22 @@ const std::optional<std::shared_ptr<XyceOutputFile>>& MainWindowPresenter::raw_f
     return m_xyce_raw_file;
 }
 
+const std::vector<std::shared_ptr<XyceOutputFile>>& MainWindowPresenter::fft_files() const {
+    // return the parsed FFT calculation output files
+    return m_fft_files;
+}
+
 void MainWindowPresenter::refresh_action_states() {
     // gather the input flags describing the current window state
     ActionStateInput input;
     input.has_netlist = m_netlist_has_content;
     input.has_netlist_file = m_netlist_source != nullptr && !m_netlist_source->is_read_only();
     input.has_raw = m_xyce_raw_file.has_value();
-    input.charts_shown = m_charts_shown;
+    input.charts_shown = m_view.charts_shown();
     input.simulation_running = m_simulation_running;
     input.netlist_editor_dirty = m_netlist_editor_dirty;
-    input.output_hidden = m_simulation_output_hidden;
-    input.log_has_content = m_simulation_output_has_content;
+    input.output_hidden = m_view.simulation_output_panel_hidden();
+    input.log_has_content = m_view.simulation_output_has_content();
     // derive the current application state
     const AppState state = derive_app_state(input);
     // log state transitions
@@ -375,6 +340,8 @@ void MainWindowPresenter::refresh_action_states() {
     const ActionStateEnablement enablement = compute_action_enablement(input);
     // apply the enablement to the view
     m_view.apply_action_enablement(enablement);
+    // forward the parsed FFT calculation files so the charts context menu can expose the action
+    m_view.set_open_fft_calculation_files(m_fft_files);
 }
 
 bool MainWindowPresenter::update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>> raw_file, bool delete_charts) {
@@ -388,7 +355,7 @@ bool MainWindowPresenter::update_xyce_raw_file(std::optional<std::shared_ptr<Xyc
         if (delete_charts)
             m_view.delete_all_charts();
         // update the charts with the parsed data
-        m_view.update_charts(file->expression_manager(), file->step_information(), "", file->abscissa_scale());
+        m_view.update_charts(file->expression_manager(), file->step_information(), "", file->abscissa_scale(), file->suggested_plots());
         // indicate success
         return true;
     }
@@ -414,8 +381,8 @@ bool MainWindowPresenter::set_netlist_editor_dirty(bool flag) {
 }
 
 bool MainWindowPresenter::update_netlist_editor_content(const std::string& content, bool dirty_flag) {
-    // set the editor content through the view and reset the dirty flag
-    m_view.set_netlist_editor_content(content, dirty_flag);
+    // set the editor content through the view
+    m_view.set_netlist_editor_content(content);
     // track whether the editor holds content
     m_netlist_has_content = !content.empty();
     // return whether the dirty flag changed

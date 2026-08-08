@@ -194,6 +194,4 @@ void SensitivitySectionPanel::apply(const SensParameter* params) {
     m_print_section->apply(params->print_parameters ? &*params->print_parameters : nullptr, false, false);
 }
 
-void SensitivitySectionPanel::on_enable_toggle(wxCommandEvent& event) {
-    m_body->Enable(event.IsChecked());
-}
+void SensitivitySectionPanel::on_enable_toggle(wxCommandEvent& event) { m_body->Enable(event.IsChecked()); }

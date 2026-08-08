@@ -210,20 +210,20 @@ std::optional<PrintParameters> PrintParameters::from_xyce_statement(const std::s
                 // skip unsupported option
                 continue;
             }
-                // map format option
-                if (option_key == "FORMAT") {
-                    // normalize format candidate
-                    const std::string normalized_format = to_upper(option_value);
-                    // validate format value
-                    if (!ALLOWED_FORMAT_VALUES.count(normalized_format)) {
-                        // skip invalid format
-                        continue;
-                    }
-                    // store format (preserve original case from input)
-                    print_format = option_value;
-                    // next
+            // map format option
+            if (option_key == "FORMAT") {
+                // normalize format candidate
+                const std::string normalized_format = to_upper(option_value);
+                // validate format value
+                if (!ALLOWED_FORMAT_VALUES.count(normalized_format)) {
+                    // skip invalid format
                     continue;
                 }
+                // store format (preserve original case from input)
+                print_format = option_value;
+                // next
+                continue;
+            }
             // map file option
             if (option_key == "FILE") {
                 // store file

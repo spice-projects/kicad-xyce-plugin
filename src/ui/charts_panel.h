@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <memory>
+#include <vector>
 
 #include <wx/wxprec.h>
 
@@ -14,6 +15,7 @@
 #endif
 
 #include "../expression/expression_manager.h"
+#include "../file/xyce_output_file.h"
 #include "../step_information.h"
 #include "chart.h"
 
@@ -26,11 +28,13 @@ using ChartsPanelBase = wxPanel;
 class ChartsPanel : public ChartsPanelBase
 {
 public:
+    using FftResultCallback = std::function<void(std::shared_ptr<XyceOutputFile>)>;
+
     explicit ChartsPanel(wxWindow* parent, wxWindowID id = wxID_ANY);
 
     ~ChartsPanel() override;
 
-    void update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale);
+    void update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots);
 
     Chart* add_chart();
 
@@ -39,6 +43,11 @@ public:
     void refresh_charts(int frames = 3);
 
     void display_changed();
+
+    void set_fft_result_callback(FftResultCallback callback) { m_fft_result_callback = std::move(callback); }
+
+    // store the parsed Xyce FFT calculation output files available to the context menu
+    void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) { m_fft_calculation_files = files; }
 
 private:
     friend class ContextScope;
@@ -62,6 +71,10 @@ private:
     std::tuple<double, double, double, double> m_zoom_window = {-1, -1, -1, -1};
 
     ImVec4 m_background_color;
+
+    FftResultCallback m_fft_result_callback;
+
+    std::vector<std::shared_ptr<XyceOutputFile>> m_fft_calculation_files;
 
 #ifdef __APPLE__
     void* m_metal_layer = nullptr;
@@ -143,4 +156,8 @@ private:
     void on_menu_delete_chart(wxCommandEvent&);
 
     void on_menu_new_window(wxCommandEvent&);
+
+    void on_menu_calculate_fft(wxCommandEvent&);
+
+    void on_menu_open_fft_calculation(wxCommandEvent&);
 };

@@ -810,8 +810,6 @@ TEST(FftParametersChecks, handles_complex_output_variable_with_colon) {
     ASSERT_EQ(result->output_variable, "{V(OUT):}");
 }
 
-
-
 TEST(FftParametersChecks, handles_complex_output_variable_with_tilde) {
     // arrange
     const std::string statement = ".FFT {V(OUT)~} WINDOW=RECT";
@@ -1921,8 +1919,6 @@ TEST(FftParametersChecks, handles_complex_output_variable_with_z) {
     ASSERT_TRUE(result.has_value());
     ASSERT_EQ(result->output_variable, "{V(OUT)\x7a}");
 }
-
-
 
 TEST(FftParametersChecks, to_xyce_statement_preserves_case_of_valid_window) {
     // arrange

@@ -1,7 +1,6 @@
 #include "fft/fft.h"
 
 #include <algorithm>
-#include <bit>
 #include <cmath>
 #include <complex>
 #include <numbers>
@@ -36,7 +35,7 @@ namespace fft
         };
     }
 
-    FftResult compute_fft_many2(std::span<const double> x, const std::vector<std::span<const double>>& y_matrix, double max_frequency, WindowFunction window, bool normalize, size_t x_left_index, std::optional<size_t> x_right_index, FftOutput output, bool keep_dc, InterpolationAlgorithm algo) {
+    FftResult compute_fft_many(std::span<const double> x, const std::vector<std::span<const double>>& y_matrix, size_t sample_count, WindowFunction window, FftFormat format, size_t x_left_index, std::optional<size_t> x_right_index, FftOutput output, bool keep_dc, InterpolationAlgorithm algo) {
         // validate that x has at least 2 elements
         if (x.size() < 2)
             throw std::invalid_argument("x must contain at least 2 elements");
@@ -49,9 +48,12 @@ namespace fft
             if (y_matrix[s].size() != x.size())
                 throw std::invalid_argument("x and y_matrix row sizes must match");
         }
-        // validate that max_frequency is positive
-        if (max_frequency <= 0.0)
-            throw std::invalid_argument("max_frequency must be positive");
+        // validate that sample_count meets the xyce minimum
+        if (sample_count < 4)
+            throw std::invalid_argument("sample_count must be at least 4");
+        // validate that sample_count is a power of two
+        if ((sample_count & (sample_count - 1)) != 0)
+            throw std::invalid_argument("sample_count must be a power of two");
         // default the right interval index to the end of x
         const size_t left_index = x_left_index;
         const size_t right_index = x_right_index.value_or(x.size());
@@ -71,25 +73,18 @@ namespace fft
         const std::span<const double> x_interval = x.subspan(left_index, right_index - left_index);
         // compute duration of the selected interval
         const double total_duration = x_interval.back() - x_interval.front();
-        // compute interpolation spacing
-        const double delta = 1.0 / (10.0 * max_frequency);
-        // compute number of samples for the uniform grid
-        const size_t n_samples = static_cast<size_t>(std::floor(total_duration / delta)) + 1;
-        // validate that we have at least 2 samples in the derived grid
-        if (n_samples < 2)
-            throw std::invalid_argument("Derived sample count must be at least 2");
-        // allocate the uniform grid
-        auto x_uniform = std::vector<double>(n_samples);
-        // compute uniform grid coordinates
-        for (size_t i = 0; i < n_samples; ++i) {
-            // linear grid interpolation
-            x_uniform[i] = x_interval.front() + static_cast<double>(i) * (total_duration / static_cast<double>(n_samples - 1));
-        }
-        // compute the uniform time step
-        const double dt = x_uniform[1] - x_uniform[0];
+        // compute the uniform time step over exactly sample_count points
+        const double dt = total_duration / static_cast<double>(sample_count - 1);
         // validate that the time step is positive
         if (dt <= 0.0)
             throw std::invalid_argument("time step dt must be positive");
+        // allocate the uniform grid
+        auto x_uniform = std::vector<double>(sample_count);
+        // compute uniform grid coordinates
+        for (size_t i = 0; i < sample_count; ++i) {
+            // linear grid interpolation
+            x_uniform[i] = x_interval.front() + static_cast<double>(i) * dt;
+        }
         // create a list of spans for the selected interval of signals
         auto y_old_spans = std::vector<std::span<const double>>();
         // reserve space in spans vector
@@ -110,20 +105,20 @@ namespace fft
                 for (double val : row)
                     sum += val;
                 // compute average/mean
-                const double mean = sum / static_cast<double>(n_samples);
+                const double mean = sum / static_cast<double>(sample_count);
                 // subtract mean from each element in the row
                 for (double& val : row)
                     val -= mean;
             }
         }
         // generate window function weights
-        auto win = std::vector<double>(n_samples, 1.0);
+        auto win = std::vector<double>(sample_count, 1.0);
         // apply window calculations if not rectangular
         if (window != WindowFunction::RECTANGULAR) {
             // denominator for ratio calculations
-            const double denom = static_cast<double>(n_samples - 1);
+            const double denom = static_cast<double>(sample_count - 1);
             // compute window weight for each sample
-            for (size_t i = 0; i < n_samples; ++i) {
+            for (size_t i = 0; i < sample_count; ++i) {
                 // fraction index
                 const double ratio = static_cast<double>(i) / denom;
                 // handle specific window types
@@ -151,21 +146,13 @@ namespace fft
         // apply window weights to resampled signals
         for (auto& row : y_resampled) {
             // loop elements to apply windowing
-            for (size_t i = 0; i < n_samples; ++i) {
+            for (size_t i = 0; i < sample_count; ++i) {
                 // multiply current element by window weight
                 row[i] *= win[i];
             }
         }
-        // compute next power of two for FFT target size
-        size_t n_fft = std::bit_ceil(n_samples);
-        // enforce minimum FFT size
-        if (n_fft < 4)
-            n_fft = 4;
-        // zero-pad each row to the FFT target size
-        for (auto& row : y_resampled) {
-            // resize fills with 0.0 by default
-            row.resize(n_fft, 0.0);
-        }
+        // transform length equals the requested sample count
+        const size_t n_fft = sample_count;
         // compute frequency bins
         const size_t num_bins = n_fft / 2 + 1;
         auto frequencies = std::vector<double>(num_bins);
@@ -202,39 +189,38 @@ namespace fft
                     // absolute value of complex spectrum element
                     raw_magnitude[i] = std::abs(spectrum[i]);
                 }
-                // apply normalization if requested
-                if (normalize) {
-                    // find peak value
-                    double peak = 0.0;
-                    for (double val : raw_magnitude) {
-                        peak = std::max(peak, val);
-                    }
-                    if (peak <= 0.0)
-                        peak = 1.0;
-                    // divide by peak
-                    for (double& val : raw_magnitude) {
-                        val /= peak;
-                    }
+                // compute physical scaling factor for a one-sided spectrum
+                const double scale = 2.0 / win_sum;
+                // scale magnitudes
+                for (double& val : raw_magnitude) {
+                    val *= scale;
                 }
-                else {
-                    // compute physical scaling factor
-                    const double scale = (2.0 / win_sum) * (static_cast<double>(n_fft) / static_cast<double>(n_samples));
-                    // scale magnitudes
-                    for (double& val : raw_magnitude) {
-                        val *= scale;
-                    }
-                }
-                // halve the DC component
+                // halve the DC component which is not doubled
                 raw_magnitude[0] /= 2.0;
                 // halve the Nyquist component for even-length FFTs
                 if (n_fft % 2 == 0)
                     raw_magnitude[num_bins - 1] /= 2.0;
+                // normalize the complete one-sided spectrum by its peak for NORM
+                if (format == FftFormat::NORM) {
+                    // find the greatest magnitude
+                    double peak = 0.0;
+                    for (double val : raw_magnitude) {
+                        peak = (std::max)(peak, val);
+                    }
+                    // avoid division by zero
+                    if (peak > 0.0) {
+                        // divide each bin by the peak
+                        for (double& val : raw_magnitude) {
+                            val /= peak;
+                        }
+                    }
+                }
                 // format output as DB or MAGNITUDE
                 if (output == FftOutput::MAGNITUDE_DB) {
                     // compute decibels for each bin
                     for (size_t i = 0; i < num_bins; ++i) {
                         // clamp to avoid log of zero
-                        const double clamped = std::max(raw_magnitude[i], 1e-300);
+                        const double clamped = (std::max)(raw_magnitude[i], 1e-300);
                         // convert to decibels
                         output_values[row_index][i] = 20.0 * std::log10(clamped);
                     }

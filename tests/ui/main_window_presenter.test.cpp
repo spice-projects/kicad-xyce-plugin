@@ -69,11 +69,13 @@ public:
         netlist_view_shown = false;
     }
 
-    void set_netlist_editor_content(const std::string& value, bool) override { editor_content = value; }
+    void set_netlist_editor_content(const std::string& value) override { editor_content = value; }
 
     std::string netlist_editor_content() const override { return editor_content; }
 
     void set_netlist_editor_read_only(bool read_only) override { editor_read_only = read_only; }
+
+    bool charts_shown() const override { return charts_view_shown; }
 
     void show_simulation_output_panel() override { output_panel_hidden = false; }
 
@@ -83,14 +85,24 @@ public:
 
     void append_simulation_output_line(const std::string& line) override { output_content += line + "\n"; }
 
-    void update_charts(ExpressionManager&, const StepInformation&, const std::string&, AbscissaScale) override {
-        // count the chart updates
+    bool simulation_output_panel_hidden() const override { return output_panel_hidden; }
+
+    bool simulation_output_has_content() const override { return !output_content.empty(); }
+
+    void update_charts(ExpressionManager&, const StepInformation&, const std::string&, AbscissaScale, const std::vector<std::vector<std::string>>& suggested_plots) override {
+        // record the suggested plots and count the chart updates
+        update_charts_suggested_plots = suggested_plots;
         update_charts_calls++;
     }
 
     void delete_all_charts() override {
         // count the chart deletions
         delete_all_charts_calls++;
+    }
+
+    void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) override {
+        // record the forwarded FFT calculation files
+        open_fft_calculation_files = files;
     }
 
     std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig&) override { return simulation_parameters_result; }
@@ -128,6 +140,8 @@ public:
     int start_process_calls = 0;
     int spawn_raw_file_calls = 0;
     ActionStateEnablement applied_enablement;
+    std::vector<std::vector<std::string>> update_charts_suggested_plots;
+    std::vector<std::shared_ptr<XyceOutputFile>> open_fft_calculation_files;
 };
 
 // ========================================================================================
@@ -177,9 +191,11 @@ TEST(MainWindowPresenterChecks, edit_then_save_clears_dirty_and_writes_file) {
     // act
     presenter.save_netlist();
     // assert the file was written and the dirty marker cleared
-    std::ifstream in(path);
-    std::string written((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    EXPECT_EQ(written, "R1 1 0 200\n.END\n");
+    {
+        std::ifstream in(path);
+        std::string written((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        EXPECT_EQ(written, "R1 1 0 200\n.END\n");
+    }
     EXPECT_EQ(view.title, path.filename().string());
     EXPECT_EQ(view.title.find("* "), std::string::npos);
     EXPECT_FALSE(view.applied_enablement.save);
@@ -288,16 +304,6 @@ TEST(MainWindowPresenterChecks, simulation_finished_success_without_runner_sets_
     EXPECT_EQ(view.status_text, "Simulation finished but runner reference is missing");
 }
 
-TEST(MainWindowPresenterChecks, cancel_simulation_without_runner_is_noop) {
-    // arrange
-    FakeMainWindowView view;
-    MainWindowPresenter presenter(view, nullptr, PluginConfig());
-    // act (must not crash or modify state)
-    presenter.cancel_simulation();
-    // assert
-    EXPECT_TRUE(view.status_text.empty());
-}
-
 // ========================================================================================
 // raw file loading
 // ========================================================================================
@@ -323,6 +329,24 @@ TEST(MainWindowPresenterChecks, load_raw_file_shows_charts_and_sets_title) {
     EXPECT_TRUE(presenter.raw_file().has_value());
 }
 
+TEST(MainWindowPresenterChecks, load_raw_file_forwards_suggested_plots_to_charts) {
+    // arrange
+    const std::vector<std::vector<std::string>> expected_suggested_plots = {{"V(out)", "I(R1)"}, {"V(in)"}};
+    std::vector<std::string> keys;
+    std::vector<std::vector<double>> values;
+    std::vector<std::pair<double, double>> ranges;
+    StepInformation step_info(keys, values, ranges);
+    ExpressionManager manager;
+    auto raw_file = std::make_shared<XyceOutputFile>("/tmp/presenter.raw", "Raw Title", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, expected_suggested_plots);
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, nullptr, PluginConfig());
+    // act
+    presenter.load_raw_file(raw_file);
+    // assert
+    EXPECT_EQ(view.update_charts_calls, 1);
+    EXPECT_EQ(view.update_charts_suggested_plots, expected_suggested_plots);
+}
+
 // ========================================================================================
 // action enablement propagation
 // ========================================================================================
@@ -342,6 +366,120 @@ TEST(MainWindowPresenterChecks, editing_after_open_enables_save_via_enablement) 
     EXPECT_FALSE(view.applied_enablement.show_charts);
     EXPECT_TRUE(view.applied_enablement.configure_simulation);
     EXPECT_TRUE(view.applied_enablement.run_simulation);
+    // cleanup
+    std::filesystem::remove(path);
+}
+
+// ========================================================================================
+// configure plugin
+// ========================================================================================
+
+TEST(MainWindowPresenterChecks, configure_plugin_accepting_valid_executable_is_used_by_run) {
+    // arrange
+    const auto path = temp_file_path("presenter_plugin.cir");
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, make_source(path, kNetlist), PluginConfig());
+    view.plugin_config_result = PluginConfig(kExecutablePath);
+    // act
+    presenter.configure_plugin();
+    // run now passes the executable guard and reaches the analysis prompt instead
+    presenter.run_simulation();
+    // assert
+    EXPECT_NE(view.status_text, "Configured Xyce executable path is invalid");
+    EXPECT_EQ(view.start_process_calls, 0);
+    // cleanup
+    std::filesystem::remove(path);
+}
+
+// ========================================================================================
+// run simulation — empty netlist
+// ========================================================================================
+
+TEST(MainWindowPresenterChecks, run_simulation_with_empty_netlist_prompts_and_aborts) {
+    // arrange
+    const auto path = temp_file_path("presenter_empty.cir");
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, make_source(path, ""), PluginConfig(kExecutablePath));
+    // act
+    presenter.run_simulation();
+    // assert (empty content parses to no analysis directive, so the run prompts and aborts without starting)
+    EXPECT_EQ(view.start_process_calls, 0);
+    EXPECT_TRUE(view.status_text.empty());
+    // cleanup
+    std::filesystem::remove(path);
+}
+
+// ========================================================================================
+// extract schematic netlist
+// ========================================================================================
+
+TEST(MainWindowPresenterChecks, extract_schematic_netlist_sets_read_only_editor) {
+    // arrange
+    const auto path = temp_file_path("presenter_extract.cir");
+    std::ofstream(path) << kNetlist;
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, make_source(path, kNetlist), PluginConfig());
+    // act
+    presenter.extract_schematic_netlist();
+    // assert
+    EXPECT_TRUE(view.editor_read_only);
+    EXPECT_TRUE(view.netlist_view_shown);
+    EXPECT_FALSE(view.charts_view_shown);
+    EXPECT_EQ(view.editor_content, kNetlist);
+    // cleanup
+    std::filesystem::remove(path);
+}
+
+// ========================================================================================
+// simulation output forwarding
+// ========================================================================================
+
+TEST(MainWindowPresenterChecks, simulation_stdout_forwarded_to_output) {
+    // arrange
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, nullptr, PluginConfig());
+    // act
+    presenter.handle_simulation_stdout("line one");
+    presenter.handle_simulation_stdout("line two");
+    // assert
+    EXPECT_EQ(view.output_content, "line one\nline two\n");
+}
+
+TEST(MainWindowPresenterChecks, simulation_stderr_sets_status) {
+    // arrange
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, nullptr, PluginConfig());
+    // act
+    presenter.handle_simulation_stderr("boom");
+    // assert
+    EXPECT_EQ(view.status_text, "Simulation error: boom");
+}
+
+// ========================================================================================
+// raw file state reset
+// ========================================================================================
+
+TEST(MainWindowPresenterChecks, open_netlist_file_clears_previous_raw_file) {
+    // arrange
+    std::vector<std::string> keys;
+    std::vector<std::vector<double>> values;
+    std::vector<std::pair<double, double>> ranges;
+    StepInformation step_info(keys, values, ranges);
+    ExpressionManager manager;
+    auto raw_file = std::make_shared<XyceOutputFile>("/tmp/presenter_reset.raw", "Raw Title", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    const auto path = temp_file_path("presenter_reset.cir");
+    std::ofstream(path) << kNetlist;
+    FakeMainWindowView view;
+    MainWindowPresenter presenter(view, make_source(path, kNetlist), PluginConfig());
+    presenter.load_raw_file(raw_file);
+    ASSERT_TRUE(view.charts_view_shown);
+    ASSERT_TRUE(presenter.raw_file().has_value());
+    // act
+    presenter.open_netlist_file(path);
+    // assert
+    EXPECT_TRUE(view.netlist_view_shown);
+    EXPECT_FALSE(view.charts_view_shown);
+    EXPECT_FALSE(presenter.raw_file().has_value());
     // cleanup
     std::filesystem::remove(path);
 }

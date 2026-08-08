@@ -15,7 +15,7 @@
 namespace
 {
     // parent frame fixture for wxPanel-based tests
-    class AcParametersPanelTest : public ::testing::Test
+    class UiAcParametersPanelTest : public ::testing::Test
     {
     protected:
         void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -30,7 +30,7 @@ namespace
 // constructor
 // ========================================================================================
 
-TEST_F(AcParametersPanelTest, constructor_creates_panel) {
+TEST_F(UiAcParametersPanelTest, constructor_creates_panel) {
     // arrange / act
     AcParametersPanel panel(m_parent);
     // assert
@@ -42,7 +42,7 @@ TEST_F(AcParametersPanelTest, constructor_creates_panel) {
 // build_ac_parameters — default state
 // ========================================================================================
 
-TEST_F(AcParametersPanelTest, build_returns_defaults_by_default) {
+TEST_F(UiAcParametersPanelTest, build_returns_defaults_by_default) {
     // arrange / act
     AcParametersPanel panel(m_parent);
     auto result = panel.build_ac_parameters();
@@ -59,7 +59,7 @@ TEST_F(AcParametersPanelTest, build_returns_defaults_by_default) {
 // build with field values via apply/round-trip
 // ========================================================================================
 
-TEST_F(AcParametersPanelTest, build_after_apply_returns_same_values) {
+TEST_F(UiAcParametersPanelTest, build_after_apply_returns_same_values) {
     // arrange
     AcParametersPanel panel(m_parent);
     auto print_params = PrintParameters("AC", "RAW", "ac.raw", {"V(*)", "IC(*)"}, {});
@@ -89,7 +89,7 @@ TEST_F(AcParametersPanelTest, build_after_apply_returns_same_values) {
 // build with print section
 // ========================================================================================
 
-TEST_F(AcParametersPanelTest, build_with_print_section_enabled) {
+TEST_F(UiAcParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     AcParametersPanel panel(m_parent);
     auto print_params = PrintParameters("AC", "CSV", "data.csv", {"V(1)", "V(2)"}, {});
@@ -104,7 +104,7 @@ TEST_F(AcParametersPanelTest, build_with_print_section_enabled) {
     EXPECT_EQ(result.print_parameters->print_file, "data.csv");
 }
 
-TEST_F(AcParametersPanelTest, build_without_print_section) {
+TEST_F(UiAcParametersPanelTest, build_without_print_section) {
     // arrange
     AcParametersPanel panel(m_parent);
     AcSimulationParameters input("LIN", "", "", "", "", std::nullopt, {}, std::nullopt);
@@ -119,7 +119,7 @@ TEST_F(AcParametersPanelTest, build_without_print_section) {
 // apply — disabling print section from a previously enabled state
 // ========================================================================================
 
-TEST_F(AcParametersPanelTest, apply_without_print_params_disables_print_section) {
+TEST_F(UiAcParametersPanelTest, apply_without_print_params_disables_print_section) {
     // arrange
     AcParametersPanel panel(m_parent);
     auto print_params = PrintParameters("AC", "RAW", "ac.raw", {}, {});
@@ -138,7 +138,7 @@ TEST_F(AcParametersPanelTest, apply_without_print_params_disables_print_section)
 // build with DATA sweep
 // ========================================================================================
 
-TEST_F(AcParametersPanelTest, build_with_data_sweep) {
+TEST_F(UiAcParametersPanelTest, build_with_data_sweep) {
     // arrange
     AcParametersPanel panel(m_parent);
     AcSimulationParameters input("DATA", "", "", "", "mytable", std::nullopt, {}, std::nullopt);
@@ -154,7 +154,7 @@ TEST_F(AcParametersPanelTest, build_with_data_sweep) {
 // build with DEC sweep
 // ========================================================================================
 
-TEST_F(AcParametersPanelTest, build_with_dec_sweep) {
+TEST_F(UiAcParametersPanelTest, build_with_dec_sweep) {
     // arrange
     AcParametersPanel panel(m_parent);
     AcSimulationParameters input("DEC", "10", "1", "100k", "", std::nullopt, {}, std::nullopt);

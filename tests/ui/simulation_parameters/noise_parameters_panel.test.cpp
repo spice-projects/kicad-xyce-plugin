@@ -14,7 +14,7 @@
 
 namespace
 {
-    class NoiseParametersPanelTest : public ::testing::Test
+    class UiNoiseParametersPanelTest : public ::testing::Test
     {
     protected:
         void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -29,7 +29,7 @@ namespace
 // constructor
 // ========================================================================================
 
-TEST_F(NoiseParametersPanelTest, constructor_creates_panel) {
+TEST_F(UiNoiseParametersPanelTest, constructor_creates_panel) {
     // arrange / act
     NoiseParametersPanel panel(m_parent);
     // assert
@@ -41,7 +41,7 @@ TEST_F(NoiseParametersPanelTest, constructor_creates_panel) {
 // build_noise_parameters — default state
 // ========================================================================================
 
-TEST_F(NoiseParametersPanelTest, build_returns_defaults_by_default) {
+TEST_F(UiNoiseParametersPanelTest, build_returns_defaults_by_default) {
     // arrange / act
     NoiseParametersPanel panel(m_parent);
     auto result = panel.build_noise_parameters();
@@ -62,7 +62,7 @@ TEST_F(NoiseParametersPanelTest, build_returns_defaults_by_default) {
 // build with field values via apply/round-trip
 // ========================================================================================
 
-TEST_F(NoiseParametersPanelTest, build_after_apply_returns_same_values) {
+TEST_F(UiNoiseParametersPanelTest, build_after_apply_returns_same_values) {
     // arrange
     NoiseParametersPanel panel(m_parent);
     auto print_params = PrintParameters("NOISE", "RAW", "noise.raw", {"V(*)"}, {});
@@ -99,7 +99,7 @@ TEST_F(NoiseParametersPanelTest, build_after_apply_returns_same_values) {
 // build with print section
 // ========================================================================================
 
-TEST_F(NoiseParametersPanelTest, build_with_print_section_enabled) {
+TEST_F(UiNoiseParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     NoiseParametersPanel panel(m_parent);
     auto print_params = PrintParameters("NOISE", "CSV", "data.csv", {"V(1)", "V(2)"}, {});
@@ -114,7 +114,7 @@ TEST_F(NoiseParametersPanelTest, build_with_print_section_enabled) {
     EXPECT_EQ(result.print_parameters->print_file, "data.csv");
 }
 
-TEST_F(NoiseParametersPanelTest, build_without_print_section) {
+TEST_F(UiNoiseParametersPanelTest, build_without_print_section) {
     // arrange
     NoiseParametersPanel panel(m_parent);
     NoiseSimulationParameters input("", "", "", "", "", "", "LIN", {}, "", std::nullopt);
@@ -129,7 +129,7 @@ TEST_F(NoiseParametersPanelTest, build_without_print_section) {
 // apply — disabling print section from a previously enabled state
 // ========================================================================================
 
-TEST_F(NoiseParametersPanelTest, apply_without_print_params_disables_print_section) {
+TEST_F(UiNoiseParametersPanelTest, apply_without_print_params_disables_print_section) {
     // arrange
     NoiseParametersPanel panel(m_parent);
     auto print_params = PrintParameters("NOISE", "RAW", "noise.raw", {}, {});
@@ -148,7 +148,7 @@ TEST_F(NoiseParametersPanelTest, apply_without_print_params_disables_print_secti
 // build with device noise operators
 // ========================================================================================
 
-TEST_F(NoiseParametersPanelTest, build_with_device_noise_operators) {
+TEST_F(UiNoiseParametersPanelTest, build_with_device_noise_operators) {
     // arrange
     NoiseParametersPanel panel(m_parent);
     std::vector<DeviceNoiseOperator> dno;

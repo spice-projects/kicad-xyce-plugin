@@ -9,11 +9,8 @@
 namespace
 {
     // locate the .LIN directive within a directive list
-    auto find_lin_directive(const std::vector<std::string>& directives) -> std::string
-    {
-        const auto lin_line = std::find_if(directives.begin(), directives.end(), [](const std::string& d) {
-            return d.rfind(".LIN", 0) == 0;
-        });
+    auto find_lin_directive(const std::vector<std::string>& directives) -> std::string {
+        const auto lin_line = std::find_if(directives.begin(), directives.end(), [](const std::string& d) { return d.rfind(".LIN", 0) == 0; });
         EXPECT_NE(lin_line, directives.end());
         return lin_line == directives.end() ? std::string{} : *lin_line;
     }

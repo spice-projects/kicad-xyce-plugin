@@ -16,7 +16,7 @@
 namespace
 {
     // parent frame fixture for wxPanel-based tests
-    class PrintSectionPanelTest : public ::testing::Test
+    class UiPrintSectionPanelTest : public ::testing::Test
     {
     protected:
         void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -84,7 +84,7 @@ namespace
 // constructor
 // ========================================================================================
 
-TEST_F(PrintSectionPanelTest, default_state_is_disabled) {
+TEST_F(UiPrintSectionPanelTest, default_state_is_disabled) {
     // arrange
     PrintSectionPanel panel(m_parent, "DC", {"DC"}, false, false, false);
     auto* v_cb = find_cb_by_label(panel, "V(*)");
@@ -94,7 +94,7 @@ TEST_F(PrintSectionPanelTest, default_state_is_disabled) {
     ASSERT_FALSE(v_cb->IsEnabled());
 }
 
-TEST_F(PrintSectionPanelTest, enable_checkbox_enables_controls) {
+TEST_F(UiPrintSectionPanelTest, enable_checkbox_enables_controls) {
     // arrange
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
     auto* cb = find_cb_by_label(panel, "Enable");
@@ -111,7 +111,7 @@ TEST_F(PrintSectionPanelTest, enable_checkbox_enables_controls) {
     ASSERT_TRUE(v_cb->IsEnabled());
 }
 
-TEST_F(PrintSectionPanelTest, disable_checkbox_disables_controls) {
+TEST_F(UiPrintSectionPanelTest, disable_checkbox_disables_controls) {
     // arrange
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
     auto* cb = find_cb_by_label(panel, "Enable");
@@ -133,7 +133,7 @@ TEST_F(PrintSectionPanelTest, disable_checkbox_disables_controls) {
     ASSERT_FALSE(v_cb->IsEnabled());
 }
 
-TEST_F(PrintSectionPanelTest, apply_enables_controls) {
+TEST_F(UiPrintSectionPanelTest, apply_enables_controls) {
     // arrange — apply with valid params enables the body
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
     auto* v_cb = find_cb_by_label(panel, "V(*)");
@@ -146,7 +146,7 @@ TEST_F(PrintSectionPanelTest, apply_enables_controls) {
     ASSERT_TRUE(v_cb->IsEnabled());
 }
 
-TEST_F(PrintSectionPanelTest, apply_nullptr_disables_controls) {
+TEST_F(UiPrintSectionPanelTest, apply_nullptr_disables_controls) {
     // arrange
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
     auto pp = PrintParameters("TRAN", "", "", {}, {});
@@ -160,7 +160,7 @@ TEST_F(PrintSectionPanelTest, apply_nullptr_disables_controls) {
     ASSERT_FALSE(v_cb->IsEnabled());
 }
 
-TEST_F(PrintSectionPanelTest, without_bjt_fet_no_lead_checkboxes) {
+TEST_F(UiPrintSectionPanelTest, without_bjt_fet_no_lead_checkboxes) {
     // arrange / act
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
     // assert
@@ -168,21 +168,21 @@ TEST_F(PrintSectionPanelTest, without_bjt_fet_no_lead_checkboxes) {
     ASSERT_EQ(find_cb_by_label(panel, "FET"), nullptr);
 }
 
-TEST_F(PrintSectionPanelTest, without_power_no_power_checkbox) {
+TEST_F(UiPrintSectionPanelTest, without_power_no_power_checkbox) {
     // arrange / act
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
     // assert
     ASSERT_EQ(find_cb_by_label(panel, "P(*)"), nullptr);
 }
 
-TEST_F(PrintSectionPanelTest, with_power_shows_power_checkbox) {
+TEST_F(UiPrintSectionPanelTest, with_power_shows_power_checkbox) {
     // arrange / act
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, true, false, false);
     // assert
     ASSERT_NE(find_cb_by_label(panel, "P(*)"), nullptr);
 }
 
-TEST_F(PrintSectionPanelTest, with_bjt_fet_shows_lead_checkboxes) {
+TEST_F(UiPrintSectionPanelTest, with_bjt_fet_shows_lead_checkboxes) {
     // arrange / act
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, true, false);
     // assert
@@ -190,14 +190,14 @@ TEST_F(PrintSectionPanelTest, with_bjt_fet_shows_lead_checkboxes) {
     ASSERT_NE(find_cb_by_label(panel, "FET"), nullptr);
 }
 
-TEST_F(PrintSectionPanelTest, with_print_type_combo_shows_choice) {
+TEST_F(UiPrintSectionPanelTest, with_print_type_combo_shows_choice) {
     // arrange / act
     PrintSectionPanel panel(m_parent, "DC", {"DC", "HOMOTOPY"}, false, false, true);
     // assert
     ASSERT_NE(find_choice(panel, "DC"), nullptr);
 }
 
-TEST_F(PrintSectionPanelTest, without_print_type_combo_no_choice) {
+TEST_F(UiPrintSectionPanelTest, without_print_type_combo_no_choice) {
     // arrange / act
     PrintSectionPanel panel(m_parent, "DC", {"DC", "HOMOTOPY"}, false, false, false);
     // assert — no choice should be found with print type items
@@ -209,7 +209,7 @@ TEST_F(PrintSectionPanelTest, without_print_type_combo_no_choice) {
 // build_print_parameters — disabled
 // ========================================================================================
 
-TEST_F(PrintSectionPanelTest, build_returns_nullopt_when_disabled) {
+TEST_F(UiPrintSectionPanelTest, build_returns_nullopt_when_disabled) {
     // arrange / act
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
     // assert
@@ -220,7 +220,7 @@ TEST_F(PrintSectionPanelTest, build_returns_nullopt_when_disabled) {
 // build_print_parameters — enabled with wildcards
 // ========================================================================================
 
-TEST_F(PrintSectionPanelTest, build_returns_params_with_analysis_prefix) {
+TEST_F(UiPrintSectionPanelTest, build_returns_params_with_analysis_prefix) {
     // arrange
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
     enable_print(panel);
@@ -234,7 +234,7 @@ TEST_F(PrintSectionPanelTest, build_returns_params_with_analysis_prefix) {
     EXPECT_TRUE(result->output_variables.empty());
 }
 
-TEST_F(PrintSectionPanelTest, build_returns_params_with_wildcards) {
+TEST_F(UiPrintSectionPanelTest, build_returns_params_with_wildcards) {
     // arrange
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, true, true, false);
     enable_print(panel);
@@ -255,7 +255,7 @@ TEST_F(PrintSectionPanelTest, build_returns_params_with_wildcards) {
     EXPECT_EQ(result->output_variables[1], "I(*)");
 }
 
-TEST_F(PrintSectionPanelTest, build_returns_params_with_specific_vars) {
+TEST_F(UiPrintSectionPanelTest, build_returns_params_with_specific_vars) {
     // arrange
     PrintSectionPanel panel(m_parent, "AC", {"AC", "AC_IC"}, false, false, true);
     enable_print(panel);
@@ -277,7 +277,7 @@ TEST_F(PrintSectionPanelTest, build_returns_params_with_specific_vars) {
     EXPECT_EQ(result->output_variables[2], "I(R1)");
 }
 
-TEST_F(PrintSectionPanelTest, build_uses_selected_print_type) {
+TEST_F(UiPrintSectionPanelTest, build_uses_selected_print_type) {
     // arrange
     PrintSectionPanel panel(m_parent, "DC", {"DC", "HOMOTOPY"}, false, false, true);
     enable_print(panel);
@@ -292,7 +292,7 @@ TEST_F(PrintSectionPanelTest, build_uses_selected_print_type) {
     EXPECT_EQ(result->print_type, "HOMOTOPY");
 }
 
-TEST_F(PrintSectionPanelTest, build_uses_selected_format) {
+TEST_F(UiPrintSectionPanelTest, build_uses_selected_format) {
     // arrange
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
     enable_print(panel);
@@ -307,7 +307,7 @@ TEST_F(PrintSectionPanelTest, build_uses_selected_format) {
     EXPECT_EQ(result->print_format, "RAW");
 }
 
-TEST_F(PrintSectionPanelTest, build_uses_output_file) {
+TEST_F(UiPrintSectionPanelTest, build_uses_output_file) {
     // arrange — use apply to correctly target the output file field
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
     auto pp = PrintParameters("TRAN", "", "output.raw", {}, {});
@@ -323,7 +323,7 @@ TEST_F(PrintSectionPanelTest, build_uses_output_file) {
 // apply
 // ========================================================================================
 
-TEST_F(PrintSectionPanelTest, apply_nullptr_disables) {
+TEST_F(UiPrintSectionPanelTest, apply_nullptr_disables) {
     // arrange
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, false, false);
     enable_print(panel);
@@ -334,7 +334,7 @@ TEST_F(PrintSectionPanelTest, apply_nullptr_disables) {
     ASSERT_FALSE(panel.build_print_parameters().has_value());
 }
 
-TEST_F(PrintSectionPanelTest, apply_restores_print_type_and_format) {
+TEST_F(UiPrintSectionPanelTest, apply_restores_print_type_and_format) {
     // arrange
     PrintSectionPanel panel(m_parent, "DC", {"DC", "HOMOTOPY"}, false, false, true);
     auto pp = PrintParameters("HOMOTOPY", "CSV", "output.csv", {}, {});
@@ -348,7 +348,7 @@ TEST_F(PrintSectionPanelTest, apply_restores_print_type_and_format) {
     EXPECT_EQ(result->print_file, "output.csv");
 }
 
-TEST_F(PrintSectionPanelTest, apply_restores_wildcards) {
+TEST_F(UiPrintSectionPanelTest, apply_restores_wildcards) {
     // arrange
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, true, true, false);
     auto pp = PrintParameters("TRAN", "", "", {"V(*)", "I(*)", "P(*)"}, {});
@@ -363,7 +363,7 @@ TEST_F(PrintSectionPanelTest, apply_restores_wildcards) {
     EXPECT_EQ(result->output_variables[2], "P(*)");
 }
 
-TEST_F(PrintSectionPanelTest, apply_restores_bjt_leads_and_deduplicates) {
+TEST_F(UiPrintSectionPanelTest, apply_restores_bjt_leads_and_deduplicates) {
     // arrange
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, true, false);
     auto pp = PrintParameters("TRAN", "", "", {"V(*)", "IC(*)", "IE(*)", "V(1)"}, {});
@@ -382,7 +382,7 @@ TEST_F(PrintSectionPanelTest, apply_restores_bjt_leads_and_deduplicates) {
     EXPECT_EQ(result->output_variables[5], "V(1)");
 }
 
-TEST_F(PrintSectionPanelTest, apply_bjt_visibility_by_has_bjt) {
+TEST_F(UiPrintSectionPanelTest, apply_bjt_visibility_by_has_bjt) {
     // arrange
     PrintSectionPanel panel(m_parent, "TRAN", {"TRAN"}, false, true, false);
     auto pp = PrintParameters("TRAN", "", "", {}, {});

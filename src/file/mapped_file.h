@@ -38,6 +38,8 @@ public:
     void prefetch() const noexcept;
 
 private:
+    void release() noexcept;
+
     void reset() noexcept;
 
 #ifdef _WIN32

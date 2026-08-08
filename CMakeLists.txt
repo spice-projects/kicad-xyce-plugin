@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
+
 if(APPLE)
     project(kicad-xyce-plugin LANGUAGES CXX OBJCXX)
 else()
@@ -80,6 +81,7 @@ elseif (WIN32)
     # combine remaining cpp sources with .mm sources
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 elseif (LINUX)
+    # opengl is required for the wxGLCanvas backend on linux
     find_package(OpenGL REQUIRED)
     # gather linux sources
     file(GLOB_RECURSE PLATFORM_SOURCES "src/*.linux.c++")
@@ -87,16 +89,59 @@ elseif (LINUX)
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 endif()
 
-add_executable(kicad-xyce-plugin ${SOURCE_FILES})
+# The executable only needs to own the wxApp entry point (src/main.cpp); all
+# other sources are shared with the test runner. Compile them into a single
+# static library so each file is compiled exactly once, then link both the
+# executable and the tests against it.
+list(REMOVE_ITEM SOURCE_FILES "src/main.cpp")
 
 # compile the generated proto sources into a library shared by the app and tests
 add_library(kicad-proto STATIC ${KICAD_PROTO_GENERATED_SOURCES})
+
 # expose the generated proto headers
 target_include_directories(kicad-proto PUBLIC "${KICAD_PROTO_OUT_DIR}")
 target_link_libraries(kicad-proto PUBLIC protobuf::libprotobuf)
 
-# link the plugin with the vendored pocketfft library
-target_include_directories(kicad-xyce-plugin PRIVATE ${POCKETFFT_INCLUDE_DIRS})
+# clang-cl (LLVM) raises -Winvalid-offsetof when compiling protobuf's generated
+# TcParser tables, which reference private impl-members on non-standard-layout
+# message classes. This is generated third-party code, so silence it for this
+# target only under clang-cl on Windows.
+if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(kicad-proto PRIVATE -Wno-invalid-offsetof)
+endif()
+
+# shared application code, compiled once and linked into both consumers
+add_library(kicad-xyce-core STATIC ${SOURCE_FILES})
+# expose the application header directory to consumers (executable and tests)
+target_include_directories(kicad-xyce-core PUBLIC "src")
+# link the core library with the vendored pocketfft library
+target_include_directories(kicad-xyce-core PRIVATE ${POCKETFFT_INCLUDE_DIRS})
+target_compile_definitions(kicad-xyce-core PUBLIC KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
+
+# clang-cl treats -Wall as MSVC's /Wall (enable every warning), so only apply
+# the standard warning set to GNU-style frontends (g++, clang++)
+if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    target_compile_options(kicad-xyce-core PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+# third-party dependencies, PUBLIC so both the executable and the tests transitively link the same set of libraries
+target_link_libraries(kicad-xyce-core PUBLIC wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog nng::nng protobuf::libprotobuf kicad-proto)
+
+if(APPLE)
+    # link AppKit for NSApp dock icon and other cocoa apis
+    target_link_libraries(kicad-xyce-core PUBLIC "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController")
+    # suppress duplicate library warnings on macOS, which are emitted when linking against the same framework multiple times (e.g. AppKit and Metal)
+    target_link_options(kicad-xyce-core PUBLIC "-Wl,-no_warn_duplicate_libraries")
+elseif(WIN32)
+    # link windows graphics and system libraries required by the ui backend
+    target_link_libraries(kicad-xyce-core PUBLIC d3d11 d3dcompiler dxgi gdi32 user32 shell32 ole32 oleaut32 uuid comdlg32 advapi32 version ws2_32 wininet oleacc uxtheme)
+elseif(LINUX)
+    target_link_libraries(kicad-xyce-core PUBLIC wx::gl OpenGL::GL)
+endif()
+
+# the application executable owns only the wxApp entry point
+add_executable(kicad-xyce-plugin src/main.cpp)
+target_link_libraries(kicad-xyce-plugin PRIVATE kicad-xyce-core)
 
 if(WIN32)
     set_target_properties(kicad-xyce-plugin PROPERTIES WIN32_EXECUTABLE TRUE)
@@ -105,27 +150,6 @@ endif()
 # profile build type, activate with `cmake --preset debug -DCMAKE_BUILD_TYPE=Profile` && `cmake --build --preset debug`
 set(CMAKE_CXX_FLAGS_PROFILE "-O2 -fprofile-instr-generate -fcoverage-mapping")
 set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-fprofile-instr-generate")
-
-target_compile_definitions(kicad-xyce-plugin PRIVATE KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
-
-# clang-cl treats -Wall as MSVC's /Wall (enable every warning), so only apply
-# the standard warning set to GNU-style frontends (clang++, g++)
-if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
-    target_compile_options(kicad-xyce-plugin PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-target_link_libraries(kicad-xyce-plugin PRIVATE wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog nng::nng protobuf::libprotobuf kicad-proto)
-
-if(APPLE)
-    # link AppKit for NSApp dock icon and other cocoa apis
-    target_link_libraries(kicad-xyce-plugin PRIVATE "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController")
-    target_link_options(kicad-xyce-plugin PRIVATE "-Wl,-no_warn_duplicate_libraries")
-elseif(WIN32)
-    # link windows graphics and system libraries required by the ui backend
-    target_link_libraries(kicad-xyce-plugin PRIVATE d3d11 d3dcompiler dxgi gdi32 user32 shell32 ole32 oleaut32 uuid comdlg32 advapi32 version ws2_32 wininet oleacc uxtheme)
-elseif(LINUX)
-    target_link_libraries(kicad-xyce-plugin PRIVATE wx::gl OpenGL::GL)
-endif()
 
 if (BUILD_TESTS)
     enable_testing()

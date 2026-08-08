@@ -18,7 +18,7 @@
 namespace
 {
     // parent frame fixture for wxPanel-based tests
-    class StepParametersPanelTest : public ::testing::Test
+    class UiStepParametersPanelTest : public ::testing::Test
     {
     protected:
         void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -33,7 +33,7 @@ namespace
 // constructor
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, constructor_creates_panel) {
+TEST_F(UiStepParametersPanelTest, constructor_creates_panel) {
     // arrange / act
     StepParametersPanel panel(m_parent);
     // assert
@@ -44,7 +44,7 @@ TEST_F(StepParametersPanelTest, constructor_creates_panel) {
 // build_step_parameters — default state
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, build_returns_disabled_defaults) {
+TEST_F(UiStepParametersPanelTest, build_returns_disabled_defaults) {
     // arrange / act
     StepParametersPanel panel(m_parent);
     auto result = panel.build_step_parameters();
@@ -64,7 +64,7 @@ TEST_F(StepParametersPanelTest, build_returns_disabled_defaults) {
 // build / apply round-trip — LIN sweep
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, build_after_apply_returns_same_values_lin) {
+TEST_F(UiStepParametersPanelTest, build_after_apply_returns_same_values_lin) {
     // arrange
     StepParametersPanel panel(m_parent);
     StepParameters input("LIN", "TEMP", "0", "100", "1", "", {}, "", true);
@@ -87,7 +87,7 @@ TEST_F(StepParametersPanelTest, build_after_apply_returns_same_values_lin) {
 // build / apply round-trip — DEC sweep
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, build_after_apply_returns_same_values_dec) {
+TEST_F(UiStepParametersPanelTest, build_after_apply_returns_same_values_dec) {
     // arrange
     StepParametersPanel panel(m_parent);
     StepParameters input("DEC", "R1", "100", "1MEG", "", "10", {}, "", true);
@@ -110,7 +110,7 @@ TEST_F(StepParametersPanelTest, build_after_apply_returns_same_values_dec) {
 // build / apply round-trip — OCT sweep
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, build_after_apply_returns_same_values_oct) {
+TEST_F(UiStepParametersPanelTest, build_after_apply_returns_same_values_oct) {
     // arrange
     StepParametersPanel panel(m_parent);
     StepParameters input("OCT", "C1", "1n", "1u", "", "5", {}, "", true);
@@ -133,7 +133,7 @@ TEST_F(StepParametersPanelTest, build_after_apply_returns_same_values_oct) {
 // build / apply round-trip — LIST sweep
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, build_after_apply_returns_same_values_list) {
+TEST_F(UiStepParametersPanelTest, build_after_apply_returns_same_values_list) {
     // arrange
     StepParametersPanel panel(m_parent);
     StepParameters input("LIST", "R1", "", "", "", "", {"1k", "2k", "5k"}, "", true);
@@ -155,7 +155,7 @@ TEST_F(StepParametersPanelTest, build_after_apply_returns_same_values_list) {
 // build / apply round-trip — DATA sweep
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, build_after_apply_returns_same_values_data) {
+TEST_F(UiStepParametersPanelTest, build_after_apply_returns_same_values_data) {
     // arrange
     StepParametersPanel panel(m_parent);
     StepParameters input("DATA", "", "", "", "", "", {}, "myTable", true);
@@ -174,7 +174,7 @@ TEST_F(StepParametersPanelTest, build_after_apply_returns_same_values_data) {
 // build — enabled / disabled state through apply
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, build_returns_enabled_when_checkbox_on) {
+TEST_F(UiStepParametersPanelTest, build_returns_enabled_when_checkbox_on) {
     // arrange
     StepParametersPanel panel(m_parent);
     StepParameters input("LIN", "TEMP", "0", "100", "1", "", {}, "", true);
@@ -185,7 +185,7 @@ TEST_F(StepParametersPanelTest, build_returns_enabled_when_checkbox_on) {
     EXPECT_TRUE(result.enabled);
 }
 
-TEST_F(StepParametersPanelTest, build_returns_disabled_when_checkbox_off) {
+TEST_F(UiStepParametersPanelTest, build_returns_disabled_when_checkbox_off) {
     // arrange
     StepParametersPanel panel(m_parent);
     StepParameters input("LIN", "TEMP", "0", "100", "1", "", {}, "", false);
@@ -200,7 +200,7 @@ TEST_F(StepParametersPanelTest, build_returns_disabled_when_checkbox_off) {
 // build — unknown sweep mode falls back to first mode
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, build_falls_back_to_lin_for_unknown_sweep_mode) {
+TEST_F(UiStepParametersPanelTest, build_falls_back_to_lin_for_unknown_sweep_mode) {
     // arrange
     StepParametersPanel panel(m_parent);
     StepParameters input("INVALID", "X", "1", "2", "3", "", {}, "", true);
@@ -215,7 +215,7 @@ TEST_F(StepParametersPanelTest, build_falls_back_to_lin_for_unknown_sweep_mode) 
 // list values round-trip — edge cases
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, build_after_apply_with_single_list_value) {
+TEST_F(UiStepParametersPanelTest, build_after_apply_with_single_list_value) {
     // arrange
     StepParametersPanel panel(m_parent);
     StepParameters input("LIST", "R1", "", "", "", "", {"1k"}, "", true);
@@ -227,7 +227,7 @@ TEST_F(StepParametersPanelTest, build_after_apply_with_single_list_value) {
     EXPECT_EQ(result.list_values[0], "1k");
 }
 
-TEST_F(StepParametersPanelTest, build_after_apply_with_empty_list_values) {
+TEST_F(UiStepParametersPanelTest, build_after_apply_with_empty_list_values) {
     // arrange
     StepParametersPanel panel(m_parent);
     StepParameters input("LIST", "R1", "", "", "", "", {}, "", true);
@@ -242,7 +242,7 @@ TEST_F(StepParametersPanelTest, build_after_apply_with_empty_list_values) {
 // apply — replacing previous values
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, apply_replaces_previous_values) {
+TEST_F(UiStepParametersPanelTest, apply_replaces_previous_values) {
     // arrange
     StepParametersPanel panel(m_parent);
     StepParameters first("LIN", "TEMP", "0", "100", "1", "", {}, "", true);
@@ -267,7 +267,7 @@ TEST_F(StepParametersPanelTest, apply_replaces_previous_values) {
 // list values — round-trip with large set
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, build_after_apply_with_many_list_values) {
+TEST_F(UiStepParametersPanelTest, build_after_apply_with_many_list_values) {
     // arrange
     StepParametersPanel panel(m_parent);
     std::vector<std::string> many_vals = {"1k", "2k", "3k", "4k", "5k", "10k", "20k", "50k", "100k", "1MEG"};
@@ -286,7 +286,7 @@ TEST_F(StepParametersPanelTest, build_after_apply_with_many_list_values) {
 // build / apply round-trip — DATA sweep with empty table name
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, build_after_apply_with_empty_data_table_name) {
+TEST_F(UiStepParametersPanelTest, build_after_apply_with_empty_data_table_name) {
     // arrange
     StepParametersPanel panel(m_parent);
     StepParameters input("DATA", "", "", "", "", "", {}, "", true);
@@ -303,7 +303,7 @@ TEST_F(StepParametersPanelTest, build_after_apply_with_empty_data_table_name) {
 // enable/disable behavior — unchecking "Enable step sweep" disables all controls
 // ========================================================================================
 
-TEST_F(StepParametersPanelTest, body_controls_disabled_by_default) {
+TEST_F(UiStepParametersPanelTest, body_controls_disabled_by_default) {
     // arrange / act
     StepParametersPanel panel(m_parent);
     // assert — controls inside the gated body should be disabled initially
@@ -312,7 +312,7 @@ TEST_F(StepParametersPanelTest, body_controls_disabled_by_default) {
     EXPECT_FALSE(mode_label->IsEnabled());
 }
 
-TEST_F(StepParametersPanelTest, checking_enable_checkbox_enables_body_controls) {
+TEST_F(UiStepParametersPanelTest, checking_enable_checkbox_enables_body_controls) {
     // arrange
     StepParametersPanel panel(m_parent);
     auto* cb = dynamic_cast<wxCheckBox*>(wxWindow::FindWindowByLabel("Enable step sweep", &panel));
@@ -329,7 +329,7 @@ TEST_F(StepParametersPanelTest, checking_enable_checkbox_enables_body_controls) 
     EXPECT_TRUE(mode_label->IsEnabled());
 }
 
-TEST_F(StepParametersPanelTest, unchecking_enable_checkbox_disables_body_controls) {
+TEST_F(UiStepParametersPanelTest, unchecking_enable_checkbox_disables_body_controls) {
     // arrange
     StepParametersPanel panel(m_parent);
     auto* cb = dynamic_cast<wxCheckBox*>(wxWindow::FindWindowByLabel("Enable step sweep", &panel));
@@ -351,7 +351,7 @@ TEST_F(StepParametersPanelTest, unchecking_enable_checkbox_disables_body_control
     EXPECT_FALSE(mode_label->IsEnabled());
 }
 
-TEST_F(StepParametersPanelTest, apply_enables_body_when_enabled_true) {
+TEST_F(UiStepParametersPanelTest, apply_enables_body_when_enabled_true) {
     // arrange
     StepParametersPanel panel(m_parent);
     auto* mode_label = wxWindow::FindWindowByLabel("Sweep mode", &panel);
@@ -364,7 +364,7 @@ TEST_F(StepParametersPanelTest, apply_enables_body_when_enabled_true) {
     EXPECT_TRUE(mode_label->IsEnabled());
 }
 
-TEST_F(StepParametersPanelTest, apply_disables_body_when_enabled_false) {
+TEST_F(UiStepParametersPanelTest, apply_disables_body_when_enabled_false) {
     // arrange
     StepParametersPanel panel(m_parent);
     auto* mode_label = wxWindow::FindWindowByLabel("Sweep mode", &panel);

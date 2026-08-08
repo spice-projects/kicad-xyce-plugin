@@ -10,6 +10,7 @@
 
 #include "common/commands/base_commands.pb.h"
 #include "kicad_connection.h"
+#include "util.h"
 
 namespace
 {
@@ -78,10 +79,10 @@ KiCadConnection& KiCadConnection::operator=(KiCadConnection&& other) noexcept {
 
 bool KiCadConnection::is_kicad_mode() {
     // both environment variables must be present and non-empty for KiCad plugin mode
-    const char* socket = std::getenv("KICAD_API_SOCKET");
-    const char* token = std::getenv("KICAD_API_TOKEN");
+    const auto socket = get_environment_variable("KICAD_API_SOCKET");
+    const auto token = get_environment_variable("KICAD_API_TOKEN");
     // exit
-    return socket != nullptr && *socket != '\0' && token != nullptr && *token != '\0';
+    return socket.has_value() && !socket->empty() && token.has_value() && !token->empty();
 }
 
 std::unique_ptr<KiCadConnection> KiCadConnection::from_environment() {
@@ -89,12 +90,12 @@ std::unique_ptr<KiCadConnection> KiCadConnection::from_environment() {
     if (!is_kicad_mode())
         return nullptr;
     // read the socket URL and token from the environment
-    const char* socket = std::getenv("KICAD_API_SOCKET");
-    const char* token = std::getenv("KICAD_API_TOKEN");
+    const auto socket = get_environment_variable("KICAD_API_SOCKET");
+    const auto token = get_environment_variable("KICAD_API_TOKEN");
     // log information
-    spdlog::info("Running in KiCad plugin mode, KICAD_API_SOCKET={}, KICAD_API_TOKEN={}", socket, token);
+    spdlog::info("Running in KiCad plugin mode, KICAD_API_SOCKET={}, KICAD_API_TOKEN={}", socket.value_or(""), token.value_or(""));
     // create the connection
-    return std::make_unique<KiCadConnection>(socket, token, CLIENT_NAME);
+    return std::make_unique<KiCadConnection>(socket.value_or(""), token.value_or(""), CLIENT_NAME);
 }
 
 std::string KiCadConnection::get_kicad_binary_path(const std::string& binary_name) {

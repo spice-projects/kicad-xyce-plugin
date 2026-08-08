@@ -18,7 +18,7 @@
 // constructor
 // ========================================================================================
 
-TEST(StepToolDialogChecks, constructor_returns_empty_selection_for_empty_info) {
+TEST(UiStepToolDialogChecks, constructor_returns_empty_selection_for_empty_info) {
     // arrange
     StepInformation step_info({}, {}, {});
     // act
@@ -27,26 +27,18 @@ TEST(StepToolDialogChecks, constructor_returns_empty_selection_for_empty_info) {
     EXPECT_EQ(dialog.selected_steps(), std::set<size_t>{});
 }
 
-TEST(StepToolDialogChecks, constructor_returns_empty_selection_when_none_initialized) {
+TEST(UiStepToolDialogChecks, constructor_returns_empty_selection_when_none_initialized) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     // act
     StepToolDialog dialog(nullptr, &step_info, {});
     // assert
     EXPECT_EQ(dialog.selected_steps(), std::set<size_t>{});
 }
 
-TEST(StepToolDialogChecks, constructor_returns_initial_selection_set) {
+TEST(UiStepToolDialogChecks, constructor_returns_initial_selection_set) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     std::set<size_t> initial = {0, 2};
     // act
     StepToolDialog dialog(nullptr, &step_info, initial);
@@ -54,13 +46,9 @@ TEST(StepToolDialogChecks, constructor_returns_initial_selection_set) {
     EXPECT_EQ(dialog.selected_steps(), initial);
 }
 
-TEST(StepToolDialogChecks, constructor_selects_all_when_full_set_given) {
+TEST(UiStepToolDialogChecks, constructor_selects_all_when_full_set_given) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     std::set<size_t> initial = {0, 1, 2};
     // act
     StepToolDialog dialog(nullptr, &step_info, initial);
@@ -68,13 +56,9 @@ TEST(StepToolDialogChecks, constructor_selects_all_when_full_set_given) {
     EXPECT_EQ(dialog.selected_steps(), initial);
 }
 
-TEST(StepToolDialogChecks, constructor_creates_correct_number_of_rows) {
+TEST(UiStepToolDialogChecks, constructor_creates_correct_number_of_rows) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {});
     // act
     wxListView* step_list = nullptr;
@@ -89,13 +73,9 @@ TEST(StepToolDialogChecks, constructor_creates_correct_number_of_rows) {
     EXPECT_EQ(step_list->GetItemCount(), 3);
 }
 
-TEST(StepToolDialogChecks, constructor_creates_column_for_each_key_plus_checkbox) {
+TEST(UiStepToolDialogChecks, constructor_creates_column_for_each_key_plus_checkbox) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {});
     // act
     wxListView* step_list = nullptr;
@@ -114,13 +94,9 @@ TEST(StepToolDialogChecks, constructor_creates_column_for_each_key_plus_checkbox
 // select all
 // ========================================================================================
 
-TEST(StepToolDialogChecks, select_all_selects_all_steps) {
+TEST(UiStepToolDialogChecks, select_all_selects_all_steps) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {});
     // act
     wxButton* select_all_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Select All"));
@@ -133,13 +109,9 @@ TEST(StepToolDialogChecks, select_all_selects_all_steps) {
     EXPECT_EQ(dialog.selected_steps(), expected);
 }
 
-TEST(StepToolDialogChecks, select_all_when_some_selected_selects_all) {
+TEST(UiStepToolDialogChecks, select_all_when_some_selected_selects_all) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {0});
     // act
     wxButton* select_all_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Select All"));
@@ -156,13 +128,9 @@ TEST(StepToolDialogChecks, select_all_when_some_selected_selects_all) {
 // clear all
 // ========================================================================================
 
-TEST(StepToolDialogChecks, clear_all_deselects_all_steps) {
+TEST(UiStepToolDialogChecks, clear_all_deselects_all_steps) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {0, 1, 2});
     // act
     wxButton* clear_all_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Clear All"));
@@ -174,13 +142,9 @@ TEST(StepToolDialogChecks, clear_all_deselects_all_steps) {
     EXPECT_EQ(dialog.selected_steps(), std::set<size_t>{});
 }
 
-TEST(StepToolDialogChecks, clear_all_when_none_selected_stays_empty) {
+TEST(UiStepToolDialogChecks, clear_all_when_none_selected_stays_empty) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {});
     // act
     wxButton* clear_all_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Clear All"));
@@ -196,13 +160,9 @@ TEST(StepToolDialogChecks, clear_all_when_none_selected_stays_empty) {
 // invert selection
 // ========================================================================================
 
-TEST(StepToolDialogChecks, invert_empty_selects_all) {
+TEST(UiStepToolDialogChecks, invert_empty_selects_all) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {});
     // act
     wxButton* invert_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Invert"));
@@ -215,13 +175,9 @@ TEST(StepToolDialogChecks, invert_empty_selects_all) {
     EXPECT_EQ(dialog.selected_steps(), expected);
 }
 
-TEST(StepToolDialogChecks, invert_full_deselects_all) {
+TEST(UiStepToolDialogChecks, invert_full_deselects_all) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {0, 1, 2});
     // act
     wxButton* invert_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Invert"));
@@ -233,13 +189,9 @@ TEST(StepToolDialogChecks, invert_full_deselects_all) {
     EXPECT_EQ(dialog.selected_steps(), std::set<size_t>{});
 }
 
-TEST(StepToolDialogChecks, invert_partial_flips_selection) {
+TEST(UiStepToolDialogChecks, invert_partial_flips_selection) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {1});
     // act
     wxButton* invert_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Invert"));
@@ -252,13 +204,9 @@ TEST(StepToolDialogChecks, invert_partial_flips_selection) {
     EXPECT_EQ(dialog.selected_steps(), expected);
 }
 
-TEST(StepToolDialogChecks, invert_twice_restores_original) {
+TEST(UiStepToolDialogChecks, invert_twice_restores_original) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     std::set<size_t> original = {0, 2};
     StepToolDialog dialog(nullptr, &step_info, original);
     // act
@@ -276,13 +224,9 @@ TEST(StepToolDialogChecks, invert_twice_restores_original) {
 // item toggle via checkbox
 // ========================================================================================
 
-TEST(StepToolDialogChecks, item_checked_adds_to_selection) {
+TEST(UiStepToolDialogChecks, item_checked_adds_to_selection) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {});
     // act
     wxListView* step_list = nullptr;
@@ -298,13 +242,9 @@ TEST(StepToolDialogChecks, item_checked_adds_to_selection) {
     EXPECT_TRUE(dialog.selected_steps().contains(1));
 }
 
-TEST(StepToolDialogChecks, item_unchecked_removes_from_selection) {
+TEST(UiStepToolDialogChecks, item_unchecked_removes_from_selection) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {0, 1, 2});
     // act
     wxListView* step_list = nullptr;
@@ -320,13 +260,9 @@ TEST(StepToolDialogChecks, item_unchecked_removes_from_selection) {
     EXPECT_FALSE(dialog.selected_steps().contains(1));
 }
 
-TEST(StepToolDialogChecks, item_toggle_preserves_other_selections) {
+TEST(UiStepToolDialogChecks, item_toggle_preserves_other_selections) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {0, 2});
     // act
     wxListView* step_list = nullptr;
@@ -343,13 +279,9 @@ TEST(StepToolDialogChecks, item_toggle_preserves_other_selections) {
     EXPECT_TRUE(dialog.selected_steps().contains(2));
 }
 
-TEST(StepToolDialogChecks, item_toggle_multiple_checks_accumulate) {
+TEST(UiStepToolDialogChecks, item_toggle_multiple_checks_accumulate) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {});
     // act
     wxListView* step_list = nullptr;
@@ -371,13 +303,9 @@ TEST(StepToolDialogChecks, item_toggle_multiple_checks_accumulate) {
 // selection count label
 // ========================================================================================
 
-TEST(StepToolDialogChecks, selection_count_label_shows_initial_count) {
+TEST(UiStepToolDialogChecks, selection_count_label_shows_initial_count) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {1});
     // act
     wxStaticText* count_label = nullptr;
@@ -393,13 +321,9 @@ TEST(StepToolDialogChecks, selection_count_label_shows_initial_count) {
     EXPECT_EQ(count_label->GetLabel().ToStdString(), "Selected 1 / 3");
 }
 
-TEST(StepToolDialogChecks, selection_count_label_updates_after_select_all) {
+TEST(UiStepToolDialogChecks, selection_count_label_updates_after_select_all) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {});
     // act
     wxButton* select_all_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Select All"));
@@ -420,13 +344,9 @@ TEST(StepToolDialogChecks, selection_count_label_updates_after_select_all) {
     EXPECT_EQ(count_label->GetLabel().ToStdString(), "Selected 3 / 3");
 }
 
-TEST(StepToolDialogChecks, selection_count_label_updates_after_clear_all) {
+TEST(UiStepToolDialogChecks, selection_count_label_updates_after_clear_all) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {0, 1, 2});
     // act
     wxButton* clear_all_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Clear All"));
@@ -447,13 +367,9 @@ TEST(StepToolDialogChecks, selection_count_label_updates_after_clear_all) {
     EXPECT_EQ(count_label->GetLabel().ToStdString(), "Selected 0 / 3");
 }
 
-TEST(StepToolDialogChecks, selection_count_label_updates_after_invert) {
+TEST(UiStepToolDialogChecks, selection_count_label_updates_after_invert) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {0, 2});
     // act
     wxButton* invert_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Invert"));
@@ -474,7 +390,7 @@ TEST(StepToolDialogChecks, selection_count_label_updates_after_invert) {
     EXPECT_EQ(count_label->GetLabel().ToStdString(), "Selected 1 / 3");
 }
 
-TEST(StepToolDialogChecks, selection_count_label_zero_for_empty_info) {
+TEST(UiStepToolDialogChecks, selection_count_label_zero_for_empty_info) {
     // arrange
     StepInformation step_info({}, {}, {});
     StepToolDialog dialog(nullptr, &step_info, {});
@@ -496,13 +412,9 @@ TEST(StepToolDialogChecks, selection_count_label_zero_for_empty_info) {
 // selected_steps accessor returns a copy
 // ========================================================================================
 
-TEST(StepToolDialogChecks, selected_steps_returns_detached_copy) {
+TEST(UiStepToolDialogChecks, selected_steps_returns_detached_copy) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     std::set<size_t> initial = {0, 2};
     StepToolDialog dialog(nullptr, &step_info, initial);
     // act
@@ -516,26 +428,18 @@ TEST(StepToolDialogChecks, selected_steps_returns_detached_copy) {
 // single step edge case
 // ========================================================================================
 
-TEST(StepToolDialogChecks, single_step_constructor_with_selection) {
+TEST(UiStepToolDialogChecks, single_step_constructor_with_selection) {
     // arrange
-    StepInformation step_info(
-        {"R1"},
-        {{4700.0}},
-        {{0.0, 1.0}}
-    );
+    StepInformation step_info({"R1"}, {{4700.0}}, {{0.0, 1.0}});
     // act
     StepToolDialog dialog(nullptr, &step_info, {0});
     // assert
     EXPECT_EQ(dialog.selected_steps(), std::set<size_t>({0}));
 }
 
-TEST(StepToolDialogChecks, single_step_select_all_works) {
+TEST(UiStepToolDialogChecks, single_step_select_all_works) {
     // arrange
-    StepInformation step_info(
-        {"R1"},
-        {{4700.0}},
-        {{0.0, 1.0}}
-    );
+    StepInformation step_info({"R1"}, {{4700.0}}, {{0.0, 1.0}});
     StepToolDialog dialog(nullptr, &step_info, {});
     // act
     wxButton* select_all_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Select All"));
@@ -547,13 +451,9 @@ TEST(StepToolDialogChecks, single_step_select_all_works) {
     EXPECT_EQ(dialog.selected_steps(), std::set<size_t>({0}));
 }
 
-TEST(StepToolDialogChecks, single_step_clear_all_works) {
+TEST(UiStepToolDialogChecks, single_step_clear_all_works) {
     // arrange
-    StepInformation step_info(
-        {"R1"},
-        {{4700.0}},
-        {{0.0, 1.0}}
-    );
+    StepInformation step_info({"R1"}, {{4700.0}}, {{0.0, 1.0}});
     StepToolDialog dialog(nullptr, &step_info, {0});
     // act
     wxButton* clear_all_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Clear All"));
@@ -565,13 +465,9 @@ TEST(StepToolDialogChecks, single_step_clear_all_works) {
     EXPECT_EQ(dialog.selected_steps(), std::set<size_t>{});
 }
 
-TEST(StepToolDialogChecks, single_step_invert_works) {
+TEST(UiStepToolDialogChecks, single_step_invert_works) {
     // arrange
-    StepInformation step_info(
-        {"R1"},
-        {{4700.0}},
-        {{0.0, 1.0}}
-    );
+    StepInformation step_info({"R1"}, {{4700.0}}, {{0.0, 1.0}});
     StepToolDialog dialog(nullptr, &step_info, {});
     // act
     wxButton* invert_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Invert"));
@@ -590,13 +486,9 @@ TEST(StepToolDialogChecks, single_step_invert_works) {
 // chained operations
 // ========================================================================================
 
-TEST(StepToolDialogChecks, select_all_then_clear_all) {
+TEST(UiStepToolDialogChecks, select_all_then_clear_all) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {});
     // act
     wxButton* select_all_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Select All"));
@@ -613,13 +505,9 @@ TEST(StepToolDialogChecks, select_all_then_clear_all) {
     EXPECT_EQ(dialog.selected_steps(), std::set<size_t>{});
 }
 
-TEST(StepToolDialogChecks, clear_all_then_select_all) {
+TEST(UiStepToolDialogChecks, clear_all_then_select_all) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {0});
     // act
     wxButton* clear_all_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Clear All"));
@@ -637,13 +525,9 @@ TEST(StepToolDialogChecks, clear_all_then_select_all) {
     EXPECT_EQ(dialog.selected_steps(), expected);
 }
 
-TEST(StepToolDialogChecks, invert_then_item_toggle) {
+TEST(UiStepToolDialogChecks, invert_then_item_toggle) {
     // arrange
-    StepInformation step_info(
-        {"R1", "TEMP"},
-        {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}},
-        {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}}
-    );
+    StepInformation step_info({"R1", "TEMP"}, {{1000.0, 27.0}, {2000.0, 85.0}, {3000.0, 125.0}}, {{0.0, 4.0}, {0.0, 4.0}, {0.0, 4.0}});
     StepToolDialog dialog(nullptr, &step_info, {0});
     // act
     wxButton* invert_btn = dynamic_cast<wxButton*>(dialog.FindWindowByLabel("Invert"));

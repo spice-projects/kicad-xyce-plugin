@@ -15,7 +15,7 @@
             "scopes": [
                 "schematic"
             ],
-            "entrypoint": "kicad-xyce-plugin",
+            "entrypoint": "ENTRYPOINT_NAME",
             "icons-light": [
                 "plugin-icon-24x24.png"
             ]

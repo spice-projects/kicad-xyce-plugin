@@ -1,4 +1,3 @@
-#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <string>
@@ -7,6 +6,7 @@
 
 #include "kicad_cli_netlist_source.h"
 #include "kicad_session.h"
+#include "util.h"
 
 namespace
 {
@@ -21,8 +21,8 @@ std::optional<KiCadSession> KiCadSession::from_environment() {
     if (!connection)
         return std::nullopt;
     // read the project directory set by KiCad
-    const char* project_dir = std::getenv(PROJECT_DIR_ENV);
-    if (project_dir == nullptr || *project_dir == '\0') {
+    const auto project_dir = get_environment_variable(PROJECT_DIR_ENV);
+    if (!project_dir.has_value() || project_dir->empty()) {
         // log the missing project directory
         spdlog::error("KIPRJMOD environment variable is not set");
         // fail when the project directory is missing
@@ -41,7 +41,7 @@ std::optional<KiCadSession> KiCadSession::from_environment() {
         return std::nullopt;
     }
     // build the CLI-based netlist source for the active project
-    auto netlist_source = std::make_unique<KicadCliNetlistSource>(project_dir, kicad_cli_path);
+    auto netlist_source = std::make_unique<KicadCliNetlistSource>(project_dir->c_str(), kicad_cli_path);
     // create the session
     return KiCadSession(std::move(connection), std::move(netlist_source));
 }

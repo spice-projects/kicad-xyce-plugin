@@ -93,42 +93,7 @@ MappedFile::MappedFile(const std::filesystem::path& path) {
 #endif
 }
 
-MappedFile::~MappedFile() noexcept {
-#ifdef _WIN32
-    if (m_data) {
-        // unmap view
-        UnmapViewOfFile(m_data);
-        // reset state
-        m_data = nullptr;
-    }
-    if (m_mapping_handle) {
-        // close mapping object
-        CloseHandle(m_mapping_handle);
-        // reset state
-        m_mapping_handle = nullptr;
-    }
-    if (m_file_handle != INVALID_HANDLE_VALUE) {
-        // close file handle
-        CloseHandle(m_file_handle);
-        // reset state
-        m_file_handle = INVALID_HANDLE_VALUE;
-    }
-#else
-    if (m_data) {
-        // unmap memory
-        munmap(m_data, m_size);
-        // reset state
-        m_data = nullptr;
-    }
-    if (m_fd >= 0) {
-        // close file descriptor
-        close(m_fd);
-        // reset state
-        m_fd = -1;
-    }
-#endif
-    m_size = 0;
-}
+MappedFile::~MappedFile() noexcept { release(); }
 
 MappedFile::MappedFile(MappedFile&& other) noexcept
 #ifdef _WIN32
@@ -150,8 +115,8 @@ MappedFile::MappedFile(MappedFile&& other) noexcept
 
 MappedFile& MappedFile::operator=(MappedFile&& other) noexcept {
     if (this != &other) {
-        // reset current mapping
-        reset();
+        // release current mapping
+        release();
 #ifdef _WIN32
         m_file_handle = other.m_file_handle;
         m_mapping_handle = other.m_mapping_handle;
@@ -196,6 +161,43 @@ void MappedFile::prefetch() const noexcept {
     // hint the kernel to load the mapped file into RAM ahead of use
     madvise(m_data, m_size, MADV_WILLNEED);
 #endif
+}
+
+void MappedFile::release() noexcept {
+#ifdef _WIN32
+    if (m_data) {
+        // unmap view
+        UnmapViewOfFile(m_data);
+        // reset state
+        m_data = nullptr;
+    }
+    if (m_mapping_handle) {
+        // close mapping object
+        CloseHandle(m_mapping_handle);
+        // reset state
+        m_mapping_handle = nullptr;
+    }
+    if (m_file_handle != INVALID_HANDLE_VALUE) {
+        // close file handle
+        CloseHandle(m_file_handle);
+        // reset state
+        m_file_handle = INVALID_HANDLE_VALUE;
+    }
+#else
+    if (m_data) {
+        // unmap memory
+        munmap(m_data, m_size);
+        // reset state
+        m_data = nullptr;
+    }
+    if (m_fd >= 0) {
+        // close file descriptor
+        close(m_fd);
+        // reset state
+        m_fd = -1;
+    }
+#endif
+    m_size = 0;
 }
 
 void MappedFile::reset() noexcept {

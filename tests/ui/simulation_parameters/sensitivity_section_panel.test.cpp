@@ -16,7 +16,7 @@
 namespace
 {
     // parent frame fixture for wxPanel-based tests
-    class SensitivitySectionPanelTest : public ::testing::Test
+    class UiSensitivitySectionPanelTest : public ::testing::Test
     {
     protected:
         void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -86,35 +86,35 @@ namespace
 // constructor
 // ========================================================================================
 
-TEST_F(SensitivitySectionPanelTest, default_state_is_disabled) {
+TEST_F(UiSensitivitySectionPanelTest, default_state_is_disabled) {
     // arrange / act
     SensitivitySectionPanel panel(m_parent);
     // assert
     ASSERT_FALSE(panel.build_sens_parameter("AC").has_value());
 }
 
-TEST_F(SensitivitySectionPanelTest, contains_enable_checkbox) {
+TEST_F(UiSensitivitySectionPanelTest, contains_enable_checkbox) {
     // arrange / act
     SensitivitySectionPanel panel(m_parent);
     // assert
     ASSERT_NE(find_cb_by_label(panel, "Enable"), nullptr);
 }
 
-TEST_F(SensitivitySectionPanelTest, contains_objective_mode_choice) {
+TEST_F(UiSensitivitySectionPanelTest, contains_objective_mode_choice) {
     // arrange / act
     SensitivitySectionPanel panel(m_parent);
     // assert
     ASSERT_NE(find_choice_by_string(panel, "objfunc"), nullptr);
 }
 
-TEST_F(SensitivitySectionPanelTest, contains_direct_checkbox) {
+TEST_F(UiSensitivitySectionPanelTest, contains_direct_checkbox) {
     // arrange / act
     SensitivitySectionPanel panel(m_parent);
     // assert
     ASSERT_NE(find_cb_by_label(panel, "Direct"), nullptr);
 }
 
-TEST_F(SensitivitySectionPanelTest, contains_adjoint_checkbox) {
+TEST_F(UiSensitivitySectionPanelTest, contains_adjoint_checkbox) {
     // arrange / act
     SensitivitySectionPanel panel(m_parent);
     // assert
@@ -125,7 +125,7 @@ TEST_F(SensitivitySectionPanelTest, contains_adjoint_checkbox) {
 // build_sens_parameter — disabled
 // ========================================================================================
 
-TEST_F(SensitivitySectionPanelTest, build_returns_nullopt_when_disabled) {
+TEST_F(UiSensitivitySectionPanelTest, build_returns_nullopt_when_disabled) {
     // arrange / act
     SensitivitySectionPanel panel(m_parent);
     // assert — the enable checkbox starts unchecked
@@ -136,7 +136,7 @@ TEST_F(SensitivitySectionPanelTest, build_returns_nullopt_when_disabled) {
 // build_sens_parameter — enabled
 // ========================================================================================
 
-TEST_F(SensitivitySectionPanelTest, build_returns_params_with_analysis_type) {
+TEST_F(UiSensitivitySectionPanelTest, build_returns_params_with_analysis_type) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto* enable_cb = find_cb_by_label(panel, "Enable");
@@ -149,7 +149,7 @@ TEST_F(SensitivitySectionPanelTest, build_returns_params_with_analysis_type) {
     EXPECT_EQ(result->analysis_context, "AC");
 }
 
-TEST_F(SensitivitySectionPanelTest, build_returns_params_with_selected_objective_mode) {
+TEST_F(UiSensitivitySectionPanelTest, build_returns_params_with_selected_objective_mode) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto* enable_cb = find_cb_by_label(panel, "Enable");
@@ -165,7 +165,7 @@ TEST_F(SensitivitySectionPanelTest, build_returns_params_with_selected_objective
     EXPECT_EQ(result->objective_mode, "objvars");
 }
 
-TEST_F(SensitivitySectionPanelTest, build_returns_params_with_objective_values) {
+TEST_F(UiSensitivitySectionPanelTest, build_returns_params_with_objective_values) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto* enable_cb = find_cb_by_label(panel, "Enable");
@@ -185,7 +185,7 @@ TEST_F(SensitivitySectionPanelTest, build_returns_params_with_objective_values) 
     EXPECT_EQ(result->objective_values[1], "I(R1)");
 }
 
-TEST_F(SensitivitySectionPanelTest, build_returns_params_with_parameters) {
+TEST_F(UiSensitivitySectionPanelTest, build_returns_params_with_parameters) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto* enable_cb = find_cb_by_label(panel, "Enable");
@@ -205,7 +205,7 @@ TEST_F(SensitivitySectionPanelTest, build_returns_params_with_parameters) {
     EXPECT_EQ(result->parameter_list[1], "C1");
 }
 
-TEST_F(SensitivitySectionPanelTest, build_returns_params_with_direct_flag) {
+TEST_F(UiSensitivitySectionPanelTest, build_returns_params_with_direct_flag) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto* enable_cb = find_cb_by_label(panel, "Enable");
@@ -221,7 +221,7 @@ TEST_F(SensitivitySectionPanelTest, build_returns_params_with_direct_flag) {
     EXPECT_TRUE(result->direct);
 }
 
-TEST_F(SensitivitySectionPanelTest, build_returns_params_with_adjoint_flag) {
+TEST_F(UiSensitivitySectionPanelTest, build_returns_params_with_adjoint_flag) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto* enable_cb = find_cb_by_label(panel, "Enable");
@@ -241,7 +241,7 @@ TEST_F(SensitivitySectionPanelTest, build_returns_params_with_adjoint_flag) {
 // apply
 // ========================================================================================
 
-TEST_F(SensitivitySectionPanelTest, apply_nullptr_disables) {
+TEST_F(UiSensitivitySectionPanelTest, apply_nullptr_disables) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto* enable_cb = find_cb_by_label(panel, "Enable");
@@ -254,7 +254,7 @@ TEST_F(SensitivitySectionPanelTest, apply_nullptr_disables) {
     ASSERT_FALSE(panel.build_sens_parameter("AC").has_value());
 }
 
-TEST_F(SensitivitySectionPanelTest, apply_restores_sens_parameter) {
+TEST_F(UiSensitivitySectionPanelTest, apply_restores_sens_parameter) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto pp = PrintParameters("SENS", "CSV", "sens.csv", {"V(*)"}, {});
@@ -279,7 +279,7 @@ TEST_F(SensitivitySectionPanelTest, apply_restores_sens_parameter) {
     EXPECT_EQ(result->print_parameters->print_file, "sens.csv");
 }
 
-TEST_F(SensitivitySectionPanelTest, apply_restores_without_print) {
+TEST_F(UiSensitivitySectionPanelTest, apply_restores_without_print) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto sens = SensParameter("TRAN", "objfunc", {}, {}, false, false, std::nullopt);
@@ -301,7 +301,7 @@ TEST_F(SensitivitySectionPanelTest, apply_restores_without_print) {
 // enable / disable body controls
 // ========================================================================================
 
-TEST_F(SensitivitySectionPanelTest, body_controls_disabled_by_default) {
+TEST_F(UiSensitivitySectionPanelTest, body_controls_disabled_by_default) {
     // arrange / act
     SensitivitySectionPanel panel(m_parent);
     auto* mode_choice = find_choice_by_string(panel, "objfunc");
@@ -310,7 +310,7 @@ TEST_F(SensitivitySectionPanelTest, body_controls_disabled_by_default) {
     ASSERT_FALSE(mode_choice->IsEnabled());
 }
 
-TEST_F(SensitivitySectionPanelTest, checking_enable_checkbox_enables_body_controls) {
+TEST_F(UiSensitivitySectionPanelTest, checking_enable_checkbox_enables_body_controls) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto* enable_cb = find_cb_by_label(panel, "Enable");
@@ -327,7 +327,7 @@ TEST_F(SensitivitySectionPanelTest, checking_enable_checkbox_enables_body_contro
     EXPECT_TRUE(mode_choice->IsEnabled());
 }
 
-TEST_F(SensitivitySectionPanelTest, unchecking_enable_checkbox_disables_body_controls) {
+TEST_F(UiSensitivitySectionPanelTest, unchecking_enable_checkbox_disables_body_controls) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto* enable_cb = find_cb_by_label(panel, "Enable");
@@ -349,7 +349,7 @@ TEST_F(SensitivitySectionPanelTest, unchecking_enable_checkbox_disables_body_con
     EXPECT_FALSE(mode_choice->IsEnabled());
 }
 
-TEST_F(SensitivitySectionPanelTest, apply_enables_body_when_params_provided) {
+TEST_F(UiSensitivitySectionPanelTest, apply_enables_body_when_params_provided) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto sens = SensParameter("AC", "objfunc", {}, {}, false, false, std::nullopt);
@@ -362,7 +362,7 @@ TEST_F(SensitivitySectionPanelTest, apply_enables_body_when_params_provided) {
     EXPECT_TRUE(mode_choice->IsEnabled());
 }
 
-TEST_F(SensitivitySectionPanelTest, apply_disables_body_when_nullptr) {
+TEST_F(UiSensitivitySectionPanelTest, apply_disables_body_when_nullptr) {
     // arrange
     SensitivitySectionPanel panel(m_parent);
     auto sens = SensParameter("AC", "objfunc", {}, {}, false, false, std::nullopt);

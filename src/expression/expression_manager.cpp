@@ -15,6 +15,8 @@ ExpressionManager::ExpressionManager(std::vector<AnyExpression>& expressions, st
     // ensure step are non empty
     if (m_step_slices.empty())
         throw std::invalid_argument("step slices cannot be empty");
+    // reserve capacity for expression map
+    m_context.reserve(m_expressions.size());
     // index each expression by its lowercased name for fast lookup
     for (size_t idx = 0; idx < m_expressions.size(); ++idx)
         std::visit([this, &idx](auto&& expression) { this->m_context[to_lower(expression.name())] = idx; }, m_expressions[idx]);
