@@ -101,12 +101,12 @@ TEST(MappedFileChecks, move_assignment_transfers_mapping) {
         std::ofstream out(path_b, std::ios::binary);
         out << content_b;
     }
-    MappedFile a(path_a);
-    MappedFile b(path_b);
-    ASSERT_TRUE(a.is_valid());
-    ASSERT_TRUE(b.is_valid());
-    // scope the mapping so the file handle is released before cleanup
+    // scope the mappings so the file handles are released before cleanup
     {
+        MappedFile a(path_a);
+        MappedFile b(path_b);
+        ASSERT_TRUE(a.is_valid());
+        ASSERT_TRUE(b.is_valid());
         // act
         a = std::move(b);
         // assert
@@ -127,10 +127,10 @@ TEST(MappedFileChecks, prefetch_keeps_mapping_valid) {
         std::ofstream out(path, std::ios::binary);
         out << content;
     }
-    MappedFile mapped(path);
-    ASSERT_TRUE(mapped.is_valid());
     // scope the mapping so the file handle is released before cleanup
     {
+        MappedFile mapped(path);
+        ASSERT_TRUE(mapped.is_valid());
         // act
         mapped.prefetch();
         // assert

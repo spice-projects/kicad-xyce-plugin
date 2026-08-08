@@ -39,12 +39,16 @@ jobs:
       matrix:
         include:
           - os: macos-latest
+            platform: macos-arm64
             build_enabled: true
           - os: macos-26-intel
+            platform: macos-x64
             build_enabled: true
           - os: windows-latest
+            platform: windows-x64
             build_enabled: true
           - os: ubuntu-latest
+            platform: ubuntu-x64
             build_enabled: false
     runs-on: ${{ matrix.os }}
     env:
@@ -121,3 +125,12 @@ jobs:
           else
             ./.build-release/tests/kicad-xyce-plugin-tests
           fi
+
+      - name: Upload build artifact
+        if: ${{ matrix.build_enabled }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kicad-xyce-plugin-${{ matrix.platform }}
+          path: .build-release/kicad-xyce-plugin${{ runner.os == 'Windows' && '.exe' || '' }}
+          if-no-files-found: error
+          retention-days: 7
