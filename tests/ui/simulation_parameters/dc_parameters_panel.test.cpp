@@ -13,7 +13,7 @@
 #include "ui/simulation_parameters/dc_parameters_panel.h"
 
 // fixture declared at global scope so it can act as a friend of DcParametersPanel
-class DcParametersPanelTest : public ::testing::Test
+class UiDcParametersPanelTest : public ::testing::Test
 {
 protected:
     void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -33,7 +33,7 @@ protected:
 // constructor
 // ========================================================================================
 
-TEST_F(DcParametersPanelTest, constructor_creates_panel) {
+TEST_F(UiDcParametersPanelTest, constructor_creates_panel) {
     // arrange / act
     DcParametersPanel panel(m_parent);
     // assert
@@ -45,7 +45,7 @@ TEST_F(DcParametersPanelTest, constructor_creates_panel) {
 // build_dc_parameters — default state
 // ========================================================================================
 
-TEST_F(DcParametersPanelTest, build_returns_defaults_by_default) {
+TEST_F(UiDcParametersPanelTest, build_returns_defaults_by_default) {
     // arrange / act
     DcParametersPanel panel(m_parent);
     auto result = panel.build_dc_parameters();
@@ -70,7 +70,7 @@ TEST_F(DcParametersPanelTest, build_returns_defaults_by_default) {
 // build with field values via apply/round-trip
 // ========================================================================================
 
-TEST_F(DcParametersPanelTest, build_after_apply_returns_same_values) {
+TEST_F(UiDcParametersPanelTest, build_after_apply_returns_same_values) {
     // arrange
     DcParametersPanel panel(m_parent);
     auto print_params = PrintParameters("DC", "RAW", "out.raw", {"V(*)", "IC(*)"}, {});
@@ -108,7 +108,7 @@ TEST_F(DcParametersPanelTest, build_after_apply_returns_same_values) {
 // build with print section
 // ========================================================================================
 
-TEST_F(DcParametersPanelTest, build_with_print_section_enabled) {
+TEST_F(UiDcParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     DcParametersPanel panel(m_parent);
     auto print_params = PrintParameters("DC", "CSV", "data.csv", {"V(1)", "V(2)"}, {});
@@ -123,7 +123,7 @@ TEST_F(DcParametersPanelTest, build_with_print_section_enabled) {
     EXPECT_EQ(result.print_parameters->print_file, "data.csv");
 }
 
-TEST_F(DcParametersPanelTest, build_without_print_section) {
+TEST_F(UiDcParametersPanelTest, build_without_print_section) {
     // arrange
     DcParametersPanel panel(m_parent);
     DCSimulationParameters input("LIN", "", "", "", "", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
@@ -138,7 +138,7 @@ TEST_F(DcParametersPanelTest, build_without_print_section) {
 // apply — disabling print section from a previously enabled state
 // ========================================================================================
 
-TEST_F(DcParametersPanelTest, apply_without_print_params_disables_print_section) {
+TEST_F(UiDcParametersPanelTest, apply_without_print_params_disables_print_section) {
     // arrange
     DcParametersPanel panel(m_parent);
     auto print_params = PrintParameters("DC", "RAW", "out.raw", {}, {});
@@ -157,7 +157,7 @@ TEST_F(DcParametersPanelTest, apply_without_print_params_disables_print_section)
 // build with LIST sweep
 // ========================================================================================
 
-TEST_F(DcParametersPanelTest, build_with_list_sweep) {
+TEST_F(UiDcParametersPanelTest, build_with_list_sweep) {
     // arrange
     DcParametersPanel panel(m_parent);
     auto list_vals = std::vector<std::string>{"0.5", "1.0", "1.5", "2.0"};
@@ -179,7 +179,7 @@ TEST_F(DcParametersPanelTest, build_with_list_sweep) {
 // build with DATA sweep
 // ========================================================================================
 
-TEST_F(DcParametersPanelTest, build_with_data_sweep) {
+TEST_F(UiDcParametersPanelTest, build_with_data_sweep) {
     // arrange
     DcParametersPanel panel(m_parent);
     DCSimulationParameters input("DATA", "", "", "", "", "", {}, "my_data_table", "", "", "", "", "", std::nullopt, {}, std::nullopt);
@@ -195,7 +195,7 @@ TEST_F(DcParametersPanelTest, build_with_data_sweep) {
 // build with DEC sweep
 // ========================================================================================
 
-TEST_F(DcParametersPanelTest, build_with_dec_sweep) {
+TEST_F(UiDcParametersPanelTest, build_with_dec_sweep) {
     // arrange
     DcParametersPanel panel(m_parent);
     DCSimulationParameters input("DEC", "V1", "1", "10k", "", "10", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
@@ -215,7 +215,7 @@ TEST_F(DcParametersPanelTest, build_with_dec_sweep) {
 // build — switching from LIN to DEC retains the sweep value as points
 // ========================================================================================
 
-TEST_F(DcParametersPanelTest, build_after_mode_change_lin_to_dec_keeps_value) {
+TEST_F(UiDcParametersPanelTest, build_after_mode_change_lin_to_dec_keeps_value) {
     // arrange — load a LIN sweep so only the step field is populated
     DcParametersPanel panel(m_parent);
     DCSimulationParameters lin_input("LIN", "V1", "0", "5", "0.5", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
@@ -232,7 +232,7 @@ TEST_F(DcParametersPanelTest, build_after_mode_change_lin_to_dec_keeps_value) {
     EXPECT_TRUE(result.step.empty());
 }
 
-TEST_F(DcParametersPanelTest, build_after_mode_change_dec_to_lin_keeps_value) {
+TEST_F(UiDcParametersPanelTest, build_after_mode_change_dec_to_lin_keeps_value) {
     // arrange — load a DEC sweep so only the points field is populated
     DcParametersPanel panel(m_parent);
     DCSimulationParameters dec_input("DEC", "V1", "1", "10k", "", "10", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
@@ -249,7 +249,7 @@ TEST_F(DcParametersPanelTest, build_after_mode_change_dec_to_lin_keeps_value) {
     EXPECT_TRUE(result.points.empty());
 }
 
-TEST_F(DcParametersPanelTest, build_after_mode_change_lin_to_dec_keeps_secondary_value) {
+TEST_F(UiDcParametersPanelTest, build_after_mode_change_lin_to_dec_keeps_secondary_value) {
     // arrange — load a LIN sweep with a secondary sweep
     DcParametersPanel panel(m_parent);
     DCSimulationParameters lin_input("LIN", "V1", "0", "5", "0.5", "", {}, "", "R1", "0", "1k", "10", "", std::nullopt, {}, std::nullopt);
@@ -270,7 +270,7 @@ TEST_F(DcParametersPanelTest, build_after_mode_change_lin_to_dec_keeps_secondary
 // on_sweep_mode_changed — visible fields are synced on mode change
 // ========================================================================================
 
-TEST_F(DcParametersPanelTest, on_sweep_mode_changed_copies_step_to_points_for_dec) {
+TEST_F(UiDcParametersPanelTest, on_sweep_mode_changed_copies_step_to_points_for_dec) {
     // arrange — load a LIN sweep so only the step field is populated
     DcParametersPanel panel(m_parent);
     DCSimulationParameters lin_input("LIN", "V1", "0", "5", "0.5", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);
@@ -283,7 +283,7 @@ TEST_F(DcParametersPanelTest, on_sweep_mode_changed_copies_step_to_points_for_de
     EXPECT_EQ(result.points, "0.5");
 }
 
-TEST_F(DcParametersPanelTest, on_sweep_mode_changed_copies_points_to_step_for_lin) {
+TEST_F(UiDcParametersPanelTest, on_sweep_mode_changed_copies_points_to_step_for_lin) {
     // arrange — load a DEC sweep so only the points field is populated
     DcParametersPanel panel(m_parent);
     DCSimulationParameters dec_input("DEC", "V1", "1", "10k", "", "10", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt);

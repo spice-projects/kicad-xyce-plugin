@@ -28,7 +28,7 @@ namespace
     }
 
     // fixture providing a wx parent frame for the panel
-    class ExpressionSelectorPanelFixture : public ::testing::Test
+    class UiExpressionSelectorPanelFixture : public ::testing::Test
     {
     protected:
         void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -70,7 +70,7 @@ public:
 // constructor
 // ========================================================================================
 
-TEST_F(ExpressionSelectorPanelFixture, constructor_populates_all_filtered_expressions) {
+TEST_F(UiExpressionSelectorPanelFixture, constructor_populates_all_filtered_expressions) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V", "voltage"));
@@ -90,7 +90,7 @@ TEST_F(ExpressionSelectorPanelFixture, constructor_populates_all_filtered_expres
     EXPECT_FALSE(items[1].selected);
 }
 
-TEST_F(ExpressionSelectorPanelFixture, constructor_applies_expression_filter) {
+TEST_F(UiExpressionSelectorPanelFixture, constructor_applies_expression_filter) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V", "voltage"));
@@ -105,7 +105,7 @@ TEST_F(ExpressionSelectorPanelFixture, constructor_applies_expression_filter) {
     EXPECT_EQ(items[0].name, "V(out)");
 }
 
-TEST_F(ExpressionSelectorPanelFixture, constructor_preselects_specified_expressions) {
+TEST_F(UiExpressionSelectorPanelFixture, constructor_preselects_specified_expressions) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V", "voltage"));
@@ -126,7 +126,7 @@ TEST_F(ExpressionSelectorPanelFixture, constructor_preselects_specified_expressi
 // selection
 // ========================================================================================
 
-TEST_F(ExpressionSelectorPanelFixture, selected_expressions_returns_selected_set) {
+TEST_F(UiExpressionSelectorPanelFixture, selected_expressions_returns_selected_set) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V", "voltage"));
@@ -142,7 +142,7 @@ TEST_F(ExpressionSelectorPanelFixture, selected_expressions_returns_selected_set
     EXPECT_EQ(result, std::set<AnyExpression*>{manager.expressions()[0]});
 }
 
-TEST_F(ExpressionSelectorPanelFixture, toggle_selection_updates_selected_set) {
+TEST_F(UiExpressionSelectorPanelFixture, toggle_selection_updates_selected_set) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V", "voltage"));
@@ -162,7 +162,7 @@ TEST_F(ExpressionSelectorPanelFixture, toggle_selection_updates_selected_set) {
 // filter text
 // ========================================================================================
 
-TEST_F(ExpressionSelectorPanelFixture, filter_text_hides_nonmatching_expressions) {
+TEST_F(UiExpressionSelectorPanelFixture, filter_text_hides_nonmatching_expressions) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V", "voltage"));
@@ -182,7 +182,7 @@ TEST_F(ExpressionSelectorPanelFixture, filter_text_hides_nonmatching_expressions
     EXPECT_TRUE(items[0].name.find("out") != std::string::npos);
 }
 
-TEST_F(ExpressionSelectorPanelFixture, filter_text_clears_to_show_all) {
+TEST_F(UiExpressionSelectorPanelFixture, filter_text_clears_to_show_all) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V", "voltage"));
@@ -204,7 +204,7 @@ TEST_F(ExpressionSelectorPanelFixture, filter_text_clears_to_show_all) {
 // validation
 // ========================================================================================
 
-TEST_F(ExpressionSelectorPanelFixture, validate_selection_fails_when_empty_and_not_allowed) {
+TEST_F(UiExpressionSelectorPanelFixture, validate_selection_fails_when_empty_and_not_allowed) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V", "voltage"));
@@ -221,7 +221,7 @@ TEST_F(ExpressionSelectorPanelFixture, validate_selection_fails_when_empty_and_n
     EXPECT_FALSE(error_message.empty());
 }
 
-TEST_F(ExpressionSelectorPanelFixture, validate_selection_passes_when_selected) {
+TEST_F(UiExpressionSelectorPanelFixture, validate_selection_passes_when_selected) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V", "voltage"));
@@ -237,7 +237,7 @@ TEST_F(ExpressionSelectorPanelFixture, validate_selection_passes_when_selected) 
     EXPECT_TRUE(valid);
 }
 
-TEST_F(ExpressionSelectorPanelFixture, validate_selection_allows_empty_when_configured) {
+TEST_F(UiExpressionSelectorPanelFixture, validate_selection_allows_empty_when_configured) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V", "voltage"));
@@ -256,7 +256,7 @@ TEST_F(ExpressionSelectorPanelFixture, validate_selection_allows_empty_when_conf
 // custom expression input
 // ========================================================================================
 
-TEST_F(ExpressionSelectorPanelFixture, add_custom_marks_existing_expression_selected) {
+TEST_F(UiExpressionSelectorPanelFixture, add_custom_marks_existing_expression_selected) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V", "voltage"));
@@ -276,7 +276,7 @@ TEST_F(ExpressionSelectorPanelFixture, add_custom_marks_existing_expression_sele
     EXPECT_EQ(ExpressionSelectorPanelTest::custom_input(panel)->GetValue().ToStdString(), "");
 }
 
-TEST_F(ExpressionSelectorPanelFixture, add_custom_invalid_expression_shows_error) {
+TEST_F(UiExpressionSelectorPanelFixture, add_custom_invalid_expression_shows_error) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(out)", {1.0, 2.0}, "V", "voltage"));

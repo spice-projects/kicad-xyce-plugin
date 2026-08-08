@@ -30,7 +30,7 @@ namespace
     }
 
     // fixture providing a wx parent frame for the dialog
-    class FftDialogFixture : public ::testing::Test
+    class UiFftDialogFixture : public ::testing::Test
     {
     protected:
         void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -91,7 +91,7 @@ public:
 // constructor defaults
 // ========================================================================================
 
-TEST_F(FftDialogFixture, constructor_sets_default_parameters) {
+TEST_F(UiFftDialogFixture, constructor_sets_default_parameters) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(1)", {1.0, 2.0, 3.0, 4.0}, "V", "voltage"));
@@ -117,7 +117,7 @@ TEST_F(FftDialogFixture, constructor_sets_default_parameters) {
 // range mode selection
 // ========================================================================================
 
-TEST_F(FftDialogFixture, select_all_range_uses_full_abscissa_bounds) {
+TEST_F(UiFftDialogFixture, select_all_range_uses_full_abscissa_bounds) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(1)", {1.0, 2.0, 3.0, 4.0}, "V", "voltage"));
@@ -132,7 +132,7 @@ TEST_F(FftDialogFixture, select_all_range_uses_full_abscissa_bounds) {
     EXPECT_DOUBLE_EQ(dialog.to_index(), 10.0);
 }
 
-TEST_F(FftDialogFixture, select_zoom_range_uses_zoomed_bounds) {
+TEST_F(UiFftDialogFixture, select_zoom_range_uses_zoomed_bounds) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(1)", {1.0, 2.0, 3.0, 4.0}, "V", "voltage"));
@@ -147,7 +147,7 @@ TEST_F(FftDialogFixture, select_zoom_range_uses_zoomed_bounds) {
     EXPECT_DOUBLE_EQ(dialog.to_index(), 8.0);
 }
 
-TEST_F(FftDialogFixture, select_custom_range_enables_custom_inputs) {
+TEST_F(UiFftDialogFixture, select_custom_range_enables_custom_inputs) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(1)", {1.0, 2.0, 3.0, 4.0}, "V", "voltage"));
@@ -165,7 +165,7 @@ TEST_F(FftDialogFixture, select_custom_range_enables_custom_inputs) {
 // on_ok parameter building
 // ========================================================================================
 
-TEST_F(FftDialogFixture, ok_with_all_range_builds_parameters) {
+TEST_F(UiFftDialogFixture, ok_with_all_range_builds_parameters) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(1)", {1.0, 2.0, 3.0, 4.0}, "V", "voltage"));
@@ -183,7 +183,7 @@ TEST_F(FftDialogFixture, ok_with_all_range_builds_parameters) {
     EXPECT_EQ(params.window, fft::WindowFunction::HANNING);
 }
 
-TEST_F(FftDialogFixture, ok_with_custom_range_parses_text_values) {
+TEST_F(UiFftDialogFixture, ok_with_custom_range_parses_text_values) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(1)", {1.0, 2.0, 3.0, 4.0}, "V", "voltage"));
@@ -200,7 +200,7 @@ TEST_F(FftDialogFixture, ok_with_custom_range_parses_text_values) {
     EXPECT_DOUBLE_EQ(dialog.parameters().stop, 7.5);
 }
 
-TEST_F(FftDialogFixture, ok_with_custom_np_canonicalizes_to_power_of_two) {
+TEST_F(UiFftDialogFixture, ok_with_custom_np_canonicalizes_to_power_of_two) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(1)", {1.0, 2.0, 3.0, 4.0}, "V", "voltage"));
@@ -217,7 +217,7 @@ TEST_F(FftDialogFixture, ok_with_custom_np_canonicalizes_to_power_of_two) {
     EXPECT_EQ(FftDialogTest::custom_np_text(dialog), "1024");
 }
 
-TEST_F(FftDialogFixture, ok_with_custom_np_rounds_down_when_closer_to_lower) {
+TEST_F(UiFftDialogFixture, ok_with_custom_np_rounds_down_when_closer_to_lower) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(1)", {1.0, 2.0, 3.0, 4.0}, "V", "voltage"));
@@ -233,7 +233,7 @@ TEST_F(FftDialogFixture, ok_with_custom_np_rounds_down_when_closer_to_lower) {
     EXPECT_EQ(dialog.parameters().np, 2048);
 }
 
-TEST_F(FftDialogFixture, ok_applies_choice_selections) {
+TEST_F(UiFftDialogFixture, ok_applies_choice_selections) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(1)", {1.0, 2.0, 3.0, 4.0}, "V", "voltage"));
@@ -260,7 +260,7 @@ TEST_F(FftDialogFixture, ok_applies_choice_selections) {
 // on_ok validation
 // ========================================================================================
 
-TEST_F(FftDialogFixture, ok_without_selection_does_not_update_range) {
+TEST_F(UiFftDialogFixture, ok_without_selection_does_not_update_range) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("V(1)", {1.0, 2.0, 3.0, 4.0}, "V", "voltage"));

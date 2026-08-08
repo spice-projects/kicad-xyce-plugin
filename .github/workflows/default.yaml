@@ -54,6 +54,16 @@ jobs:
         if: ${{ matrix.build_enabled }}
         uses: actions/checkout@v7
 
+      - name: Run clang-format check
+        # formatting is platform-independent, so a single run on the dev platform suffices
+        if: ${{ matrix.build_enabled && matrix.os == 'macos-latest' }}
+        shell: bash
+        run: |
+          if ! command -v clang-format >/dev/null 2>&1; then
+            brew install clang-format
+          fi
+          bash build/check-format.sh
+
       - name: Setup Ninja
         # ninja 1.13.x ships preinstalled on github-hosted windows runners; skip the
         # node-20-based llvm/actions/install-ninja step there to avoid the Node deprecation
@@ -101,9 +111,11 @@ jobs:
         if: ${{ matrix.build_enabled }}
         shell: bash
         # run the test executable directly, not ctest (see AGENTS.md)
+        # the Ui-prefixed suites construct real wxWidgets windows, which crash in
+        # the non-interactive windows runner session; macOS runs everything
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
-            ./.build-release/tests/kicad-xyce-plugin-tests.exe
+            ./.build-release/tests/kicad-xyce-plugin-tests.exe --gtest_filter=-Ui*
           else
             ./.build-release/tests/kicad-xyce-plugin-tests
           fi

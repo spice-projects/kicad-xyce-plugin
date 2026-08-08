@@ -15,7 +15,7 @@
 
 namespace
 {
-    class LinParametersPanelTest : public ::testing::Test
+    class UiLinParametersPanelTest : public ::testing::Test
     {
     protected:
         void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -30,7 +30,7 @@ namespace
 // constructor
 // ========================================================================================
 
-TEST_F(LinParametersPanelTest, constructor_creates_panel) {
+TEST_F(UiLinParametersPanelTest, constructor_creates_panel) {
     // arrange / act
     LinParametersPanel panel(m_parent);
     // assert
@@ -42,7 +42,7 @@ TEST_F(LinParametersPanelTest, constructor_creates_panel) {
 // build_lin_parameters — default state
 // ========================================================================================
 
-TEST_F(LinParametersPanelTest, build_returns_defaults_by_default) {
+TEST_F(UiLinParametersPanelTest, build_returns_defaults_by_default) {
     // arrange / act
     LinParametersPanel panel(m_parent);
     auto result = panel.build_lin_parameters();
@@ -66,7 +66,7 @@ TEST_F(LinParametersPanelTest, build_returns_defaults_by_default) {
 // build with field values via apply/round-trip
 // ========================================================================================
 
-TEST_F(LinParametersPanelTest, build_after_apply_returns_same_values) {
+TEST_F(UiLinParametersPanelTest, build_after_apply_returns_same_values) {
     // arrange
     LinParametersPanel panel(m_parent);
     auto print_params = PrintParameters("AC", "RAW", "lin.raw", {"V(*)", "IC(*)"}, {});
@@ -103,7 +103,7 @@ TEST_F(LinParametersPanelTest, build_after_apply_returns_same_values) {
 // build with print section
 // ========================================================================================
 
-TEST_F(LinParametersPanelTest, build_with_print_section_enabled) {
+TEST_F(UiLinParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     LinParametersPanel panel(m_parent);
     auto print_params = PrintParameters("AC", "CSV", "data.csv", {"V(1)", "V(2)"}, {});
@@ -118,7 +118,7 @@ TEST_F(LinParametersPanelTest, build_with_print_section_enabled) {
     EXPECT_EQ(result.print_parameters->print_file, "data.csv");
 }
 
-TEST_F(LinParametersPanelTest, build_without_print_section) {
+TEST_F(UiLinParametersPanelTest, build_without_print_section) {
     // arrange
     LinParametersPanel panel(m_parent);
     LinSimulationParameters input(true, "TOUCHSTONE2", "S", "RI", "", "", "", "LIN", "", "", "", "", std::nullopt);
@@ -133,7 +133,7 @@ TEST_F(LinParametersPanelTest, build_without_print_section) {
 // apply — disabling print section from a previously enabled state
 // ========================================================================================
 
-TEST_F(LinParametersPanelTest, apply_without_print_params_disables_print_section) {
+TEST_F(UiLinParametersPanelTest, apply_without_print_params_disables_print_section) {
     // arrange
     LinParametersPanel panel(m_parent);
     auto print_params = PrintParameters("AC", "RAW", "lin.raw", {}, {});
@@ -152,7 +152,7 @@ TEST_F(LinParametersPanelTest, apply_without_print_params_disables_print_section
 // build with DATA sweep
 // ========================================================================================
 
-TEST_F(LinParametersPanelTest, build_with_data_sweep) {
+TEST_F(UiLinParametersPanelTest, build_with_data_sweep) {
     // arrange
     LinParametersPanel panel(m_parent);
     LinSimulationParameters input(true, "TOUCHSTONE2", "S", "RI", "", "", "", "DATA", "", "", "", "my_table", std::nullopt);

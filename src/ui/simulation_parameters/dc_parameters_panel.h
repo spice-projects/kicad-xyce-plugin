@@ -31,7 +31,7 @@ private:
     // sync the step/points fields when the sweep mode changes
     void on_sweep_mode_changed();
 
-    friend class DcParametersPanelTest;
+    friend class UiDcParametersPanelTest;
 
     SimulationCard* m_card = nullptr;
     GlobalSettingsPanel* m_global_settings = nullptr;

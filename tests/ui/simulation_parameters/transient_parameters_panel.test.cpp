@@ -15,7 +15,7 @@
 namespace
 {
     // parent frame fixture for wxPanel-based tests
-    class TransientParametersPanelTest : public ::testing::Test
+    class UiTransientParametersPanelTest : public ::testing::Test
     {
     protected:
         void SetUp() override { m_parent = new wxFrame(nullptr, wxID_ANY, "test"); }
@@ -30,7 +30,7 @@ namespace
 // constructor
 // ========================================================================================
 
-TEST_F(TransientParametersPanelTest, constructor_creates_panel) {
+TEST_F(UiTransientParametersPanelTest, constructor_creates_panel) {
     // arrange / act
     TransientParametersPanel panel(m_parent);
     // assert
@@ -42,7 +42,7 @@ TEST_F(TransientParametersPanelTest, constructor_creates_panel) {
 // build_transient_parameters — default state
 // ========================================================================================
 
-TEST_F(TransientParametersPanelTest, build_returns_empty_fields_by_default) {
+TEST_F(UiTransientParametersPanelTest, build_returns_empty_fields_by_default) {
     // arrange / act
     TransientParametersPanel panel(m_parent);
     auto result = panel.build_transient_parameters();
@@ -60,7 +60,7 @@ TEST_F(TransientParametersPanelTest, build_returns_empty_fields_by_default) {
 // build with field values via apply/round-trip
 // ========================================================================================
 
-TEST_F(TransientParametersPanelTest, build_after_apply_returns_same_values) {
+TEST_F(UiTransientParametersPanelTest, build_after_apply_returns_same_values) {
     // arrange
     TransientParametersPanel panel(m_parent);
     auto schedule = std::vector<TransientSchedulePoint>{TransientSchedulePoint("1u", "10n"), TransientSchedulePoint("10u", "100n")};
@@ -93,7 +93,7 @@ TEST_F(TransientParametersPanelTest, build_after_apply_returns_same_values) {
     EXPECT_EQ(result.print_parameters->output_variables[4], "IS(*)");
 }
 
-TEST_F(TransientParametersPanelTest, build_with_noop_keyword) {
+TEST_F(UiTransientParametersPanelTest, build_with_noop_keyword) {
     // arrange
     TransientParametersPanel panel(m_parent);
     TransientSimulationParameters input("1u", "1m", "", "", "NOOP", {}, std::nullopt, {}, {}, {}, std::nullopt);
@@ -104,7 +104,7 @@ TEST_F(TransientParametersPanelTest, build_with_noop_keyword) {
     EXPECT_EQ(result.op_keyword, "NOOP");
 }
 
-TEST_F(TransientParametersPanelTest, build_with_uic_keyword) {
+TEST_F(UiTransientParametersPanelTest, build_with_uic_keyword) {
     // arrange
     TransientParametersPanel panel(m_parent);
     TransientSimulationParameters input("1u", "1m", "", "", "UIC", {}, std::nullopt, {}, {}, {}, std::nullopt);
@@ -119,7 +119,7 @@ TEST_F(TransientParametersPanelTest, build_with_uic_keyword) {
 // build with print section
 // ========================================================================================
 
-TEST_F(TransientParametersPanelTest, build_with_print_section_enabled) {
+TEST_F(UiTransientParametersPanelTest, build_with_print_section_enabled) {
     // arrange
     TransientParametersPanel panel(m_parent);
     auto print_params = PrintParameters("TRAN", "CSV", "data.csv", {"V(1)", "V(2)"}, {});
@@ -134,7 +134,7 @@ TEST_F(TransientParametersPanelTest, build_with_print_section_enabled) {
     EXPECT_EQ(result.print_parameters->print_file, "data.csv");
 }
 
-TEST_F(TransientParametersPanelTest, build_without_print_section) {
+TEST_F(UiTransientParametersPanelTest, build_without_print_section) {
     // arrange
     TransientParametersPanel panel(m_parent);
     TransientSimulationParameters input("1u", "1m", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt);
@@ -149,7 +149,7 @@ TEST_F(TransientParametersPanelTest, build_without_print_section) {
 // apply — disabling print section from a previously enabled state
 // ========================================================================================
 
-TEST_F(TransientParametersPanelTest, apply_without_print_params_disables_print_section) {
+TEST_F(UiTransientParametersPanelTest, apply_without_print_params_disables_print_section) {
     // arrange
     TransientParametersPanel panel(m_parent);
     auto print_params = PrintParameters("TRAN", "RAW", "out.raw", {}, {});
