@@ -134,3 +134,34 @@ jobs:
           path: .build-release/kicad-xyce-plugin${{ runner.os == 'Windows' && '.exe' || '' }}
           if-no-files-found: error
           retention-days: 7
+
+  osx-universal:
+    name: macOS Universal Binary
+    needs: [build-and-test]
+    runs-on: macos-latest
+    steps:
+      - name: Download arm64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: kicad-xyce-plugin-macos-arm64
+          path: artifacts/arm64
+
+      - name: Download x64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: kicad-xyce-plugin-macos-x64
+          path: artifacts/x64
+
+      - name: Create Universal binary
+        run: |
+          lipo -create -output kicad-xyce-plugin \
+            artifacts/arm64/kicad-xyce-plugin \
+            artifacts/x64/kicad-xyce-plugin
+
+      - name: Upload Universal artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kicad-xyce-plugin-macos-universal
+          path: kicad-xyce-plugin
+          if-no-files-found: error
+          retention-days: 7
