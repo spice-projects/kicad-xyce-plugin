@@ -93,9 +93,7 @@ MappedFile::MappedFile(const std::filesystem::path& path) {
 #endif
 }
 
-MappedFile::~MappedFile() noexcept {
-    release();
-}
+MappedFile::~MappedFile() noexcept { release(); }
 
 MappedFile::MappedFile(MappedFile&& other) noexcept
 #ifdef _WIN32
