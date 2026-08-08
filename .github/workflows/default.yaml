@@ -83,11 +83,12 @@ jobs:
           VSWHERE="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
           VS_PATH="$("$VSWHERE" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)"
           echo "Visual Studio installation path: $VS_PATH"
-          cmd /c "call \"$VS_PATH\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul && set" |
-            tr -d '\r' |
+          printf '@echo off\r\ncall "%s\\VC\\Auxiliary\\Build\\vcvars64.bat" >nul\r\nset\r\n' "$VS_PATH" > vcvars_env.cmd
+          cmd /c vcvars_env.cmd | tr -d '\r' | grep '=' |
             while IFS='=' read -r key value; do
               printf '%s<<EOF\n%s\nEOF\n' "$key" "$value"
             done >> "$GITHUB_ENV"
+          rm -f vcvars_env.cmd
 
       - name: Restore vcpkg binary cache
         if: ${{ matrix.build_enabled }}
