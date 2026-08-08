@@ -1,6 +1,5 @@
 # Build directories (CMake presets write to .build-*)
 .build-*/
-build/
 
 # CMake generated files
 CMakeCache.txt
