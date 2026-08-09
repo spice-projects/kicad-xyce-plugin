@@ -15,10 +15,9 @@
 #include <wx/wx.h>
 
 #include "charts_panel.h"
+#include "font_data.h"
 #include "im_context.h"
 #include "wxwidgets_imgui.h"
-
-static constexpr const char* FONT_PATH = KICAD_XYCE_FONTS_DIR "\\Inter-Regular.ttf";
 
 struct ChartsPanelRenderContext
 {
@@ -309,8 +308,11 @@ void ChartsPanel::initialize() {
     ImGuiIO& io = ImGui::GetIO();
     // font base size
     const float base_size = 14.0f;
-    // add font with DPI-aware scaling
-    io.Fonts->AddFontFromFileTTF(FONT_PATH, base_size * scale);
+    // keep the embedded font data owned by the generated array
+    ImFontConfig font_cfg{};
+    font_cfg.FontDataOwnedByAtlas = false;
+    // add the embedded font with DPI-aware scaling
+    io.Fonts->AddFontFromMemoryTTF(const_cast<void*>(static_cast<const void*>(Inter_Regular_ttf)), static_cast<int>(Inter_Regular_ttf_len), base_size * scale, &font_cfg);
     io.FontGlobalScale = 1.0f / scale;
     // update style
     ImGuiStyle& style = ImGui::GetStyle();

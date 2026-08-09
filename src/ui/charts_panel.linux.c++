@@ -10,10 +10,9 @@
 #include <GL/gl.h>
 
 #include "charts_panel.h"
+#include "font_data.h"
 #include "im_context.h"
 #include "wxwidgets_imgui.h"
-
-static constexpr const char* FONT_PATH = KICAD_XYCE_FONTS_DIR "/Inter-Regular.ttf";
 
 void ChartsPanel::initialize() {
     // check whether this panel already has a rendering context
@@ -34,7 +33,11 @@ void ChartsPanel::initialize() {
     // configure DPI-aware fonts
     auto& io = ImGui::GetIO();
     const float scale = static_cast<float>(GetDPIScaleFactor());
-    io.Fonts->AddFontFromFileTTF(FONT_PATH, 14.0f * scale);
+    // keep the embedded font data owned by the generated array
+    ImFontConfig font_cfg{};
+    font_cfg.FontDataOwnedByAtlas = false;
+    // add the embedded font with DPI-aware scaling
+    io.Fonts->AddFontFromMemoryTTF(const_cast<void*>(static_cast<const void*>(Inter_Regular_ttf)), static_cast<int>(Inter_Regular_ttf_len), 14.0f * scale, &font_cfg);
     io.FontGlobalScale = 1.0f / scale;
     // initialize the OpenGL renderer backend
     ImGui_ImplOpenGL3_Init("#version 130");
