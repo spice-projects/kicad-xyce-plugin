@@ -1,0 +1,11 @@
+* Simple RLC Series Circuit - AC Analysis Test
+V1 IN 0 AC 1
+R1 IN N1 100
+L1 N1 N2 10mH
+C1 N2 0 1uF
+
+.PREPROCESS REPLACEGROUND TRUE
+.AC DEC 20 1 100k
+.PRINT AC FORMAT=RAW FILE=ac-simple-02.raw V(*) I(*)
+
+.END
