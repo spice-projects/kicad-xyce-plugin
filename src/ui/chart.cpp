@@ -1,3 +1,4 @@
+#include <cmath>
 #include <format>
 #include <limits>
 #include <ranges>
@@ -36,6 +37,43 @@ namespace
     };
 
     constexpr ImPlotFlags PLOT_FLAGS = (ImPlotFlags_CanvasOnly ^ ImPlotFlags_NoLegend) | ImPlotFlags_NoInputs | ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect;
+
+    // ImPlot forward transform for base-2 logarithmic axes (mirrors ImPlot's Log10 transform clamping)
+    static double log2_forward_transform(const double value, void*) {
+        // clamp non-positive values to the smallest positive double
+        return std::log2(value <= 0.0 ? (std::numeric_limits<double>::min)() : value);
+    }
+
+    // ImPlot inverse transform for base-2 logarithmic axes
+    static double exp2_inverse_transform(const double value, void*) {
+        // convert plot space value to abscissa value
+        return std::exp2(value);
+    }
+
+    // compute power-of-two major tick values for a log2-scaled axis
+    static std::vector<double> compute_log2_major_ticks(const double x_left, const double x_right, const int max_ticks) {
+        // exit with empty vector if range is invalid
+        if (x_left <= 0.0 || x_right <= 0.0)
+            return {};
+        // compute exponent range covering the visible window
+        const double log_min = std::log2(x_left);
+        const double log_max = std::log2(x_right);
+        const int exp_min = static_cast<int>(std::floor(log_min));
+        const int exp_max = static_cast<int>(std::ceil(log_max));
+        const int num_octaves = exp_max - exp_min;
+        // step: number of octaves between major ticks, adapt to available pixel budget
+        int exp_step = 1;
+        if (num_octaves > max_ticks)
+            exp_step = static_cast<int>(std::ceil(static_cast<double>(num_octaves) / max_ticks));
+        // build major tick list
+        std::vector<double> result;
+        for (int e = exp_min; e <= exp_max; e += exp_step) {
+            const double tick_value = std::exp2(e);
+            if (tick_value >= x_left - 1e-15 && tick_value <= x_right + 1e-15)
+                result.push_back(tick_value);
+        }
+        return result;
+    }
 
     static int metric_formatter(const double value, char* buff, const int size, const void* data) {
         // unit
@@ -110,8 +148,40 @@ void Chart::render(const std::tuple<float, float, float, float>& selection) {
         ImPlot::SetupAxis(ImAxis_X1);
         // format
         ImPlot::SetupAxisFormat(ImAxis_X1, reinterpret_cast<ImPlotFormatter>(metric_formatter), (void*)m_abscissa_unit.c_str());
+        // abscissa scale
+        if (m_abscissa_scale == AbscissaScale::DECADE) {
+            // log10 abscissa axis
+            ImPlot::SetupAxisScale(ImAxis_X1, ImPlotScale_Log10);
+        }
+        else if (m_abscissa_scale == AbscissaScale::OCTAVE) {
+            // log2 abscissa axis
+            ImPlot::SetupAxisScale(ImAxis_X1, log2_forward_transform, exp2_inverse_transform);
+        }
+        // abscissa limits clamped above zero for logarithmic scales
+        double x_left_value = m_abscissa_left_value;
+        double x_right_value = m_abscissa_right_value;
+        if (m_abscissa_scale != AbscissaScale::LINEAR) {
+            // clamp non-positive left limit to a fraction of the right limit
+            if (x_left_value <= 0.0)
+                x_left_value = x_right_value > 0.0 ? x_right_value / 1e6 : 1.0;
+            // clamp non-positive right limit to a multiple of the left limit
+            if (x_right_value <= 0.0)
+                x_right_value = x_left_value > 0.0 ? x_left_value * 1e6 : 1.0;
+            // avoid a degenerate zero-width range
+            if (x_left_value == x_right_value)
+                x_right_value = x_left_value * 2.0;
+        }
         // min and max values
-        ImPlot::SetupAxisLimits(ImAxis_X1, m_abscissa_left_value, m_abscissa_right_value, ImPlotCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_X1, x_left_value, x_right_value, ImPlotCond_Always);
+        // log2 custom ticks for OCTAVE scale
+        if (m_abscissa_scale == AbscissaScale::OCTAVE) {
+            // estimate plot width from last frame (fallback to 800 pixels)
+            const float plot_width = std::get<2>(m_plot_rect) - std::get<0>(m_plot_rect);
+            const int max_ticks = (std::max)(2, static_cast<int>(std::lround((plot_width > 0.0f ? plot_width : 800.0f) * 0.01f)));
+            auto log2_ticks = compute_log2_major_ticks(x_left_value, x_right_value, max_ticks);
+            if (!log2_ticks.empty())
+                ImPlot::SetupAxisTicks(ImAxis_X1, log2_ticks.data(), static_cast<int>(log2_ticks.size()), nullptr, false);
+        }
         // loop axis information
         for (const auto& axis_info : m_axes) {
             // axis info at i (Y1 is always enabled)
@@ -433,8 +503,16 @@ bool Chart::release_y_axis(const int axis) {
 double Chart::ratio_to_abscissa_value(const double x_ratio) const {
     // make sure ratio is in the interval [0, 1]
     const double percentage = (std::max)(0.0, (std::min)(1.0, x_ratio));
-    // convert to abscissa value
-    return m_step_information->abscissa_left_value() + percentage * (m_step_information->abscissa_right_value() - m_step_information->abscissa_left_value());
+    // abscissa range
+    const double left_value = m_step_information->abscissa_left_value();
+    const double right_value = m_step_information->abscissa_right_value();
+    // logarithmic scale: interpolate geometrically over the range
+    if (m_abscissa_scale != AbscissaScale::LINEAR && left_value > 0.0 && right_value > 0.0 && left_value != right_value) {
+        // convert ratio to abscissa value
+        return left_value * std::pow(right_value / left_value, percentage);
+    }
+    // linear scale: interpolate linearly over the range
+    return left_value + percentage * (right_value - left_value);
 }
 
 void Chart::reset_zoom_window(const bool horizontal, const bool vertical) {

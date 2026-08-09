@@ -73,6 +73,8 @@ public:
 
     [[nodiscard]] const std::tuple<double, double, double, double>& zoom_window() const { return m_zoom_window; }
 
+    [[nodiscard]] double ratio_to_abscissa_value(double x_ratio) const;
+
 private:
     ExpressionManager* m_expression_manager;
     const StepInformation* m_step_information;
@@ -95,8 +97,6 @@ private:
     int get_y_axis(const std::string& unit);
 
     bool release_y_axis(int axis);
-
-    [[nodiscard]] double ratio_to_abscissa_value(double x_ratio) const;
 
     [[nodiscard]] std::pair<size_t, size_t> find_abscissa_indexes(const std::span<const double>& abscissa, double left_value, double right_value) const;
 

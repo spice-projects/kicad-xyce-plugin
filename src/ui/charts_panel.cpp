@@ -730,9 +730,9 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
     // left and right ratios of the zoom window in the abscissa range
     double x_left_ratio = std::get<0>(zoom_window);
     double x_right_ratio = std::get<2>(zoom_window);
-    // apply selected chart zoom (use full range if zoom is reset)
-    double min_abscissa_value_zoomed = min_abscissa_value + (x_left_ratio < 0.0 ? 0.0 : x_left_ratio) * (max_abscissa_value - min_abscissa_value);
-    double max_abscissa_value_zoomed = min_abscissa_value + (x_right_ratio < 0.0 ? 1.0 : x_right_ratio) * (max_abscissa_value - min_abscissa_value);
+    // apply selected chart zoom using the scale-aware mapping (use full range if zoom is reset)
+    double min_abscissa_value_zoomed = m_selected_chart->ratio_to_abscissa_value(x_left_ratio < 0.0 ? 0.0 : x_left_ratio);
+    double max_abscissa_value_zoomed = m_selected_chart->ratio_to_abscissa_value(x_right_ratio < 0.0 ? 1.0 : x_right_ratio);
     // current expressions plotted on the selected chart
     auto plotted_expressions = m_selected_chart->selected_expressions();
     // open FFT settings dialog (pre-select all real expressions)
