@@ -1,6 +1,9 @@
 #include <algorithm>
+#include <cctype>
 #include <chrono>
+#include <cmath>
 #include <complex>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <regex>
@@ -390,6 +393,95 @@ namespace
         return true;
     }
 
+    // tolerance for the log10 ratio variation between consecutive abscissa points
+    constexpr double LOG_RATIO_TOLERANCE = 1e-9;
+    // tolerance for how close the log10 ratio must match an integer step count
+    constexpr double SWEEP_RESIDUAL_TOLERANCE = 1e-6;
+
+    PlotType classify_plot_type(const std::string& plotname) {
+        // copy the plotname and convert it to lowercase
+        std::string name = plotname;
+        std::ranges::transform(name, name.begin(), [](const unsigned char c) { return std::tolower(c); });
+        // check for a DC operating point dump
+        if (name.find("dc operating point") != std::string::npos) {
+            // DC operating point
+            return PlotType::DC_OPERATING_POINT;
+        }
+        // check for a transient analysis
+        if (name.find("transient analysis") != std::string::npos) {
+            // transient analysis
+            return PlotType::TRANSIENT;
+        }
+        // check for a noise analysis
+        if (name.find("noise analysis") != std::string::npos) {
+            // noise analysis
+            return PlotType::NOISE;
+        }
+        // check for an AC analysis
+        if (name.find("ac analysis") != std::string::npos) {
+            // AC analysis
+            return PlotType::AC;
+        }
+        // check for a DC transfer characteristic
+        if (name.find("dc transfer characteristic") != std::string::npos) {
+            // DC sweep
+            return PlotType::DC;
+        }
+        // unrecognized plot name
+        return PlotType::UNKNOWN;
+    }
+
+    AbscissaScale detect_abscissa_scale(const View<double>& abscissa) {
+        // logarithmic sweeps require at least three points
+        if (abscissa.size() < 3) {
+            // insufficient data
+            return AbscissaScale::LINEAR;
+        }
+        // initialize the reference log10 ratio
+        double reference_ratio = 0.0;
+        // loop over consecutive abscissa pairs
+        for (size_t i = 1; i < abscissa.size(); ++i) {
+            // get previous value
+            double previous = abscissa[i - 1];
+            // get current value
+            double current = abscissa[i];
+            // logarithmic sweeps require strictly positive, increasing values
+            if (previous <= 0.0 || current <= previous) {
+                // invalid abscissa data
+                return AbscissaScale::LINEAR;
+            }
+            // compute the log10 ratio
+            double ratio = std::log10(current / previous);
+            // record the reference ratio
+            if (i == 1) {
+                reference_ratio = ratio;
+                continue;
+            }
+            // check the ratio is uniform across the sweep
+            if (std::abs(ratio - reference_ratio) > LOG_RATIO_TOLERANCE) {
+                // non-uniform spacing is not a logarithmic sweep
+                return AbscissaScale::LINEAR;
+            }
+        }
+        // compute the decade points per interval
+        const long decade_steps = std::lround(1.0 / reference_ratio);
+        // compute the octave points per interval
+        const long octave_steps = std::lround(std::log10(2.0) / reference_ratio);
+        // decade residual, degenerate step counts are ineligible
+        const double decade_residual = decade_steps >= 2 ? std::abs(reference_ratio - 1.0 / static_cast<double>(decade_steps)) : std::numeric_limits<double>::max();
+        // octave residual, degenerate step counts are ineligible
+        const double octave_residual = octave_steps >= 2 ? std::abs(reference_ratio - std::log10(2.0) / static_cast<double>(octave_steps)) : std::numeric_limits<double>::max();
+        // best candidate residual
+        const double best_residual = std::min(decade_residual, octave_residual);
+        // check the best candidate is close to an integer step count
+        if (best_residual > SWEEP_RESIDUAL_TOLERANCE) {
+            // neither a decade nor an octave sweep
+            return AbscissaScale::LINEAR;
+        }
+        // return the winning candidate
+        return decade_residual <= octave_residual ? AbscissaScale::DECADE : AbscissaScale::OCTAVE;
+    }
+
     // temporary variable struct for accumulator
     struct TempVariable
     {
@@ -504,8 +596,25 @@ std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::f
     // reserve memory for steps
     abscissa_indices.reserve(step_count);
     abscissa_value_ranges.reserve(step_count);
+    // classify the plot type from the first block plotname
+    const PlotType plot_type = classify_plot_type(first_block.plotname);
     // assign scale
     AbscissaScale abscissa_scale = AbscissaScale::LINEAR;
+    // logarithmic sweeps are restricted to AC, noise, and DC analyses
+    if ((plot_type == PlotType::AC || plot_type == PlotType::NOISE || plot_type == PlotType::DC) && !first_block.variables.empty()) {
+        // get abscissa variable type
+        const VariableType abscissa_type = std::get<2>(first_block.variables[0]);
+        // logarithmic sweeps only apply to frequency or sweep abscissas
+        if (abscissa_type == VariableType::FREQUENCY || abscissa_type == VariableType::VOLTAGE || abscissa_type == VariableType::PARAMETER) {
+            // check the abscissa is a real view
+            if (std::holds_alternative<View<double>>(std::get<3>(first_block.variables[0]))) {
+                // get the abscissa view
+                const auto& abscissa_view = std::get<View<double>>(std::get<3>(first_block.variables[0]));
+                // detect the scale from the abscissa density
+                abscissa_scale = detect_abscissa_scale(abscissa_view);
+            }
+        }
+    }
     // check first block number of points in expressions
     if (first_block.num_points > 0) {
         // get abscissa variable
@@ -630,7 +739,7 @@ std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::f
     // create expression manager
     ExpressionManager expression_manager(expressions, abscissa_indices);
     // return file
-    auto xyce_file = std::make_shared<XyceOutputFile>(filename, first_block.title, first_block.is_complex, std::move(step_information), abscissa_scale, std::move(expression_manager), std::move(mapped_file));
+    auto xyce_file = std::make_shared<XyceOutputFile>(filename, first_block.title, first_block.is_complex, std::move(step_information), plot_type, abscissa_scale, std::move(expression_manager), std::move(mapped_file));
     // log information
     spdlog::info("Successfully parsed Xyce RAW file: {}, variables: {}, elapsed time: {}ms", filename.string(), expressions.size(), std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count());
     // return file

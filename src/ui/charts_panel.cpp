@@ -903,7 +903,7 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
     // build expression manager (moves from expr_list)
     ExpressionManager fft_expression_manager(fft_expressions, fft_abscissa_indices);
     // create raw file with FFT results
-    auto fft_raw = std::make_shared<XyceOutputFile>("", fft_title, false, std::move(fft_step_information), AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, suggested_plots);
+    auto fft_raw = std::make_shared<XyceOutputFile>("", fft_title, false, std::move(fft_step_information), PlotType::FFT, AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, suggested_plots);
     // spawn a new window with the FFT results via callback
     if (m_fft_result_callback)
         m_fft_result_callback(fft_raw);

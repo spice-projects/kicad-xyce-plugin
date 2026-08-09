@@ -315,7 +315,7 @@ TEST(MainWindowPresenterChecks, load_raw_file_shows_charts_and_sets_title) {
     std::vector<std::pair<double, double>> ranges;
     StepInformation step_info(keys, values, ranges);
     ExpressionManager manager;
-    auto raw_file = std::make_shared<XyceOutputFile>("/tmp/presenter.raw", "Raw Title", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    auto raw_file = std::make_shared<XyceOutputFile>("/tmp/presenter.raw", "Raw Title", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     FakeMainWindowView view;
     MainWindowPresenter presenter(view, nullptr, PluginConfig());
     // act
@@ -337,7 +337,7 @@ TEST(MainWindowPresenterChecks, load_raw_file_forwards_suggested_plots_to_charts
     std::vector<std::pair<double, double>> ranges;
     StepInformation step_info(keys, values, ranges);
     ExpressionManager manager;
-    auto raw_file = std::make_shared<XyceOutputFile>("/tmp/presenter.raw", "Raw Title", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, expected_suggested_plots);
+    auto raw_file = std::make_shared<XyceOutputFile>("/tmp/presenter.raw", "Raw Title", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr, expected_suggested_plots);
     FakeMainWindowView view;
     MainWindowPresenter presenter(view, nullptr, PluginConfig());
     // act
@@ -466,7 +466,7 @@ TEST(MainWindowPresenterChecks, open_netlist_file_clears_previous_raw_file) {
     std::vector<std::pair<double, double>> ranges;
     StepInformation step_info(keys, values, ranges);
     ExpressionManager manager;
-    auto raw_file = std::make_shared<XyceOutputFile>("/tmp/presenter_reset.raw", "Raw Title", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    auto raw_file = std::make_shared<XyceOutputFile>("/tmp/presenter_reset.raw", "Raw Title", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     const auto path = temp_file_path("presenter_reset.cir");
     std::ofstream(path) << kNetlist;
     FakeMainWindowView view;

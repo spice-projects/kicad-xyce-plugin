@@ -3,10 +3,10 @@
 #include "../step_information.h"
 
 XyceOutputFile::XyceOutputFile(XyceOutputFile&& other) noexcept :
-    m_filename(std::move(other.m_filename)), m_title(std::move(other.m_title)), m_is_complex(other.m_is_complex), m_step_information(std::move(other.m_step_information)), m_abscissa_scale(other.m_abscissa_scale), m_expression_manager(std::move(other.m_expression_manager)), m_mapped_file(std::move(other.m_mapped_file)), m_metadata(std::move(other.m_metadata)), m_suggested_plots(std::move(other.m_suggested_plots)) {}
+    m_filename(std::move(other.m_filename)), m_title(std::move(other.m_title)), m_is_complex(other.m_is_complex), m_step_information(std::move(other.m_step_information)), m_plot_type(other.m_plot_type), m_abscissa_scale(other.m_abscissa_scale), m_expression_manager(std::move(other.m_expression_manager)), m_mapped_file(std::move(other.m_mapped_file)), m_metadata(std::move(other.m_metadata)), m_suggested_plots(std::move(other.m_suggested_plots)) {}
 
-XyceOutputFile::XyceOutputFile(std::filesystem::path filename, std::string title, const bool is_complex, StepInformation&& step_info, const AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, std::unique_ptr<MappedFile>&& mapped_file, std::vector<std::vector<std::string>> suggested_plots, std::unordered_map<std::string, std::string> metadata) :
-    m_filename(std::move(filename)), m_title(std::move(title)), m_is_complex(is_complex), m_step_information(std::move(step_info)), m_abscissa_scale(abscissa_scale), m_expression_manager(std::move(expression_manager)), m_mapped_file(std::move(mapped_file)), m_metadata(std::move(metadata)), m_suggested_plots(std::move(suggested_plots)) {}
+XyceOutputFile::XyceOutputFile(std::filesystem::path filename, std::string title, const bool is_complex, StepInformation&& step_info, const PlotType plot_type, const AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, std::unique_ptr<MappedFile>&& mapped_file, std::vector<std::vector<std::string>> suggested_plots, std::unordered_map<std::string, std::string> metadata) :
+    m_filename(std::move(filename)), m_title(std::move(title)), m_is_complex(is_complex), m_step_information(std::move(step_info)), m_plot_type(plot_type), m_abscissa_scale(abscissa_scale), m_expression_manager(std::move(expression_manager)), m_mapped_file(std::move(mapped_file)), m_metadata(std::move(metadata)), m_suggested_plots(std::move(suggested_plots)) {}
 
 XyceOutputFile::~XyceOutputFile() = default;
 
@@ -16,6 +16,7 @@ XyceOutputFile& XyceOutputFile::operator=(XyceOutputFile&& other) noexcept {
     m_title = std::move(other.m_title);
     m_is_complex = other.m_is_complex;
     m_step_information = std::move(other.m_step_information);
+    m_plot_type = other.m_plot_type;
     m_abscissa_scale = other.m_abscissa_scale;
     m_expression_manager = std::move(other.m_expression_manager);
     m_mapped_file = std::move(other.m_mapped_file);
@@ -50,6 +51,11 @@ Expression<double>& XyceOutputFile::abscissa() { return m_expression_manager.abs
 AbscissaScale XyceOutputFile::abscissa_scale() const {
     // return scale
     return m_abscissa_scale;
+}
+
+PlotType XyceOutputFile::plot_type() const {
+    // return plot type
+    return m_plot_type;
 }
 
 ExpressionManager& XyceOutputFile::expression_manager() {

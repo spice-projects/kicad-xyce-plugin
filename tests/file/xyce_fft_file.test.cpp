@@ -485,6 +485,7 @@ TEST(XyceFftFileTest, output_file_contains_abscissa_metadata) {
     ASSERT_EQ(output_file->filename(), tmp.path() / "sim.fft0");
     ASSERT_FALSE(output_file->is_complex());
     ASSERT_EQ(output_file->abscissa_scale(), AbscissaScale::LINEAR);
+    ASSERT_EQ(output_file->plot_type(), PlotType::FFT);
     ASSERT_EQ(output_file->abscissa().name(), "frequency");
     ASSERT_EQ(output_file->abscissa().unit(), "Hz");
     ASSERT_EQ(output_file->abscissa().source(), "FFT");
