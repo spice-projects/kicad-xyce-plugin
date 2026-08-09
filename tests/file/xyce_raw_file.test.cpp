@@ -607,6 +607,24 @@ TEST(XyceRawFileTest, load_dc_decade_abscissa_scale) {
     ASSERT_EQ(raw.value()->abscissa_scale(), AbscissaScale::DECADE);
 }
 
+TEST(XyceRawFileTest, load_dc_current_source_decade_abscissa_scale) {
+    // arrange
+    const std::vector<TestVarDef> variable_definitions = {{0, "sweep", "current"}, {1, "V(out)", "voltage"}};
+    std::vector<std::vector<double>> data_matrix;
+    for (size_t i = 0; i <= 20; ++i) {
+        // decade spacing with ten points per decade
+        data_matrix.push_back({std::pow(10.0, static_cast<double>(i) / 10.0), 1.0});
+    }
+    const std::string content = make_raw_bytes("DC Current Source Sweep", "DC transfer characteristic", "real", variable_definitions, data_matrix);
+    const TempFileRAII temp_file(content);
+    // act
+    auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
+    ASSERT_TRUE(raw.has_value());
+    ASSERT_EQ(raw.value()->plot_type(), PlotType::DC);
+    ASSERT_EQ(raw.value()->abscissa_scale(), AbscissaScale::DECADE);
+}
+
 TEST(XyceRawFileTest, load_real_binary_single_step) {
     // arrange
     const std::vector<std::vector<double>> data_matrix = {{0.0, 1.0}, {1e-9, 1.1}, {2e-9, 1.2}};
@@ -641,6 +659,52 @@ TEST(XyceRawFileTest, load_chart_type_dc) {
     // assert
     ASSERT_TRUE(raw.has_value());
     ASSERT_EQ(raw.value()->abscissa().variable_type(), "voltage");
+}
+
+TEST(XyceRawFileTest, load_dc_sweep_abscissa_is_unknown) {
+    // arrange
+    const std::vector<TestVarDef> variable_definitions = {{0, "sweep", "voltage"}, {1, "V(out)", "voltage"}};
+    const std::vector<std::vector<double>> data_matrix = {{0.0, 0.0}, {1.0, 0.5}, {2.0, 1.0}};
+    const std::string content = make_raw_bytes("DC Sweep Test", "DC transfer characteristic", "real", variable_definitions, data_matrix);
+    const TempFileRAII temp_file(content);
+    // act
+    auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
+    ASSERT_TRUE(raw.has_value());
+    ASSERT_EQ(raw.value()->abscissa().variable_type(), "unknown");
+    ASSERT_TRUE(raw.value()->abscissa().unit().empty());
+}
+
+TEST(XyceRawFileTest, load_power_variable_classified_as_power) {
+    // arrange
+    const std::vector<TestVarDef> variable_definitions = {{0, "time", "time"}, {1, "P(L1)", "unknown"}, {2, "V(out)", "voltage"}};
+    const std::vector<std::vector<double>> data_matrix = {{0.0, 0.0, 0.0}, {1e-9, 1.0, 0.5}};
+    const std::string content = make_raw_bytes("Power Test", "Transient Analysis", "real", variable_definitions, data_matrix);
+    const TempFileRAII temp_file(content);
+    // act
+    auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
+    ASSERT_TRUE(raw.has_value());
+    auto* power = evaluate_real(raw.value()->expression_manager(), "P(L1)");
+    ASSERT_NE(power, nullptr);
+    ASSERT_EQ(power->variable_type(), "power");
+    ASSERT_EQ(power->unit(), "W");
+}
+
+TEST(XyceRawFileTest, load_power_variable_with_explicit_type_still_power) {
+    // arrange
+    const std::vector<TestVarDef> variable_definitions = {{0, "time", "time"}, {1, "P(L1)", "voltage"}};
+    const std::vector<std::vector<double>> data_matrix = {{0.0, 0.0}, {1e-9, 1.0}};
+    const std::string content = make_raw_bytes("Power Test", "Transient Analysis", "real", variable_definitions, data_matrix);
+    const TempFileRAII temp_file(content);
+    // act
+    auto raw = xyce_raw_file_parser(temp_file.path());
+    // assert
+    ASSERT_TRUE(raw.has_value());
+    auto* power = evaluate_real(raw.value()->expression_manager(), "P(L1)");
+    ASSERT_NE(power, nullptr);
+    ASSERT_EQ(power->variable_type(), "power");
+    ASSERT_EQ(power->unit(), "W");
 }
 
 TEST(XyceRawFileTest, load_binary_with_trailing_content_ignored) {

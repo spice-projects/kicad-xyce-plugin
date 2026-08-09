@@ -1,0 +1,9 @@
+* Simple DC Current Sweep Example for Xyce
+I1 0 1 DC 1mA
+R1 1 0 1k
+
+.PREPROCESS REPLACEGROUND TRUE
+.DC DEC I1 1u 1m 10
+.PRINT DC FORMAT=RAW FILE=dc-sweep-02.raw V(*) I(*)
+
+.END

@@ -114,7 +114,7 @@ namespace
                     // parse name
                     std::string name = parts[1];
                     // parse variable type
-                    VariableType variable_type = parse_variable_type(parts[2]);
+                    VariableType variable_type = classify_variable_type(parts[1], parts[2]);
                     // insert variable definition
                     result.variables.emplace_back(index, name, variable_type, std::monostate());
                 }
@@ -602,17 +602,12 @@ std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::f
     AbscissaScale abscissa_scale = AbscissaScale::LINEAR;
     // logarithmic sweeps are restricted to AC, noise, and DC analyses
     if ((plot_type == PlotType::AC || plot_type == PlotType::NOISE || plot_type == PlotType::DC) && !first_block.variables.empty()) {
-        // get abscissa variable type
-        const VariableType abscissa_type = std::get<2>(first_block.variables[0]);
-        // logarithmic sweeps only apply to frequency or sweep abscissas
-        if (abscissa_type == VariableType::FREQUENCY || abscissa_type == VariableType::VOLTAGE || abscissa_type == VariableType::PARAMETER) {
-            // check the abscissa is a real view
-            if (std::holds_alternative<View<double>>(std::get<3>(first_block.variables[0]))) {
-                // get the abscissa view
-                const auto& abscissa_view = std::get<View<double>>(std::get<3>(first_block.variables[0]));
-                // detect the scale from the abscissa density
-                abscissa_scale = detect_abscissa_scale(abscissa_view);
-            }
+        // check the abscissa is a real view
+        if (std::holds_alternative<View<double>>(std::get<3>(first_block.variables[0]))) {
+            // get the abscissa view
+            const auto& abscissa_view = std::get<View<double>>(std::get<3>(first_block.variables[0]));
+            // detect the scale from the abscissa density
+            abscissa_scale = detect_abscissa_scale(abscissa_view);
         }
     }
     // check first block number of points in expressions
@@ -729,13 +724,6 @@ std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::f
         // process list
         std::visit(l, steps);
     }
-    // // transform abscissa if required
-    // if (abscissa_scale != AbscissaScale::LINEAR) {
-    //     // abscissa
-    //     auto& abscissa = std::get<Expression<double>>(expressions.at(0));
-    //     // transform it
-    //     abscissa.transform(abscissa_scale == AbscissaScale::DECADE ? [](const double value)-> double { return std::log10(value); } : [](const double value)-> double { return std::log2(value); });
-    // }
     // create expression manager
     ExpressionManager expression_manager(expressions, abscissa_indices);
     // return file

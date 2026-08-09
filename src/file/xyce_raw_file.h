@@ -82,4 +82,17 @@ inline VariableType parse_variable_type(const std::string& type_str) {
     return VariableType::UNKNOWN;
 }
 
+inline VariableType classify_variable_type(const std::string& name, const std::string& type_str) {
+    // the DC sweep abscissa is hardcoded as voltage in the raw file header
+    if (name == "sweep") {
+        return VariableType::UNKNOWN;
+    }
+    // power variables are reported as unknown in the raw file header
+    if (name.size() >= 2 && name[0] == 'P' && name[1] == '(') {
+        return VariableType::POWER;
+    }
+    // fall back to the type reported in the raw file header
+    return parse_variable_type(type_str);
+}
+
 std::optional<std::shared_ptr<XyceOutputFile>> xyce_raw_file_parser(const std::filesystem::path& filename);
