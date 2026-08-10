@@ -4,6 +4,7 @@
 #include <set>
 #include <span>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -78,6 +79,8 @@ public:
     [[nodiscard]] double plot_ratio_to_abscissa_value(double x_ratio) const;
 
     [[nodiscard]] std::string hovered_series_text(double abscissa_value) const;
+
+    static std::string format_metric(double value, std::string_view unit);
 
 private:
     ExpressionManager* m_expression_manager;

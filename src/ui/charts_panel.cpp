@@ -989,6 +989,9 @@ void ChartsPanel::update(ExpressionManager& expression_manager, const StepInform
     m_expression_manager = &expression_manager;
     m_step_information = &step_information;
     m_abscissa_scale = abscissa_scale;
+    // new simulation data, clear any hover readout from the previous file
+    m_last_hover_text.clear();
+    m_hover_in_plot = false;
     // check charts are present, if not add one
     if (!m_charts.empty()) {
         // loop charts

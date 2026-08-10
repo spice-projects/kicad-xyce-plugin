@@ -76,23 +76,6 @@ namespace
         return result;
     }
 
-    static std::string format_metric(const double value, const std::string& unit) {
-        // dividers
-        static constexpr double v[] = {1e9, 1e6, 1e3, 1.0, 1e-3, 1e-6, 1e-9, 1e-12};
-        // prefixes
-        static constexpr const char* p[] = {"G", "M", "k", "", "m", "u", "n", "p"};
-        // zero
-        if (std::fabs(value) < 1e-12)
-            return std::format("0{}", unit);
-        // loop scales
-        for (int i = 0; i < 8; ++i) {
-            // check we should format value with this scale
-            if (std::fabs(value) >= v[i])
-                return std::format("{:.3g}{}{}", value / v[i], p[i], unit);
-        }
-        return std::format("{:.3g}{}{}", value / v[7], p[7], unit);
-    }
-
     static double interpolate_y(const View<double>& x_data, const View<double>& y_data, const double x, const bool ascending) {
         const size_t n = x_data.size();
         if (n == 0)
@@ -153,21 +136,9 @@ namespace
     static int metric_formatter(const double value, char* buff, const int size, const void* data) {
         // unit
         const auto unit = static_cast<const char*>(data);
-        // dividers
-        static double v[] = {1000000000, 1000000, 1000, 1, 0.001, 0.000001, 0.000000001};
-        // prefixes
-        static const char* p[] = {"G", "M", "k", "", "m", "u", "n"};
-        // zero
-        if (value == 0) {
-            return snprintf(buff, size, "0 %s", unit);
-        }
-        // loop scales
-        for (int i = 0; i < 7; ++i) {
-            // check we should format value with this scale
-            if (fabs(value) >= v[i])
-                return snprintf(buff, size, "%g %s%s", value / v[i], p[i], unit);
-        }
-        return snprintf(buff, size, "%g %s%s", value / v[6], p[6], unit);
+        // shared formatter renders value, space, prefix and unit (SI)
+        const std::string formatted = Chart::format_metric(value, unit);
+        return snprintf(buff, size, "%s", formatted.c_str());
     }
 
     static std::vector<Expression<double>*> get_expressions_to_plot(ExpressionManager* expression_manager, AnyExpression* expression) {
@@ -190,6 +161,31 @@ namespace
         return {&std::get<Expression<double>>(*magnitude_expression), &std::get<Expression<double>>(*phase_expression)};
     }
 } // namespace
+
+std::string Chart::format_metric(const double value, const std::string_view unit) {
+    // dividers
+    static constexpr double v[] = {1e9, 1e6, 1e3, 1.0, 1e-3, 1e-6, 1e-9, 1e-12};
+    // prefixes (SI, µ for micro)
+    static constexpr const char* p[] = {"G", "M", "k", "", "m", "µ", "n", "p"};
+    // zero value: prefix and unit, no separator
+    if (std::fabs(value) < 1e-12)
+        return std::format("0{}", unit);
+    // loop scales
+    for (int i = 0; i < 8; ++i) {
+        // check we should format value with this scale
+        if (std::fabs(value) >= v[i]) {
+            // scaled mantissa for this divider
+            double scaled = value / v[i];
+            // mantissa rounding up to the next decade belongs to the next prefix (avoids 1e+03uA for 1mA)
+            if (std::fabs(scaled) >= 999.5 && i > 0) {
+                scaled /= 1000.0;
+                return std::format("{:.3g} {}{}", scaled, p[i - 1], unit);
+            }
+            return std::format("{:.3g} {}{}", scaled, p[i], unit);
+        }
+    }
+    return std::format("{:.3g} {}{}", value / v[7], p[7], unit);
+}
 
 Chart::Chart(ExpressionManager* expression_manager, const StepInformation* step_information, const AbscissaScale abscissa_scale, const size_t decimate_target) :
     m_expression_manager(expression_manager), m_step_information(step_information), m_abscissa_scale(abscissa_scale), m_decimate_target(decimate_target) {
@@ -795,30 +791,37 @@ std::string Chart::hovered_series_text(const double abscissa_value) const {
         for (const auto& [ordinate_variant, variant_steps] : variant_series) {
             // steps
             const auto& rendered_series = std::get<1>(variant_steps);
-            // loop rendered steps
-            for (const auto& [step, xy_pair] : rendered_series) {
+            // step values at the hovered abscissa, joined in ascending step order
+            std::string values;
+            size_t value_count = 0;
+            // collect steps and sort them, deterministic order for the hover text
+            std::vector<size_t> steps;
+            for (const auto& [step, _] : rendered_series)
+                steps.push_back(step);
+            std::ranges::sort(steps);
+            // loop steps in ascending order
+            for (const size_t step : steps) {
                 // actual x and y values for the hovered abscissa value
-                const auto& [x_view, y_view] = xy_pair;
+                const auto& [x_view, y_view] = rendered_series.at(step);
                 if (x_view.empty() || y_view.empty())
                     continue;
                 // interpolate y value at the hovered abscissa value
                 const double y = interpolate_y(x_view, y_view, abscissa_value, ascending);
-                // variant name and unit
-                const std::string variant_name = ordinate_variant->name();
-                const std::string unit = ordinate_variant->unit();
-                // multi-step disambiguation
-                if (rendered_series.size() > 1) {
-                    const auto& keys = m_step_information->keys();
-                    const auto& values = m_step_information->values();
-                    if (!keys.empty() && step < values.size() && !values[step].empty())
-                        result += " " + variant_name + "@" + keys[0] + "=" + std::to_string(values[step][0]) + "=" + format_metric(y, unit);
-                    else
-                        result += " " + variant_name + "@step" + std::to_string(step) + "=" + format_metric(y, unit);
-                }
-                else {
-                    result += " " + variant_name + "=" + format_metric(y, unit);
-                }
+                // append separator
+                if (value_count > 0)
+                    values += ", ";
+                // append formatted value
+                values += format_metric(y, ordinate_variant->unit());
+                value_count++;
             }
+            // no plotable data for any step
+            if (value_count == 0)
+                continue;
+            // single step: plain value, multiple steps: grouped values
+            if (value_count > 1)
+                result += " " + ordinate_variant->name() + "=[" + values + "]";
+            else
+                result += " " + ordinate_variant->name() + "=" + values;
         }
     }
     return result;
