@@ -152,6 +152,7 @@ MainWindow::MainWindow(const wxString& title, std::shared_ptr<KiCadSession> sess
     // bind custom events
     Bind(wxEVT_NEW_WINDOW, &MainWindow::on_new_window, this);
     Bind(wxEVT_OPEN_XYCE_FFT_CALCULATION, &MainWindow::on_open_xyce_fft_calculation, this);
+    Bind(wxEVT_CHART_HOVER, &MainWindow::on_chart_hover, this);
     // netlist editor events
     Bind(wxEVT_STC_MODIFIED, &MainWindow::on_netlist_editor_modified, this, m_netlist_editor->GetId());
     Bind(wxEVT_STC_STYLENEEDED, &MainWindow::on_netlist_editor_style_needed, this, m_netlist_editor->GetId());
@@ -221,6 +222,19 @@ void MainWindow::on_open_xyce_fft_calculation(wxCommandEvent&) {
     // open a new window for each parsed FFT calculation output file
     for (const auto& fft_file : m_presenter->fft_files())
         spawn_raw_file_window(fft_file);
+}
+
+void MainWindow::on_chart_hover(wxCommandEvent& event) {
+    // hover text from the charts panel
+    const std::string text = event.GetString().ToStdString();
+    // empty text restores the permanent status message
+    if (text.empty()) {
+        // preserve the last presenter-set text
+        wxFrame::SetStatusText(m_last_status_text);
+    }
+    else {
+        wxFrame::SetStatusText(text);
+    }
 }
 
 void MainWindow::create_menubar() {
@@ -484,6 +498,8 @@ void MainWindow::set_title(const std::string& title) {
 }
 
 void MainWindow::set_status_text(const std::string& text) {
+    // store the permanent presenter message
+    m_last_status_text = text;
     // set the statusbar text
     SetStatusText(text);
 }
@@ -615,9 +631,9 @@ bool MainWindow::simulation_output_has_content() const {
     return m_simulation_output_panel != nullptr && m_simulation_output_panel->GetLength() > 0;
 }
 
-void MainWindow::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
+void MainWindow::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
     // refresh the charts panel with the given data
-    m_charts_panel->update(expression_manager, step_information, abscissa_label, abscissa_scale, suggested_plots);
+    m_charts_panel->update(expression_manager, step_information, abscissa_scale, suggested_plots);
 }
 
 void MainWindow::delete_all_charts() {

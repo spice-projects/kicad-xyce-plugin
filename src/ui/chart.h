@@ -4,6 +4,7 @@
 #include <set>
 #include <span>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -39,7 +40,7 @@ class Chart
 public:
     Chart() = delete;
 
-    Chart(ExpressionManager* expression_manager, StepInformation const* step_information, std::string abscissa_label, AbscissaScale abscissa_scale, size_t decimate_target);
+    Chart(ExpressionManager* expression_manager, StepInformation const* step_information, AbscissaScale abscissa_scale, size_t decimate_target);
 
     Chart(const Chart&) = delete;
 
@@ -65,7 +66,7 @@ public:
 
     void update_zoom_window(double x_left_ratio, double x_right_ratio, double y_top_ratio, double y_bottom_ratio);
 
-    void update(ExpressionManager* expression_manager, const StepInformation* step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale);
+    void update(ExpressionManager* expression_manager, const StepInformation* step_information, AbscissaScale abscissa_scale);
 
     void set_decimate_target(size_t decimate_target);
 
@@ -73,12 +74,20 @@ public:
 
     [[nodiscard]] const std::tuple<double, double, double, double>& zoom_window() const { return m_zoom_window; }
 
+    [[nodiscard]] double ratio_to_abscissa_value(double x_ratio) const;
+
+    [[nodiscard]] double plot_ratio_to_abscissa_value(double x_ratio) const;
+
+    [[nodiscard]] std::string hovered_series_text(double abscissa_value) const;
+
+    static std::string format_metric(double value, std::string_view unit);
+
 private:
     ExpressionManager* m_expression_manager;
     const StepInformation* m_step_information;
-    std::string m_abscissa_label;
     AbscissaScale m_abscissa_scale;
     size_t m_decimate_target;
+    std::string m_abscissa_name;
     std::string m_abscissa_unit;
     std::tuple<float, float, float, float> m_plot_rect = {-1, -1, -1, -1};
 
@@ -95,8 +104,6 @@ private:
     int get_y_axis(const std::string& unit);
 
     bool release_y_axis(int axis);
-
-    [[nodiscard]] double ratio_to_abscissa_value(double x_ratio) const;
 
     [[nodiscard]] std::pair<size_t, size_t> find_abscissa_indexes(const std::span<const double>& abscissa, double left_value, double right_value) const;
 

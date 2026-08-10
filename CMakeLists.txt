@@ -116,7 +116,6 @@ add_library(kicad-xyce-core STATIC ${SOURCE_FILES})
 target_include_directories(kicad-xyce-core PUBLIC "src")
 # link the core library with the vendored pocketfft library
 target_include_directories(kicad-xyce-core PRIVATE ${POCKETFFT_INCLUDE_DIRS})
-target_compile_definitions(kicad-xyce-core PUBLIC KICAD_XYCE_FONTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
 
 # clang-cl treats -Wall as MSVC's /Wall (enable every warning), so only apply
 # the standard warning set to GNU-style frontends (g++, clang++)

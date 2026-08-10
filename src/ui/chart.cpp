@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cmath>
 #include <format>
 #include <limits>
 #include <ranges>
@@ -37,24 +39,106 @@ namespace
 
     constexpr ImPlotFlags PLOT_FLAGS = (ImPlotFlags_CanvasOnly ^ ImPlotFlags_NoLegend) | ImPlotFlags_NoInputs | ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect;
 
+    // ImPlot forward transform for base-2 logarithmic axes (mirrors ImPlot's Log10 transform clamping)
+    static double log2_forward_transform(const double value, void*) {
+        // clamp non-positive values to the smallest positive double
+        return std::log2(value <= 0.0 ? (std::numeric_limits<double>::min)() : value);
+    }
+
+    // ImPlot inverse transform for base-2 logarithmic axes
+    static double exp2_inverse_transform(const double value, void*) {
+        // convert plot space value to abscissa value
+        return std::exp2(value);
+    }
+
+    // compute power-of-two major tick values for a log2-scaled axis
+    static std::vector<double> compute_log2_major_ticks(const double x_left, const double x_right, const int max_ticks) {
+        // exit with empty vector if range is invalid
+        if (x_left <= 0.0 || x_right <= 0.0)
+            return {};
+        // compute exponent range covering the visible window
+        const double log_min = std::log2(x_left);
+        const double log_max = std::log2(x_right);
+        const int exp_min = static_cast<int>(std::floor(log_min));
+        const int exp_max = static_cast<int>(std::ceil(log_max));
+        const int num_octaves = exp_max - exp_min;
+        // step: number of octaves between major ticks, adapt to available pixel budget
+        int exp_step = 1;
+        if (num_octaves > max_ticks)
+            exp_step = static_cast<int>(std::ceil(static_cast<double>(num_octaves) / max_ticks));
+        // build major tick list
+        std::vector<double> result;
+        for (int e = exp_min; e <= exp_max; e += exp_step) {
+            const double tick_value = std::exp2(e);
+            if (tick_value >= x_left - 1e-15 && tick_value <= x_right + 1e-15)
+                result.push_back(tick_value);
+        }
+        return result;
+    }
+
+    static double interpolate_y(const View<double>& x_data, const View<double>& y_data, const double x, const bool ascending) {
+        const size_t n = x_data.size();
+        if (n == 0)
+            return 0.0;
+        // clamp to range
+        if (ascending) {
+            // check if x is lower than the first x value
+            if (x <= x_data[0])
+                return y_data[0];
+            // check if x is greater than the last x value
+            if (x >= x_data[n - 1])
+                return y_data[n - 1];
+        }
+        else {
+            // check if x is greater than the first x value
+            if (x >= x_data[0])
+                return y_data[0];
+            // check if x is lower than the last x value
+            if (x <= x_data[n - 1])
+                return y_data[n - 1];
+        }
+        // index-based binary search for the bracketing interval (stride 1, contiguous data)
+        size_t idx;
+        {
+            // initialize low and high indexes for binary search
+            size_t low = 1;
+            size_t high = n - 1;
+            // binary search loop
+            while (low < high) {
+                // middle element
+                const size_t mid = low + (high - low) / 2;
+                // ascending data: first index whose value is >= x, descending data: first index whose value is <= x
+                if (ascending ? (x_data[mid] < x) : (x_data[mid] > x))
+                    low = mid + 1;
+                else
+                    high = mid;
+            }
+            // the first sample at or past x (the bracketing index)
+            idx = low;
+        }
+        // linear interpolation
+        const double x0 = x_data[idx - 1];
+        const double x1 = x_data[idx];
+        const double y0 = y_data[idx - 1];
+        const double y1 = y_data[idx];
+        const double t = (x - x0) / (x1 - x0);
+        return y0 + t * (y1 - y0);
+    }
+
+    static double interpolate_abscissa(const double ratio, const double left_value, const double right_value, const AbscissaScale scale) {
+        // logarithmic scale: interpolate geometrically over the range
+        if (scale != AbscissaScale::LINEAR && left_value > 0.0 && right_value > 0.0 && left_value != right_value)
+            return left_value * std::pow(right_value / left_value, ratio);
+        // linear scale: interpolate linearly over the range
+        return left_value + ratio * (right_value - left_value);
+    }
+
     static int metric_formatter(const double value, char* buff, const int size, const void* data) {
         // unit
         const auto unit = static_cast<const char*>(data);
-        // dividers
-        static double v[] = {1000000000, 1000000, 1000, 1, 0.001, 0.000001, 0.000000001};
-        // prefixes
-        static const char* p[] = {"G", "M", "k", "", "m", "u", "n"};
-        // zero
-        if (value == 0) {
-            return snprintf(buff, size, "0 %s", unit);
-        }
-        // loop scales
-        for (int i = 0; i < 7; ++i) {
-            // check we should format value with this scale
-            if (fabs(value) >= v[i])
-                return snprintf(buff, size, "%g %s%s", value / v[i], p[i], unit);
-        }
-        return snprintf(buff, size, "%g %s%s", value / v[6], p[6], unit);
+        // shared formatter renders value, space, prefix and unit (SI)
+        const std::string formatted = Chart::format_metric(value, unit);
+        return snprintf(buff, size, "%s", formatted.c_str());
     }
 
     static std::vector<Expression<double>*> get_expressions_to_plot(ExpressionManager* expression_manager, AnyExpression* expression) {
@@ -78,10 +162,38 @@ namespace
     }
 } // namespace
 
-Chart::Chart(ExpressionManager* expression_manager, const StepInformation* step_information, std::string abscissa_label, const AbscissaScale abscissa_scale, const size_t decimate_target) :
-    m_expression_manager(expression_manager), m_step_information(step_information), m_abscissa_label(std::move(abscissa_label)), m_abscissa_scale(abscissa_scale), m_decimate_target(decimate_target) {
-    // abscissa unit
-    m_abscissa_unit = expression_manager->abscissa().unit();
+std::string Chart::format_metric(const double value, const std::string_view unit) {
+    // dividers
+    static constexpr double v[] = {1e9, 1e6, 1e3, 1.0, 1e-3, 1e-6, 1e-9, 1e-12};
+    // prefixes (SI, µ for micro)
+    static constexpr const char* p[] = {"G", "M", "k", "", "m", "µ", "n", "p"};
+    // zero value: prefix and unit, no separator
+    if (std::fabs(value) < 1e-12)
+        return std::format("0{}", unit);
+    // loop scales
+    for (int i = 0; i < 8; ++i) {
+        // check we should format value with this scale
+        if (std::fabs(value) >= v[i]) {
+            // scaled mantissa for this divider
+            double scaled = value / v[i];
+            // mantissa rounding up to the next decade belongs to the next prefix (avoids 1e+03uA for 1mA)
+            if (std::fabs(scaled) >= 999.5 && i > 0) {
+                scaled /= 1000.0;
+                return std::format("{:.3g} {}{}", scaled, p[i - 1], unit);
+            }
+            return std::format("{:.3g} {}{}", scaled, p[i], unit);
+        }
+    }
+    return std::format("{:.3g} {}{}", value / v[7], p[7], unit);
+}
+
+Chart::Chart(ExpressionManager* expression_manager, const StepInformation* step_information, const AbscissaScale abscissa_scale, const size_t decimate_target) :
+    m_expression_manager(expression_manager), m_step_information(step_information), m_abscissa_scale(abscissa_scale), m_decimate_target(decimate_target) {
+    // abscissa
+    auto& abscissa = expression_manager->abscissa();
+    // abscissa name & unit
+    m_abscissa_name = abscissa.name();
+    m_abscissa_unit = abscissa.unit();
 }
 
 const std::set<size_t>& Chart::selected_steps() {
@@ -110,8 +222,40 @@ void Chart::render(const std::tuple<float, float, float, float>& selection) {
         ImPlot::SetupAxis(ImAxis_X1);
         // format
         ImPlot::SetupAxisFormat(ImAxis_X1, reinterpret_cast<ImPlotFormatter>(metric_formatter), (void*)m_abscissa_unit.c_str());
+        // abscissa scale
+        if (m_abscissa_scale == AbscissaScale::DECADE) {
+            // log10 abscissa axis
+            ImPlot::SetupAxisScale(ImAxis_X1, ImPlotScale_Log10);
+        }
+        else if (m_abscissa_scale == AbscissaScale::OCTAVE) {
+            // log2 abscissa axis
+            ImPlot::SetupAxisScale(ImAxis_X1, log2_forward_transform, exp2_inverse_transform);
+        }
+        // abscissa limits clamped above zero for logarithmic scales
+        double x_left_value = m_abscissa_left_value;
+        double x_right_value = m_abscissa_right_value;
+        if (m_abscissa_scale != AbscissaScale::LINEAR) {
+            // clamp non-positive left limit to a fraction of the right limit
+            if (x_left_value <= 0.0)
+                x_left_value = x_right_value > 0.0 ? x_right_value / 1e6 : 1.0;
+            // clamp non-positive right limit to a multiple of the left limit
+            if (x_right_value <= 0.0)
+                x_right_value = x_left_value > 0.0 ? x_left_value * 1e6 : 1.0;
+            // avoid a degenerate zero-width range
+            if (x_left_value == x_right_value)
+                x_right_value = x_left_value * 2.0;
+        }
         // min and max values
-        ImPlot::SetupAxisLimits(ImAxis_X1, m_abscissa_left_value, m_abscissa_right_value, ImPlotCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_X1, x_left_value, x_right_value, ImPlotCond_Always);
+        // log2 custom ticks for OCTAVE scale
+        if (m_abscissa_scale == AbscissaScale::OCTAVE) {
+            // estimate plot width from last frame (fallback to 800 pixels)
+            const float plot_width = std::get<2>(m_plot_rect) - std::get<0>(m_plot_rect);
+            const int max_ticks = (std::max)(2, static_cast<int>(std::lround((plot_width > 0.0f ? plot_width : 800.0f) * 0.01f)));
+            auto log2_ticks = compute_log2_major_ticks(x_left_value, x_right_value, max_ticks);
+            if (!log2_ticks.empty())
+                ImPlot::SetupAxisTicks(ImAxis_X1, log2_ticks.data(), static_cast<int>(log2_ticks.size()), nullptr, false);
+        }
         // loop axis information
         for (const auto& axis_info : m_axes) {
             // axis info at i (Y1 is always enabled)
@@ -433,8 +577,18 @@ bool Chart::release_y_axis(const int axis) {
 double Chart::ratio_to_abscissa_value(const double x_ratio) const {
     // make sure ratio is in the interval [0, 1]
     const double percentage = (std::max)(0.0, (std::min)(1.0, x_ratio));
-    // convert to abscissa value
-    return m_step_information->abscissa_left_value() + percentage * (m_step_information->abscissa_right_value() - m_step_information->abscissa_left_value());
+    // abscissa range
+    const double left_value = m_step_information->abscissa_left_value();
+    const double right_value = m_step_information->abscissa_right_value();
+    // scale-aware interpolation over the full abscissa range
+    return interpolate_abscissa(percentage, left_value, right_value, m_abscissa_scale);
+}
+
+double Chart::plot_ratio_to_abscissa_value(const double x_ratio) const {
+    // make sure ratio is in the interval [0, 1]
+    const double percentage = (std::max)(0.0, (std::min)(1.0, x_ratio));
+    // scale-aware interpolation over the visible (zoomed) abscissa range
+    return interpolate_abscissa(percentage, m_abscissa_left_value, m_abscissa_right_value, m_abscissa_scale);
 }
 
 void Chart::reset_zoom_window(const bool horizontal, const bool vertical) {
@@ -518,14 +672,17 @@ void Chart::update_zoom_window(double x_left_ratio, double x_right_ratio, double
     }
 }
 
-void Chart::update(ExpressionManager* expression_manager, const StepInformation* step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) {
+void Chart::update(ExpressionManager* expression_manager, const StepInformation* step_information, AbscissaScale abscissa_scale) {
     // update internal references
     m_expression_manager = expression_manager;
     m_step_information = step_information;
-    m_abscissa_label = abscissa_label;
+    // abscissa
+    auto& abscissa = expression_manager->abscissa();
+    // abscissa name & unit
+    m_abscissa_name = abscissa.name();
+    m_abscissa_unit = abscissa.unit();
+    // scale
     m_abscissa_scale = abscissa_scale;
-    // abscissa unit
-    m_abscissa_unit = expression_manager->abscissa().unit();
 }
 
 void Chart::set_decimate_target(const size_t decimate_target) {
@@ -607,3 +764,65 @@ void Chart::redraw_all_series() {
 }
 
 const std::tuple<float, float, float, float>& Chart::get_plot_rect() const { return m_plot_rect; }
+
+std::string Chart::hovered_series_text(const double abscissa_value) const {
+    // abscissa prefix
+    std::string result = m_abscissa_name + "=" + format_metric(abscissa_value, m_abscissa_unit);
+    // do not evaluate if no series are present
+    if (m_series.empty())
+        return {};
+    // collect series names
+    std::vector<std::string> names;
+    // allocate space
+    names.reserve(m_series.size());
+    // append names from series map
+    for (const auto& [name, _] : m_series)
+        names.push_back(name);
+    // sort names, deterministic order for the hover text
+    std::ranges::sort(names);
+    // abscissa direction
+    const bool ascending = m_step_information->is_abscissa_ascending();
+    // loop series in sorted order
+    for (const auto& name : names) {
+        // lookup ordinate series
+        const auto& ordinate_series = m_series.at(name);
+        const auto& variant_series = std::get<1>(ordinate_series);
+        // loop ordinate variants (db/phase for complex, single for real)
+        for (const auto& [ordinate_variant, variant_steps] : variant_series) {
+            // steps
+            const auto& rendered_series = std::get<1>(variant_steps);
+            // step values at the hovered abscissa, joined in ascending step order
+            std::string values;
+            size_t value_count = 0;
+            // collect steps and sort them, deterministic order for the hover text
+            std::vector<size_t> steps;
+            for (const auto& [step, _] : rendered_series)
+                steps.push_back(step);
+            std::ranges::sort(steps);
+            // loop steps in ascending order
+            for (const size_t step : steps) {
+                // actual x and y values for the hovered abscissa value
+                const auto& [x_view, y_view] = rendered_series.at(step);
+                if (x_view.empty() || y_view.empty())
+                    continue;
+                // interpolate y value at the hovered abscissa value
+                const double y = interpolate_y(x_view, y_view, abscissa_value, ascending);
+                // append separator
+                if (value_count > 0)
+                    values += ", ";
+                // append formatted value
+                values += format_metric(y, ordinate_variant->unit());
+                value_count++;
+            }
+            // no plotable data for any step
+            if (value_count == 0)
+                continue;
+            // single step: plain value, multiple steps: grouped values
+            if (value_count > 1)
+                result += " " + ordinate_variant->name() + "=[" + values + "]";
+            else
+                result += " " + ordinate_variant->name() + "=" + values;
+        }
+    }
+    return result;
+}

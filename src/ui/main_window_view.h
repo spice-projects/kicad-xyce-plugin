@@ -41,7 +41,7 @@ public:
     [[nodiscard]] virtual bool simulation_output_has_content() const = 0;
 
     // charts
-    virtual void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) = 0;
+    virtual void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) = 0;
     virtual void delete_all_charts() = 0;
 
     // parsed Xyce FFT calculation output files, forwarded to the charts context menu

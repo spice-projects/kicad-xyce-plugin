@@ -18,6 +18,17 @@ enum class AbscissaScale
     OCTAVE
 };
 
+enum class PlotType
+{
+    UNKNOWN,
+    TRANSIENT,
+    AC,
+    DC,
+    NOISE,
+    DC_OPERATING_POINT,
+    FFT
+};
+
 class XyceOutputFile
 {
 public:
@@ -27,7 +38,7 @@ public:
 
     XyceOutputFile(XyceOutputFile&&) noexcept;
 
-    XyceOutputFile(std::filesystem::path filename, std::string title, bool is_complex, StepInformation&& step_info, AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, std::unique_ptr<MappedFile>&& mapped_file, std::vector<std::vector<std::string>> suggested_plots = {}, std::unordered_map<std::string, std::string> metadata = {});
+    XyceOutputFile(std::filesystem::path filename, std::string title, bool is_complex, StepInformation&& step_info, PlotType plot_type, AbscissaScale abscissa_scale, ExpressionManager&& expression_manager, std::unique_ptr<MappedFile>&& mapped_file, std::vector<std::vector<std::string>> suggested_plots = {}, std::unordered_map<std::string, std::string> metadata = {});
 
     ~XyceOutputFile();
 
@@ -47,6 +58,8 @@ public:
 
     [[nodiscard]] AbscissaScale abscissa_scale() const;
 
+    [[nodiscard]] PlotType plot_type() const;
+
     [[nodiscard]] ExpressionManager& expression_manager();
 
     [[nodiscard]] const std::unordered_map<std::string, std::string>& metadata() const;
@@ -58,6 +71,7 @@ private:
     std::string m_title;
     bool m_is_complex;
     StepInformation m_step_information;
+    PlotType m_plot_type;
     AbscissaScale m_abscissa_scale;
     ExpressionManager m_expression_manager;
 

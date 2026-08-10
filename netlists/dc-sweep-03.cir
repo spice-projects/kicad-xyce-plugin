@@ -1,0 +1,10 @@
+* Simple DC Temperature Sweep Example for Xyce
+V1 1 0 DC 5V
+R1 1 2 1k TC1=0.005
+R2 2 0 2k
+
+.PREPROCESS REPLACEGROUND TRUE
+.DC DEC TEMP 200 400 10
+.PRINT DC FORMAT=RAW FILE=dc-sweep-03.raw V(*) I(*)
+
+.END

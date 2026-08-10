@@ -33,7 +33,7 @@ TEST(XyceOutputFileChecks, constructor_stores_filename) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output(expected_filename, "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output(expected_filename, "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // assert
     ASSERT_EQ(output.filename(), expected_filename);
 }
@@ -46,7 +46,7 @@ TEST(XyceOutputFileChecks, filename_accessor_returns_const_reference) {
     std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // act
     const auto& const_output = output;
     const auto& filename = const_output.filename();
@@ -68,7 +68,7 @@ TEST(XyceOutputFileChecks, constructor_stores_title) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", expected_title, false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", expected_title, false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // assert
     ASSERT_EQ(output.title(), expected_title);
 }
@@ -86,7 +86,7 @@ TEST(XyceOutputFileChecks, is_complex_returns_false_when_set_false) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // assert
     ASSERT_FALSE(output.is_complex());
 }
@@ -100,7 +100,7 @@ TEST(XyceOutputFileChecks, is_complex_returns_true_when_set_true) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", true, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", true, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // assert
     ASSERT_TRUE(output.is_complex());
 }
@@ -121,7 +121,7 @@ TEST(XyceOutputFileChecks, step_information_returns_stored_step_information) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // assert
     ASSERT_EQ(output.step_information().keys(), expected_keys);
     ASSERT_EQ(output.step_information().values(), expected_values);
@@ -136,7 +136,7 @@ TEST(XyceOutputFileChecks, step_information_accessor_is_const) {
     std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // act
     const auto& const_output = output;
     const auto& info = const_output.step_information();
@@ -157,7 +157,7 @@ TEST(XyceOutputFileChecks, abscissa_returns_stored_expression) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // assert
     ASSERT_EQ(output.abscissa().name(), "time");
     ASSERT_EQ(output.abscissa().unit(), "s");
@@ -171,7 +171,7 @@ TEST(XyceOutputFileChecks, abscissa_returns_mutable_reference) {
     std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // act
     auto& abscissa_ref = output.abscissa();
     // assert
@@ -191,7 +191,7 @@ TEST(XyceOutputFileChecks, abscissa_scale_returns_linear) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // assert
     ASSERT_EQ(output.abscissa_scale(), AbscissaScale::LINEAR);
 }
@@ -205,7 +205,7 @@ TEST(XyceOutputFileChecks, abscissa_scale_returns_decade) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::DECADE, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::DECADE, std::move(manager), nullptr);
     // assert
     ASSERT_EQ(output.abscissa_scale(), AbscissaScale::DECADE);
 }
@@ -219,9 +219,41 @@ TEST(XyceOutputFileChecks, abscissa_scale_returns_octave) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::OCTAVE, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::OCTAVE, std::move(manager), nullptr);
     // assert
     ASSERT_EQ(output.abscissa_scale(), AbscissaScale::OCTAVE);
+}
+
+// ========================================================================================
+// plot_type accessor
+// ========================================================================================
+
+TEST(XyceOutputFileChecks, plot_type_returns_stored_value) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::AC, AbscissaScale::DECADE, std::move(manager), nullptr);
+    // assert
+    ASSERT_EQ(output.plot_type(), PlotType::AC);
+}
+
+TEST(XyceOutputFileChecks, plot_type_returns_unknown_when_stored_unknown) {
+    // arrange
+    StepInformation step_info({"R1"}, {{1000.0}}, {{0.0, 10.0}});
+    std::vector<AnyExpression> expressions;
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0};
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
+    ExpressionManager manager(expressions, slices);
+    // act
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
+    // assert
+    ASSERT_EQ(output.plot_type(), PlotType::UNKNOWN);
 }
 
 // ========================================================================================
@@ -237,7 +269,7 @@ TEST(XyceOutputFileChecks, expression_manager_returns_stored_expressions) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // assert
     ASSERT_EQ(output.expression_manager().expressions().size(), 1);
 }
@@ -250,7 +282,7 @@ TEST(XyceOutputFileChecks, expression_manager_returns_mutable_reference) {
     std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // act
     auto& manager_ref = output.expression_manager();
     auto* expr = manager_ref.evaluate("time");
@@ -272,7 +304,7 @@ TEST(XyceOutputFileChecks, metadata_returns_empty_when_defaulted) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // assert
     ASSERT_TRUE(output.metadata().empty());
 }
@@ -287,7 +319,7 @@ TEST(XyceOutputFileChecks, metadata_returns_stored_values) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, {}, expected_metadata);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr, {}, expected_metadata);
     // assert
     ASSERT_EQ(output.metadata(), expected_metadata);
 }
@@ -301,7 +333,7 @@ TEST(XyceOutputFileChecks, metadata_accessor_returns_const_reference) {
     std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, {}, expected_metadata);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr, {}, expected_metadata);
     // act
     const auto& const_output = output;
     const auto& metadata = const_output.metadata();
@@ -322,7 +354,7 @@ TEST(XyceOutputFileChecks, suggested_plots_returns_empty_when_defaulted) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr);
     // assert
     ASSERT_TRUE(output.suggested_plots().empty());
 }
@@ -337,7 +369,7 @@ TEST(XyceOutputFileChecks, suggested_plots_returns_stored_expression_names) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, expected_plots);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr, expected_plots);
     // assert
     ASSERT_EQ(output.suggested_plots(), expected_plots);
 }
@@ -351,7 +383,7 @@ TEST(XyceOutputFileChecks, suggested_plots_accessor_returns_const_reference) {
     std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, expected_plots);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr, expected_plots);
     // act
     const auto& const_output = output;
     const auto& plots = const_output.suggested_plots();
@@ -370,7 +402,7 @@ TEST(XyceOutputFileChecks, constructor_suggested_plots_precedes_metadata) {
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
     // act
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, expected_plots, expected_metadata);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr, expected_plots, expected_metadata);
     // assert
     ASSERT_EQ(output.suggested_plots(), expected_plots);
     ASSERT_EQ(output.metadata(), expected_metadata);
@@ -390,7 +422,7 @@ TEST(XyceOutputFileChecks, move_constructor_transfers_suggested_plots_and_metada
     std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
     expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), slices, "s"));
     ExpressionManager manager(expressions, slices);
-    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), AbscissaScale::LINEAR, std::move(manager), nullptr, expected_plots, expected_metadata);
+    XyceOutputFile output("/tmp/test.raw", "Test", false, std::move(step_info), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager), nullptr, expected_plots, expected_metadata);
     // act
     XyceOutputFile moved(std::move(output));
     // assert
@@ -408,14 +440,14 @@ TEST(XyceOutputFileChecks, move_assignment_transfers_suggested_plots_and_metadat
     std::vector<std::pair<size_t, size_t>> slices_a = {{0, 3}};
     expressions_a.emplace_back(Expression<double>("time", std::move(abscissa_data_a), slices_a, "s"));
     ExpressionManager manager_a(expressions_a, slices_a);
-    XyceOutputFile source("/tmp/a.raw", "A", false, std::move(step_info_a), AbscissaScale::LINEAR, std::move(manager_a), nullptr, expected_plots, expected_metadata);
+    XyceOutputFile source("/tmp/a.raw", "A", false, std::move(step_info_a), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager_a), nullptr, expected_plots, expected_metadata);
     StepInformation step_info_b({"R1"}, {{1000.0}}, {{0.0, 10.0}});
     std::vector<AnyExpression> expressions_b;
     std::vector<double> abscissa_data_b = {0.0, 1.0, 2.0};
     std::vector<std::pair<size_t, size_t>> slices_b = {{0, 3}};
     expressions_b.emplace_back(Expression<double>("time", std::move(abscissa_data_b), slices_b, "s"));
     ExpressionManager manager_b(expressions_b, slices_b);
-    XyceOutputFile target("/tmp/b.raw", "B", false, std::move(step_info_b), AbscissaScale::LINEAR, std::move(manager_b), nullptr);
+    XyceOutputFile target("/tmp/b.raw", "B", false, std::move(step_info_b), PlotType::UNKNOWN, AbscissaScale::LINEAR, std::move(manager_b), nullptr);
     // act
     target = std::move(source);
     // assert
