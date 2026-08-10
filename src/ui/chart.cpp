@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <format>
 #include <limits>
@@ -75,6 +76,80 @@ namespace
         return result;
     }
 
+    static std::string format_metric(const double value, const std::string& unit) {
+        // dividers
+        static constexpr double v[] = {1e9, 1e6, 1e3, 1.0, 1e-3, 1e-6, 1e-9, 1e-12};
+        // prefixes
+        static constexpr const char* p[] = {"G", "M", "k", "", "m", "u", "n", "p"};
+        // zero
+        if (std::fabs(value) < 1e-12)
+            return std::format("0{}", unit);
+        // loop scales
+        for (int i = 0; i < 8; ++i) {
+            // check we should format value with this scale
+            if (std::fabs(value) >= v[i])
+                return std::format("{:.3g}{}{}", value / v[i], p[i], unit);
+        }
+        return std::format("{:.3g}{}{}", value / v[7], p[7], unit);
+    }
+
+    static double interpolate_y(const View<double>& x_data, const View<double>& y_data, const double x, const bool ascending) {
+        const size_t n = x_data.size();
+        if (n == 0)
+            return 0.0;
+        // clamp to range
+        if (ascending) {
+            // check if x is lower than the first x value
+            if (x <= x_data[0])
+                return y_data[0];
+            // check if x is greater than the last x value
+            if (x >= x_data[n - 1])
+                return y_data[n - 1];
+        }
+        else {
+            // check if x is greater than the first x value
+            if (x >= x_data[0])
+                return y_data[0];
+            // check if x is lower than the last x value
+            if (x <= x_data[n - 1])
+                return y_data[n - 1];
+        }
+        // index-based binary search for the bracketing interval (stride 1, contiguous data)
+        size_t idx;
+        {
+            // initialize low and high indexes for binary search
+            size_t low = 1;
+            size_t high = n - 1;
+            // binary search loop
+            while (low < high) {
+                // middle element
+                const size_t mid = low + (high - low) / 2;
+                // ascending data: first index whose value is >= x, descending data: first index whose value is <= x
+                if (ascending ? (x_data[mid] < x) : (x_data[mid] > x))
+                    low = mid + 1;
+                else
+                    high = mid;
+            }
+            // the first sample at or past x (the bracketing index)
+            idx = low;
+        }
+        // linear interpolation
+        const double x0 = x_data[idx - 1];
+        const double x1 = x_data[idx];
+        const double y0 = y_data[idx - 1];
+        const double y1 = y_data[idx];
+        const double t = (x - x0) / (x1 - x0);
+        return y0 + t * (y1 - y0);
+    }
+
+    static double interpolate_abscissa(const double ratio, const double left_value, const double right_value, const AbscissaScale scale) {
+        // logarithmic scale: interpolate geometrically over the range
+        if (scale != AbscissaScale::LINEAR && left_value > 0.0 && right_value > 0.0 && left_value != right_value)
+            return left_value * std::pow(right_value / left_value, ratio);
+        // linear scale: interpolate linearly over the range
+        return left_value + ratio * (right_value - left_value);
+    }
+
     static int metric_formatter(const double value, char* buff, const int size, const void* data) {
         // unit
         const auto unit = static_cast<const char*>(data);
@@ -116,10 +191,13 @@ namespace
     }
 } // namespace
 
-Chart::Chart(ExpressionManager* expression_manager, const StepInformation* step_information, std::string abscissa_label, const AbscissaScale abscissa_scale, const size_t decimate_target) :
-    m_expression_manager(expression_manager), m_step_information(step_information), m_abscissa_label(std::move(abscissa_label)), m_abscissa_scale(abscissa_scale), m_decimate_target(decimate_target) {
-    // abscissa unit
-    m_abscissa_unit = expression_manager->abscissa().unit();
+Chart::Chart(ExpressionManager* expression_manager, const StepInformation* step_information, const AbscissaScale abscissa_scale, const size_t decimate_target) :
+    m_expression_manager(expression_manager), m_step_information(step_information), m_abscissa_scale(abscissa_scale), m_decimate_target(decimate_target) {
+    // abscissa
+    auto& abscissa = expression_manager->abscissa();
+    // abscissa name & unit
+    m_abscissa_name = abscissa.name();
+    m_abscissa_unit = abscissa.unit();
 }
 
 const std::set<size_t>& Chart::selected_steps() {
@@ -506,13 +584,15 @@ double Chart::ratio_to_abscissa_value(const double x_ratio) const {
     // abscissa range
     const double left_value = m_step_information->abscissa_left_value();
     const double right_value = m_step_information->abscissa_right_value();
-    // logarithmic scale: interpolate geometrically over the range
-    if (m_abscissa_scale != AbscissaScale::LINEAR && left_value > 0.0 && right_value > 0.0 && left_value != right_value) {
-        // convert ratio to abscissa value
-        return left_value * std::pow(right_value / left_value, percentage);
-    }
-    // linear scale: interpolate linearly over the range
-    return left_value + percentage * (right_value - left_value);
+    // scale-aware interpolation over the full abscissa range
+    return interpolate_abscissa(percentage, left_value, right_value, m_abscissa_scale);
+}
+
+double Chart::plot_ratio_to_abscissa_value(const double x_ratio) const {
+    // make sure ratio is in the interval [0, 1]
+    const double percentage = (std::max)(0.0, (std::min)(1.0, x_ratio));
+    // scale-aware interpolation over the visible (zoomed) abscissa range
+    return interpolate_abscissa(percentage, m_abscissa_left_value, m_abscissa_right_value, m_abscissa_scale);
 }
 
 void Chart::reset_zoom_window(const bool horizontal, const bool vertical) {
@@ -596,14 +676,17 @@ void Chart::update_zoom_window(double x_left_ratio, double x_right_ratio, double
     }
 }
 
-void Chart::update(ExpressionManager* expression_manager, const StepInformation* step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale) {
+void Chart::update(ExpressionManager* expression_manager, const StepInformation* step_information, AbscissaScale abscissa_scale) {
     // update internal references
     m_expression_manager = expression_manager;
     m_step_information = step_information;
-    m_abscissa_label = abscissa_label;
+    // abscissa
+    auto& abscissa = expression_manager->abscissa();
+    // abscissa name & unit
+    m_abscissa_name = abscissa.name();
+    m_abscissa_unit = abscissa.unit();
+    // scale
     m_abscissa_scale = abscissa_scale;
-    // abscissa unit
-    m_abscissa_unit = expression_manager->abscissa().unit();
 }
 
 void Chart::set_decimate_target(const size_t decimate_target) {
@@ -685,3 +768,58 @@ void Chart::redraw_all_series() {
 }
 
 const std::tuple<float, float, float, float>& Chart::get_plot_rect() const { return m_plot_rect; }
+
+std::string Chart::hovered_series_text(const double abscissa_value) const {
+    // abscissa prefix
+    std::string result = m_abscissa_name + "=" + format_metric(abscissa_value, m_abscissa_unit);
+    // do not evaluate if no series are present
+    if (m_series.empty())
+        return {};
+    // collect series names
+    std::vector<std::string> names;
+    // allocate space
+    names.reserve(m_series.size());
+    // append names from series map
+    for (const auto& [name, _] : m_series)
+        names.push_back(name);
+    // sort names, deterministic order for the hover text
+    std::ranges::sort(names);
+    // abscissa direction
+    const bool ascending = m_step_information->is_abscissa_ascending();
+    // loop series in sorted order
+    for (const auto& name : names) {
+        // lookup ordinate series
+        const auto& ordinate_series = m_series.at(name);
+        const auto& variant_series = std::get<1>(ordinate_series);
+        // loop ordinate variants (db/phase for complex, single for real)
+        for (const auto& [ordinate_variant, variant_steps] : variant_series) {
+            // steps
+            const auto& rendered_series = std::get<1>(variant_steps);
+            // loop rendered steps
+            for (const auto& [step, xy_pair] : rendered_series) {
+                // actual x and y values for the hovered abscissa value
+                const auto& [x_view, y_view] = xy_pair;
+                if (x_view.empty() || y_view.empty())
+                    continue;
+                // interpolate y value at the hovered abscissa value
+                const double y = interpolate_y(x_view, y_view, abscissa_value, ascending);
+                // variant name and unit
+                const std::string variant_name = ordinate_variant->name();
+                const std::string unit = ordinate_variant->unit();
+                // multi-step disambiguation
+                if (rendered_series.size() > 1) {
+                    const auto& keys = m_step_information->keys();
+                    const auto& values = m_step_information->values();
+                    if (!keys.empty() && step < values.size() && !values[step].empty())
+                        result += " " + variant_name + "@" + keys[0] + "=" + std::to_string(values[step][0]) + "=" + format_metric(y, unit);
+                    else
+                        result += " " + variant_name + "@step" + std::to_string(step) + "=" + format_metric(y, unit);
+                }
+                else {
+                    result += " " + variant_name + "=" + format_metric(y, unit);
+                }
+            }
+        }
+    }
+    return result;
+}

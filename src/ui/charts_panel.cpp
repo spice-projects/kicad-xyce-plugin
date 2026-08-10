@@ -29,6 +29,8 @@
 
 namespace
 {
+    constexpr long HOVER_THROTTLE_MS = 20;
+
     enum
     {
         ID_CONTEXT_ZOOM_TO_FIT = wxID_HIGHEST + 100,
@@ -44,7 +46,7 @@ namespace
         ID_CONTEXT_DELETE_CHART,
         ID_CONTEXT_NEW_WINDOW
     };
-}
+} // namespace
 
 #ifdef __linux__
 ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
@@ -55,6 +57,7 @@ ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
 #endif
     // mouse events
     Bind(wxEVT_MOTION, &ChartsPanel::on_mouse_move, this);
+    Bind(wxEVT_LEAVE_WINDOW, &ChartsPanel::on_leave_window, this);
     // Bind(wxEVT_LEFT_DCLICK, &ChartsPanel::on_mouse_button, this);
     Bind(wxEVT_LEFT_DOWN, &ChartsPanel::on_mouse_button, this);
     Bind(wxEVT_LEFT_UP, &ChartsPanel::on_mouse_button, this);
@@ -86,6 +89,8 @@ ChartsPanel::ChartsPanel(wxWindow* parent, const wxWindowID id) :
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_new_window, this, ID_CONTEXT_NEW_WINDOW);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_calculate_fft, this, ID_CONTEXT_CALCULATE_FFT);
     Bind(wxEVT_MENU, &ChartsPanel::on_menu_open_fft_calculation, this, ID_CONTEXT_OPEN_XYCE_FFT_CALCULATION);
+    // hover timer
+    Bind(wxEVT_TIMER, &ChartsPanel::on_hover_timer, this);
     // fetch the platform's active workspace background color
     wxColour wxBgColor = wxSystemSettings::GetColour(wxSYS_COLOUR_APPWORKSPACE);
     // convert it to ImVec4
@@ -203,7 +208,7 @@ void ChartsPanel::on_mouse_move(wxMouseEvent& event) {
             auto y = static_cast<float>(event.GetY());
             // available area in the panel
             const auto& clientRect = GetClientRect();
-            // selected chart
+            // selected chart index
             m_selected_chart_index = event.GetY() / (clientRect.height / m_charts.size());
             if (m_selected_chart_index >= m_charts.size())
                 return;
@@ -227,7 +232,50 @@ void ChartsPanel::on_mouse_move(wxMouseEvent& event) {
             refresh_charts();
         }
     }
-    // skip event
+    else if (!m_charts.empty()) {
+        // mouse position
+        const auto mouse_x = static_cast<float>(event.GetX());
+        const auto mouse_y = static_cast<float>(event.GetY());
+        // look for the chart whose plot area contains the cursor
+        m_hover_in_plot = false;
+        for (size_t i = 0; i < m_charts.size(); ++i) {
+            // chart at i
+            const auto& chart = m_charts[i];
+            // current chart plot area
+            const auto [px_min, py_min, px_max, py_max] = chart->get_plot_rect();
+            // check the cursor is inside the plot area
+            if (mouse_x >= px_min && mouse_x <= px_max && mouse_y >= py_min && mouse_y <= py_max) {
+                // chart being hovered
+                m_hover_chart_index = i;
+                m_hover_in_plot = true;
+                // ratio of the cursor within the plot area
+                const float ratio = (mouse_x - px_min) / (px_max - px_min);
+                // scale-aware abscissa value at the ratio
+                m_hover_abscissa_value = chart->plot_ratio_to_abscissa_value(ratio);
+                // only the first matching chart is considered
+                break;
+            }
+        }
+        // restart the debounce timer (one-shot, fires Xms after the last move)
+        m_hover_timer.Start(HOVER_THROTTLE_MS, wxTIMER_ONE_SHOT);
+    }
+}
+
+void ChartsPanel::on_leave_window(wxMouseEvent& event) {
+    // cancel any pending hover publication
+    m_hover_timer.Stop();
+    // no hover text is active
+    if (m_last_hover_text.empty())
+        return;
+    // restore the previous status bar text immediately
+    m_last_hover_text.clear();
+    // create event
+    wxCommandEvent e(wxEVT_CHART_HOVER, GetId());
+    e.SetEventObject(this);
+    e.SetString("");
+    // dispatch event to the parent window
+    GetEventHandler()->ProcessEvent(e);
+    // continue processing the event to allow other handlers to run
     event.Skip();
 }
 
@@ -714,6 +762,29 @@ void ChartsPanel::on_menu_open_fft_calculation(wxCommandEvent& event) {
     event.Skip();
 }
 
+void ChartsPanel::on_hover_timer(wxTimerEvent&) {
+    // hover text to publish, empty restores the previous status bar text
+    std::string text;
+    // cursor is inside the plot area of a plot with series
+    if (m_hover_in_plot && m_hover_chart_index < m_charts.size()) {
+        // chart at index
+        const auto& chart = m_charts[m_hover_chart_index];
+        // series values as a single string for the current abscissa value
+        text = chart->hovered_series_text(m_hover_abscissa_value);
+    }
+    // publish when the hover text has changed
+    if (text != m_last_hover_text) {
+        // update last hover text
+        m_last_hover_text = text;
+        // create event
+        wxCommandEvent e(wxEVT_CHART_HOVER, GetId());
+        e.SetEventObject(this);
+        e.SetString(text);
+        // publish event to the parent (e.g., main frame) to update the status bar
+        GetEventHandler()->ProcessEvent(e);
+    }
+}
+
 void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
     // check we have a selected chart
     if (m_selected_chart == nullptr) {
@@ -911,20 +982,19 @@ void ChartsPanel::on_menu_calculate_fft(wxCommandEvent&) {
     m_selected_chart = nullptr;
 }
 
-void ChartsPanel::update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, const AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
+void ChartsPanel::update(ExpressionManager& expression_manager, const StepInformation& step_information, const AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
     // recompute the decimation target from the current panel size and display scale
     update_decimation_target();
     // update fields
     m_expression_manager = &expression_manager;
     m_step_information = &step_information;
-    m_abscissa_label = abscissa_label;
     m_abscissa_scale = abscissa_scale;
     // check charts are present, if not add one
     if (!m_charts.empty()) {
         // loop charts
         for (const auto& chart : m_charts) {
             // update chart with new information
-            chart->update(m_expression_manager, m_step_information, m_abscissa_label, m_abscissa_scale);
+            chart->update(m_expression_manager, m_step_information, m_abscissa_scale);
         }
     }
     else if (!suggested_plots.empty()) {
@@ -962,7 +1032,7 @@ void ChartsPanel::update(ExpressionManager& expression_manager, const StepInform
 
 Chart* ChartsPanel::add_chart() {
     // create chart and append it to vector
-    m_charts.push_back(std::make_unique<Chart>(m_expression_manager, m_step_information, m_abscissa_label, m_abscissa_scale, m_decimate_target));
+    m_charts.push_back(std::make_unique<Chart>(m_expression_manager, m_step_information, m_abscissa_scale, m_decimate_target));
     // chart
     auto& chart = m_charts[m_charts.size() - 1];
     // plot series (will do nothing, but will set the correct abscissa for the zoom window)

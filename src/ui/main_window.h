@@ -51,7 +51,7 @@ public:
     bool simulation_output_panel_hidden() const override;
     bool simulation_output_has_content() const override;
 
-    void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) override;
+    void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) override;
     void delete_all_charts() override;
 
     void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) override;
@@ -85,6 +85,7 @@ private:
     std::unique_ptr<MainWindowPresenter> m_presenter;
     bool m_netlist_editor_updating = false;
     bool m_registered = false;
+    std::string m_last_status_text;
 
     void on_system_colour_changed(wxSysColourChangedEvent&);
 
@@ -95,6 +96,8 @@ private:
     void on_new_window(wxCommandEvent&);
 
     void on_open_xyce_fft_calculation(wxCommandEvent&);
+
+    void on_chart_hover(wxCommandEvent&);
 
     void create_menubar();
 

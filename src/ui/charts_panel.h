@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include <wx/wxprec.h>
@@ -13,6 +14,8 @@
 #ifdef __linux__
 #include <wx/glcanvas.h>
 #endif
+
+#include <wx/timer.h>
 
 #include "../expression/expression_manager.h"
 #include "../file/xyce_output_file.h"
@@ -34,7 +37,7 @@ public:
 
     ~ChartsPanel() override;
 
-    void update(ExpressionManager& expression_manager, const StepInformation& step_information, const std::string& abscissa_label, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots);
+    void update(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots);
 
     Chart* add_chart();
 
@@ -60,7 +63,6 @@ private:
 
     ExpressionManager* m_expression_manager = nullptr;
     StepInformation const* m_step_information = nullptr;
-    std::string m_abscissa_label;
     AbscissaScale m_abscissa_scale = AbscissaScale::LINEAR;
     size_t m_decimate_target = -1;
 
@@ -84,6 +86,12 @@ private:
 #ifdef __linux__
     std::unique_ptr<wxGLContext> m_gl_context;
 #endif
+
+    wxTimer m_hover_timer{this};
+    double m_hover_abscissa_value = 0.0;
+    size_t m_hover_chart_index = 0;
+    bool m_hover_in_plot = false;
+    std::string m_last_hover_text;
 
     void initialize();
 
@@ -116,6 +124,8 @@ private:
     void process_focus_event(bool focused);
 
     void on_mouse_move(wxMouseEvent&);
+
+    void on_leave_window(wxMouseEvent&);
 
     void on_mouse_button(wxMouseEvent&);
 
@@ -160,4 +170,6 @@ private:
     void on_menu_calculate_fft(wxCommandEvent&);
 
     void on_menu_open_fft_calculation(wxCommandEvent&);
+
+    void on_hover_timer(wxTimerEvent&);
 };

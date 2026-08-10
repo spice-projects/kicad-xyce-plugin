@@ -89,7 +89,7 @@ public:
 
     bool simulation_output_has_content() const override { return !output_content.empty(); }
 
-    void update_charts(ExpressionManager&, const StepInformation&, const std::string&, AbscissaScale, const std::vector<std::vector<std::string>>& suggested_plots) override {
+    void update_charts(ExpressionManager&, const StepInformation&, AbscissaScale, const std::vector<std::vector<std::string>>& suggested_plots) override {
         // record the suggested plots and count the chart updates
         update_charts_suggested_plots = suggested_plots;
         update_charts_calls++;
