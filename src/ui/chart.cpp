@@ -141,11 +141,11 @@ namespace
         return snprintf(buff, size, "%s", formatted.c_str());
     }
 
-    static std::vector<Expression<double>*> get_expressions_to_plot(ExpressionManager* expression_manager, AnyExpression* expression) {
+    static std::vector<AnyExpression*> get_expressions_to_plot(ExpressionManager* expression_manager, AnyExpression* expression) {
         // nothing to do on double expressions
         if (std::holds_alternative<Expression<double>>(*expression)) {
             // exit
-            return {&std::get<Expression<double>>(*expression)};
+            return {expression};
         }
         // complex expression
         const auto& complex_expression = std::get<Expression<std::complex<double>>>(*expression);
@@ -158,7 +158,7 @@ namespace
         if (!phase_expression)
             return {};
         // exit
-        return {&std::get<Expression<double>>(*magnitude_expression), &std::get<Expression<double>>(*phase_expression)};
+        return {magnitude_expression, phase_expression};
     }
 } // namespace
 
@@ -204,12 +204,13 @@ const std::set<size_t>& Chart::selected_steps() {
 std::vector<AnyExpression*> Chart::selected_expressions() {
     // result
     std::vector<AnyExpression*> result;
-    // allocate vector
+    // allocate space for the result
     result.reserve(m_series.size());
     // loop series
-    for (const auto& [expression, _] : m_series | std::views::values) {
-        // append expression
-        result.push_back(expression);
+    for (auto& name : m_series | std::views::keys) {
+        // use expression manager to find the expression by name
+        if (auto expression = m_expression_manager->evaluate(name); expression != nullptr)
+            result.push_back(expression);
     }
     // exit
     return result;
@@ -231,9 +232,10 @@ void Chart::render(const std::tuple<float, float, float, float>& selection) {
             // log2 abscissa axis
             ImPlot::SetupAxisScale(ImAxis_X1, log2_forward_transform, exp2_inverse_transform);
         }
-        // abscissa limits clamped above zero for logarithmic scales
+        // abscissa limits
         double x_left_value = m_abscissa_left_value;
         double x_right_value = m_abscissa_right_value;
+        // clamped above zero for logarithmic scales
         if (m_abscissa_scale != AbscissaScale::LINEAR) {
             // clamp non-positive left limit to a fraction of the right limit
             if (x_left_value <= 0.0)
@@ -252,6 +254,7 @@ void Chart::render(const std::tuple<float, float, float, float>& selection) {
             // estimate plot width from last frame (fallback to 800 pixels)
             const float plot_width = std::get<2>(m_plot_rect) - std::get<0>(m_plot_rect);
             const int max_ticks = (std::max)(2, static_cast<int>(std::lround((plot_width > 0.0f ? plot_width : 800.0f) * 0.01f)));
+            // compute log2 major ticks for the visible abscissa range
             auto log2_ticks = compute_log2_major_ticks(x_left_value, x_right_value, max_ticks);
             if (!log2_ticks.empty())
                 ImPlot::SetupAxisTicks(ImAxis_X1, log2_ticks.data(), static_cast<int>(log2_ticks.size()), nullptr, false);
@@ -272,26 +275,21 @@ void Chart::render(const std::tuple<float, float, float, float>& selection) {
         // finish setup
         ImPlot::SetupFinish();
         // loop series to render
-        for (const auto& v : m_series | std::views::values) {
-            // expression name
-            auto name = std::visit([](auto& e) { return e.name(); }, *std::get<0>(v));
-            // process series
-            for (const auto& v1 : std::get<1>(v) | std::views::values) {
-                // extract axis, steps and color
-                const int y_axis = std::get<0>(v1);
-                const auto& steps = std::get<1>(v1);
-                const auto& color = std::get<4>(v1);
-                // set current y axis
-                ImPlot::SetAxis(y_axis);
-                // style
-                ImPlotSpec spec;
-                spec.LineColor = color;
-                spec.LineWeight = 2.0f;
-                // loop steps
-                for (const auto& [x, y] : steps | std::views::values) {
-                    // draw the line chart
-                    ImPlot::PlotLine(name.c_str(), x.data(), y.data(), static_cast<int>(x.size()), spec);
-                }
+        for (const auto& [name, ordinate_series] : m_series) {
+            // extract axis, steps and color
+            const int y_axis = std::get<1>(ordinate_series);
+            const auto& steps = std::get<2>(ordinate_series);
+            const auto& color = std::get<5>(ordinate_series);
+            // set current y axis
+            ImPlot::SetAxis(y_axis);
+            // style
+            ImPlotSpec spec;
+            spec.LineColor = color;
+            spec.LineWeight = 2.0f;
+            // loop steps
+            for (const auto& [x, y] : steps | std::views::values) {
+                // draw the line chart, use data() directly since the data is contiguous in memory
+                ImPlot::PlotLine(name.c_str(), x.data(), y.data(), static_cast<int>(x.size()), spec);
             }
         }
         // current rectangle (zoom selection)
@@ -312,18 +310,17 @@ void Chart::render(const std::tuple<float, float, float, float>& selection) {
 }
 
 void Chart::plot_series(const std::set<AnyExpression*>& expressions) {
-    // loop existing series to find those that need to be removed (those whose expression is not in the new expressions list)
+    // loop existing series to find those that need to be removed (those whose ordinate expression is not in the new expressions list)
     for (auto it = m_series.begin(); it != m_series.end();) {
-        // check expression should be removed
-        if (auto& [expression, ordinate_series] = it->second; !expressions.contains(expression)) {
-            // loop ordinate series
-            for (auto& [key, value] : ordinate_series) {
-                // log information
-                spdlog::info("Removing series for expression '{}' from chart", key->name());
-                // release axis
-                release_y_axis(std::get<0>(value));
-            }
-            // remove it from series
+        // plotted expression
+        auto& plotted_expression = std::get<0>(it->second);
+        // check ordinate variant should be removed
+        if (!expressions.contains(plotted_expression)) {
+            // log information
+            spdlog::info("Removing expression [{}] from chart", it->first);
+            // release axis
+            release_y_axis(std::get<1>(it->second));
+            // remove from map
             it = m_series.erase(it);
             // next
             continue;
@@ -339,24 +336,20 @@ void Chart::plot_series(const std::set<AnyExpression*>& expressions) {
     m_abscissa_right_value = x_right_ratio != -1 ? ratio_to_abscissa_value(x_right_ratio) : m_step_information->abscissa_right_value();
     // loop expressions that need to be rendered
     for (AnyExpression* ordinate : expressions) {
-        // ordinate name
-        auto name = std::visit([](auto& e) { return e.name(); }, *ordinate);
-        // lookup ordinate in series, create default if it does not exist
-        auto [it, inserted] = m_series.try_emplace(name, OrdinateSeries(ordinate, OrdinateVariantSeries()));
-        // ordinate series
-        OrdinateSeries& ordinate_series = it->second;
         // process ordinate and find expressions to plot
-        for (auto ordinate_variant : get_expressions_to_plot(m_expression_manager, ordinate)) {
-            // lookup ordinate variant in series
-            auto [it1, inserted1] = std::get<1>(ordinate_series).try_emplace(ordinate_variant, OrdinateVariantSeriesSteps());
-            // lookup ordinate variant in series
-            auto& [y_axis, rendered_series, min_value, max_value, color] = (it1->second);
+        for (AnyExpression* ordinate_variant : get_expressions_to_plot(m_expression_manager, ordinate)) {
+            // ordinate expression is always an Expression<double> at this point
+            Expression<double>& double_ordinate_variant = std::get<Expression<double>>(*ordinate_variant);
+            // lookup ordinate variant in series, create default if it does not exist
+            auto [it0, inserted0] = m_series.try_emplace(double_ordinate_variant.name(), OrdinateSeries(ordinate_variant, 0, std::unordered_map<size_t, std::pair<View<double>, View<double>>>(), (std::numeric_limits<double>::max)(), -(std::numeric_limits<double>::max)(), ImVec4(0, 0, 0, 0)));
+            // ordinate series data
+            auto& [_, y_axis, rendered_series, min_value, max_value, color] = (it0->second);
             // loop rendered steps
             for (auto it2 = rendered_series.begin(); it2 != rendered_series.end();) {
                 // check step in selected steps
                 if (!m_selected_steps.contains(it2->first)) {
                     // log information
-                    spdlog::info("Removing series for expression [{}] from chart, step: {}", ordinate_variant->name(), it2->first);
+                    spdlog::info("Removing step [{}] for expression [{}] from chart", it2->first, double_ordinate_variant.name());
                     // remove it
                     it2 = rendered_series.erase(it2);
                     // next
@@ -368,18 +361,18 @@ void Chart::plot_series(const std::set<AnyExpression*>& expressions) {
             // process axis as needed
             if (y_axis == 0) {
                 // find an axis for this unit
-                y_axis = get_y_axis(ordinate_variant->unit());
+                y_axis = get_y_axis(double_ordinate_variant.unit());
                 // no axis is available
                 if (y_axis < 0) {
                     // log information
-                    spdlog::warn("Cannot add series '{}' of measurement type '{}' to chart — maximum number of Y axes reached", ordinate_variant->name(), ordinate_variant->unit());
+                    spdlog::warn("Cannot add series '{}' of measurement type '{}' to chart — maximum number of Y axes reached", double_ordinate_variant.name(), double_ordinate_variant.unit());
                     // remove ordinate variant from map since we are not plot it
-                    std::get<1>(ordinate_series).erase(it1);
+                    m_series.erase(it0);
                     // exit loop
                     break;
                 }
                 // update axis
-                std::get<0>(it1->second) = y_axis;
+                std::get<1>(it0->second) = y_axis;
             }
             // process color
             if (color.x == 0 && color.y == 0 && color.z == 0 && color.w == 0) {
@@ -394,7 +387,7 @@ void Chart::plot_series(const std::set<AnyExpression*>& expressions) {
                 if (rendered_series.contains(step))
                     continue;
                 // plot step
-                if (auto [ok, x, y, y_min_value, y_max_value] = plot_step(ordinate_variant, step, min_value, max_value, x_right_ratio, x_left_ratio); ok) {
+                if (auto [ok, x, y, y_min_value, y_max_value] = plot_step(double_ordinate_variant, step, min_value, max_value, x_right_ratio, x_left_ratio); ok) {
                     // update min & max values
                     min_value = y_min_value;
                     max_value = y_max_value;
@@ -403,10 +396,22 @@ void Chart::plot_series(const std::set<AnyExpression*>& expressions) {
                 }
             }
             // update min & max values
-            std::get<2>(it1->second) = min_value;
-            std::get<3>(it1->second) = max_value;
+            std::get<3>(it0->second) = min_value;
+            std::get<4>(it0->second) = max_value;
             // update color
-            std::get<4>(it1->second) = color;
+            std::get<5>(it0->second) = color;
+        }
+    }
+    // dump series information in debug mode
+    if (spdlog::get_level() <= spdlog::level::debug) {
+        // loop series
+        for (const auto& [k, v] : m_series) {
+            // extract axis, steps and color
+            const int y_axis = std::get<1>(v);
+            const auto& steps = std::get<2>(v);
+            const auto& color = std::get<5>(v);
+            // log information
+            spdlog::debug("Series [{}] on Y{} axis with {} steps and color RGBA({:.3f}, {:.3f}, {:.3f}, {:.3f})", k, y_axis - ImAxis_Y1 + 1, steps.size(), color.x, color.y, color.z, color.w);
         }
     }
     // auto range axes
@@ -424,22 +429,19 @@ void Chart::auto_range() {
         }
         // loop rendered series
         for (auto& v : m_series | std::views::values) {
-            // process series
-            for (auto& v1 : std::get<1>(v) | std::views::values) {
-                // extract axis, min and max values
-                const int y_axis = std::get<0>(v1);
-                const double min_value = std::get<2>(v1);
-                const double max_value = std::get<3>(v1);
-                // loop axes
-                for (auto& axis_info : m_axes) {
-                    // check this is the axis
-                    if (axis_info.axis == y_axis) {
-                        // update min & max values for axis
-                        axis_info.min_value = (std::min)(axis_info.min_value, min_value);
-                        axis_info.max_value = (std::max)(axis_info.max_value, max_value);
-                        // exit
-                        break;
-                    }
+            // extract axis, min and max values
+            const int y_axis = std::get<1>(v);
+            const double min_value = std::get<3>(v);
+            const double max_value = std::get<4>(v);
+            // loop axes
+            for (auto& axis_info : m_axes) {
+                // check this is the axis
+                if (axis_info.axis == y_axis) {
+                    // update min & max values for axis
+                    axis_info.min_value = (std::min)(axis_info.min_value, min_value);
+                    axis_info.max_value = (std::max)(axis_info.max_value, max_value);
+                    // exit
+                    break;
                 }
             }
         }
@@ -466,12 +468,12 @@ void Chart::auto_range() {
     }
 }
 
-std::tuple<bool, View<double>, View<double>, double, double> Chart::plot_step(Expression<double>* ordinate_variant, size_t step, const double min_value, const double max_value, const double x_right_ratio, const double x_left_ratio) const {
+std::tuple<bool, View<double>, View<double>, double, double> Chart::plot_step(Expression<double>& ordinate_variant, size_t step, const double min_value, const double max_value, const double x_right_ratio, const double x_left_ratio) const {
     // abscissa
     auto& abscissa = m_expression_manager->abscissa();
     // step abscissa & ordinate values
     auto abscissa_values = abscissa.step_data(step);
-    auto ordinate_values = ordinate_variant->step_data(step);
+    auto ordinate_values = ordinate_variant.step_data(step);
     // check we have a zoom to apply
     if (x_left_ratio >= 0 && x_right_ratio >= 0) {
         // find indexes for the new zoom window
@@ -488,7 +490,7 @@ std::tuple<bool, View<double>, View<double>, double, double> Chart::plot_step(Ex
     auto [x_np, y_np] = decimate_xy(abscissa_values, ordinate_values, m_decimate_target, DECIMATE_M4);
     // TODO: remove Inf values
     // log information
-    spdlog::info("Adding series for expression [{}], step: {}, original size: {}, decimated size: {}", ordinate_variant->name(), step, abscissa_values.size(), x_np.size());
+    spdlog::info("Adding series for expression [{}], step: {}, original size: {}, decimated size: {}", ordinate_variant.name(), step, abscissa_values.size(), x_np.size());
     // check all values were non-finite after filtering
     if (x_np.empty() || y_np.empty())
         return {};
@@ -723,43 +725,42 @@ void Chart::redraw_all_series() {
     // abscissa
     auto& abscissa = m_expression_manager->abscissa();
     // loop existing series
-    for (auto& [_, ordinate_series] : m_series | std::views::values) {
-        // loop ordinate series
-        for (auto& [ordinate_variant, ordinate_variant_series] : ordinate_series) {
-            // steps
-            auto& rendered_series = std::get<1>(ordinate_variant_series);
-            // min and max value recalculation for the new zoom window
-            double min_value = (std::numeric_limits<double>::max)();
-            double max_value = -(std::numeric_limits<double>::max)();
-            // loop steps
-            for (auto& [step, series] : rendered_series) {
-                // step abscissa & ordinate values — zero copy
-                auto abscissa_values = abscissa.step_data(step);
-                auto ordinate_values = ordinate_variant->step_data(step);
-                // check we have a zoom window to apply
-                if (x_left_ratio >= 0 && x_right_ratio >= 0) {
-                    // find indexes for the new zoom window
-                    const auto& [first, last] = find_abscissa_indexes(abscissa_values, m_abscissa_left_value, m_abscissa_right_value);
-                    // abscissa values
-                    abscissa_values = abscissa_values | std::views::drop(first) | std::views::take(last - first);
-                    // ordinate values
-                    ordinate_values = ordinate_values | std::views::drop(first) | std::views::take(last - first);
-                }
-                // decimate x and y values
-                auto [x, y] = decimate_xy(abscissa_values, ordinate_values, m_decimate_target, DECIMATE_M4);
-                // TODO: remove Inf values
-                // log information
-                spdlog::debug("Updating series for expression [{}], step: {}, original size: {}, decimated size: {}", ordinate_variant->name(), step, abscissa_values.size(), x.size());
-                // update min and max values
-                min_value = (std::min)(min_value, *std::ranges::min_element(y));
-                max_value = (std::max)(max_value, *std::ranges::max_element(y));
-                // update map value
-                series = std::make_pair(std::move(x), std::move(y));
+    for (auto& ordinate_series : m_series | std::views::values) {
+        // ordinate variant is always an Expression<double> at this point, extract it
+        auto& ordinate_variant = std::get<Expression<double>>(*std::get<0>(ordinate_series));
+        // steps
+        auto& rendered_series = std::get<2>(ordinate_series);
+        // min and max value recalculation for the new zoom window
+        double min_value = (std::numeric_limits<double>::max)();
+        double max_value = -(std::numeric_limits<double>::max)();
+        // loop steps
+        for (auto& [step, series] : rendered_series) {
+            // step abscissa & ordinate values — zero copy
+            auto abscissa_values = abscissa.step_data(step);
+            auto ordinate_values = ordinate_variant.step_data(step);
+            // check we have a zoom window to apply
+            if (x_left_ratio >= 0 && x_right_ratio >= 0) {
+                // find indexes for the new zoom window
+                const auto& [first, last] = find_abscissa_indexes(abscissa_values, m_abscissa_left_value, m_abscissa_right_value);
+                // abscissa values
+                abscissa_values = abscissa_values | std::views::drop(first) | std::views::take(last - first);
+                // ordinate values
+                ordinate_values = ordinate_values | std::views::drop(first) | std::views::take(last - first);
             }
-            // update min & max values
-            std::get<2>(ordinate_variant_series) = min_value;
-            std::get<3>(ordinate_variant_series) = max_value;
+            // decimate x and y values
+            auto [x, y] = decimate_xy(abscissa_values, ordinate_values, m_decimate_target, DECIMATE_M4);
+            // TODO: remove Inf values
+            // log information
+            spdlog::debug("Updating series for expression [{}], step: {}, original size: {}, decimated size: {}", ordinate_variant.name(), step, abscissa_values.size(), x.size());
+            // update min and max values
+            min_value = (std::min)(min_value, *std::ranges::min_element(y));
+            max_value = (std::max)(max_value, *std::ranges::max_element(y));
+            // update map value
+            series = std::make_pair(std::move(x), std::move(y));
         }
+        // update min & max values
+        std::get<3>(ordinate_series) = min_value;
+        std::get<4>(ordinate_series) = max_value;
     }
 }
 
@@ -786,43 +787,41 @@ std::string Chart::hovered_series_text(const double abscissa_value) const {
     for (const auto& name : names) {
         // lookup ordinate series
         const auto& ordinate_series = m_series.at(name);
-        const auto& variant_series = std::get<1>(ordinate_series);
-        // loop ordinate variants (db/phase for complex, single for real)
-        for (const auto& [ordinate_variant, variant_steps] : variant_series) {
-            // steps
-            const auto& rendered_series = std::get<1>(variant_steps);
-            // step values at the hovered abscissa, joined in ascending step order
-            std::string values;
-            size_t value_count = 0;
-            // collect steps and sort them, deterministic order for the hover text
-            std::vector<size_t> steps;
-            for (const auto& [step, _] : rendered_series)
-                steps.push_back(step);
-            std::ranges::sort(steps);
-            // loop steps in ascending order
-            for (const size_t step : steps) {
-                // actual x and y values for the hovered abscissa value
-                const auto& [x_view, y_view] = rendered_series.at(step);
-                if (x_view.empty() || y_view.empty())
-                    continue;
-                // interpolate y value at the hovered abscissa value
-                const double y = interpolate_y(x_view, y_view, abscissa_value, ascending);
-                // append separator
-                if (value_count > 0)
-                    values += ", ";
-                // append formatted value
-                values += format_metric(y, ordinate_variant->unit());
-                value_count++;
-            }
-            // no plotable data for any step
-            if (value_count == 0)
+        // ordinate variant is always an Expression<double> at this point, extract it
+        auto& ordinate_variant = std::get<Expression<double>>(*std::get<0>(ordinate_series));
+        // steps
+        const auto& rendered_series = std::get<2>(ordinate_series);
+        // step values at the hovered abscissa, joined in ascending step order
+        std::string values;
+        size_t value_count = 0;
+        // collect steps and sort them, deterministic order for the hover text
+        std::vector<size_t> steps;
+        for (const auto& [step, _] : rendered_series)
+            steps.push_back(step);
+        std::ranges::sort(steps);
+        // loop steps in ascending order
+        for (const size_t step : steps) {
+            // actual x and y values for the hovered abscissa value
+            const auto& [x_view, y_view] = rendered_series.at(step);
+            if (x_view.empty() || y_view.empty())
                 continue;
-            // single step: plain value, multiple steps: grouped values
-            if (value_count > 1)
-                result += " " + ordinate_variant->name() + "=[" + values + "]";
-            else
-                result += " " + ordinate_variant->name() + "=" + values;
+            // interpolate y value at the hovered abscissa value
+            const double y = interpolate_y(x_view, y_view, abscissa_value, ascending);
+            // append separator
+            if (value_count > 0)
+                values += ", ";
+            // append formatted value
+            values += format_metric(y, ordinate_variant.unit());
+            value_count++;
         }
+        // no plotable data for any step
+        if (value_count == 0)
+            continue;
+        // single step: plain value, multiple steps: grouped values
+        if (value_count > 1)
+            result += " " + ordinate_variant.name() + "=[" + values + "]";
+        else
+            result += " " + ordinate_variant.name() + "=" + values;
     }
     return result;
 }

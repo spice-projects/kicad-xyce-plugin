@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <map>
 #include <set>
 #include <span>
 #include <string>
@@ -16,13 +17,9 @@
 #include "../file/xyce_output_file.h"
 #include "../step_information.h"
 
-using OrdinateVariantSeriesSteps = std::tuple<int, std::unordered_map<size_t, std::pair<View<double>, View<double>>>, double, double, ImVec4>;
+using OrdinateSeries = std::tuple<AnyExpression*, int, std::unordered_map<size_t, std::pair<View<double>, View<double>>>, double, double, ImVec4>;
 
-using OrdinateVariantSeries = std::unordered_map<Expression<double>*, OrdinateVariantSeriesSteps>;
-
-using OrdinateSeries = std::tuple<AnyExpression*, OrdinateVariantSeries>;
-
-using Series = std::unordered_map<std::string, OrdinateSeries>;
+using Series = std::map<std::string, OrdinateSeries>;
 
 struct AxisInformation
 {
@@ -99,7 +96,7 @@ private:
     std::tuple<double, double, double, double> m_zoom_window = {-1, -1, -1, -1};
     std::array<AxisInformation, 3> m_axes = {{{ImAxis_Y1, 0.0, 1.0, "", 0, 0.0, 1.0}, {ImAxis_Y2, 0.0, 1.0, "", 0, 0.0, 1.0}, {ImAxis_Y3, 0.0, 1.0, "", 0, 0.0, 1.0}}};
 
-    std::tuple<bool, View<double>, View<double>, double, double> plot_step(Expression<double>* ordinate_variant, size_t step, double min_value, double max_value, double x_right_ratio, double x_left_ratio) const;
+    std::tuple<bool, View<double>, View<double>, double, double> plot_step(Expression<double>& ordinate_variant, size_t step, double min_value, double max_value, double x_right_ratio, double x_left_ratio) const;
 
     int get_y_axis(const std::string& unit);
 
