@@ -49,14 +49,6 @@ vcpkg-manifest-install.log
 *.swp
 *~
 
-# KiCad / Xyce generated output
-*.raw
-*.fft*
-
-# Xyce text/log outputs
-*.y0
-*.print_*
-
 # ImageMagick-style temporary/backup files
 *~.orig
 *.orig
