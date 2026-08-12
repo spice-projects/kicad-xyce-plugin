@@ -78,3 +78,6 @@ dist/
 
 # KiCad vendored icon trees that are copied in, not authored here
 /kicad-icons
+
+# AI related files
+.agents

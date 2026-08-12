@@ -1,0 +1,446 @@
+import { Button, CheckBox, ComboBox, LineEdit, RadioGroup, ScrollView } from "std-widgets.slint";
+
+// struct modeling an expression offered to the FFT dialog
+struct ExpressionItem {
+    name: string,
+    type: string,
+    selected: bool,
+}
+
+component ToolbarSeparator inherits Rectangle {
+    width: 1px;
+    background: #c8c8c8;
+}
+
+component ToolbarButton inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <length> icon-size: 24px;
+    in property <bool> enabled: true;
+    callback clicked;
+
+    height: 52px;
+    min-width: max(58px, content.preferred-width);
+    border-radius: 5px;
+    border-width: 0px;
+    background: touch.pressed ? #d6d6d6 : (touch.has-hover ? #e6e6e6 : transparent);
+
+    content := VerticalLayout {
+        alignment: center;
+        spacing: 2px;
+        padding-left: 4px;
+        padding-right: 4px;
+
+        HorizontalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                width: root.icon-size;
+                height: root.icon-size;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            Text {
+                text: root.text;
+                font-size: 11px;
+                color: #333333;
+            }
+        }
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            if (root.enabled) {
+                root.clicked();
+            }
+        }
+    }
+}
+
+export component MainWindow inherits Window {
+    title: "KiCad Xyce Plugin - Toolbar Preview";
+
+    VerticalLayout {
+        toolbar := Rectangle {
+            background: #f7f7f7;
+
+            VerticalLayout {
+                HorizontalLayout {
+                    padding: 4px;
+                    spacing: 2px;
+
+                    // group 1: file (standalone mode only)
+                    ToolbarButton { text: "Open"; icon: @image-url("../kicad-icons/directory_open_24.png"); }
+                    ToolbarButton { text: "Save"; icon: @image-url("../kicad-icons/save_24.png"); }
+                    ToolbarSeparator {}
+
+                    // group 2: content views
+                    ToolbarButton { text: "Show Netlist"; icon: @image-url("../kicad-icons/netlist_24.png"); }
+                    ToolbarButton { text: "Show Charts"; icon: @image-url("../kicad-icons/simulator_24.png"); }
+                    ToolbarButton { text: "Show Sim Output"; icon: @image-url("../kicad-icons/sim_command_24.png"); }
+                    ToolbarSeparator {}
+
+                    // group 3: simulation
+                    ToolbarButton { text: "Run"; icon: @image-url("../kicad-icons/sim_run_24.png"); }
+                    ToolbarButton { text: "Configure"; icon: @image-url("../kicad-icons/sim_tune_24.png"); }
+                    ToolbarSeparator {}
+
+                    // group 4: plugin configuration
+                    ToolbarButton { text: "Plugin Config"; icon: @image-url("../kicad-icons/preference_24.png"); }
+                    ToolbarSeparator {}
+
+                    // group 5: exit
+                    ToolbarButton { text: "Exit"; icon: @image-url("../kicad-icons/exit_24.png"); }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: #d5d5d5;
+                }
+            }
+        }
+
+        Rectangle {
+            vertical-stretch: 1;
+            background: #f0f0f0;
+        }
+    }
+}
+
+// tiny colored dot matching the wx expression selector legend/chip colors
+component TypeDot inherits Rectangle {
+    in property <color> dot-color;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: dot-color;
+}
+
+// selectable expression chip, mirroring ExpressionSelectorPanel::ChipPanel
+component ExpressionChip inherits Rectangle {
+    in property <string> label;
+    in property <color> chip-color;
+    in property <bool> selected: false;
+    callback clicked;
+
+    height: 28px;
+    min-width: 110px;
+    border-radius: 5px;
+    border-color: root.selected ? #2c7eea : (touch.has-hover ? #2c7eea : #bfbfbf);
+    border-width: root.selected || touch.has-hover ? 2px : 1px;
+    background: root.selected ? #2c7eea : (touch.has-hover ? #eef4fc : #ffffff);
+
+    HorizontalLayout {
+        alignment: center;
+        spacing: 6px;
+        padding-left: 6px;
+        padding-right: 6px;
+
+        TypeDot { dot-color: root.chip-color; }
+
+        Text {
+            text: root.label;
+            color: root.selected ? #ffffff : #1f1f1f;
+            font-size: 12px;
+        }
+    }
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+// legend + chip grid modeled on ExpressionSelectorPanel
+component ExpressionSelector inherits Rectangle {
+    in property <[ExpressionItem]> expressions;
+    in property <string> filter-placeholder: "Filter expressions...";
+    callback expression-clicked(int);
+    callback filter-changed(string);
+
+    out property <string> filter-text: "";
+
+    // grid cell metrics computed from the fixed dialog width
+    private property <length> grid-cell-width: (600px - 2 * 6px) / 3;
+    private property <length> grid-cell-height: 30px;
+    private property <length> grid-gap: 6px;
+    private property <int> grid-cols: 3;
+
+    pure function type-color(type: string) -> color {
+        if (type == "Voltage") {
+            return #5b9bd5;
+        }
+        if (type == "Current") {
+            return #7cb342;
+        }
+        if (type == "Freq") {
+            return #e57373;
+        }
+        if (type == "Time") {
+            return #ba68c8;
+        }
+        if (type == "Power") {
+            return #ffb74d;
+        }
+        return #3a3d4a;
+    }
+
+    VerticalLayout {
+        spacing: 4px;
+
+        LineEdit {
+            height: 28px;
+            placeholder-text: root.filter-placeholder;
+            text <=> root.filter-text;
+            edited => { root.filter-changed(self.text); }
+        }
+
+        Rectangle {
+            height: 1px;
+            background: #e0e0e0;
+        }
+
+        // compute the grid cell metrics from the fixed dialog width
+        private property <length> grid-cell-width: (600px - 2 * 6px) / 3;
+        private property <length> grid-cell-height: 30px;
+        private property <length> grid-gap: 6px;
+        private property <int> grid-cols: 3;
+
+        ScrollView {
+            vertical-stretch: 1;
+            viewport-width: root.grid-cell-width * root.grid-cols + root.grid-gap * (root.grid-cols - 1);
+            viewport-height: 200px;
+
+            for item[index] in root.expressions: ExpressionChip {
+                x: Math.mod(index, root.grid-cols) * (root.grid-cell-width + root.grid-gap);
+                y: (index / root.grid-cols) * (root.grid-cell-height + root.grid-gap);
+                width: root.grid-cell-width;
+                height: root.grid-cell-height;
+                label: item.name;
+                chip-color: root.type-color(item.type);
+                selected: item.selected;
+                clicked => { root.expression-clicked(index); }
+            }
+        }
+
+        Rectangle {
+            height: 1px;
+            background: #e0e0e0;
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            padding-left: 2px;
+            padding-top: 4px;
+            alignment: start;
+
+            HorizontalLayout {
+                spacing: 4px;
+                TypeDot { dot-color: #5b9bd5; }
+                Text { text: "Voltage"; font-size: 9px; }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                TypeDot { dot-color: #7cb342; }
+                Text { text: "Current"; font-size: 9px; }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                TypeDot { dot-color: #e57373; }
+                Text { text: "Freq"; font-size: 9px; }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                TypeDot { dot-color: #ba68c8; }
+                Text { text: "Time"; font-size: 9px; }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                TypeDot { dot-color: #ffb74d; }
+                Text { text: "Power"; font-size: 9px; }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                TypeDot { dot-color: #3a3d4a; }
+                Text { text: "Misc"; font-size: 9px; }
+            }
+        }
+    }
+}
+
+// section header, matching the 10pt bold wx labels
+component SectionLabel inherits Text {
+    text: "";
+    font-size: 13px;
+    font-weight: 700;
+    color: #1f1f1f;
+}
+
+// modal FFT configuration dialog mirroring fft_dialog.cpp
+export component FftDialog inherits Window {
+    title: "FFT";
+
+    in property <[ExpressionItem]> expressions: [
+        { name: "V(out)", type: "Voltage", selected: true },
+        { name: "V(in)", type: "Voltage", selected: true },
+        { name: "V(fb)", type: "Voltage", selected: false },
+        { name: "I(R1)", type: "Current", selected: true },
+        { name: "I(C1)", type: "Current", selected: false },
+        { name: "P(RL)", type: "Power", selected: false },
+        { name: "freq", type: "Freq", selected: false },
+        { name: "V(n1)", type: "Voltage", selected: false },
+    ];
+
+    // range mode: 0 = All, 1 = Current Zoom, 2 = Custom
+    in-out property <int> range-mode: 0;
+    in-out property <string> custom-from: "";
+    in-out property <string> custom-to: "";
+    in-out property <int> window-index: 2;
+    in-out property <int> format-index: 0;
+    in-out property <int> output-index: 0;
+    in-out property <bool> keep-dc: true;
+    in-out property <int> np-index: 2;
+    in-out property <string> custom-np: "";
+    in property <string> range-hint-start: "from";
+    in property <string> range-hint-stop: "to";
+    in property <string> np-hint: "e.g. 4096";
+
+    callback accepted;
+    callback dismissed;
+    callback expression-clicked(int);
+    callback filter-changed(string);
+
+    preferred-width: 620px;
+    preferred-height: 560px;
+
+    Rectangle {
+        background: #f5f5f5;
+
+        VerticalLayout {
+            padding: 10px;
+            spacing: 5px;
+
+        // title
+        Text {
+            text: "Select expressions and FFT parameters:";
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        // expression selector
+        ExpressionSelector {
+            expressions: root.expressions;
+            expression-clicked(i) => { root.expression-clicked(i); }
+            filter-changed(t) => { root.filter-changed(t); }
+        }
+
+        SectionLabel { text: "Data Range:"; }
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            RadioGroup {
+                selected(v) => {
+                    if (v == "All") { root.range-mode = 0; }
+                    else if (v == "Current Zoom") { root.range-mode = 1; }
+                    else if (v == "Custom") { root.range-mode = 2; }
+                }
+                RadioButton { text: "All"; checked: true; }
+                RadioButton { text: "Current Zoom"; }
+                RadioButton { text: "Custom"; }
+            }
+
+            Text { text: "START:"; font-size: 11px; vertical-alignment: center; color: #555555; }
+            LineEdit {
+                width: 90px;
+                placeholder-text: root.range-hint-start;
+                enabled: root.range-mode == 2;
+                text <=> root.custom-from;
+            }
+            Text { text: "STOP:"; font-size: 11px; vertical-alignment: center; color: #555555; }
+            LineEdit {
+                width: 90px;
+                placeholder-text: root.range-hint-stop;
+                enabled: root.range-mode == 2;
+                text <=> root.custom-to;
+            }
+        }
+
+        SectionLabel { text: "Window Function:"; }
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            ComboBox {
+                model: ["Rectangular", "Hamming", "Hanning", "Blackman"];
+                current-index: root.window-index;
+            }
+
+            Text { text: "Format:"; font-size: 11px; vertical-alignment: center; color: #555555; }
+            ComboBox {
+                model: ["Normalized (NORM)", "Unnormalized (UNORM)"];
+                current-index: root.format-index;
+            }
+        }
+
+        SectionLabel { text: "Output:"; }
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            ComboBox {
+                model: ["Magnitude", "Magnitude (dB)", "Phase"];
+                current-index: root.output-index;
+            }
+
+            Text { text: "Keep DC:"; font-size: 11px; vertical-alignment: center; color: #555555; }
+            CheckBox {
+                checked: root.keep-dc;
+                width: 90px;
+            }
+        }
+
+        SectionLabel { text: "FFT Points (NP):"; }
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            ComboBox {
+                model: ["256", "512", "1024", "2048", "4096", "8192", "16384", "Custom..."];
+                current-index: root.np-index;
+            }
+
+            LineEdit {
+                width: 90px;
+                placeholder-text: root.np-hint;
+                enabled: root.np-index == 7;
+                text <=> root.custom-np;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: end;
+            spacing: 8px;
+            padding-top: 12px;
+
+            Button {
+                text: "Cancel";
+                clicked => { root.dismissed(); }
+            }
+
+            Button {
+                text: "OK";
+                primary: true;
+                clicked => { root.accepted(); }
+            }
+        }
+        }
+    }
+}

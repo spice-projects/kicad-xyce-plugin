@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.21)
 
 if(APPLE)
     project(kicad-xyce-plugin LANGUAGES CXX OBJCXX)
@@ -48,6 +48,25 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(nng CONFIG REQUIRED)
 find_package(protobuf CONFIG REQUIRED)
 
+if(APPLE)
+    # slint style
+    set(SLINT_STYLE "cupertino" CACHE STRING "Slint widget style" FORCE)
+elseif (WIN32)
+    # slint style
+    set(SLINT_STYLE "cupertino" CACHE STRING "Slint widget style" FORCE)
+elseif (LINUX)
+    # slint style
+    set(SLINT_STYLE "cupertino" CACHE STRING "Slint widget style" FORCE)
+endif()
+
+# slint renderer
+set(SLINT_FEATURE_RENDERER_SKIA ON CACHE BOOL "Include Skia renderer" FORCE)
+
+# slint
+include(FetchContent)
+FetchContent_Declare(Slint GIT_REPOSITORY https://github.com/slint-ui/slint.git GIT_TAG release/1 SOURCE_SUBDIR api/cpp)
+FetchContent_MakeAvailable(Slint)
+
 # generate C++ code from the vendored KiCad API protos
 set(KICAD_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/kicad/proto")
 set(KICAD_PROTO_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/kicad-proto")
@@ -60,6 +79,9 @@ protobuf_generate(
     PROTOC_OUT_DIR "${KICAD_PROTO_OUT_DIR}"
     OUT_VAR KICAD_PROTO_GENERATED_SOURCES
 )
+
+# gather slint sources (all platforms)
+file(GLOB_RECURSE SLINT_SOURCES "src/*.slint")
 
 # gather cpp sources (all platforms)
 file(GLOB_RECURSE CPP_SOURCES "src/*.cpp")
@@ -124,7 +146,7 @@ if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 endif()
 
 # third-party dependencies, PUBLIC so both the executable and the tests transitively link the same set of libraries
-target_link_libraries(kicad-xyce-core PUBLIC wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog nng::nng protobuf::libprotobuf kicad-proto)
+target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog nng::nng protobuf::libprotobuf kicad-proto)
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis
@@ -137,6 +159,9 @@ elseif(WIN32)
 elseif(LINUX)
     target_link_libraries(kicad-xyce-core PUBLIC wx::gl OpenGL::GL)
 endif()
+
+# slint
+slint_target_sources(kicad-xyce-core ${SLINT_SOURCES})
 
 # the application executable owns only the wxApp entry point
 add_executable(kicad-xyce-plugin src/main.cpp)
