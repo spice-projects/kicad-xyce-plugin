@@ -17,7 +17,7 @@
 
 #include <spdlog/spdlog.h>
 
-#include "../app.h"
+// #include "../app.h"
 #include "../config/plugin_config.h"
 #include "../netlist/netlist_source.h"
 #include "charts_panel.h"
@@ -53,10 +53,10 @@ const wxRegEx SPICE_DIRECTIVE_REGEX("^(\\.\\b\\w+\\b).*$");
 MainWindow::MainWindow(const wxString& title, std::shared_ptr<KiCadSession> session) :
     wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(800, 600)), m_kicad_session(std::move(session)) {
     // register this application frame before it can receive close events
-    if (auto* app = dynamic_cast<App*>(wxTheApp)) {
-        app->register_frame();
-        m_registered = true;
-    }
+    // if (auto* app = dynamic_cast<App*>(wxTheApp)) {
+    //     app->register_frame();
+    //     m_registered = true;
+    // }
     // take ownership of the netlist source in KiCad plugin mode
     std::unique_ptr<NetlistSource> netlist_source;
     if (m_kicad_session != nullptr)
@@ -135,17 +135,17 @@ MainWindow::MainWindow(const wxString& title, std::shared_ptr<KiCadSession> sess
     // bind events
     Bind(wxEVT_SYS_COLOUR_CHANGED, &MainWindow::on_system_colour_changed, this);
     Bind(wxEVT_DISPLAY_CHANGED, &MainWindow::on_display_changed, this);
-    Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent&) {
-        // remove this frame from the application lifetime once
-        if (m_registered) {
-            auto* app = dynamic_cast<App*>(wxTheApp);
-            if (app)
-                app->unregister_frame();
-            m_registered = false;
-        }
-        // allow wxWidgets to destroy the frame after the close event completes
-        Destroy();
-    });
+    // Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent&) {
+    //     // remove this frame from the application lifetime once
+    //     if (m_registered) {
+    //         auto* app = dynamic_cast<App*>(wxTheApp);
+    //         if (app)
+    //             app->unregister_frame();
+    //         m_registered = false;
+    //     }
+    //     // allow wxWidgets to destroy the frame after the close event completes
+    //     Destroy();
+    // });
     Bind(wxEVT_MENU, &MainWindow::on_exit, this, wxID_EXIT);
     Bind(wxEVT_MENU, &MainWindow::on_menu_file_open, this, wxID_OPEN);
     Bind(wxEVT_MENU, &MainWindow::on_menu_file_save, this, wxID_SAVE);
