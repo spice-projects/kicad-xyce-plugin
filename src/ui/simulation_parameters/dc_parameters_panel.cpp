@@ -1,4 +1,3 @@
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -11,63 +10,14 @@
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
-#include <wx/tokenzr.h>
 #endif
 
+#include "../wx_util.h"
 #include "dc_parameters_panel.h"
 #include "global_settings_panel.h"
 #include "print_section_panel.h"
 #include "simulation_card.h"
 #include "simulation_parameters/dc_simulation_parameters.h"
-
-namespace
-{
-    // split multi-line text into non-empty trimmed lines
-    [[nodiscard]] std::vector<std::string> parse_lines(const wxString& text) {
-        std::vector<std::string> lines;
-        std::istringstream stream(std::string(text.ToUTF8()));
-        std::string line;
-        while (std::getline(stream, line)) {
-            size_t start = line.find_first_not_of(" \t\r");
-            if (start == std::string::npos)
-                continue;
-            size_t end = line.find_last_not_of(" \t\r");
-            line = line.substr(start, end - start + 1);
-            if (!line.empty())
-                lines.push_back(std::move(line));
-        }
-        return lines;
-    }
-
-    // format list values as space-separated string
-    [[nodiscard]] wxString format_list_values(const std::vector<std::string>& values) {
-        if (values.empty()) {
-            return wxEmptyString;
-        }
-        wxString result;
-        for (size_t i = 0; i < values.size(); ++i) {
-            if (i > 0) {
-                result += " ";
-            }
-            result += wxString::FromUTF8(values[i]);
-        }
-        return result;
-    }
-
-    // parse space-separated list values into strings
-    [[nodiscard]] std::vector<std::string> parse_list_values(const wxString& text) {
-        std::vector<std::string> values;
-        wxString trimmed = wxString(text).Trim(true).Trim(false);
-        if (trimmed.IsEmpty()) {
-            return values;
-        }
-        wxStringTokenizer tokenizer(trimmed, " \t\r\n");
-        while (tokenizer.HasMoreTokens()) {
-            values.push_back(std::string(tokenizer.GetNextToken().ToUTF8()));
-        }
-        return values;
-    }
-} // namespace
 
 DcParametersPanel::DcParametersPanel(wxWindow* parent) :
     wxPanel(parent) {
@@ -87,13 +37,7 @@ DcParametersPanel::DcParametersPanel(wxWindow* parent) :
     auto* mode_sizer = new wxBoxSizer(wxHORIZONTAL);
     auto* mode_label = new wxStaticText(content, wxID_ANY, "Sweep mode");
     mode_sizer->Add(mode_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
-    wxArrayString mode_choices;
-    mode_choices.Add("LIN");
-    mode_choices.Add("DEC");
-    mode_choices.Add("OCT");
-    mode_choices.Add("LIST");
-    mode_choices.Add("DATA");
-    m_sweep_mode_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, mode_choices);
+    m_sweep_mode_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wx_util::to_wx_array_string({"LIN", "DEC", "OCT", "LIST", "DATA"}));
     m_sweep_mode_choice->SetSelection(0);
     m_sweep_mode_choice->Bind(wxEVT_CHOICE, [this](wxCommandEvent&) { on_sweep_mode_changed(); });
     mode_sizer->Add(m_sweep_mode_choice, 0, wxALL, 0);
@@ -215,10 +159,10 @@ DcParametersPanel::DcParametersPanel(wxWindow* parent) :
 
 DCSimulationParameters DcParametersPanel::build_dc_parameters() const {
     // read sweep mode and primary sweep text fields
-    std::string sweep_mode = std::string(m_sweep_mode_choice->GetStringSelection().ToUTF8());
-    std::string primary_variable = std::string(m_primary_variable_text->GetValue().ToUTF8());
-    std::string start = std::string(m_start_text->GetValue().ToUTF8());
-    std::string stop = std::string(m_stop_text->GetValue().ToUTF8());
+    std::string sweep_mode = wx_util::get_string_selection(*m_sweep_mode_choice);
+    std::string primary_variable = wx_util::get_text(*m_primary_variable_text);
+    std::string start = wx_util::get_text(*m_start_text);
+    std::string stop = wx_util::get_text(*m_stop_text);
 
     // read sweep-type-dependent primary fields
     std::string step;
@@ -227,51 +171,51 @@ DCSimulationParameters DcParametersPanel::build_dc_parameters() const {
     std::string data_table_name;
     // use step for LIN sweeps
     if (sweep_mode == "LIN") {
-        step = std::string(m_step_text->GetValue().ToUTF8());
+        step = wx_util::get_text(*m_step_text);
         // carry over the points value when switching from DEC/OCT and step is unset
         if (step.empty()) {
-            step = std::string(m_points_text->GetValue().ToUTF8());
+            step = wx_util::get_text(*m_points_text);
         }
     }
     // use points for DEC/OCT log sweeps
     else if (sweep_mode == "DEC" || sweep_mode == "OCT") {
-        points = std::string(m_points_text->GetValue().ToUTF8());
+        points = wx_util::get_text(*m_points_text);
         // carry over the step value when switching from LIN and points is unset
         if (points.empty()) {
-            points = std::string(m_step_text->GetValue().ToUTF8());
+            points = wx_util::get_text(*m_step_text);
         }
     }
     // use list values for LIST mode
     else if (sweep_mode == "LIST") {
-        list_values = parse_list_values(m_list_values_text->GetValue());
+        list_values = wx_util::split_strings(m_list_values_text->GetValue());
     }
     // use data table for DATA mode
     else if (sweep_mode == "DATA") {
-        data_table_name = std::string(m_data_table_text->GetValue().ToUTF8());
+        data_table_name = wx_util::get_text(*m_data_table_text);
     }
 
     // read secondary sweep text fields
-    std::string secondary_variable = std::string(m_secondary_variable_text->GetValue().ToUTF8());
-    std::string secondary_start = std::string(m_secondary_start_text->GetValue().ToUTF8());
-    std::string secondary_stop = std::string(m_secondary_stop_text->GetValue().ToUTF8());
+    std::string secondary_variable = wx_util::get_text(*m_secondary_variable_text);
+    std::string secondary_start = wx_util::get_text(*m_secondary_start_text);
+    std::string secondary_stop = wx_util::get_text(*m_secondary_stop_text);
 
     // read sweep-type-dependent secondary fields
     std::string secondary_step;
     std::string secondary_points;
     // use step for LIN sweeps
     if (sweep_mode == "LIN") {
-        secondary_step = std::string(m_secondary_step_text->GetValue().ToUTF8());
+        secondary_step = wx_util::get_text(*m_secondary_step_text);
         // carry over the points value when switching from DEC/OCT and step is unset
         if (secondary_step.empty()) {
-            secondary_step = std::string(m_secondary_points_text->GetValue().ToUTF8());
+            secondary_step = wx_util::get_text(*m_secondary_points_text);
         }
     }
     // use points for DEC/OCT log sweeps
     else if (sweep_mode == "DEC" || sweep_mode == "OCT") {
-        secondary_points = std::string(m_secondary_points_text->GetValue().ToUTF8());
+        secondary_points = wx_util::get_text(*m_secondary_points_text);
         // carry over the step value when switching from LIN and points is unset
         if (secondary_points.empty()) {
-            secondary_points = std::string(m_secondary_step_text->GetValue().ToUTF8());
+            secondary_points = wx_util::get_text(*m_secondary_step_text);
         }
     }
 
@@ -281,7 +225,7 @@ DCSimulationParameters DcParametersPanel::build_dc_parameters() const {
     // parse .MEASURE directives (one per line)
     std::vector<MeasureEntry> measure_params;
     {
-        auto lines = parse_lines(m_measure_text->GetValue());
+        auto lines = wx_util::split_lines(m_measure_text->GetValue());
         for (const auto& line : lines) {
             auto parsed = MeasureEntry::from_xyce_statement(line);
             if (parsed) {
@@ -295,45 +239,29 @@ DCSimulationParameters DcParametersPanel::build_dc_parameters() const {
 
 void DcParametersPanel::apply(const DCSimulationParameters& params) {
     // restore sweep mode
-    wxString mode = wxString::FromUTF8(params.sweep_mode);
-    int mode_index = m_sweep_mode_choice->FindString(mode);
-    // select stored mode or default to first choice
-    if (mode_index != wxNOT_FOUND) {
-        m_sweep_mode_choice->SetSelection(mode_index);
-    }
-    else {
-        m_sweep_mode_choice->SetSelection(0);
-    }
+    wx_util::set_choice_by_string(*m_sweep_mode_choice, params.sweep_mode);
 
     // restore primary sweep text fields
-    m_primary_variable_text->SetValue(wxString::FromUTF8(params.primary_variable));
-    m_start_text->SetValue(wxString::FromUTF8(params.start));
-    m_stop_text->SetValue(wxString::FromUTF8(params.stop));
-    m_step_text->SetValue(wxString::FromUTF8(params.step));
-    m_points_text->SetValue(wxString::FromUTF8(params.points));
-    m_list_values_text->SetValue(format_list_values(params.list_values));
-    m_data_table_text->SetValue(wxString::FromUTF8(params.data_table_name));
+    wx_util::set_text(*m_primary_variable_text, params.primary_variable);
+    wx_util::set_text(*m_start_text, params.start);
+    wx_util::set_text(*m_stop_text, params.stop);
+    wx_util::set_text(*m_step_text, params.step);
+    wx_util::set_text(*m_points_text, params.points);
+    m_list_values_text->SetValue(wx_util::join_strings(params.list_values, " "));
+    wx_util::set_text(*m_data_table_text, params.data_table_name);
 
     // restore secondary sweep text fields
-    m_secondary_variable_text->SetValue(wxString::FromUTF8(params.secondary_variable));
-    m_secondary_start_text->SetValue(wxString::FromUTF8(params.secondary_start));
-    m_secondary_stop_text->SetValue(wxString::FromUTF8(params.secondary_stop));
-    m_secondary_step_text->SetValue(wxString::FromUTF8(params.secondary_step));
-    m_secondary_points_text->SetValue(wxString::FromUTF8(params.secondary_points));
+    wx_util::set_text(*m_secondary_variable_text, params.secondary_variable);
+    wx_util::set_text(*m_secondary_start_text, params.secondary_start);
+    wx_util::set_text(*m_secondary_stop_text, params.secondary_stop);
+    wx_util::set_text(*m_secondary_step_text, params.secondary_step);
+    wx_util::set_text(*m_secondary_points_text, params.secondary_points);
 
     // restore print parameters (BJT and FET leads both always relevant for DC)
     m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, true, true);
 
     // restore .MEASURE directives
-    {
-        wxString text;
-        for (size_t i = 0; i < params.measure_parameters.size(); ++i) {
-            if (i > 0)
-                text += "\n";
-            text += wxString::FromUTF8(params.measure_parameters[i].to_xyce_statement());
-        }
-        m_measure_text->SetValue(text);
-    }
+    m_measure_text->SetValue(wx_util::join_strings(params.measure_parameters, "\n", &MeasureEntry::to_xyce_statement));
 }
 
 GlobalSettingsPanel* DcParametersPanel::get_global_settings() const { return m_global_settings; }

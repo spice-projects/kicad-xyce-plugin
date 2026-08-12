@@ -151,6 +151,48 @@ TEST_F(UiAcParametersPanelTest, build_with_data_sweep) {
 }
 
 // ========================================================================================
+// switching to DATA sweep resets the LIN/DEC/OCT range fields
+// ========================================================================================
+
+TEST_F(UiAcParametersPanelTest, apply_data_sweep_resets_range_fields) {
+    // arrange
+    AcParametersPanel panel(m_parent);
+    AcSimulationParameters lin_input("LIN", "100", "1", "1k", "", std::nullopt, {}, std::nullopt);
+    panel.apply(lin_input);
+    AcSimulationParameters data_input("DATA", "", "", "", "mytable", std::nullopt, {}, std::nullopt);
+    // act
+    panel.apply(data_input);
+    auto result = panel.build_ac_parameters();
+    // assert
+    EXPECT_EQ(result.sweep_mode, "DATA");
+    EXPECT_EQ(result.points, "");
+    EXPECT_EQ(result.start, "");
+    EXPECT_EQ(result.end, "");
+    EXPECT_EQ(result.data_table_name, "mytable");
+}
+
+// ========================================================================================
+// switching away from DATA sweep resets the data table field
+// ========================================================================================
+
+TEST_F(UiAcParametersPanelTest, apply_lin_sweep_resets_data_table_field) {
+    // arrange
+    AcParametersPanel panel(m_parent);
+    AcSimulationParameters data_input("DATA", "", "", "", "mytable", std::nullopt, {}, std::nullopt);
+    panel.apply(data_input);
+    AcSimulationParameters lin_input("LIN", "100", "1", "1k", "", std::nullopt, {}, std::nullopt);
+    // act
+    panel.apply(lin_input);
+    auto result = panel.build_ac_parameters();
+    // assert
+    EXPECT_EQ(result.sweep_mode, "LIN");
+    EXPECT_EQ(result.points, "100");
+    EXPECT_EQ(result.start, "1");
+    EXPECT_EQ(result.end, "1k");
+    EXPECT_EQ(result.data_table_name, "");
+}
+
+// ========================================================================================
 // build with DEC sweep
 // ========================================================================================
 

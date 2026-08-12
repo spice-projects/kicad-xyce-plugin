@@ -14,6 +14,7 @@
 #include <wx/textctrl.h>
 #endif
 
+#include "../wx_util.h"
 #include "global_settings_panel.h"
 #include "print_section_panel.h"
 #include "simulation_card.h"
@@ -22,23 +23,6 @@
 
 namespace
 {
-    // split multi-line text into non-empty trimmed lines
-    [[nodiscard]] std::vector<std::string> parse_lines(const wxString& text) {
-        std::vector<std::string> lines;
-        std::istringstream stream(std::string(text.ToUTF8()));
-        std::string line;
-        while (std::getline(stream, line)) {
-            size_t start = line.find_first_not_of(" \t\r");
-            if (start == std::string::npos)
-                continue;
-            size_t end = line.find_last_not_of(" \t\r");
-            line = line.substr(start, end - start + 1);
-            if (!line.empty())
-                lines.push_back(std::move(line));
-        }
-        return lines;
-    }
-
     // OP keyword display labels mapped to model values (index 0 is the empty/none option)
     static const std::vector<wxString> OP_KEYWORD_LABELS = {"(None)", "NOOP", "UIC"};
 
@@ -148,10 +132,7 @@ TransientParametersPanel::TransientParametersPanel(wxWindow* parent) :
     // OP keyword row
     auto* op_keyword_label = new wxStaticText(content, wxID_ANY, "OP keyword");
     field_grid->Add(op_keyword_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    wxArrayString op_choices;
-    for (const auto& label : OP_KEYWORD_LABELS) {
-        op_choices.Add(label);
-    }
+    wxArrayString op_choices = wx_util::to_wx_array_string(OP_KEYWORD_LABELS);
     m_op_keyword_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, op_choices);
     m_op_keyword_choice->SetSelection(0);
     field_grid->Add(m_op_keyword_choice, 0, wxEXPAND, 0);
@@ -213,10 +194,10 @@ TransientParametersPanel::TransientParametersPanel(wxWindow* parent) :
 
 TransientSimulationParameters TransientParametersPanel::build_transient_parameters() const {
     // read text fields
-    std::string initial_step = std::string(m_initial_step_text->GetValue().ToUTF8());
-    std::string final_time = std::string(m_final_time_text->GetValue().ToUTF8());
-    std::string start_time = std::string(m_start_time_text->GetValue().ToUTF8());
-    std::string step_ceiling = std::string(m_step_ceiling_text->GetValue().ToUTF8());
+    std::string initial_step = wx_util::get_text(*m_initial_step_text);
+    std::string final_time = wx_util::get_text(*m_final_time_text);
+    std::string start_time = wx_util::get_text(*m_start_time_text);
+    std::string step_ceiling = wx_util::get_text(*m_step_ceiling_text);
 
     // resolve OP keyword from combo selection
     std::string op_keyword;
@@ -231,7 +212,7 @@ TransientSimulationParameters TransientParametersPanel::build_transient_paramete
     // parse .FFT directives (one per line)
     std::vector<FftParameters> fft_params;
     {
-        auto lines = parse_lines(m_fft_text->GetValue());
+        auto lines = wx_util::split_lines(m_fft_text->GetValue());
         for (const auto& line : lines) {
             auto parsed = FftParameters::from_xyce_statement(line);
             if (parsed) {
@@ -243,7 +224,7 @@ TransientSimulationParameters TransientParametersPanel::build_transient_paramete
     // parse .FOUR directives (one per line)
     std::vector<FourParameters> four_params;
     {
-        auto lines = parse_lines(m_four_text->GetValue());
+        auto lines = wx_util::split_lines(m_four_text->GetValue());
         for (const auto& line : lines) {
             auto parsed = FourParameters::from_xyce_statement(line);
             if (parsed) {
@@ -255,7 +236,7 @@ TransientSimulationParameters TransientParametersPanel::build_transient_paramete
     // parse .MEASURE directives (one per line)
     std::vector<MeasureEntry> measure_params;
     {
-        auto lines = parse_lines(m_measure_text->GetValue());
+        auto lines = wx_util::split_lines(m_measure_text->GetValue());
         for (const auto& line : lines) {
             auto parsed = MeasureEntry::from_xyce_statement(line);
             if (parsed) {
@@ -272,49 +253,25 @@ TransientSimulationParameters TransientParametersPanel::build_transient_paramete
 
 void TransientParametersPanel::apply(const TransientSimulationParameters& params) {
     // populate text fields
-    m_initial_step_text->SetValue(wxString::FromUTF8(params.initial_step_value));
-    m_final_time_text->SetValue(wxString::FromUTF8(params.final_time_value));
-    m_start_time_text->SetValue(wxString::FromUTF8(params.start_time_value));
-    m_step_ceiling_text->SetValue(wxString::FromUTF8(params.step_ceiling_value));
+    wx_util::set_text(*m_initial_step_text, params.initial_step_value);
+    wx_util::set_text(*m_final_time_text, params.final_time_value);
+    wx_util::set_text(*m_start_time_text, params.start_time_value);
+    wx_util::set_text(*m_step_ceiling_text, params.step_ceiling_value);
 
     // restore OP keyword
-    m_op_keyword_choice->SetSelection(op_keyword_index_for_string(wxString::FromUTF8(params.op_keyword)));
+    m_op_keyword_choice->SetSelection(op_keyword_index_for_string(wx_util::to_wx_string(params.op_keyword)));
 
     // restore schedule points
     m_schedule_text->SetValue(format_schedule_text(params.schedule_points));
 
     // restore .FFT directives
-    {
-        wxString text;
-        for (size_t i = 0; i < params.fft_parameters.size(); ++i) {
-            if (i > 0)
-                text += "\n";
-            text += wxString::FromUTF8(params.fft_parameters[i].to_xyce_statement());
-        }
-        m_fft_text->SetValue(text);
-    }
+    m_fft_text->SetValue(wx_util::join_strings(params.fft_parameters, "\n", [](const FftParameters& entry) { return entry.to_xyce_statement(); }));
 
     // restore .FOUR directives
-    {
-        wxString text;
-        for (size_t i = 0; i < params.four_parameters.size(); ++i) {
-            if (i > 0)
-                text += "\n";
-            text += wxString::FromUTF8(params.four_parameters[i].to_xyce_statement());
-        }
-        m_four_text->SetValue(text);
-    }
+    m_four_text->SetValue(wx_util::join_strings(params.four_parameters, "\n", [](const FourParameters& entry) { return entry.to_xyce_statement(); }));
 
     // restore .MEASURE directives
-    {
-        wxString text;
-        for (size_t i = 0; i < params.measure_parameters.size(); ++i) {
-            if (i > 0)
-                text += "\n";
-            text += wxString::FromUTF8(params.measure_parameters[i].to_xyce_statement());
-        }
-        m_measure_text->SetValue(text);
-    }
+    m_measure_text->SetValue(wx_util::join_strings(params.measure_parameters, "\n", [](const MeasureEntry& entry) { return entry.to_xyce_statement(); }));
 
     // restore print parameters (BJT and FET leads both always relevant for TRAN)
     m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, true, true);

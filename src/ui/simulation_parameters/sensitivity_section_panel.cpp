@@ -9,9 +9,9 @@
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
-#include <wx/tokenzr.h>
 #endif
 
+#include "../wx_util.h"
 #include "print_section_panel.h"
 #include "sensitivity_section_panel.h"
 #include "simulation_parameters/sens_parameter.h"
@@ -20,34 +20,6 @@ namespace
 {
     // objective mode labels matching the combo order
     static const std::vector<wxString> OBJECTIVE_MODE_LABELS = {"objfunc", "objvars", "acobjfunc"};
-
-    // parse comma-separated text into trimmed strings
-    [[nodiscard]] std::vector<std::string> parse_comma_list(const wxString& text) {
-        std::vector<std::string> values;
-        wxArrayString parts = wxStringTokenize(text, ",");
-        for (const auto& part : parts) {
-            wxString trimmed = wxString(part).Trim(true).Trim(false);
-            if (!trimmed.IsEmpty()) {
-                values.push_back(std::string(trimmed.ToUTF8()));
-            }
-        }
-        return values;
-    }
-
-    // format strings as comma-separated text
-    [[nodiscard]] wxString format_comma_list(const std::vector<std::string>& items) {
-        if (items.empty()) {
-            return wxEmptyString;
-        }
-        wxString result;
-        for (size_t i = 0; i < items.size(); ++i) {
-            if (i > 0) {
-                result += ", ";
-            }
-            result += wxString::FromUTF8(items[i]);
-        }
-        return result;
-    }
 } // namespace
 
 SensitivitySectionPanel::SensitivitySectionPanel(wxWindow* parent) :
@@ -140,10 +112,10 @@ std::optional<SensParameter> SensitivitySectionPanel::build_sens_parameter(const
     }
 
     // read and parse objective values as comma-separated
-    auto objective_values = parse_comma_list(m_objective_values_text->GetValue());
+    auto objective_values = wx_util::split_strings(m_objective_values_text->GetValue(), ",");
 
     // read and parse parameters as comma-separated
-    auto parameter_list = parse_comma_list(m_parameters_text->GetValue());
+    auto parameter_list = wx_util::split_strings(m_parameters_text->GetValue(), ",");
 
     // read method checkboxes
     bool direct = m_direct_checkbox->GetValue();
@@ -183,8 +155,8 @@ void SensitivitySectionPanel::apply(const SensParameter* params) {
     }
 
     // restore objective values and parameters as comma-separated text
-    m_objective_values_text->SetValue(format_comma_list(params->objective_values));
-    m_parameters_text->SetValue(format_comma_list(params->parameter_list));
+    m_objective_values_text->SetValue(wx_util::join_strings(params->objective_values, ", "));
+    m_parameters_text->SetValue(wx_util::join_strings(params->parameter_list, ", "));
 
     // restore method checkboxes
     m_direct_checkbox->SetValue(params->direct);

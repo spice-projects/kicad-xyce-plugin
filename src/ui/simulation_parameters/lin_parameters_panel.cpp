@@ -13,6 +13,7 @@
 #include <wx/textctrl.h>
 #endif
 
+#include "../wx_util.h"
 #include "global_settings_panel.h"
 #include "lin_parameters_panel.h"
 #include "print_section_panel.h"
@@ -66,33 +67,21 @@ LinParametersPanel::LinParametersPanel(wxWindow* parent) :
     // output format choice row
     auto* format_label = new wxStaticText(content, wxID_ANY, "Format");
     lin_grid->Add(format_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    wxArrayString format_choices;
-    for (const auto& c : FORMAT_CHOICES) {
-        format_choices.Add(c);
-    }
-    m_format_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, format_choices);
+    m_format_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wx_util::to_wx_array_string(FORMAT_CHOICES));
     m_format_choice->SetSelection(0);
     lin_grid->Add(m_format_choice, 0, wxEXPAND, 0);
 
     // s-parameter type choice row
     auto* lintype_label = new wxStaticText(content, wxID_ANY, "Type");
     lin_grid->Add(lintype_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    wxArrayString lintype_choices;
-    for (const auto& c : LINTYPE_CHOICES) {
-        lintype_choices.Add(c);
-    }
-    m_lintype_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, lintype_choices);
+    m_lintype_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wx_util::to_wx_array_string(LINTYPE_CHOICES));
     m_lintype_choice->SetSelection(0);
     lin_grid->Add(m_lintype_choice, 0, wxEXPAND, 0);
 
     // data format choice row
     auto* dataformat_label = new wxStaticText(content, wxID_ANY, "Data format");
     lin_grid->Add(dataformat_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    wxArrayString dataformat_choices;
-    for (const auto& c : DATAFORMAT_CHOICES) {
-        dataformat_choices.Add(c);
-    }
-    m_dataformat_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, dataformat_choices);
+    m_dataformat_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wx_util::to_wx_array_string(DATAFORMAT_CHOICES));
     m_dataformat_choice->SetSelection(0);
     lin_grid->Add(m_dataformat_choice, 0, wxEXPAND, 0);
 
@@ -130,11 +119,7 @@ LinParametersPanel::LinParametersPanel(wxWindow* parent) :
     // sweep mode choice row
     auto* sweep_mode_label = new wxStaticText(content, wxID_ANY, "Sweep mode");
     ac_grid->Add(sweep_mode_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    wxArrayString sweep_choices;
-    for (const auto& c : SWEEP_CHOICES) {
-        sweep_choices.Add(c);
-    }
-    m_sweep_mode_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, sweep_choices);
+    m_sweep_mode_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wx_util::to_wx_array_string(SWEEP_CHOICES));
     m_sweep_mode_choice->SetSelection(0);
     ac_grid->Add(m_sweep_mode_choice, 0, wxEXPAND, 0);
 
@@ -177,19 +162,19 @@ LinParametersPanel::LinParametersPanel(wxWindow* parent) :
 LinSimulationParameters LinParametersPanel::build_lin_parameters() const {
     // read s-parameter options
     bool sparcalc = m_sparcalc_checkbox->GetValue();
-    std::string format = std::string(m_format_choice->GetStringSelection().ToUTF8());
-    std::string lintype = std::string(m_lintype_choice->GetStringSelection().ToUTF8());
-    std::string dataformat = std::string(m_dataformat_choice->GetStringSelection().ToUTF8());
-    std::string file = std::string(m_file_text->GetValue().ToUTF8());
-    std::string width = std::string(m_width_text->GetValue().ToUTF8());
-    std::string precision = std::string(m_precision_text->GetValue().ToUTF8());
+    std::string format = wx_util::get_string_selection(*m_format_choice);
+    std::string lintype = wx_util::get_string_selection(*m_lintype_choice);
+    std::string dataformat = wx_util::get_string_selection(*m_dataformat_choice);
+    std::string file = wx_util::get_text(*m_file_text);
+    std::string width = wx_util::get_text(*m_width_text);
+    std::string precision = wx_util::get_text(*m_precision_text);
 
     // read AC sweep parameters
-    std::string sweep_mode = std::string(m_sweep_mode_choice->GetStringSelection().ToUTF8());
-    std::string points = std::string(m_points_text->GetValue().ToUTF8());
-    std::string start = std::string(m_start_text->GetValue().ToUTF8());
-    std::string end = std::string(m_end_text->GetValue().ToUTF8());
-    std::string data_table_name = std::string(m_data_table_text->GetValue().ToUTF8());
+    std::string sweep_mode = wx_util::get_string_selection(*m_sweep_mode_choice);
+    std::string points = wx_util::get_text(*m_points_text);
+    std::string start = wx_util::get_text(*m_start_text);
+    std::string end = wx_util::get_text(*m_end_text);
+    std::string data_table_name = wx_util::get_text(*m_data_table_text);
 
     // read print parameters from print section
     std::optional<PrintParameters> print_params = m_print_section->build_print_parameters();
@@ -202,31 +187,27 @@ void LinParametersPanel::apply(const LinSimulationParameters& params) {
     m_sparcalc_checkbox->SetValue(params.sparcalc);
 
     // restore format choice, fall back to first if not found
-    int fmt_idx = m_format_choice->FindString(wxString::FromUTF8(params.format));
-    m_format_choice->SetSelection(fmt_idx != wxNOT_FOUND ? fmt_idx : 0);
+    wx_util::set_choice_by_string(*m_format_choice, params.format);
 
     // restore lintype choice, fall back to first if not found
-    int type_idx = m_lintype_choice->FindString(wxString::FromUTF8(params.lintype));
-    m_lintype_choice->SetSelection(type_idx != wxNOT_FOUND ? type_idx : 0);
+    wx_util::set_choice_by_string(*m_lintype_choice, params.lintype);
 
     // restore dataformat choice, fall back to first if not found
-    int df_idx = m_dataformat_choice->FindString(wxString::FromUTF8(params.dataformat));
-    m_dataformat_choice->SetSelection(df_idx != wxNOT_FOUND ? df_idx : 0);
+    wx_util::set_choice_by_string(*m_dataformat_choice, params.dataformat);
 
     // restore s-parameter text fields
-    m_file_text->SetValue(wxString::FromUTF8(params.file));
-    m_width_text->SetValue(wxString::FromUTF8(params.width));
-    m_precision_text->SetValue(wxString::FromUTF8(params.precision));
+    wx_util::set_text(*m_file_text, params.file);
+    wx_util::set_text(*m_width_text, params.width);
+    wx_util::set_text(*m_precision_text, params.precision);
 
     // restore sweep mode choice, fall back to first if not found
-    int sw_idx = m_sweep_mode_choice->FindString(wxString::FromUTF8(params.sweep_mode));
-    m_sweep_mode_choice->SetSelection(sw_idx != wxNOT_FOUND ? sw_idx : 0);
+    wx_util::set_choice_by_string(*m_sweep_mode_choice, params.sweep_mode);
 
     // restore AC sweep text fields
-    m_points_text->SetValue(wxString::FromUTF8(params.points));
-    m_start_text->SetValue(wxString::FromUTF8(params.start));
-    m_end_text->SetValue(wxString::FromUTF8(params.end));
-    m_data_table_text->SetValue(wxString::FromUTF8(params.data_table_name));
+    wx_util::set_text(*m_points_text, params.points);
+    wx_util::set_text(*m_start_text, params.start);
+    wx_util::set_text(*m_end_text, params.end);
+    wx_util::set_text(*m_data_table_text, params.data_table_name);
 
     // restore print parameters (BJT and FET leads both always relevant for LIN)
     m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, true, true);

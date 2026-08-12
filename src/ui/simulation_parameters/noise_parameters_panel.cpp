@@ -14,6 +14,7 @@
 #include <wx/tokenzr.h>
 #endif
 
+#include "../wx_util.h"
 #include "global_settings_panel.h"
 #include "noise_parameters_panel.h"
 #include "print_section_panel.h"
@@ -52,22 +53,6 @@ namespace
             }
         }
         return operators;
-    }
-
-    // format device noise operators as newline-separated text
-    [[nodiscard]] wxString format_device_noise_operators(const std::vector<DeviceNoiseOperator>& operators) {
-        if (operators.empty()) {
-            return wxEmptyString;
-        }
-        wxString result;
-        for (size_t i = 0; i < operators.size(); ++i) {
-            // add newline separator between entries
-            if (i > 0) {
-                result += "\n";
-            }
-            result += wxString::FromUTF8(operators[i].type) + " " + wxString::FromUTF8(operators[i].node) + " " + wxString::FromUTF8(operators[i].source);
-        }
-        return result;
     }
 } // namespace
 
@@ -129,12 +114,7 @@ NoiseParametersPanel::NoiseParametersPanel(wxWindow* parent) :
     // sweep type choice row
     auto* sweep_type_label = new wxStaticText(content, wxID_ANY, "Sweep type");
     field_grid->Add(sweep_type_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    wxArrayString sweep_choices;
-    sweep_choices.Add("LIN");
-    sweep_choices.Add("DEC");
-    sweep_choices.Add("OCT");
-    sweep_choices.Add("DATA");
-    m_sweep_type_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, sweep_choices);
+    m_sweep_type_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wx_util::to_wx_array_string({"LIN", "DEC", "OCT", "DATA"}));
     m_sweep_type_choice->SetSelection(0);
     field_grid->Add(m_sweep_type_choice, 0, wxEXPAND, 0);
 
@@ -165,18 +145,18 @@ NoiseParametersPanel::NoiseParametersPanel(wxWindow* parent) :
 
 NoiseSimulationParameters NoiseParametersPanel::build_noise_parameters() const {
     // read noise analysis text fields
-    std::string output_node = std::string(m_output_node_text->GetValue().ToUTF8());
-    std::string ref_node = std::string(m_ref_node_text->GetValue().ToUTF8());
-    std::string source_name = std::string(m_source_name_text->GetValue().ToUTF8());
-    std::string start_freq = std::string(m_start_freq_text->GetValue().ToUTF8());
-    std::string end_freq = std::string(m_end_freq_text->GetValue().ToUTF8());
-    std::string num_points = std::string(m_num_points_text->GetValue().ToUTF8());
+    std::string output_node = wx_util::get_text(*m_output_node_text);
+    std::string ref_node = wx_util::get_text(*m_ref_node_text);
+    std::string source_name = wx_util::get_text(*m_source_name_text);
+    std::string start_freq = wx_util::get_text(*m_start_freq_text);
+    std::string end_freq = wx_util::get_text(*m_end_freq_text);
+    std::string num_points = wx_util::get_text(*m_num_points_text);
 
     // read sweep type from combo
-    std::string sweep_type = std::string(m_sweep_type_choice->GetStringSelection().ToUTF8());
+    std::string sweep_type = wx_util::get_string_selection(*m_sweep_type_choice);
 
     // read data table name
-    std::string data_table_name = std::string(m_data_table_text->GetValue().ToUTF8());
+    std::string data_table_name = wx_util::get_text(*m_data_table_text);
 
     // read and parse device noise operators from multiline text
     auto device_noise_operators = parse_device_noise_text(m_device_noise_text->GetValue());
@@ -189,20 +169,19 @@ NoiseSimulationParameters NoiseParametersPanel::build_noise_parameters() const {
 
 void NoiseParametersPanel::apply(const NoiseSimulationParameters& params) {
     // restore noise analysis text fields
-    m_output_node_text->SetValue(wxString::FromUTF8(params.output_node));
-    m_ref_node_text->SetValue(wxString::FromUTF8(params.ref_node));
-    m_source_name_text->SetValue(wxString::FromUTF8(params.source_name));
-    m_start_freq_text->SetValue(wxString::FromUTF8(params.start_freq_value));
-    m_end_freq_text->SetValue(wxString::FromUTF8(params.end_freq_value));
-    m_num_points_text->SetValue(wxString::FromUTF8(params.num_points_value));
+    wx_util::set_text(*m_output_node_text, params.output_node);
+    wx_util::set_text(*m_ref_node_text, params.ref_node);
+    wx_util::set_text(*m_source_name_text, params.source_name);
+    wx_util::set_text(*m_start_freq_text, params.start_freq_value);
+    wx_util::set_text(*m_end_freq_text, params.end_freq_value);
+    wx_util::set_text(*m_num_points_text, params.num_points_value);
 
     // restore sweep type, fall back to first choice if not found
-    int sw_idx = m_sweep_type_choice->FindString(wxString::FromUTF8(params.sweep_type));
-    m_sweep_type_choice->SetSelection(sw_idx != wxNOT_FOUND ? sw_idx : 0);
+    wx_util::set_choice_by_string(*m_sweep_type_choice, params.sweep_type);
 
     // restore data table name and device noise operators
-    m_data_table_text->SetValue(wxString::FromUTF8(params.data_table_name));
-    m_device_noise_text->SetValue(format_device_noise_operators(params.device_noise_operators));
+    wx_util::set_text(*m_data_table_text, params.data_table_name);
+    m_device_noise_text->SetValue(wx_util::join_strings(params.device_noise_operators, "\n", [](const DeviceNoiseOperator& op) { return op.type + " " + op.node + " " + op.source; }));
 
     // restore print parameters (BJT leads hidden, FET leads relevant for NOISE)
     m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, true, true);

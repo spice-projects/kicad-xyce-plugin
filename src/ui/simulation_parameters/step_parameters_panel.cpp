@@ -11,44 +11,15 @@
 #include <wx/statbox.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
-#include <wx/tokenzr.h>
 #endif
 
+#include "../wx_util.h"
 #include "step_parameters_panel.h"
 
 namespace
 {
     // sweep mode choices matching the combo order
     static const std::vector<wxString> STEP_SWEEP_MODES = {"LIN", "DEC", "OCT", "LIST", "DATA"};
-
-    // parse space-separated list values into strings
-    [[nodiscard]] std::vector<std::string> parse_list_values(const wxString& text) {
-        std::vector<std::string> values;
-        wxString trimmed = wxString(text).Trim(true).Trim(false);
-        if (trimmed.IsEmpty()) {
-            return values;
-        }
-        wxStringTokenizer tokenizer(trimmed, " \t\r\n");
-        while (tokenizer.HasMoreTokens()) {
-            values.push_back(std::string(tokenizer.GetNextToken().ToUTF8()));
-        }
-        return values;
-    }
-
-    // format strings as space-separated text
-    [[nodiscard]] wxString format_list_values(const std::vector<std::string>& items) {
-        if (items.empty()) {
-            return wxEmptyString;
-        }
-        wxString result;
-        for (size_t i = 0; i < items.size(); ++i) {
-            if (i > 0) {
-                result += " ";
-            }
-            result += wxString::FromUTF8(items[i]);
-        }
-        return result;
-    }
 } // namespace
 
 StepParametersPanel::StepParametersPanel(wxWindow* parent) :
@@ -77,11 +48,7 @@ StepParametersPanel::StepParametersPanel(wxWindow* parent) :
     // sweep mode row
     auto* mode_label = new wxStaticText(m_body, wxID_ANY, "Sweep mode");
     field_grid->Add(mode_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    wxArrayString mode_choices;
-    for (const auto& mode : STEP_SWEEP_MODES) {
-        mode_choices.Add(mode);
-    }
-    m_sweep_mode_choice = new wxChoice(m_body, wxID_ANY, wxDefaultPosition, wxDefaultSize, mode_choices);
+    m_sweep_mode_choice = new wxChoice(m_body, wxID_ANY, wxDefaultPosition, wxDefaultSize, wx_util::to_wx_array_string(STEP_SWEEP_MODES));
     m_sweep_mode_choice->SetSelection(0);
     field_grid->Add(m_sweep_mode_choice, 0, wxEXPAND, 0);
 
@@ -161,15 +128,15 @@ StepParameters StepParametersPanel::build_step_parameters() const {
     }
 
     // read text fields
-    std::string variable = std::string(m_variable_text->GetValue().ToUTF8());
-    std::string start = std::string(m_start_text->GetValue().ToUTF8());
-    std::string stop = std::string(m_stop_text->GetValue().ToUTF8());
-    std::string step = std::string(m_step_text->GetValue().ToUTF8());
-    std::string points = std::string(m_points_text->GetValue().ToUTF8());
+    std::string variable = wx_util::get_text(*m_variable_text);
+    std::string start = wx_util::get_text(*m_start_text);
+    std::string stop = wx_util::get_text(*m_stop_text);
+    std::string step = wx_util::get_text(*m_step_text);
+    std::string points = wx_util::get_text(*m_points_text);
 
     // parse list values and read data table name
-    auto list_values = parse_list_values(m_list_values_text->GetValue());
-    std::string data_table_name = std::string(m_data_table_text->GetValue().ToUTF8());
+    auto list_values = wx_util::split_strings(m_list_values_text->GetValue());
+    std::string data_table_name = wx_util::get_text(*m_data_table_text);
 
     return StepParameters(std::move(sweep_mode), std::move(variable), std::move(start), std::move(stop), std::move(step), std::move(points), std::move(list_values), std::move(data_table_name), enabled);
 }
@@ -180,22 +147,16 @@ void StepParametersPanel::apply(const StepParameters& params) {
     m_body->Enable(params.enabled);
 
     // restore sweep mode
-    int mode_index = m_sweep_mode_choice->FindString(wxString::FromUTF8(params.sweep_mode));
-    if (mode_index != wxNOT_FOUND) {
-        m_sweep_mode_choice->SetSelection(mode_index);
-    }
-    else {
-        m_sweep_mode_choice->SetSelection(0);
-    }
+    wx_util::set_choice_by_string(*m_sweep_mode_choice, params.sweep_mode);
 
     // restore text fields
-    m_variable_text->SetValue(wxString::FromUTF8(params.variable));
-    m_start_text->SetValue(wxString::FromUTF8(params.start));
-    m_stop_text->SetValue(wxString::FromUTF8(params.stop));
-    m_step_text->SetValue(wxString::FromUTF8(params.step));
-    m_points_text->SetValue(wxString::FromUTF8(params.points));
+    wx_util::set_text(*m_variable_text, params.variable);
+    wx_util::set_text(*m_start_text, params.start);
+    wx_util::set_text(*m_stop_text, params.stop);
+    wx_util::set_text(*m_step_text, params.step);
+    wx_util::set_text(*m_points_text, params.points);
 
     // restore list values as space-separated text and data table name
-    m_list_values_text->SetValue(format_list_values(params.list_values));
-    m_data_table_text->SetValue(wxString::FromUTF8(params.data_table_name));
+    m_list_values_text->SetValue(wx_util::join_strings(params.list_values, " "));
+    wx_util::set_text(*m_data_table_text, params.data_table_name);
 }

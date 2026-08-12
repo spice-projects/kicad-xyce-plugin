@@ -1,5 +1,5 @@
+#include <algorithm>
 #include <set>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -15,6 +15,7 @@
 #include <wx/textctrl.h>
 #endif
 
+#include "../wx_util.h"
 #include "print_section_panel.h"
 #include "simulation_parameters/print_parameters.h"
 
@@ -62,21 +63,6 @@ namespace
         }
         return false;
     }
-
-    // join string tokens with a space separator
-    [[nodiscard]] wxString join_tokens(const std::vector<std::string>& tokens) {
-        if (tokens.empty()) {
-            return wxEmptyString;
-        }
-        std::ostringstream oss;
-        for (size_t i = 0; i < tokens.size(); ++i) {
-            if (i > 0) {
-                oss << ' ';
-            }
-            oss << tokens[i];
-        }
-        return wxString(oss.str());
-    }
 } // namespace
 
 PrintSectionPanel::PrintSectionPanel(wxWindow* parent, const wxString& analysis_prefix, std::vector<wxString> print_types, bool show_power, bool show_bjt_fet, bool show_print_type_combo) :
@@ -102,12 +88,18 @@ PrintSectionPanel::PrintSectionPanel(wxWindow* parent, const wxString& analysis_
         auto* type_label = new wxStaticText(m_body, wxID_ANY, "Print type");
         type_row->Add(type_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
         // populate the choice with the provided print types
-        wxArrayString type_choices;
-        for (const auto& pt : m_print_types) {
-            type_choices.Add(pt);
-        }
+        wxArrayString type_choices = wx_util::to_wx_array_string(m_print_types);
         m_print_type_choice = new wxChoice(m_body, wxID_ANY, wxDefaultPosition, wxDefaultSize, type_choices);
         m_print_type_choice->SetSelection(0);
+        // size the choice explicitly so the longest print type is fully visible on all platforms
+        int widest_width = 0;
+        for (const auto& pt : type_choices) {
+            widest_width = (std::max)(widest_width, m_print_type_choice->GetTextExtent(pt).GetWidth());
+        }
+        widest_width += FromDIP(48);
+        const int type_height = m_print_type_choice->GetBestSize().GetHeight();
+        m_print_type_choice->SetSize(wxSize(widest_width, type_height));
+        m_print_type_choice->SetMinSize(wxSize(widest_width, type_height));
         type_row->Add(m_print_type_choice, 0, wxALL, 0);
         // add row
         body_sizer->Add(type_row, 0, wxLEFT | wxTOP, FromDIP(12));
@@ -143,10 +135,7 @@ PrintSectionPanel::PrintSectionPanel(wxWindow* parent, const wxString& analysis_
     // format combo row
     auto* format_label = new wxStaticText(m_body, wxID_ANY, "Format");
     detail_grid->Add(format_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    wxArrayString format_choices;
-    for (const auto& fmt : FORMAT_MODEL) {
-        format_choices.Add(fmt);
-    }
+    wxArrayString format_choices = wx_util::to_wx_array_string(FORMAT_MODEL);
     m_format_choice = new wxChoice(m_body, wxID_ANY, wxDefaultPosition, wxDefaultSize, format_choices);
     m_format_choice->SetSelection(0);
     detail_grid->Add(m_format_choice, 0, wxEXPAND, 0);
@@ -213,15 +202,9 @@ std::optional<PrintParameters> PrintSectionPanel::build_print_parameters() const
     // append any explicitly listed specific variables
     wxString specific_text = m_specific_vars_text->GetValue().Trim(true).Trim(false);
     if (!specific_text.IsEmpty()) {
-        // tokenize the trimmed text by whitespace
-        std::istringstream stream(std::string(specific_text.ToUTF8()));
-        std::string token;
-        while (stream >> token) {
-            // skip empty tokens
-            if (!token.empty()) {
-                // add the token as a specific variable
-                output_vars.push_back(std::move(token));
-            }
+        // add each token as a specific variable
+        for (auto& token : wx_util::split_strings(specific_text)) {
+            output_vars.push_back(std::move(token));
         }
     }
     // resolve the print type
@@ -333,7 +316,7 @@ void PrintSectionPanel::apply(const PrintParameters* params, bool has_bjt, bool 
             specific_tokens.push_back(v);
         }
     }
-    m_specific_vars_text->SetValue(join_tokens(specific_tokens));
+    m_specific_vars_text->SetValue(wx_util::join_strings(specific_tokens, " "));
     // restore the format combo by matching the format string
     wxString fmt_str = wxString::FromUTF8(params->print_format);
     m_format_choice->SetSelection(format_index_for_string(fmt_str));

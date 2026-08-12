@@ -37,10 +37,17 @@ private:
     PrintSectionPanel* m_print_section = nullptr;
 
     wxChoice* m_sweep_mode_choice = nullptr;
+    wxStaticText* m_points_label = nullptr;
     wxTextCtrl* m_points_text = nullptr;
+    wxStaticText* m_start_label = nullptr;
     wxTextCtrl* m_start_text = nullptr;
+    wxStaticText* m_end_label = nullptr;
     wxTextCtrl* m_end_text = nullptr;
+    wxStaticText* m_data_table_label = nullptr;
     wxTextCtrl* m_data_table_text = nullptr;
 
     wxTextCtrl* m_measure_text = nullptr;
+
+    // show/hide and reset the fields relevant to the selected sweep mode
+    void on_sweep_mode_changed();
 };

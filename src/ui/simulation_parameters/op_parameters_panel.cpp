@@ -14,6 +14,7 @@
 #include <wx/tokenzr.h>
 #endif
 
+#include "../wx_util.h"
 #include "global_settings_panel.h"
 #include "op_parameters_panel.h"
 #include "print_section_panel.h"
@@ -43,21 +44,6 @@ namespace
             }
         }
         return entries;
-    }
-
-    // format NodesetEntry objects as space-separated V(node)=voltage tokens
-    [[nodiscard]] wxString format_nodeset_entries(const std::vector<NodesetEntry>& entries) {
-        if (entries.empty()) {
-            return wxEmptyString;
-        }
-        wxString result;
-        for (size_t i = 0; i < entries.size(); ++i) {
-            if (i > 0) {
-                result += " ";
-            }
-            result += "V(" + wxString::FromUTF8(entries[i].node) + ")=" + wxString::FromUTF8(entries[i].voltage);
-        }
-        return result;
     }
 
     // parse IC text into IcEntry objects;
@@ -94,21 +80,6 @@ namespace
             }
         }
         return entries;
-    }
-
-    // format IcEntry objects as space-separated V(node)=voltage tokens
-    [[nodiscard]] wxString format_ic_entries(const std::vector<IcEntry>& entries) {
-        if (entries.empty()) {
-            return wxEmptyString;
-        }
-        wxString result;
-        for (size_t i = 0; i < entries.size(); ++i) {
-            if (i > 0) {
-                result += " ";
-            }
-            result += "V(" + wxString::FromUTF8(entries[i].node) + ")=" + wxString::FromUTF8(entries[i].voltage);
-        }
-        return result;
     }
 } // namespace
 
@@ -202,7 +173,7 @@ OpSimulationParameters OpParametersPanel::build_op_parameters() const {
     else {
         save_type = "NODESET";
     }
-    std::string save_file = std::string(m_save_file_text->GetValue().ToUTF8());
+    std::string save_file = wx_util::get_text(*m_save_file_text);
     // parse nodeset and IC entries from text controls
     auto nodeset_entries = parse_nodeset_text(m_nodeset_text->GetValue());
     auto ic_entries = parse_ic_text(m_ic_text->GetValue());
@@ -216,14 +187,14 @@ void OpParametersPanel::apply(const OpSimulationParameters& params) {
 
     // restore save section
     m_save_enable_cb->SetValue(params.save_enabled);
-    wxString save_type_upper = wxString::FromUTF8(params.save_type).Upper();
+    wxString save_type_upper = wx_util::to_wx_string(params.save_type).Upper();
     m_save_ic_rb->SetValue(save_type_upper == "IC");
     m_save_nodeset_rb->SetValue(save_type_upper != "IC");
-    m_save_file_text->SetValue(wxString::FromUTF8(params.save_file));
+    wx_util::set_text(*m_save_file_text, params.save_file);
 
     // restore nodeset and IC entries
-    m_nodeset_text->SetValue(format_nodeset_entries(params.nodeset_entries));
-    m_ic_text->SetValue(format_ic_entries(params.ic_entries));
+    m_nodeset_text->SetValue(wx_util::join_strings(params.nodeset_entries, " ", [](const NodesetEntry& entry) { return "V(" + entry.node + ")=" + entry.voltage; }));
+    m_ic_text->SetValue(wx_util::join_strings(params.ic_entries, " ", [](const IcEntry& entry) { return "V(" + entry.node + ")=" + entry.voltage; }));
 }
 
 GlobalSettingsPanel* OpParametersPanel::get_global_settings() const { return m_global_settings; }

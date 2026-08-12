@@ -14,6 +14,7 @@
 #include <wx/tokenzr.h>
 #endif
 
+#include "../wx_util.h"
 #include "global_settings_panel.h"
 #include "hb_parameters_panel.h"
 #include "print_section_panel.h"
@@ -45,22 +46,6 @@ namespace
             }
         }
         return options;
-    }
-
-    // format key=value options map as newline-separated text
-    [[nodiscard]] wxString format_options_text(const std::map<std::string, std::string>& options) {
-        if (options.empty()) {
-            return wxEmptyString;
-        }
-        wxString result;
-        for (auto it = options.begin(); it != options.end(); ++it) {
-            // add newline separator between entries
-            if (it != options.begin()) {
-                result += "\n";
-            }
-            result += wxString::FromUTF8(it->first) + "=" + wxString::FromUTF8(it->second);
-        }
-        return result;
     }
 } // namespace
 
@@ -100,30 +85,14 @@ HbParametersPanel::HbParametersPanel(wxWindow* parent) :
     // TAHB (transient analysis horizon) row
     auto* tahb_label = new wxStaticText(content, wxID_ANY, "TAHB");
     field_grid->Add(tahb_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    wxArrayString tahb_choices;
-    tahb_choices.Add("(None)");
-    tahb_choices.Add("0 (off)");
-    tahb_choices.Add("1 (auto)");
-    tahb_choices.Add("2");
-    tahb_choices.Add("5");
-    tahb_choices.Add("10");
-    tahb_choices.Add("20");
-    m_tahb_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, tahb_choices);
+    m_tahb_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wx_util::to_wx_array_string({"(None)", "0 (off)", "1 (auto)", "2", "5", "10", "20"}));
     m_tahb_choice->SetSelection(0);
     field_grid->Add(m_tahb_choice, 0, wxEXPAND, 0);
 
     // SELECTHARMS row
     auto* selharms_label = new wxStaticText(content, wxID_ANY, "SELECTHARMS");
     field_grid->Add(selharms_label, 0, wxALIGN_CENTER_VERTICAL, 0);
-    wxArrayString selharms_choices;
-    selharms_choices.Add("(None)");
-    selharms_choices.Add("ALL");
-    selharms_choices.Add("1");
-    selharms_choices.Add("2");
-    selharms_choices.Add("3");
-    selharms_choices.Add("5");
-    selharms_choices.Add("10");
-    m_selectharms_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, selharms_choices);
+    m_selectharms_choice = new wxChoice(content, wxID_ANY, wxDefaultPosition, wxDefaultSize, wx_util::to_wx_array_string({"(None)", "ALL", "1", "2", "3", "5", "10"}));
     m_selectharms_choice->SetSelection(0);
     field_grid->Add(m_selectharms_choice, 0, wxEXPAND, 0);
 
@@ -160,31 +129,15 @@ HbParametersPanel::HbParametersPanel(wxWindow* parent) :
 }
 
 HbSimulationParameters HbParametersPanel::build_hb_parameters() const {
-    // read and parse frequencies
-    std::vector<std::string> frequencies;
-    wxString freq_text = m_frequencies_text->GetValue().Trim(true).Trim(false);
-    // split on whitespace when text is non-empty
-    if (!freq_text.IsEmpty()) {
-        wxStringTokenizer tokenizer(freq_text, " \t\r\n");
-        while (tokenizer.HasMoreTokens()) {
-            frequencies.push_back(std::string(tokenizer.GetNextToken().ToUTF8()));
-        }
-    }
+    // read and parse frequencies as space-separated values
+    std::vector<std::string> frequencies = wx_util::split_strings(m_frequencies_text->GetValue());
 
     // read and parse harmonics as comma-separated integers
     std::vector<int> harmonics;
-    wxString harms_text = m_harmonics_text->GetValue().Trim(true).Trim(false);
-    if (!harms_text.IsEmpty()) {
-        wxArrayString parts = wxStringTokenize(harms_text, ",");
-        for (const auto& part : parts) {
-            wxString trimmed = wxString(part).Trim(true).Trim(false);
-            // convert non-empty tokens to integer
-            if (!trimmed.IsEmpty()) {
-                long val;
-                if (trimmed.ToLong(&val)) {
-                    harmonics.push_back(static_cast<int>(val));
-                }
-            }
+    for (const auto& part : wx_util::split_strings(m_harmonics_text->GetValue(), ",")) {
+        long val;
+        if (wx_util::to_wx_string(part).ToLong(&val)) {
+            harmonics.push_back(static_cast<int>(val));
         }
     }
 
@@ -230,26 +183,10 @@ HbSimulationParameters HbParametersPanel::build_hb_parameters() const {
 
 void HbParametersPanel::apply(const HbSimulationParameters& params) {
     // restore frequencies as space-separated string
-    wxString freq_text;
-    for (size_t i = 0; i < params.frequencies.size(); ++i) {
-        // add space separator between entries
-        if (i > 0) {
-            freq_text += " ";
-        }
-        freq_text += wxString::FromUTF8(params.frequencies[i]);
-    }
-    m_frequencies_text->SetValue(freq_text);
+    m_frequencies_text->SetValue(wx_util::join_strings(params.frequencies, " "));
 
     // restore harmonics as comma-separated string
-    wxString harms_text;
-    for (size_t i = 0; i < params.harmonics.size(); ++i) {
-        // add comma separator between entries
-        if (i > 0) {
-            harms_text += ",";
-        }
-        harms_text += wxString::Format("%d", params.harmonics[i]);
-    }
-    m_harmonics_text->SetValue(harms_text);
+    m_harmonics_text->SetValue(wx_util::join_strings(params.harmonics, ",", [](int harm) { return std::to_string(harm); }));
 
     // restore TAHB from choice
     if (params.tahb.has_value()) {
@@ -275,14 +212,7 @@ void HbParametersPanel::apply(const HbSimulationParameters& params) {
 
     // restore SELECTHARMS from choice
     if (params.selectharms.has_value()) {
-        wxString sel = wxString::FromUTF8(*params.selectharms).Upper();
-        int sel_index = m_selectharms_choice->FindString(sel);
-        if (sel_index != wxNOT_FOUND) {
-            m_selectharms_choice->SetSelection(sel_index);
-        }
-        else {
-            m_selectharms_choice->SetSelection(0);
-        }
+        wx_util::set_choice_by_string(*m_selectharms_choice, *params.selectharms);
     }
     else {
         m_selectharms_choice->SetSelection(0);
@@ -297,8 +227,9 @@ void HbParametersPanel::apply(const HbSimulationParameters& params) {
     }
 
     // restore solver options
-    m_nonlin_options_text->SetValue(format_options_text(params.nonlin_options));
-    m_linsol_options_text->SetValue(format_options_text(params.linsol_options));
+    auto format_options = [](const auto& entry) { return entry.first + "=" + entry.second; };
+    m_nonlin_options_text->SetValue(wx_util::join_strings(params.nonlin_options, "\n", format_options));
+    m_linsol_options_text->SetValue(wx_util::join_strings(params.linsol_options, "\n", format_options));
 
     // restore print parameters (no power, no BJT/FET for HB)
     m_print_section->apply(params.print_parameters ? &*params.print_parameters : nullptr, false, false);
