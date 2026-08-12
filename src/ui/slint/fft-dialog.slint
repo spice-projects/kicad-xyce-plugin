@@ -1,12 +1,193 @@
-import { AboutSlint, VerticalBox } from "std-widgets.slint";
+import { CheckBox, ComboBox, LineEdit, Palette, RadioGroup, StandardButton } from "std-widgets.slint";
+import { ExpressionItem, ExpressionGrid, Legend, LegendItem } from "expression-selector.slint";
 
-export component FftDialog inherits Window {
-    VerticalBox {
-        Text {
-            text: "Hello World!";
-        }
-        AboutSlint {
-            preferred-height: 150px;
+// form row: bold macOS-style field label (fixed width for column alignment)
+// followed by the injected controls
+component FieldRow inherits HorizontalLayout {
+    in property <string> label;
+    spacing: 10px;
+
+    Text {
+        width: 120px;
+        text: root.label;
+        font-size: 13px;
+        font-weight: 600;
+        color: Palette.foreground;
+        horizontal-alignment: left;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    @children
+}
+
+// FFT setup dialog: expression picker, data-range mode, and window / format /
+// output / NP parameter rows. Mirrors the wx `FftDialog` surface.
+export component FftDialog inherits Dialog {
+    title: "FFT";
+
+    in-out property <int> range-mode: 0;
+    in-out property <string> custom-from: "";
+    in-out property <string> custom-to: "";
+    in-out property <int> window-index: 2;
+    in-out property <int> format-index: 0;
+    in-out property <int> output-index: 0;
+    in-out property <bool> keep-dc: true;
+    in-out property <int> np-index: 2;
+    in-out property <string> custom-np: "";
+    in-out property <[ExpressionItem]> expressions: [
+        { name: "V(out)", type: "Voltage", selected: true },
+        { name: "V(in)", type: "Voltage", selected: true },
+        { name: "V(fb)", type: "Voltage", selected: false },
+        { name: "I(R1)", type: "Current", selected: false },
+        { name: "I(C1)", type: "Current", selected: false },
+        { name: "I(L1)", type: "Current", selected: false },
+        { name: "P(RL)", type: "Power", selected: false },
+        { name: "V(oscin+)", type: "Voltage", selected: false },
+        { name: "freq", type: "Freq", selected: false },
+    ];
+    in-out property <string> filter-text: "";
+
+    callback accepted;
+    callback dismissed;
+    callback expression-clicked(int);
+    callback filter-changed(string);
+
+    function range-index(label: string) -> int {
+        if label == "Current Zoom" { return 1; }
+        if label == "Custom" { return 2; }
+        return 0;
+    }
+
+    preferred-width: 640px;
+    preferred-height: 680px;
+
+    Rectangle {
+        background: Palette.background;
+
+        VerticalLayout {
+            padding: 14px;
+            spacing: 7px;
+
+            Text {
+                text: "Select expressions and FFT parameters:";
+                font-size: 13px;
+                font-weight: 600;
+                color: Palette.foreground;
+            }
+
+            LineEdit {
+                height: 30px;
+                placeholder-text: "Filter expressions...";
+                text <=> root.filter-text;
+                edited => { root.filter-changed(self.text); }
+            }
+
+            ExpressionGrid {
+                vertical-stretch: 1;
+                expressions: root.expressions;
+                expression-clicked(i) => { root.expression-clicked(i); }
+            }
+
+            Legend {
+                items: [
+                    { label: "Voltage", color: #5b9bd5 },
+                    { label: "Current", color: #7cb342 },
+                    { label: "Freq", color: #e57373 },
+                    { label: "Time", color: #ba68c8 },
+                    { label: "Power", color: #ffb74d },
+                    { label: "Misc", color: #3a3d4a },
+                ];
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Palette.border;
+            }
+
+            FieldRow {
+                label: "Data Range:";
+                RadioGroup {
+                    orientation: Orientation.horizontal;
+                    RadioButton { text: "All"; checked: true; }
+                    RadioButton { text: "Current Zoom"; }
+                    RadioButton { text: "Custom"; }
+                    selected(label) => { root.range-mode = root.range-index(label); }
+                }
+
+                LineEdit {
+                    width: 84px;
+                    height: 28px;
+                    placeholder-text: "from";
+                    text <=> root.custom-from;
+                    enabled: root.range-mode == 2;
+                }
+
+                LineEdit {
+                    width: 84px;
+                    height: 28px;
+                    placeholder-text: "to";
+                    text <=> root.custom-to;
+                    enabled: root.range-mode == 2;
+                }
+            }
+
+            FieldRow {
+                label: "Window:";
+                ComboBox {
+                    height: 28px;
+                    model: ["Rectangular", "Hamming", "Hanning", "Blackman"];
+                    current-index <=> root.window-index;
+                }
+
+                Text {
+                    text: "Format:";
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: Palette.foreground.transparentize(0.15);
+                    vertical-alignment: center;
+                }
+
+                ComboBox {
+                    height: 28px;
+                    model: ["Normalized (NORM)", "Unnormalized (UNORM)"];
+                    current-index <=> root.format-index;
+                }
+            }
+
+            FieldRow {
+                label: "Output:";
+                ComboBox {
+                    height: 28px;
+                    model: ["Magnitude", "Magnitude (dB)", "Phase"];
+                    current-index <=> root.output-index;
+                }
+
+                CheckBox {
+                    text: "Keep DC";
+                    checked <=> root.keep-dc;
+                }
+            }
+
+            FieldRow {
+                label: "FFT Points (NP):";
+                ComboBox {
+                    height: 28px;
+                    model: ["256", "512", "1024", "2048", "4096", "8192", "16384", "Custom..."];
+                    current-index <=> root.np-index;
+                }
+
+                LineEdit {
+                    width: 120px;
+                    height: 28px;
+                    placeholder-text: "e.g. 4096";
+                    text <=> root.custom-np;
+                    enabled: root.np-index == 7;
+                }
+            }
         }
     }
+
+    StandardButton { kind: cancel; clicked => { root.dismissed(); } }
+    StandardButton { kind: ok; primary: true; clicked => { root.accepted(); } }
 }

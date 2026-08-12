@@ -1,0 +1,150 @@
+import { ScrollView, Palette } from "std-widgets.slint";
+
+// expression offered for plotting, mirrors the wx `ExpressionItem`
+export struct ExpressionItem {
+    name: string,
+    type: string,
+    selected: bool,
+}
+
+// resolves a signal category to its color, matching the wx type palette
+export global TypePalette {
+    public pure function color(type: string) -> color {
+        if (type == "Voltage") { return #5b9bd5; }
+        if (type == "Current") { return #7cb342; }
+        if (type == "Freq") { return #e57373; }
+        if (type == "Time") { return #ba68c8; }
+        if (type == "Power") { return #ffb74d; }
+        return #3a3d4a;
+    }
+}
+
+// small filled dot marking the chip signal type
+component TypeDot inherits Rectangle {
+    in property <color> dot-color;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background: dot-color;
+}
+
+// selectable expression tile: colored identity dot, ellipsized name, accent when
+// picked. State transitions are animated for a native, non-janky feel.
+component ExpressionChip inherits Rectangle {
+    in property <string> label;
+    in property <color> dot-color;
+    in property <bool> selected: false;
+    callback clicked;
+
+    height: 32px;
+    border-radius: 8px;
+    border-width: root.selected ? 1.5px : 1px;
+    border-color: root.selected ? Palette.accent-background : (touch.has-hover ? Palette.accent-background : Palette.border);
+    background: root.selected ? Palette.accent-background : (touch.has-hover ? Palette.control-background : Palette.alternate-background);
+
+    animate background, border-color, border-width {
+        duration: 140ms;
+        easing: ease-out;
+    }
+
+    HorizontalLayout {
+        alignment: start;
+        padding-left: 10px;
+        padding-right: 8px;
+        spacing: 7px;
+
+        VerticalLayout {
+            width: 8px;
+            alignment: center;
+            TypeDot {
+                dot-color: root.dot-color;
+                opacity: root.selected ? 0.9 : 1;
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: root.selected ? Palette.accent-foreground : Palette.foreground;
+            font-size: 13px;
+            horizontal-alignment: left;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        VerticalLayout {
+            width: 16px;
+            visible: root.selected;
+            alignment: center;
+            Text {
+                text: "✓";
+                color: Palette.accent-foreground;
+                font-size: 13px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// flow of chips inside a scrollable region; columns reflow with the dialog width
+export component ExpressionGrid inherits ScrollView {
+    in property <[ExpressionItem]> expressions;
+    callback expression-clicked(int);
+
+    private property <length> gap: 8px;
+    private property <int> columns: max(1, Math.round(self.width / 190px));
+    private property <length> cell-width: (self.visible-width - (self.columns - 1) * self.gap - 8px) / self.columns;
+    private property <length> row-height: 32px;
+    private property <int> row-count: Math.ceil(self.expressions.length / self.columns);
+    private property <length> content-height: self.row-count * (self.row-height + self.gap);
+
+    vertical-scrollbar-policy: ScrollBarPolicy.as-needed;
+    horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+
+    viewport-width: self.visible-width;
+    viewport-height: self.content-height + 8px;
+
+    for exp[index] in root.expressions: ExpressionChip {
+        x: 4px + Math.mod(index, root.columns) * (root.cell-width + root.gap);
+        y: 4px + Math.floor(index / root.columns) * (root.row-height + root.gap);
+        width: root.cell-width;
+        height: root.row-height;
+        label: exp.name;
+        dot-color: TypePalette.color(exp.type);
+        selected: exp.selected;
+        clicked => {
+            root.expression-clicked(index);
+        }
+    }
+}
+
+// bottom legend of the signal categories
+export struct LegendItem {
+    label: string,
+    color: color,
+}
+
+export component Legend inherits HorizontalLayout {
+    in property <[LegendItem]> items;
+
+    for item in root.items: HorizontalLayout {
+        spacing: 4px;
+        TypeDot {
+            dot-color: item.color;
+        }
+
+        Text {
+            text: item.label;
+            font-size: 11px;
+            color: Palette.foreground.transparentize(0.35);
+            vertical-alignment: center;
+        }
+    }
+}
