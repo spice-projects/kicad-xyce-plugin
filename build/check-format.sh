@@ -19,7 +19,7 @@ files=()
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     files+=("$file")
-done < <(git ls-files 'src/**' 'tests/**' | grep -E '\.(cpp|h|c\+\+)$' | grep -Fxv -e "${EXCLUDED[0]}" -e "${EXCLUDED[1]}" -e "${EXCLUDED[2]}")
+done < <(git ls-files 'src/**' 'tests/**' | grep -E '\.(cpp|h|c\+\+|mm)$' | grep -Fxv -e "${EXCLUDED[0]}" -e "${EXCLUDED[1]}" -e "${EXCLUDED[2]}")
 
 if [ ${#files[@]} -eq 0 ]; then
     echo "error: no C++ source files found" >&2

@@ -36,7 +36,7 @@ void ChartsPanel::initialize() {
     metal_layer.framebufferOnly = YES;
     metal_layer.opaque = YES;
     // screen
-    NSScreen *screen = [m_charts_panel window].screen ? [m_charts_panel window].screen : [NSScreen mainScreen];
+    NSScreen* screen = [m_charts_panel window].screen ? [m_charts_panel window].screen : [NSScreen mainScreen];
     // scale factor for retina displays
     CGFloat scale = [screen backingScaleFactor];
     // set metal layer for panel
@@ -54,7 +54,7 @@ void ChartsPanel::initialize() {
     // style
     PlatformStyle();
     // ImGui configuration
-    ImGuiIO &io = ImGui::GetIO();
+    ImGuiIO& io = ImGui::GetIO();
     // font base size
     const float base_size = 14.0f;
     // keep the embedded font data owned by the generated array
@@ -64,7 +64,7 @@ void ChartsPanel::initialize() {
     io.Fonts->AddFontFromMemoryTTF(const_cast<void*>(static_cast<const void*>(Inter_Regular_ttf)), static_cast<int>(Inter_Regular_ttf_len), base_size * scale, &font_cfg);
     io.FontGlobalScale = 1.0f / (float)scale;
     // update style
-    ImGuiStyle &style = ImGui::GetStyle();
+    ImGuiStyle& style = ImGui::GetStyle();
     style.AntiAliasedLines = true;
     style.AntiAliasedLinesUseTex = true;
     // bind the renderer backend
@@ -73,7 +73,7 @@ void ChartsPanel::initialize() {
     m_metal_layer = metal_layer;
     m_command_queue = gpu.command_queue;
     // log information
-    spdlog::debug( "Display [{}]: initialized Metal layer bounds: {}x{} (scale: {})", [[screen localizedName] UTF8String], sz.x, sz.y, scale);
+    spdlog::debug("Display [{}]: initialized Metal layer bounds: {}x{} (scale: {})", [[screen localizedName] UTF8String], sz.x, sz.y, scale);
 }
 
 void ChartsPanel::terminate() {
@@ -105,11 +105,11 @@ bool ChartsPanel::update_bounds() {
     if (!m_charts_panel)
         return false;
     // cast fields as apple types
-    auto metal_layer = (__bridge CAMetalLayer *)m_metal_layer;
+    auto metal_layer = (__bridge CAMetalLayer*)m_metal_layer;
     // current panel size
     wxSize sz = GetClientSize();
     // get current screen
-    NSScreen *screen = [m_charts_panel window].screen ? [m_charts_panel window].screen : [NSScreen mainScreen];
+    NSScreen* screen = [m_charts_panel window].screen ? [m_charts_panel window].screen : [NSScreen mainScreen];
     // scale factor for retina displays
     CGFloat scale = [screen backingScaleFactor];
     // update layer
@@ -117,12 +117,12 @@ bool ChartsPanel::update_bounds() {
     metal_layer.drawableSize = CGSizeMake(sz.x * scale, sz.y * scale);
     metal_layer.contentsScale = scale;
     // log information
-    spdlog::debug( "Display [{}]: updated Metal layer bounds: {}x{} (scale: {})", [[screen localizedName] UTF8String], sz.x, sz.y, scale);
+    spdlog::debug("Display [{}]: updated Metal layer bounds: {}x{} (scale: {})", [[screen localizedName] UTF8String], sz.x, sz.y, scale);
     // indicate success
     return true;
 }
 
-void ChartsPanel::render_frame(const std::function<void()> &renderer) {
+void ChartsPanel::render_frame(const std::function<void()>& renderer) {
     // check flag
     if (!m_charts_panel)
         return;
@@ -131,14 +131,14 @@ void ChartsPanel::render_frame(const std::function<void()> &renderer) {
         // activate this panel's isolated contexts for the complete frame
         ContextScope context_scope(*this);
         // cast fields as apple types
-        auto metal_layer = (__bridge CAMetalLayer *)m_metal_layer;
+        auto metal_layer = (__bridge CAMetalLayer*)m_metal_layer;
         auto command_queue = (__bridge id<MTLCommandQueue>)m_command_queue;
         // drawable
         id<CAMetalDrawable> drawable = [metal_layer nextDrawable];
         if (!drawable)
-           return;
+            return;
         // create render descriptor
-        MTLRenderPassDescriptor *render_pass_descriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+        MTLRenderPassDescriptor* render_pass_descriptor = [MTLRenderPassDescriptor renderPassDescriptor];
         render_pass_descriptor.colorAttachments[0].texture = drawable.texture;
         render_pass_descriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
         render_pass_descriptor.colorAttachments[0].clearColor = MTLClearColorMake(m_background_color.x, m_background_color.y, m_background_color.z, m_background_color.w);
@@ -155,7 +155,7 @@ void ChartsPanel::render_frame(const std::function<void()> &renderer) {
         // position and size
         wxSize sz = GetClientSize();
         // ImGui io configuration
-        ImGuiIO &io = ImGui::GetIO();
+        ImGuiIO& io = ImGui::GetIO();
         io.DisplaySize = ImVec2((float)sz.x, (float)sz.y);
         io.DisplayFramebufferScale = ImVec2((float)scale, (float)scale);
         // start frame
@@ -176,6 +176,6 @@ void ChartsPanel::render_frame(const std::function<void()> &renderer) {
 }
 
 void ChartsPanel::display_changed() {
-  // recompute the decimation target for the new display scale
-  update_decimation_target();
+    // recompute the decimation target for the new display scale
+    update_decimation_target();
 }
