@@ -45,17 +45,11 @@ public:
     void on_configure_plugin() override;
 
     // charts context menu
-    void on_chart_zoom_to_fit() override;
-    void on_chart_autorange() override;
-    void on_chart_zoom_abscissa_extent() override;
-    void on_chart_add_remove_plots() override;
-    void on_chart_delete_all_plots() override;
-    void on_chart_calculate_fft() override;
-    void on_chart_open_xyce_fft_calculation() override;
-    void on_chart_step_tool() override;
-    void on_chart_add_chart() override;
-    void on_chart_delete_chart() override;
-    void on_chart_new_window() override;
+    void on_chart_add_remove_plots(size_t chart_index) override;
+    void on_chart_calculate_fft(size_t chart_index) override;
+    void on_chart_open_xyce_fft_calculation(size_t chart_index) override;
+    void on_chart_step_tool(size_t chart_index) override;
+    void on_chart_new_window(size_t chart_index) override;
 
     // simulation lifecycle events (forwarded by the view from the runner)
     void on_simulation_finished(int exit_code, bool was_canceled) override;

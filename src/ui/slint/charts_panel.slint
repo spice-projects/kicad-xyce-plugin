@@ -1,19 +1,20 @@
 import { Palette } from "std-widgets.slint";
 
 // context menu actions for the charts view; the view adapter forwards them to
-// the presenter, keeping the slint ui decoupled from the chart implementation
+// the presenter, keeping the slint ui decoupled from the chart implementation.
+// The selected-chart-index parameter identifies which chart the action targets.
 export global ChartsPanelActions {
-    callback zoom-to-fit();
-    callback autorange();
-    callback zoom-abscissa-extent();
-    callback add-remove-plots();
-    callback delete-all-plots();
-    callback calculate-fft();
-    callback open-xyce-fft-calculation();
-    callback step-tool();
-    callback add-chart();
-    callback delete-chart();
-    callback new-window();
+    callback zoom-to-fit(/*selected-chart-index*/ int);
+    callback autorange(/*selected-chart-index*/ int);
+    callback zoom-abscissa-extent(/*selected-chart-index*/ int);
+    callback add-remove-plots(/*selected-chart-index*/ int);
+    callback delete-all-plots(/*selected-chart-index*/ int);
+    callback calculate-fft(/*selected-chart-index*/ int);
+    callback open-xyce-fft-calculation(/*selected-chart-index*/ int);
+    callback step-tool(/*selected-chart-index*/ int);
+    callback add-chart(/*selected-chart-index*/ int);
+    callback delete-chart(/*selected-chart-index*/ int);
+    callback new-window(/*selected-chart-index*/ int);
 }
 
 // open canvas panel for the charts view. Chart rendering lands in a later
@@ -24,67 +25,90 @@ export component ChartsPanel inherits Rectangle {
     in property <bool> enable-fft: false;
     in property <bool> enable-step-tool: false;
     in property <bool> has-fft-files: false;
+    in property <int> chart-count: 0;
 
     // the tools block only appears when at least one of its actions applies
     private property <bool> show-tools: root.enable-fft || root.enable-step-tool;
 
+    // compute chart index from a y position: floor(y / (height / chart-count))
+    function compute_chart_idx(y: length) -> int {
+        if root.chart-count <= 0 { return 0; }
+        if root.height <= 0px { return 0; }
+        return min(root.chart-count - 1, max(0, floor(y / (root.height / root.chart-count))));
+    }
+
+    // store the Y position where the context menu was triggered
+    private property <length> context-menu-y;
+
     background: Palette.alternate-background;
 
-    ContextMenuArea {
+    ctx := ContextMenuArea {
         Menu {
             MenuItem {
                 title: "Zoom to Fit";
-                activated => { ChartsPanelActions.zoom-to-fit(); }
+                activated => { ChartsPanelActions.zoom-to-fit(root.compute_chart_idx(root.context-menu-y)); }
             }
             MenuItem {
                 title: "Autorange";
-                activated => { ChartsPanelActions.autorange(); }
+                activated => { ChartsPanelActions.autorange(root.compute_chart_idx(root.context-menu-y)); }
             }
             MenuItem {
                 title: "Zoom Abscissa Extent";
-                activated => { ChartsPanelActions.zoom-abscissa-extent(); }
+                activated => { ChartsPanelActions.zoom-abscissa-extent(root.compute_chart_idx(root.context-menu-y)); }
             }
             MenuSeparator {}
             MenuItem {
                 title: "Add/Remove Plots";
-                activated => { ChartsPanelActions.add-remove-plots(); }
+                activated => { ChartsPanelActions.add-remove-plots(root.compute_chart_idx(root.context-menu-y)); }
             }
             MenuItem {
                 title: "Delete All Plots";
-                activated => { ChartsPanelActions.delete-all-plots(); }
+                activated => { ChartsPanelActions.delete-all-plots(root.compute_chart_idx(root.context-menu-y)); }
             }
             if root.show-tools: MenuSeparator {}
             if root.enable-fft: MenuItem {
                 title: "Calculate FFT on selected plots";
-                activated => { ChartsPanelActions.calculate-fft(); }
+                activated => { ChartsPanelActions.calculate-fft(root.compute_chart_idx(root.context-menu-y)); }
             }
             if root.enable-fft && root.has-fft-files: MenuItem {
                 title: "Open Xyce FFT Calculation";
-                activated => { ChartsPanelActions.open-xyce-fft-calculation(); }
+                activated => { ChartsPanelActions.open-xyce-fft-calculation(root.compute_chart_idx(root.context-menu-y)); }
             }
             if root.enable-step-tool: MenuItem {
                 title: "Step Tool...";
-                activated => { ChartsPanelActions.step-tool(); }
+                activated => { ChartsPanelActions.step-tool(root.compute_chart_idx(root.context-menu-y)); }
             }
             MenuSeparator {}
             MenuItem {
                 title: "Add Chart";
-                activated => { ChartsPanelActions.add-chart(); }
+                activated => { ChartsPanelActions.add-chart(root.compute_chart_idx(root.context-menu-y)); }
             }
             MenuItem {
                 title: "Delete Chart";
-                activated => { ChartsPanelActions.delete-chart(); }
+                activated => { ChartsPanelActions.delete-chart(root.compute_chart_idx(root.context-menu-y)); }
             }
             MenuSeparator {}
             MenuItem {
                 title: "New Window";
-                activated => { ChartsPanelActions.new-window(); }
+                activated => { ChartsPanelActions.new-window(root.compute_chart_idx(root.context-menu-y)); }
             }
         }
 
-        // channel placeholder; chart rendering lands in a later milestone
+        // channel placeholder; chart rendering lands in a later milestone.
+        // TouchArea on top captures right-click position and opens the context menu.
         Rectangle {
             background: Palette.alternate-background;
+
+            ta := TouchArea {
+                pointer-event(event) => {
+                    // store the Y position for context menu action handlers
+                    if (event.kind == PointerEventKind.down && event.button == PointerEventButton.right) {
+                        root.context-menu-y = self.mouse-y;
+                        // programmatically show the context menu at the click position
+                        ctx.show({ x: self.mouse-x, y: self.mouse-y });
+                    }
+                }
+            }
         }
     }
 }

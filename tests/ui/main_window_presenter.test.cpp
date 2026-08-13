@@ -100,6 +100,10 @@ public:
         delete_all_charts_calls++;
     }
 
+    void set_chart_count(size_t /*count*/) override {
+        // no-op for the wx presenter test
+    }
+
     void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) override {
         // record the forwarded FFT calculation files
         open_fft_calculation_files = files;

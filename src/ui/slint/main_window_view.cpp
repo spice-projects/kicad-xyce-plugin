@@ -36,17 +36,17 @@ void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
 
     // charts context menu actions
     const auto& chart_actions = m_window->global<ChartsPanelActions>();
-    chart_actions.on_zoom_to_fit([this] { m_event_handler->on_chart_zoom_to_fit(); });
-    chart_actions.on_autorange([this] { m_event_handler->on_chart_autorange(); });
-    chart_actions.on_zoom_abscissa_extent([this] { m_event_handler->on_chart_zoom_abscissa_extent(); });
-    chart_actions.on_add_remove_plots([this] { m_event_handler->on_chart_add_remove_plots(); });
-    chart_actions.on_delete_all_plots([this] { m_event_handler->on_chart_delete_all_plots(); });
-    chart_actions.on_calculate_fft([this] { m_event_handler->on_chart_calculate_fft(); });
-    chart_actions.on_open_xyce_fft_calculation([this] { m_event_handler->on_chart_open_xyce_fft_calculation(); });
-    chart_actions.on_step_tool([this] { m_event_handler->on_chart_step_tool(); });
-    chart_actions.on_add_chart([this] { m_event_handler->on_chart_add_chart(); });
-    chart_actions.on_delete_chart([this] { m_event_handler->on_chart_delete_chart(); });
-    chart_actions.on_new_window([this] { m_event_handler->on_chart_new_window(); });
+    chart_actions.on_zoom_to_fit([this](int chart_index) { m_charts_renderer->zoom_to_fit(static_cast<size_t>(chart_index)); });
+    chart_actions.on_autorange([this](int chart_index) { m_charts_renderer->autorange(static_cast<size_t>(chart_index)); });
+    chart_actions.on_zoom_abscissa_extent([this](int chart_index) { m_charts_renderer->zoom_abscissa_extent(static_cast<size_t>(chart_index)); });
+    chart_actions.on_add_remove_plots([this](int chart_index) { m_event_handler->on_chart_add_remove_plots(static_cast<size_t>(chart_index)); });
+    chart_actions.on_delete_all_plots([this](int chart_index) { m_charts_renderer->delete_all_plots(static_cast<size_t>(chart_index)); });
+    chart_actions.on_calculate_fft([this](int chart_index) { m_event_handler->on_chart_calculate_fft(static_cast<size_t>(chart_index)); });
+    chart_actions.on_open_xyce_fft_calculation([this](int chart_index) { m_event_handler->on_chart_open_xyce_fft_calculation(static_cast<size_t>(chart_index)); });
+    chart_actions.on_step_tool([this](int chart_index) { m_event_handler->on_chart_step_tool(static_cast<size_t>(chart_index)); });
+    chart_actions.on_add_chart([this](int) { m_charts_renderer->add_chart(); });
+    chart_actions.on_delete_chart([this](int chart_index) { m_charts_renderer->delete_chart(static_cast<size_t>(chart_index)); });
+    chart_actions.on_new_window([this](int chart_index) { m_event_handler->on_chart_new_window(static_cast<size_t>(chart_index)); });
 }
 
 void SlintMainWindowView2::show() {
@@ -134,6 +134,8 @@ void SlintMainWindowView2::update_charts(ExpressionManager& expression_manager, 
     // forward the data to the renderer
     if (m_charts_renderer) {
         m_charts_renderer->update(expression_manager, step_information, abscissa_scale, suggested_plots);
+        // sync the chart count to the slint panel for context menu index computation
+        m_window->set_chart_count(static_cast<int>(m_charts_renderer->chart_count()));
     }
 }
 
@@ -141,7 +143,14 @@ void SlintMainWindowView2::delete_all_charts() {
     // the renderer may not exist yet on the first file open
     if (m_charts_renderer) {
         m_charts_renderer->delete_all_charts();
+        // reset the chart count in the slint panel
+        m_window->set_chart_count(0);
     }
+}
+
+void SlintMainWindowView2::set_chart_count(size_t count) {
+    // forward the chart count to the slint panel for context menu index computation
+    m_window->set_chart_count(static_cast<int>(count));
 }
 
 void SlintMainWindowView2::set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>&) { spdlog::info("set fft files"); }

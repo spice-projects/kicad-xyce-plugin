@@ -91,6 +91,9 @@ export component MainWindow inherits Window {
     // is shown (controlled from the view adapter)
     in property <bool> charts-visible: false;
 
+    // number of charts in the renderer, forwarded for context menu index computation
+    in property <int> chart-count: 0;
+
     VerticalLayout {
         toolbar := Rectangle {
             background: Palette.background;
@@ -151,6 +154,7 @@ export component MainWindow inherits Window {
                     enable-fft: root.enable-fft;
                     enable-step-tool: root.enable-step-tool;
                     has-fft-files: root.has-fft-files;
+                    chart-count: root.chart-count;
                 }
             }
         }

@@ -226,3 +226,83 @@ void ChartsRenderer::refresh_charts(int frames) {
     if (m_render_chart_frames > 0)
         render();
 }
+
+void ChartsRenderer::zoom_to_fit(size_t chart_index) {
+    // log information
+    spdlog::debug("User requested zoom to fit on chart at index: {}", chart_index);
+    // loop charts
+    for (size_t i = 0; i < m_charts.size(); i++) {
+        // chart at i
+        const auto& chart = m_charts[i];
+        // check if this is the chart that triggered the zoom to fit action
+        if (i == chart_index) {
+            // reset zoom window
+            chart->reset_zoom_window(true, true);
+            // next
+            continue;
+        }
+        // update horizontal zoom window only, keep vertical zoom as is
+        chart->reset_zoom_window(true, false);
+    }
+    // refresh
+    refresh_charts();
+}
+
+void ChartsRenderer::autorange(size_t chart_index) {
+    // log information
+    spdlog::debug("User requested zoom to fit on chart at index: {}", chart_index);
+    // loop charts
+    for (size_t i = 0; i < m_charts.size(); i++) {
+        // chart at i
+        const auto& chart = m_charts[i];
+        // check if this is the chart that triggered the zoom to fit action
+        if (i == chart_index) {
+            // reset zoom window
+            chart->reset_zoom_window(true, true);
+            // next
+            continue;
+        }
+        // update horizontal zoom window only, keep vertical zoom as is
+        chart->reset_zoom_window(true, false);
+    }
+    // refresh
+    refresh_charts();
+}
+
+void ChartsRenderer::zoom_abscissa_extent(size_t chart_index) {
+    // log information
+    spdlog::debug("User requested zoom abscissa extent on chart at index: {}", chart_index);
+    // loop charts
+    for (const auto& chart : m_charts) {
+        // reset zoom window
+        chart->reset_zoom_window(true, false);
+    }
+    // refresh
+    refresh_charts();
+}
+
+void ChartsRenderer::delete_all_plots(size_t chart_index) {
+    // log information
+    spdlog::debug("User requested deleting all plots on chart at index: {}", chart_index);
+    // selected chart
+    if (chart_index < m_charts.size()) {
+        // chart
+        const auto& chart = m_charts[chart_index];
+        // clear chart
+        chart->clear();
+        // refresh
+        refresh_charts();
+    }
+}
+
+void ChartsRenderer::delete_chart(size_t chart_index) {
+    // log information
+    spdlog::debug("User requested deleting chart at index: {}", chart_index);
+    // delete chart at index
+    m_charts.erase(m_charts.begin() + static_cast<int>(chart_index));
+    // ensure at leat one chart in panel
+    if (m_charts.empty())
+        add_chart();
+    // refresh
+    refresh_charts();
+}

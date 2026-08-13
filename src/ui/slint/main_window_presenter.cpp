@@ -75,27 +75,15 @@ void SlintMainWindowPresenter2::on_configure_plugin() {
     spdlog::info("presenter2: configure plugin (stub)");
 }
 
-void SlintMainWindowPresenter2::on_chart_zoom_to_fit() { spdlog::info("presenter2: chart zoom to fit (stub)"); }
+void SlintMainWindowPresenter2::on_chart_add_remove_plots(size_t chart_index) { spdlog::info("presenter2: chart add/remove plots (stub) index={}", chart_index); }
 
-void SlintMainWindowPresenter2::on_chart_autorange() { spdlog::info("presenter2: chart autorange (stub)"); }
+void SlintMainWindowPresenter2::on_chart_calculate_fft(size_t chart_index) { spdlog::info("presenter2: chart calculate fft (stub) index={}", chart_index); }
 
-void SlintMainWindowPresenter2::on_chart_zoom_abscissa_extent() { spdlog::info("presenter2: chart zoom abscissa extent (stub)"); }
+void SlintMainWindowPresenter2::on_chart_open_xyce_fft_calculation(size_t chart_index) { spdlog::info("presenter2: chart open xyce fft calculation (stub) index={}", chart_index); }
 
-void SlintMainWindowPresenter2::on_chart_add_remove_plots() { spdlog::info("presenter2: chart add/remove plots (stub)"); }
+void SlintMainWindowPresenter2::on_chart_step_tool(size_t chart_index) { spdlog::info("presenter2: chart step tool (stub) index={}", chart_index); }
 
-void SlintMainWindowPresenter2::on_chart_delete_all_plots() { spdlog::info("presenter2: chart delete all plots (stub)"); }
-
-void SlintMainWindowPresenter2::on_chart_calculate_fft() { spdlog::info("presenter2: chart calculate fft (stub)"); }
-
-void SlintMainWindowPresenter2::on_chart_open_xyce_fft_calculation() { spdlog::info("presenter2: chart open xyce fft calculation (stub)"); }
-
-void SlintMainWindowPresenter2::on_chart_step_tool() { spdlog::info("presenter2: chart step tool (stub)"); }
-
-void SlintMainWindowPresenter2::on_chart_add_chart() { spdlog::info("presenter2: chart add chart (stub)"); }
-
-void SlintMainWindowPresenter2::on_chart_delete_chart() { spdlog::info("presenter2: chart delete chart (stub)"); }
-
-void SlintMainWindowPresenter2::on_chart_new_window() { spdlog::info("presenter2: chart new window (stub)"); }
+void SlintMainWindowPresenter2::on_chart_new_window(size_t chart_index) { spdlog::info("presenter2: chart new window (stub) index={}", chart_index); }
 
 void SlintMainWindowPresenter2::on_simulation_finished(int /*exit_code*/, bool /*was_canceled*/) { spdlog::info("presenter2: simulation finished (stub)"); }
 

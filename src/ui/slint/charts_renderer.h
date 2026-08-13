@@ -75,6 +75,9 @@ public:
     // render the charts panel content
     void render();
 
+    // number of charts currently managed by this renderer
+    [[nodiscard]] size_t chart_count() const { return m_charts.size(); }
+
     // data path, wired in stage 2
     void update(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots);
 
@@ -83,6 +86,16 @@ public:
     void delete_all_charts();
 
     void refresh_charts(int frames = 3);
+
+    void zoom_to_fit(size_t chart_index);
+
+    void autorange(size_t chart_index);
+
+    void zoom_abscissa_extent(size_t chart_index);
+
+    void delete_all_plots(size_t chart_index);
+
+    void delete_chart(size_t chart_index);
 
 private:
     friend class ChartsContextScope;
@@ -116,7 +129,6 @@ private:
     uint32_t m_logical_width = 0;
 
     std::vector<std::unique_ptr<Chart>> m_charts;
-    Chart* m_selected_chart = nullptr;
     size_t m_selected_chart_index = 0;
     std::tuple<float, float, float, float> m_zoom_selection = {-1, -1, -1, -1};
 
