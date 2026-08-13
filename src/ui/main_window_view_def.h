@@ -57,3 +57,63 @@ public:
     // window management
     virtual void spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) = 0;
 };
+
+// event handler interface: the view calls back into these methods when the user
+// interacts with the UI, without knowing who handles them (the presenter
+// implements this interface). this is the other half of the MVP contract.
+class MainWindowViewDefEvents
+{
+public:
+    virtual ~MainWindowViewDefEvents() = default;
+
+    // file operations
+    virtual void on_open_xyce_file(const std::filesystem::path& path) = 0;
+    virtual void on_save_netlist() = 0;
+
+    // view switching
+    virtual void on_show_netlist() = 0;
+    virtual void on_show_charts() = 0;
+    virtual void on_show_simulation_output() = 0;
+
+    // simulation control
+    virtual void on_run_simulation() = 0;
+    virtual void on_configure_simulation() = 0;
+
+    // plugin configuration
+    virtual void on_configure_plugin() = 0;
+
+    // charts context menu
+    virtual void on_chart_zoom_to_fit() = 0;
+    virtual void on_chart_autorange() = 0;
+    virtual void on_chart_zoom_abscissa_extent() = 0;
+    virtual void on_chart_add_remove_plots() = 0;
+    virtual void on_chart_delete_all_plots() = 0;
+    virtual void on_chart_calculate_fft() = 0;
+    virtual void on_chart_open_xyce_fft_calculation() = 0;
+    virtual void on_chart_step_tool() = 0;
+    virtual void on_chart_add_chart() = 0;
+    virtual void on_chart_delete_chart() = 0;
+    virtual void on_chart_new_window() = 0;
+
+    // simulation lifecycle events (forwarded by the view from the runner)
+    virtual void on_simulation_finished(int exit_code, bool was_canceled) = 0;
+    virtual void on_simulation_stdout(const std::string& line) = 0;
+    virtual void on_simulation_stderr(const std::string& line) = 0;
+
+    // editor events
+    virtual void on_netlist_editor_modified() = 0;
+
+    // kiCad schematic integration
+    virtual void on_extract_schematic_netlist() = 0;
+};
+
+// refactored view interface that adds event handler wiring on top of
+// MainWindowView. the view no longer owns or knows about the presenter;
+// it simply forwards user interactions through the event handler interface.
+// the parent creates both the view and the presenter and wires them together.
+class MainWindowViewDef : public MainWindowView
+{
+public:
+    // set the event handler that receives user-interaction callbacks
+    virtual void set_event_handler(MainWindowViewDefEvents& handler) = 0;
+};

@@ -23,7 +23,7 @@
 #include "../step_information.h"
 #include "charts_panel.h"
 #include "main_window_state.h"
-#include "main_window_view.h"
+#include "main_window_view_def.h"
 
 class MainWindowPresenter;
 

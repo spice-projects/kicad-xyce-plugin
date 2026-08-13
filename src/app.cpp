@@ -9,6 +9,7 @@
 #include "app.h"
 #include "kicad/kicad_session.h"
 #include "ui/editor_netlist_source.h"
+#include "ui/slint/main_window_presenter.h"
 #include "ui/slint/main_window_view.h"
 
 App& App::instance() {
@@ -24,8 +25,11 @@ int App::run() {
     // share the session with the app when present
     if (session)
         m_kicad_session = std::make_shared<KiCadSession>(std::move(*session));
-    // create application main view and presenter, passing in the netlist source and plugin configuration
-    auto view = std::make_unique<SlintMainWindowView>(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), PluginConfig::load());
+    // create the view and presenter separately; the parent owns both and wires them together so neither knows about the other at compile time
+    auto view = std::make_unique<SlintMainWindowView2>(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), PluginConfig::load());
+    auto presenter = std::make_unique<SlintMainWindowPresenter2>(*view, std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), PluginConfig::load());
+    // wire the event handler so the view forwards user interactions to the presenter
+    view->set_event_handler(*presenter);
     // show the main window
     view->show();
     // run the slint event loop until the last window closes

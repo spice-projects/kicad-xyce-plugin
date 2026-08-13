@@ -11,19 +11,20 @@
 
 #include "../../config/plugin_config.h"
 #include "../../netlist/netlist_source.h"
-#include "../main_window_view.h"
+#include "../main_window_view_def.h"
 #include "charts_renderer.h"
-#include "main_window_presenter.h"
 
-class SlintMainWindowView : public MainWindowView
+class SlintMainWindowView2 : public MainWindowViewDef
 {
 public:
-    SlintMainWindowView(std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config);
+    SlintMainWindowView2(std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config);
 
-    ~SlintMainWindowView() override = default;
+    ~SlintMainWindowView2() override = default;
 
-    SlintMainWindowView(const SlintMainWindowView&) = delete;
-    SlintMainWindowView& operator=(const SlintMainWindowView&) = delete;
+    SlintMainWindowView2(const SlintMainWindowView2&) = delete;
+    SlintMainWindowView2& operator=(const SlintMainWindowView2&) = delete;
+
+    void set_event_handler(MainWindowViewDefEvents& handler) override;
 
     // access the underlying slint window for event handling
     slint::Window& window();
@@ -56,17 +57,17 @@ public:
     void spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) override;
 
 private:
-    // open file action (file dialog wiring pending)
+    // open file action (file dialog)
     void handle_open();
 
     // create the charts renderer the first time the charts panel is shown
     void ensure_charts_renderer();
 
     slint::ComponentHandle<MainWindow> m_window;
-    std::unique_ptr<SlintMainWindowPresenter> m_presenter;
+    MainWindowViewDefEvents* m_event_handler = nullptr;
     std::string m_netlist_content;
     bool m_netlist_read_only = false;
 
-    // platform-neutral charts renderer; the platform backend (per-platform
+    // platform-neutral charts renderer
     std::unique_ptr<ChartsRenderer> m_charts_renderer;
 };

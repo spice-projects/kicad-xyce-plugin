@@ -11,7 +11,7 @@
 #include "../netlist/netlist_source.h"
 #include "../simulation_parameters/simulation_config.h"
 #include "main_window_state.h"
-#include "main_window_view.h"
+#include "main_window_view_def.h"
 
 class XyceSimulationRunner;
 

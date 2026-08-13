@@ -10,66 +10,68 @@
 #include "../../file/xyce_output_file.h"
 #include "../../netlist/netlist_source.h"
 #include "../../simulation_parameters/simulation_config.h"
-#include "../main_window_state.h"
-#include "../main_window_view.h"
+#include "../main_window_view_def.h"
 
 class XyceSimulationRunner;
 
 // business/orchestration logic for the slint main window, decoupled from the
-// ui through MainWindowView; mirrors the wxWidgets MainWindowPresenter so the
-// two implementations can be kept side by side during the migration
-class SlintMainWindowPresenter
+// ui through MainWindowViewDef and MainWindowViewDefEvents; the presenter
+// implements the event handler interface and receives user-interaction
+// callbacks from the view without the view knowing the presenter exists
+class SlintMainWindowPresenter2 : public MainWindowViewDefEvents
 {
 public:
-    SlintMainWindowPresenter(MainWindowView& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config);
+    SlintMainWindowPresenter2(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config);
 
-    ~SlintMainWindowPresenter();
+    ~SlintMainWindowPresenter2() override;
 
-    SlintMainWindowPresenter(const SlintMainWindowPresenter&) = delete;
-    SlintMainWindowPresenter& operator=(const SlintMainWindowPresenter&) = delete;
+    SlintMainWindowPresenter2(const SlintMainWindowPresenter2&) = delete;
+    SlintMainWindowPresenter2& operator=(const SlintMainWindowPresenter2&) = delete;
 
     // file operations
-    void open_netlist_file(const std::filesystem::path& path);
-    void open_raw_file(const std::filesystem::path& path);
-    void load_raw_file(std::shared_ptr<XyceOutputFile> raw_file);
-    void save_netlist();
+    void on_open_xyce_file(const std::filesystem::path& path) override;
+    void on_save_netlist() override;
 
-    // configuration
-    void configure_simulation();
-    void configure_plugin();
+    // view switching
+    void on_show_netlist() override;
+    void on_show_charts() override;
+    void on_show_simulation_output() override;
 
-    // simulation
-    void run_simulation();
-    void handle_simulation_finished(int exit_code, bool was_canceled);
-    void handle_simulation_stdout(const std::string& line);
-    void handle_simulation_stderr(const std::string& line);
+    // simulation control
+    void on_run_simulation() override;
+    void on_configure_simulation() override;
 
-    // editor
-    void handle_netlist_editor_modified();
+    // plugin configuration
+    void on_configure_plugin() override;
 
-    // charts context menu actions, decoupled from the chart implementation
-    void chart_zoom_to_fit();
-    void chart_autorange();
-    void chart_zoom_abscissa_extent();
-    void chart_add_remove_plots();
-    void chart_delete_all_plots();
-    void chart_calculate_fft();
-    void chart_open_xyce_fft_calculation();
-    void chart_step_tool();
-    void chart_add_chart();
-    void chart_delete_chart();
-    void chart_new_window();
+    // charts context menu
+    void on_chart_zoom_to_fit() override;
+    void on_chart_autorange() override;
+    void on_chart_zoom_abscissa_extent() override;
+    void on_chart_add_remove_plots() override;
+    void on_chart_delete_all_plots() override;
+    void on_chart_calculate_fft() override;
+    void on_chart_open_xyce_fft_calculation() override;
+    void on_chart_step_tool() override;
+    void on_chart_add_chart() override;
+    void on_chart_delete_chart() override;
+    void on_chart_new_window() override;
 
-    // kicad plugin mode
-    void extract_schematic_netlist();
+    // simulation lifecycle events (forwarded by the view from the runner)
+    void on_simulation_finished(int exit_code, bool was_canceled) override;
+    void on_simulation_stdout(const std::string& line) override;
+    void on_simulation_stderr(const std::string& line) override;
+
+    // editor events
+    void on_netlist_editor_modified() override;
+
+    // kiCad schematic integration
+    void on_extract_schematic_netlist() override;
 
     // accessors
     [[nodiscard]] std::shared_ptr<XyceSimulationRunner> simulation_runner() const;
     [[nodiscard]] const std::optional<std::shared_ptr<XyceOutputFile>>& raw_file() const;
     [[nodiscard]] const std::vector<std::shared_ptr<XyceOutputFile>>& fft_files() const;
-
-    // recompute and forward the action enablement to the view
-    void refresh_action_states();
 
 private:
     bool update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>> raw_file, bool delete_charts);
@@ -82,7 +84,10 @@ private:
 
     bool update_netlist_editor_content(const std::string& content, bool dirty_flag);
 
-    MainWindowView& m_view;
+    // recompute and forward the action enablement to the view
+    void refresh_action_states();
+
+    MainWindowViewDef& m_view;
     std::unique_ptr<NetlistSource> m_netlist_source;
     bool m_netlist_editor_dirty = false;
     bool m_netlist_has_content = false;
