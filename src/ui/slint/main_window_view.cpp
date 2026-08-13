@@ -95,8 +95,8 @@ void SlintMainWindowView::show_charts_view() {
     // reveal the charts panel in the content area
     m_window->set_charts_visible(true);
 #ifdef __APPLE__
-    // create the metal overlay the first time the charts panel is shown
-    ensure_metal_overlay();
+    // create the charts renderer the first time the charts panel is shown
+    ensure_charts_renderer();
 #endif
 }
 
@@ -140,9 +140,14 @@ bool SlintMainWindowView::simulation_output_panel_hidden() const { return true; 
 
 bool SlintMainWindowView::simulation_output_has_content() const { return false; }
 
-void SlintMainWindowView::update_charts(ExpressionManager&, const StepInformation&, AbscissaScale, const std::vector<std::vector<std::string>>&) {
-    // chart rendering lands with the chart integration milestone
-    spdlog::info("update charts");
+void SlintMainWindowView::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
+#ifdef __APPLE__
+    // chart data update lands with the data path wiring; keep the renderer alive
+    // and ready for when the renderer is driven
+    if (m_charts_renderer) {
+        m_charts_renderer->update(expression_manager, step_information, abscissa_scale, suggested_plots);
+    }
+#endif
 }
 
 void SlintMainWindowView::delete_all_charts() { spdlog::info("delete charts"); }
@@ -188,25 +193,27 @@ void SlintMainWindowView::handle_open() {
 }
 
 #ifdef __APPLE__
-void SlintMainWindowView::ensure_metal_overlay() {
-    // the overlay already exists
-    if (m_metal_overlay) {
+void SlintMainWindowView::ensure_charts_renderer() {
+    // the renderer already exists
+    if (m_charts_renderer) {
         return;
     }
     // the content view may not exist yet on the very first show
     if (!m_window->window().appkit_view()) {
         return;
     }
-    // attach the overlay on the first charts panel show
-    m_metal_overlay = std::make_unique<MetalOverlay>();
-    m_metal_overlay->attach(m_window->window().appkit_view());
-    // position the overlay over the charts panel region and render a frame
+    // attach the renderer on the first charts panel show
+    m_charts_renderer = std::make_unique<ChartsRenderer>();
+    m_charts_renderer->attach(m_window->window().appkit_view());
+    // position the renderer over the charts panel region and render a frame
     const auto size = m_window->window().size();
     const auto scale = m_window->window().scale_factor();
     // the charts panel fills the window below the 59px toolbar; the content
     // view is flipped (upper-left origin), so offset from the top
     const uint32_t toolbar_px = static_cast<uint32_t>(59 * scale);
-    m_metal_overlay->set_frame(0, toolbar_px, size.width, size.height - toolbar_px, scale);
-    m_metal_overlay->render();
+    m_charts_renderer->set_frame(0, toolbar_px, size.width, size.height - toolbar_px, scale);
+    // initialize the ImGui/ImPlot backend and render the first frame
+    m_charts_renderer->initialize();
+    m_charts_renderer->render();
 }
 #endif

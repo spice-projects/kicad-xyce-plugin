@@ -15,7 +15,7 @@
 #include "main_window_presenter.h"
 
 #ifdef __APPLE__
-#include "../metal_overlay.h"
+#include "charts_renderer.h"
 #endif
 
 // slint view adapter implementing the MainWindowView interface over the slint
@@ -65,8 +65,8 @@ private:
     // open file action (file dialog wiring pending)
     void handle_open();
 
-    // create the metal overlay the first time the charts panel is shown
-    void ensure_metal_overlay();
+    // create the charts renderer the first time the charts panel is shown
+    void ensure_charts_renderer();
 
     slint::ComponentHandle<MainWindow> m_window;
     std::unique_ptr<SlintMainWindowPresenter> m_presenter;
@@ -74,6 +74,6 @@ private:
     bool m_netlist_read_only = false;
 
 #ifdef __APPLE__
-    std::unique_ptr<MetalOverlay> m_metal_overlay;
+    std::unique_ptr<ChartsRenderer> m_charts_renderer;
 #endif
 };
