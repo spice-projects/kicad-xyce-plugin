@@ -218,14 +218,7 @@ void ChartsRenderer::update_decimation_target() {
         chart->set_decimate_target(target);
 }
 
-void ChartsRenderer::refresh_charts(int frames) {
-    // store the frame countdown for backends that need repeated frames; a single
-    // synchronous frame is enough to publish the new content on the main thread
-    m_render_chart_frames = frames;
-    // render immediately when the pipeline is alive
-    if (m_render_chart_frames > 0)
-        render();
-}
+void ChartsRenderer::refresh_charts(int frames) { m_render_chart_frames = frames; }
 
 size_t ChartsRenderer::position_to_index(float position) const {
     // clamp to valid range and multiply by chart count
@@ -235,6 +228,16 @@ size_t ChartsRenderer::position_to_index(float position) const {
     const float clamped = std::clamp(position, 0.0f, 1.0f);
     const size_t index = static_cast<size_t>(clamped * static_cast<float>(m_charts.size()));
     return std::min(index, m_charts.size() - 1);
+}
+
+void ChartsRenderer::on_idle() {
+    // check flag is set
+    if (m_render_chart_frames > 0) {
+        // decrease counter
+        m_render_chart_frames--;
+        // render charts panel
+        render();
+    }
 }
 
 void ChartsRenderer::zoom_to_fit(float chart_position) {

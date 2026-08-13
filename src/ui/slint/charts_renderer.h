@@ -8,6 +8,8 @@
 #include <tuple>
 #include <vector>
 
+#include <slint.h>
+
 #include "../chart.h"
 
 // slint window abstraction; the platform backend extracts the native content
@@ -114,6 +116,8 @@ private:
     // translate a relative Y position [0..1] to a chart index, clamped to valid range
     [[nodiscard]] size_t position_to_index(float position) const;
 
+    void on_idle();
+
     void* m_view = nullptr;
 
     void* m_imgui_context = nullptr;
@@ -122,6 +126,7 @@ private:
 
     std::chrono::steady_clock::time_point m_last_frame_time;
 
+    slint::Timer m_render_timer;
     int m_render_chart_frames = 0;
 
     // data path

@@ -41,7 +41,12 @@ void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
     chart_actions.on_autorange([this](float chart_position) { m_charts_renderer->autorange(chart_position); });
     chart_actions.on_zoom_abscissa_extent([this](float chart_position) { m_charts_renderer->zoom_abscissa_extent(chart_position); });
     chart_actions.on_delete_all_plots([this](float chart_position) { m_charts_renderer->delete_all_plots(chart_position); });
-    chart_actions.on_add_chart([this](float) { m_charts_renderer->add_chart(); });
+    chart_actions.on_add_chart([this](float) {
+        // add chart
+        m_charts_renderer->add_chart();
+        // refresh charts to show the new chart
+        m_charts_renderer->refresh_charts();
+    });
     chart_actions.on_delete_chart([this](float chart_position) { m_charts_renderer->delete_chart(chart_position); });
     // events that need presenter involvement: convert float to int via renderer
     chart_actions.on_add_remove_plots([this](float chart_position) { m_event_handler->on_chart_add_remove_plots(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
