@@ -87,15 +87,16 @@ public:
 
     void refresh_charts(int frames = 3);
 
-    void zoom_to_fit(size_t chart_index);
+    // position is a float [0..1] relative Y from the context menu
+    void zoom_to_fit(float chart_position);
 
-    void autorange(size_t chart_index);
+    void autorange(float chart_position);
 
-    void zoom_abscissa_extent(size_t chart_index);
+    void zoom_abscissa_extent(float chart_position);
 
-    void delete_all_plots(size_t chart_index);
+    void delete_all_plots(float chart_position);
 
-    void delete_chart(size_t chart_index);
+    void delete_chart(float chart_position);
 
 private:
     friend class ChartsContextScope;
@@ -109,6 +110,9 @@ private:
     [[nodiscard]] size_t compute_decimation_target() const;
 
     void update_decimation_target();
+
+    // translate a relative Y position [0..1] to a chart index, clamped to valid range
+    [[nodiscard]] size_t position_to_index(float position) const;
 
     void* m_view = nullptr;
 

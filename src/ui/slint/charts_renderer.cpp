@@ -227,9 +227,21 @@ void ChartsRenderer::refresh_charts(int frames) {
         render();
 }
 
-void ChartsRenderer::zoom_to_fit(size_t chart_index) {
+size_t ChartsRenderer::position_to_index(float position) const {
+    // clamp to valid range and multiply by chart count
+    if (m_charts.empty())
+        return 0;
+    // clamp the position to [0, 1] and compute the corresponding chart index
+    const float clamped = std::clamp(position, 0.0f, 1.0f);
+    const size_t index = static_cast<size_t>(clamped * static_cast<float>(m_charts.size()));
+    return std::min(index, m_charts.size() - 1);
+}
+
+void ChartsRenderer::zoom_to_fit(float chart_position) {
+    // find the chart index corresponding to the position in the panel
+    const size_t chart_index = position_to_index(chart_position);
     // log information
-    spdlog::debug("User requested zoom to fit on chart at index: {}", chart_index);
+    spdlog::debug("User requested zoom to fit on chart at position {} (index {})", chart_position, chart_index);
     // loop charts
     for (size_t i = 0; i < m_charts.size(); i++) {
         // chart at i
@@ -248,14 +260,16 @@ void ChartsRenderer::zoom_to_fit(size_t chart_index) {
     refresh_charts();
 }
 
-void ChartsRenderer::autorange(size_t chart_index) {
+void ChartsRenderer::autorange(float chart_position) {
+    // find the chart index corresponding to the position in the panel
+    const size_t chart_index = position_to_index(chart_position);
     // log information
-    spdlog::debug("User requested zoom to fit on chart at index: {}", chart_index);
+    spdlog::debug("User requested autorange on chart at position {} (index {})", chart_position, chart_index);
     // loop charts
     for (size_t i = 0; i < m_charts.size(); i++) {
         // chart at i
         const auto& chart = m_charts[i];
-        // check if this is the chart that triggered the zoom to fit action
+        // check if this is the chart that triggered the autorange action
         if (i == chart_index) {
             // reset zoom window
             chart->reset_zoom_window(true, true);
@@ -269,9 +283,11 @@ void ChartsRenderer::autorange(size_t chart_index) {
     refresh_charts();
 }
 
-void ChartsRenderer::zoom_abscissa_extent(size_t chart_index) {
+void ChartsRenderer::zoom_abscissa_extent(float chart_position) {
+    // find the chart index corresponding to the position in the panel
+    const size_t chart_index = position_to_index(chart_position);
     // log information
-    spdlog::debug("User requested zoom abscissa extent on chart at index: {}", chart_index);
+    spdlog::debug("User requested zoom abscissa extent on chart at position {} (index {})", chart_position, chart_index);
     // loop charts
     for (const auto& chart : m_charts) {
         // reset zoom window
@@ -281,26 +297,28 @@ void ChartsRenderer::zoom_abscissa_extent(size_t chart_index) {
     refresh_charts();
 }
 
-void ChartsRenderer::delete_all_plots(size_t chart_index) {
+void ChartsRenderer::delete_all_plots(float chart_position) {
+    // find the chart index corresponding to the position in the panel
+    const size_t chart_index = position_to_index(chart_position);
     // log information
-    spdlog::debug("User requested deleting all plots on chart at index: {}", chart_index);
+    spdlog::debug("User requested deleting all plots on chart at position {} (index {})", chart_position, chart_index);
     // selected chart
     if (chart_index < m_charts.size()) {
-        // chart
-        const auto& chart = m_charts[chart_index];
         // clear chart
-        chart->clear();
+        m_charts[chart_index]->clear();
         // refresh
         refresh_charts();
     }
 }
 
-void ChartsRenderer::delete_chart(size_t chart_index) {
+void ChartsRenderer::delete_chart(float chart_position) {
+    // find the chart index corresponding to the position in the panel
+    const size_t chart_index = position_to_index(chart_position);
     // log information
-    spdlog::debug("User requested deleting chart at index: {}", chart_index);
+    spdlog::debug("User requested deleting chart at position {} (index {})", chart_position, chart_index);
     // delete chart at index
     m_charts.erase(m_charts.begin() + static_cast<int>(chart_index));
-    // ensure at leat one chart in panel
+    // ensure at least one chart in panel
     if (m_charts.empty())
         add_chart();
     // refresh

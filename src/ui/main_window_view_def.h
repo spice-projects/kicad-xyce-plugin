@@ -43,7 +43,6 @@ public:
     // charts
     virtual void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) = 0;
     virtual void delete_all_charts() = 0;
-    virtual void set_chart_count(size_t count) = 0;
 
     // parsed Xyce FFT calculation output files, forwarded to the charts context menu
     virtual void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) = 0;

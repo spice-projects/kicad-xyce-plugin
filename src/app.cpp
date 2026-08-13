@@ -34,6 +34,15 @@ int App::run() {
     view->show();
     // run the slint event loop until the last window closes
     slint::run_event_loop();
+    // WORKAROUND (see slint-bug.md): slint 1.17.1 caches the native context menu item tree in
+    // WinitWindowAdapter::context_menu and never releases it, and that field is declared after the
+    // renderer, so destroying the window frees the skia renderer first and the cached menu item tree
+    // then calls free_graphics_resources() on it. The result is a use-after-free that aborts on exit
+    // as soon as the charts context menu has been opened once. Intentionally leak the view (and the
+    // presenter it is wired to) so the window adapter is never destroyed; the process is exiting and
+    // the OS reclaims the memory. Remove once the slint bug is fixed.
+    (void)view.release();
+    (void)presenter.release();
     // the event loop exited, end the application
     return 0;
 }

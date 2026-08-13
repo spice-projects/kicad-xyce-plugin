@@ -504,10 +504,6 @@ void MainWindow::set_status_text(const std::string& text) {
     SetStatusText(text);
 }
 
-void MainWindow::set_chart_count(size_t /*count*/) {
-    // no-op: the wx chart panel handles chart index internally
-}
-
 void MainWindow::apply_action_enablement(const ActionStateEnablement& enablement) {
     // open/save actions are only available outside KiCad plugin mode
     if (m_kicad_session == nullptr) {
