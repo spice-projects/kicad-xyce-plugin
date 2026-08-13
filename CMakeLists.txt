@@ -150,7 +150,7 @@ target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint wx::core wx::base wx::
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis
-    target_link_libraries(kicad-xyce-core PUBLIC "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController")
+    target_link_libraries(kicad-xyce-core PUBLIC "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController" "-framework UniformTypeIdentifiers")
     # suppress duplicate library warnings on macOS, which are emitted when linking against the same framework multiple times (e.g. AppKit and Metal)
     target_link_options(kicad-xyce-core PUBLIC "-Wl,-no_warn_duplicate_libraries")
 elseif(WIN32)
@@ -159,6 +159,10 @@ elseif(WIN32)
 elseif(LINUX)
     target_link_libraries(kicad-xyce-core PUBLIC wx::gl OpenGL::GL)
 endif()
+
+# slint: embed images/fonts referenced with @image-url() into the binary, the
+# same way the wxWidgets IconManager embeds its icon bundles
+set_property(TARGET kicad-xyce-core PROPERTY SLINT_EMBED_RESOURCES embed-files)
 
 # slint
 slint_target_sources(kicad-xyce-core ${SLINT_SOURCES})

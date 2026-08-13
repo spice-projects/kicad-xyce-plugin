@@ -1,0 +1,140 @@
+import { Palette } from "std-widgets.slint";
+import { ChartsPanel } from "charts_panel.slint";
+export { ChartsPanelActions } from "charts_panel.slint";
+
+export global MainWindowActions {
+    callback open-xyce-file();
+    callback save-netlist();
+    callback show-netlist();
+    callback show-charts();
+    callback show-simulation-output();
+    callback run-simulation();
+    callback configure-simulation();
+    callback configure-plugin();
+    callback exit();
+}
+
+component ToolbarSeparator inherits Rectangle {
+    width: 9px;
+    height: 26px;
+
+    Rectangle {
+        width: 1px;
+        height: 100%;
+        background: Palette.foreground.transparentize(0.85);
+    }
+}
+
+component ToolbarButton inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <length> icon-size: 24px;
+    in property <bool> enabled: true;
+    callback clicked;
+
+    height: 48px;
+    min-width: max(56px, content.preferred-width);
+    border-radius: 7px;
+
+    background: !root.enabled ? transparent : (ta.pressed ? Palette.foreground.transparentize(0.88) : (ta.has-hover ? Palette.foreground.transparentize(0.95) : transparent));
+    animate background { duration: 120ms; }
+
+    content := VerticalLayout {
+        alignment: center;
+        spacing: 3px;
+        padding-left: 8px;
+        padding-right: 8px;
+
+        HorizontalLayout {
+            alignment: center;
+            Image {
+                source: root.icon;
+                width: root.icon-size;
+                height: root.icon-size;
+                image-fit: fill;
+                opacity: root.enabled ? 1.0 : 0.4;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            Text {
+                text: root.text;
+                font-size: 11px;
+                font-weight: 500;
+                color: root.enabled ? Palette.foreground : Palette.foreground.transparentize(0.4);
+            }
+        }
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component MainWindow inherits Window {
+    title: "KiCad Xyce Plugin - Toolbar Preview";
+    preferred-width: 900px;
+    preferred-height: 360px;
+
+    // charts panel action availability, forwarded to the ChartsPanel component
+    in property <bool> enable-fft: false;
+    in property <bool> enable-step-tool: false;
+    in property <bool> has-fft-files: false;
+
+    VerticalLayout {
+        toolbar := Rectangle {
+            background: Palette.background;
+
+            VerticalLayout {
+                HorizontalLayout {
+                    cross-axis-alignment: center;
+                    padding-top: 5px;
+                    padding-bottom: 5px;
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 1px;
+
+                    // group 1: file (standalone mode only)
+                    ToolbarButton { text: "Open"; icon: @image-url("../kicad-icons/directory_open_48.png"); clicked => { MainWindowActions.open-xyce-file(); } }
+                    ToolbarButton { text: "Save"; icon: @image-url("../kicad-icons/save_48.png"); clicked => { MainWindowActions.save-netlist(); } }
+                    ToolbarSeparator {}
+
+                    // group 2: content views
+                    ToolbarButton { text: "Show Netlist"; icon: @image-url("../kicad-icons/netlist_48.png"); clicked => { MainWindowActions.show-netlist(); } }
+                    ToolbarButton { text: "Show Charts"; icon: @image-url("../kicad-icons/simulator_48.png"); clicked => { MainWindowActions.show-charts(); } }
+                    ToolbarButton { text: "Show Sim Output"; icon: @image-url("../kicad-icons/sim_command_48.png"); clicked => { MainWindowActions.show-simulation-output(); } }
+                    ToolbarSeparator {}
+
+                    // group 3: simulation
+                    ToolbarButton { text: "Run"; icon: @image-url("../kicad-icons/sim_run_48.png"); clicked => { MainWindowActions.run-simulation(); } }
+                    ToolbarButton { text: "Configure"; icon: @image-url("../kicad-icons/sim_tune_48.png"); clicked => { MainWindowActions.configure-simulation(); } }
+                    ToolbarSeparator {}
+
+                    // group 4: plugin configuration
+                    ToolbarButton { text: "Plugin Config"; icon: @image-url("../kicad-icons/preference_48.png"); clicked => { MainWindowActions.configure-plugin(); } }
+                    ToolbarSeparator {}
+
+                    // group 5: exit
+                    ToolbarButton { text: "Exit"; icon: @image-url("../kicad-icons/exit_48.png"); clicked => { MainWindowActions.exit(); } }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: Palette.border;
+                }
+            }
+        }
+
+        charts := ChartsPanel {
+            vertical-stretch: 1;
+            enable-fft: root.enable-fft;
+            enable-step-tool: root.enable-step-tool;
+            has-fft-files: root.has-fft-files;
+        }
+    }
+}

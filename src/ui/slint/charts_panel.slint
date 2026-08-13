@@ -1,0 +1,90 @@
+import { Palette } from "std-widgets.slint";
+
+// context menu actions for the charts view; the view adapter forwards them to
+// the presenter, keeping the slint ui decoupled from the chart implementation
+export global ChartsPanelActions {
+    callback zoom-to-fit();
+    callback autorange();
+    callback zoom-abscissa-extent();
+    callback add-remove-plots();
+    callback delete-all-plots();
+    callback calculate-fft();
+    callback open-xyce-fft-calculation();
+    callback step-tool();
+    callback add-chart();
+    callback delete-chart();
+    callback new-window();
+}
+
+// open canvas panel for the charts view. Chart rendering lands in a later
+// milestone; for now the channel is an empty panel and the context menu is the
+// only interactive surface, mirroring the wx `ChartsPanel` actions.
+export component ChartsPanel inherits Rectangle {
+    // action availability flags, mirroring the wx ChartsPanel conditions
+    in property <bool> enable-fft: false;
+    in property <bool> enable-step-tool: false;
+    in property <bool> has-fft-files: false;
+
+    // the tools block only appears when at least one of its actions applies
+    private property <bool> show-tools: root.enable-fft || root.enable-step-tool;
+
+    background: Palette.alternate-background;
+
+    ContextMenuArea {
+        Menu {
+            MenuItem {
+                title: "Zoom to Fit";
+                activated => { ChartsPanelActions.zoom-to-fit(); }
+            }
+            MenuItem {
+                title: "Autorange";
+                activated => { ChartsPanelActions.autorange(); }
+            }
+            MenuItem {
+                title: "Zoom Abscissa Extent";
+                activated => { ChartsPanelActions.zoom-abscissa-extent(); }
+            }
+            MenuSeparator {}
+            MenuItem {
+                title: "Add/Remove Plots";
+                activated => { ChartsPanelActions.add-remove-plots(); }
+            }
+            MenuItem {
+                title: "Delete All Plots";
+                activated => { ChartsPanelActions.delete-all-plots(); }
+            }
+            if root.show-tools: MenuSeparator {}
+            if root.enable-fft: MenuItem {
+                title: "Calculate FFT on selected plots";
+                activated => { ChartsPanelActions.calculate-fft(); }
+            }
+            if root.enable-fft && root.has-fft-files: MenuItem {
+                title: "Open Xyce FFT Calculation";
+                activated => { ChartsPanelActions.open-xyce-fft-calculation(); }
+            }
+            if root.enable-step-tool: MenuItem {
+                title: "Step Tool...";
+                activated => { ChartsPanelActions.step-tool(); }
+            }
+            MenuSeparator {}
+            MenuItem {
+                title: "Add Chart";
+                activated => { ChartsPanelActions.add-chart(); }
+            }
+            MenuItem {
+                title: "Delete Chart";
+                activated => { ChartsPanelActions.delete-chart(); }
+            }
+            MenuSeparator {}
+            MenuItem {
+                title: "New Window";
+                activated => { ChartsPanelActions.new-window(); }
+            }
+        }
+
+        // channel placeholder; chart rendering lands in a later milestone
+        Rectangle {
+            background: Palette.alternate-background;
+        }
+    }
+}
