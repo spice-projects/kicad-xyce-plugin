@@ -5,6 +5,7 @@
 #include <imgui.h>
 #include <imgui_impl_metal.h>
 #include <implot.h>
+#include <slint.h>
 #include <spdlog/spdlog.h>
 
 #include "../apple_metal.h"
@@ -117,16 +118,18 @@ namespace
 
 @end
 
-void ChartsRenderer::attach(void* content_view) {
+void ChartsRenderer::attach(slint::Window& window) {
     // check flag
     if (m_view)
         return;
-    // platform NSView*
-    auto super_view = (__bridge NSView*)content_view;
+    // the native content view may not exist yet on the very first show
+    auto super_view = window.appkit_view();
+    if (!super_view)
+        return;
     // get static reference to MetalResourceManager
     auto resource_manager = MetalResourceManager::get_instance();
     // gpu for current view (associated to current display)
-    auto gpu = resource_manager->get_gpu(content_view);
+    auto gpu = resource_manager->get_gpu((__bridge void*)super_view);
     // create the overlay view with the metal layer
     auto overlay_view = [[ChartsOverlayView alloc] initWithFrame:super_view.bounds];
     auto metal_layer = [CAMetalLayer layer];

@@ -94,10 +94,8 @@ void SlintMainWindowView::show_netlist_view() {
 void SlintMainWindowView::show_charts_view() {
     // reveal the charts panel in the content area
     m_window->set_charts_visible(true);
-#ifdef __APPLE__
     // create the charts renderer the first time the charts panel is shown
     ensure_charts_renderer();
-#endif
 }
 
 void SlintMainWindowView::set_netlist_editor_content(const std::string& content) {
@@ -141,16 +139,22 @@ bool SlintMainWindowView::simulation_output_panel_hidden() const { return true; 
 bool SlintMainWindowView::simulation_output_has_content() const { return false; }
 
 void SlintMainWindowView::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
-#ifdef __APPLE__
-    // chart data update lands with the data path wiring; keep the renderer alive
-    // and ready for when the renderer is driven
+    // the presenter updates the charts before showing the charts view, so create
+    // the renderer here if it does not exist yet (the attach/set_frame work is
+    // shared with ensure_charts_renderer and is a no-op when already created)
+    ensure_charts_renderer();
+    // forward the data to the renderer
     if (m_charts_renderer) {
         m_charts_renderer->update(expression_manager, step_information, abscissa_scale, suggested_plots);
     }
-#endif
 }
 
-void SlintMainWindowView::delete_all_charts() { spdlog::info("delete charts"); }
+void SlintMainWindowView::delete_all_charts() {
+    // the renderer may not exist yet on the first file open
+    if (m_charts_renderer) {
+        m_charts_renderer->delete_all_charts();
+    }
+}
 
 void SlintMainWindowView::set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>&) { spdlog::info("set fft files"); }
 
@@ -192,19 +196,14 @@ void SlintMainWindowView::handle_open() {
     }
 }
 
-#ifdef __APPLE__
 void SlintMainWindowView::ensure_charts_renderer() {
     // the renderer already exists
-    if (m_charts_renderer) {
+    if (m_charts_renderer)
         return;
-    }
-    // the content view may not exist yet on the very first show
-    if (!m_window->window().appkit_view()) {
-        return;
-    }
-    // attach the renderer on the first charts panel show
+    // create the renderer on the first charts panel show
     m_charts_renderer = std::make_unique<ChartsRenderer>();
-    m_charts_renderer->attach(m_window->window().appkit_view());
+    // attach the renderer to the slint window; the platform backend extracts the native content view (NSView on macOS)
+    m_charts_renderer->attach(m_window->window());
     // position the renderer over the charts panel region and render a frame
     const auto size = m_window->window().size();
     const auto scale = m_window->window().scale_factor();
@@ -212,8 +211,8 @@ void SlintMainWindowView::ensure_charts_renderer() {
     // view is flipped (upper-left origin), so offset from the top
     const uint32_t toolbar_px = static_cast<uint32_t>(59 * scale);
     m_charts_renderer->set_frame(0, toolbar_px, size.width, size.height - toolbar_px, scale);
-    // initialize the ImGui/ImPlot backend and render the first frame
+    // initialize the ImGui/ImPlot backend
     m_charts_renderer->initialize();
+    // render the first frame
     m_charts_renderer->render();
 }
-#endif

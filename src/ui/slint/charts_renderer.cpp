@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <format>
 #include <set>
 
 #include <imgui.h>
@@ -85,40 +86,41 @@ void ChartsRenderer::update_delta_time() {
 }
 
 void ChartsRenderer::render() {
-    // render a placeholder host window; the chart UI replaces this body once the
-    // data path is wired in stage 2
+    // render the charts panel UI within the native frame
     render_frame([this]() -> void {
         // remove padding around the panel
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        // full-area host window proving the ImGui/ImPlot pipeline
-        if (ImGui::Begin("Charts Renderer", nullptr, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs)) {
-            // available area
-            const ImVec2 total_space = ImGui::GetContentRegionAvail();
-            // plot placeholder covering the panel
-            if (ImPlot::BeginPlot("Host Plot", ImVec2(total_space.x, total_space.y), ImPlotFlags_NoLegend | ImPlotFlags_NoInputs | ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect)) {
-                // axis setup
-                ImPlot::SetupAxes("x", "y");
-                // sample a sine wave so the pipeline is visibly alive
-                static const std::vector<float> x = []() {
-                    std::vector<float> values;
-                    for (int i = 0; i < 100; ++i)
-                        values.push_back(static_cast<float>(i) / 10.0f);
-                    return values;
-                }();
-                static const std::vector<float> y = []() {
-                    std::vector<float> values;
-                    for (int i = 0; i < 100; ++i)
-                        values.push_back(std::sin(static_cast<float>(i) / 10.0f));
-                    return values;
-                }();
-                // draw the sine wave
-                ImPlot::PlotLine("sin(x)", x.data(), y.data(), static_cast<int>(x.size()));
-                // finalize the plot block
-                ImPlot::EndPlot();
+        // panel
+        if (ImGui::Begin("Charts Panel", nullptr, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs)) {
+            // check we have charts to render
+            if (!m_charts.empty()) {
+                // available area
+                const ImVec2 total_space = ImGui::GetContentRegionAvail();
+                // chart height
+                const float height = total_space.y / static_cast<float>(m_charts.size());
+                // render charts within the native frame
+                for (size_t i = 0; i < m_charts.size(); ++i) {
+                    // area name
+                    auto name = std::format("Chart {}", i);
+                    // create child with given height, use the whole area in the horizontal
+                    if (ImGui::BeginChild(name.c_str(), ImVec2(0, height), true)) {
+                        // check current chart is selected
+                        if (i == m_selected_chart_index) {
+                            // render chart
+                            m_charts[i]->render(m_zoom_selection);
+                        }
+                        else {
+                            // render chart
+                            m_charts[i]->render({-1, -1, -1, -1});
+                        }
+                        // close
+                        ImGui::EndChild();
+                    }
+                }
             }
+            // close
+            ImGui::End();
         }
-        // close the host window
-        ImGui::End();
         // pop style var
         ImGui::PopStyleVar();
     });
@@ -216,4 +218,11 @@ void ChartsRenderer::update_decimation_target() {
         chart->set_decimate_target(target);
 }
 
-void ChartsRenderer::refresh_charts(int frames) { m_render_chart_frames = frames; }
+void ChartsRenderer::refresh_charts(int frames) {
+    // store the frame countdown for backends that need repeated frames; a single
+    // synchronous frame is enough to publish the new content on the main thread
+    m_render_chart_frames = frames;
+    // render immediately when the pipeline is alive
+    if (m_render_chart_frames > 0)
+        render();
+}

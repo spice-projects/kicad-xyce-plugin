@@ -12,15 +12,9 @@
 #include "../../config/plugin_config.h"
 #include "../../netlist/netlist_source.h"
 #include "../main_window_view.h"
+#include "charts_renderer.h"
 #include "main_window_presenter.h"
 
-#ifdef __APPLE__
-#include "charts_renderer.h"
-#endif
-
-// slint view adapter implementing the MainWindowView interface over the slint
-// MainWindow component; owns the window and the presenter and forwards the
-// global toolbar actions into the presenter methods
 class SlintMainWindowView : public MainWindowView
 {
 public:
@@ -73,7 +67,6 @@ private:
     std::string m_netlist_content;
     bool m_netlist_read_only = false;
 
-#ifdef __APPLE__
+    // platform-neutral charts renderer; the platform backend (per-platform
     std::unique_ptr<ChartsRenderer> m_charts_renderer;
-#endif
 };

@@ -10,6 +10,13 @@
 
 #include "../chart.h"
 
+// slint window abstraction; the platform backend extracts the native content
+// view (NSView on macOS, HWND on Windows, native surface on Linux)
+namespace slint
+{
+    class Window;
+}
+
 // wx-free scope guard that activates a ChartsRenderer's isolated ImGui/ImPlot
 // contexts for the duration of a scope, replacing the wx-coupled im_context.h
 class ChartsRenderer;
@@ -44,8 +51,9 @@ public:
 
     ChartsRenderer& operator=(const ChartsRenderer&) = delete;
 
-    // attach the renderer view to the given native content view (NSView on macOS)
-    void attach(void* content_view);
+    // attach the renderer view to the slint window; the platform backend
+    // extracts the native content view (NSView on macOS)
+    void attach(slint::Window& window);
 
     // detach the renderer view from its content view
     void detach();
