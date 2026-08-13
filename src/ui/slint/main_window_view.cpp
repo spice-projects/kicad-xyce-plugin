@@ -23,16 +23,19 @@ SlintMainWindowView::SlintMainWindowView(std::unique_ptr<NetlistSource> netlist_
     actions.on_show_netlist([this] {
         // switch to the netlist view and refresh the toolbar state
         show_netlist_view();
+        // refresh state
         m_presenter->refresh_action_states();
     });
     actions.on_show_charts([this] {
         // switch to the charts view and refresh the toolbar state
         show_charts_view();
+        // refresh state
         m_presenter->refresh_action_states();
     });
     actions.on_show_simulation_output([this] {
         // show the simulation output panel and refresh the toolbar state
         show_simulation_output_panel();
+        // refresh state
         m_presenter->refresh_action_states();
     });
     // simulation group
@@ -89,8 +92,12 @@ void SlintMainWindowView::show_netlist_view() {
 }
 
 void SlintMainWindowView::show_charts_view() {
-    // charts view wiring pending
-    spdlog::info("show charts view");
+    // reveal the charts panel in the content area
+    m_window->set_charts_visible(true);
+#ifdef __APPLE__
+    // create the metal overlay the first time the charts panel is shown
+    ensure_metal_overlay();
+#endif
 }
 
 void SlintMainWindowView::set_netlist_editor_content(const std::string& content) {
@@ -111,9 +118,8 @@ void SlintMainWindowView::set_netlist_editor_read_only(bool read_only) {
 }
 
 bool SlintMainWindowView::charts_shown() const {
-    // charts panel wiring pending
-    spdlog::info("charts shown check (stub)");
-    return false;
+    // report whether the charts panel is currently visible
+    return m_window->get_charts_visible();
 }
 
 void SlintMainWindowView::show_simulation_output_panel() {
@@ -163,9 +169,8 @@ void SlintMainWindowView::handle_open() {
     // run the native file dialog
     const auto filepath = FileDialog::open_xyce_file();
     // user canceled the dialog
-    if (!filepath.has_value()) {
+    if (!filepath.has_value())
         return;
-    }
     // analyze the file extension
     const auto extension = filepath->extension().string();
     // netlist file extension
@@ -181,3 +186,27 @@ void SlintMainWindowView::handle_open() {
         m_presenter->open_raw_file(filepath.value());
     }
 }
+
+#ifdef __APPLE__
+void SlintMainWindowView::ensure_metal_overlay() {
+    // the overlay already exists
+    if (m_metal_overlay) {
+        return;
+    }
+    // the content view may not exist yet on the very first show
+    if (!m_window->window().appkit_view()) {
+        return;
+    }
+    // attach the overlay on the first charts panel show
+    m_metal_overlay = std::make_unique<MetalOverlay>();
+    m_metal_overlay->attach(m_window->window().appkit_view());
+    // position the overlay over the charts panel region and render a frame
+    const auto size = m_window->window().size();
+    const auto scale = m_window->window().scale_factor();
+    // the charts panel fills the window below the 59px toolbar; the content
+    // view is flipped (upper-left origin), so offset from the top
+    const uint32_t toolbar_px = static_cast<uint32_t>(59 * scale);
+    m_metal_overlay->set_frame(0, toolbar_px, size.width, size.height - toolbar_px, scale);
+    m_metal_overlay->render();
+}
+#endif

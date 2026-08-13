@@ -1,5 +1,6 @@
 import { Palette } from "std-widgets.slint";
 import { ChartsPanel } from "charts_panel.slint";
+import { SchematicPanel } from "schematic_panel.slint";
 export { ChartsPanelActions } from "charts_panel.slint";
 
 export global MainWindowActions {
@@ -86,6 +87,10 @@ export component MainWindow inherits Window {
     in property <bool> enable-step-tool: false;
     in property <bool> has-fft-files: false;
 
+    // the charts panel is hidden by default and appears when the charts view
+    // is shown (controlled from the view adapter)
+    in property <bool> charts-visible: false;
+
     VerticalLayout {
         toolbar := Rectangle {
             background: Palette.background;
@@ -130,11 +135,24 @@ export component MainWindow inherits Window {
             }
         }
 
-        charts := ChartsPanel {
+        // body: the body container owns the exclusive content views, the
+        // schematic panel is shown by default and the charts panel replaces
+        // it once the charts view is shown (mirrors the wx content panel)
+        body := Rectangle {
             vertical-stretch: 1;
-            enable-fft: root.enable-fft;
-            enable-step-tool: root.enable-step-tool;
-            has-fft-files: root.has-fft-files;
+            background: Palette.alternate-background;
+
+            VerticalLayout {
+                if !root.charts-visible : schematic := SchematicPanel {
+                    vertical-stretch: 1;
+                }
+                if root.charts-visible : charts := ChartsPanel {
+                    vertical-stretch: 1;
+                    enable-fft: root.enable-fft;
+                    enable-step-tool: root.enable-step-tool;
+                    has-fft-files: root.has-fft-files;
+                }
+            }
         }
     }
 }

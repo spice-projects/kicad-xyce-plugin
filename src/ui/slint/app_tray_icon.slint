@@ -1,0 +1,14 @@
+export component AppTrayIcon inherits SystemTrayIcon {
+
+    icon: @image-url("../resources/window-icon-512x512.png");
+    tooltip: "Kicad Xyce Plugin";
+
+    Menu {
+        MenuItem {
+            title: "Quit";
+            activated => { quit(); }
+        }
+    }
+
+    callback quit();
+}

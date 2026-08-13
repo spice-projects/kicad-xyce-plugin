@@ -7,10 +7,16 @@
 
 #include <main_window.h>
 
+#include <slint.h>
+
 #include "../../config/plugin_config.h"
 #include "../../netlist/netlist_source.h"
 #include "../main_window_view.h"
 #include "main_window_presenter.h"
+
+#ifdef __APPLE__
+#include "../metal_overlay.h"
+#endif
 
 // slint view adapter implementing the MainWindowView interface over the slint
 // MainWindow component; owns the window and the presenter and forwards the
@@ -59,8 +65,15 @@ private:
     // open file action (file dialog wiring pending)
     void handle_open();
 
+    // create the metal overlay the first time the charts panel is shown
+    void ensure_metal_overlay();
+
     slint::ComponentHandle<MainWindow> m_window;
     std::unique_ptr<SlintMainWindowPresenter> m_presenter;
     std::string m_netlist_content;
     bool m_netlist_read_only = false;
+
+#ifdef __APPLE__
+    std::unique_ptr<MetalOverlay> m_metal_overlay;
+#endif
 };
