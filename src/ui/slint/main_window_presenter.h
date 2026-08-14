@@ -45,7 +45,6 @@ public:
     void on_configure_plugin() override;
 
     // charts context menu
-    void on_chart_add_remove_plots(size_t chart_index) override;
     void on_chart_calculate_fft(size_t chart_index) override;
     void on_chart_open_xyce_fft_calculation(size_t chart_index) override;
     void on_chart_step_tool(size_t chart_index) override;

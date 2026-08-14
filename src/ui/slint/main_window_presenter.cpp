@@ -75,8 +75,6 @@ void SlintMainWindowPresenter2::on_configure_plugin() {
     spdlog::info("presenter2: configure plugin (stub)");
 }
 
-void SlintMainWindowPresenter2::on_chart_add_remove_plots(size_t chart_index) { spdlog::info("presenter2: chart add/remove plots (stub) index={}", chart_index); }
-
 void SlintMainWindowPresenter2::on_chart_calculate_fft(size_t chart_index) { spdlog::info("presenter2: chart calculate fft (stub) index={}", chart_index); }
 
 void SlintMainWindowPresenter2::on_chart_open_xyce_fft_calculation(size_t chart_index) { spdlog::info("presenter2: chart open xyce fft calculation (stub) index={}", chart_index); }

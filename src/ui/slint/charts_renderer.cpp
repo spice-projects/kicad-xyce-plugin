@@ -220,6 +220,40 @@ void ChartsRenderer::update_decimation_target() {
 
 void ChartsRenderer::refresh_charts(int frames) { m_render_chart_frames = frames; }
 
+std::vector<AnyExpression*> ChartsRenderer::all_expressions() const {
+    // nothing to list without an expression manager
+    if (m_expression_manager == nullptr)
+        return {};
+    // delegate to the expression manager
+    return m_expression_manager->expressions();
+}
+
+std::vector<AnyExpression*> ChartsRenderer::chart_selected_expressions(size_t chart_index) const {
+    // guard against an invalid chart index
+    if (chart_index >= m_charts.size())
+        return {};
+    // delegate to the chart
+    return m_charts[chart_index]->selected_expressions();
+}
+
+AnyExpression* ChartsRenderer::evaluate_expression(const std::string& expression) {
+    // nothing to evaluate without an expression manager
+    if (m_expression_manager == nullptr)
+        return nullptr;
+    // delegate to the expression manager
+    return m_expression_manager->evaluate(expression, expression);
+}
+
+void ChartsRenderer::plot_chart_expressions(size_t chart_index, const std::set<AnyExpression*>& expressions) {
+    // guard against an invalid chart index
+    if (chart_index >= m_charts.size())
+        return;
+    // plot the given expressions on the chart
+    m_charts[chart_index]->plot_series(expressions);
+    // refresh to show the updated selection
+    refresh_charts();
+}
+
 size_t ChartsRenderer::position_to_index(float position) const {
     // clamp to valid range and multiply by chart count
     if (m_charts.empty())

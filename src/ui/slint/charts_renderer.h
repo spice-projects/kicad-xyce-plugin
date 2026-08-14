@@ -89,6 +89,21 @@ public:
 
     void refresh_charts(int frames = 3);
 
+    // translate a relative Y position [0..1] to a chart index, clamped to valid range
+    [[nodiscard]] size_t position_to_index(float position) const;
+
+    // all expressions known to the loaded file, from the expression manager
+    [[nodiscard]] std::vector<AnyExpression*> all_expressions() const;
+
+    // expressions currently plotted on the chart at the given index
+    [[nodiscard]] std::vector<AnyExpression*> chart_selected_expressions(size_t chart_index) const;
+
+    // evaluate a custom expression against the expression manager, or nullptr when invalid
+    AnyExpression* evaluate_expression(const std::string& expression);
+
+    // plot the given expressions on the chart at the given index and refresh
+    void plot_chart_expressions(size_t chart_index, const std::set<AnyExpression*>& expressions);
+
     // position is a float [0..1] relative Y from the context menu
     void zoom_to_fit(float chart_position);
 
@@ -112,9 +127,6 @@ private:
     [[nodiscard]] size_t compute_decimation_target() const;
 
     void update_decimation_target();
-
-    // translate a relative Y position [0..1] to a chart index, clamped to valid range
-    [[nodiscard]] size_t position_to_index(float position) const;
 
     void on_idle();
 

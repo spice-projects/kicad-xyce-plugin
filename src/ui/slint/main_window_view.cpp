@@ -11,14 +11,14 @@
 #include "main_window_view.h"
 
 SlintMainWindowView2::SlintMainWindowView2(std::unique_ptr<NetlistSource> /*netlist_source*/, PluginConfig /*plugin_config*/) :
-    m_window(MainWindow::create()) {}
+    m_window(main_window::MainWindow::create()) {}
 
 void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
     // store the event handler reference for later use
     m_event_handler = &handler;
 
     // bind the toolbar actions to the event handler methods
-    const auto& actions = m_window->global<MainWindowActions>();
+    const auto& actions = m_window->global<main_window::MainWindowActions>();
     // file group
     actions.on_open_xyce_file([this] { handle_open(); });
     actions.on_save_netlist([this] { m_event_handler->on_save_netlist(); });
@@ -36,7 +36,7 @@ void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
 
     // charts context menu actions; chart_position is a float [0..1] from the
     // slint panel, the renderer translates it to an index using its own count
-    const auto& chart_actions = m_window->global<ChartsPanelActions>();
+    const auto& chart_actions = m_window->global<main_window::ChartsPanelActions>();
     chart_actions.on_zoom_to_fit([this](float chart_position) { m_charts_renderer->zoom_to_fit(chart_position); });
     chart_actions.on_autorange([this](float chart_position) { m_charts_renderer->autorange(chart_position); });
     chart_actions.on_zoom_abscissa_extent([this](float chart_position) { m_charts_renderer->zoom_abscissa_extent(chart_position); });
@@ -49,7 +49,7 @@ void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
     });
     chart_actions.on_delete_chart([this](float chart_position) { m_charts_renderer->delete_chart(chart_position); });
     // events that need presenter involvement: convert float to int via renderer
-    chart_actions.on_add_remove_plots([this](float chart_position) { m_event_handler->on_chart_add_remove_plots(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
+    chart_actions.on_add_remove_plots([this](float chart_position) { show_add_remove_plots_dialog(chart_position); });
     chart_actions.on_calculate_fft([this](float chart_position) { m_event_handler->on_chart_calculate_fft(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
     chart_actions.on_open_xyce_fft_calculation([this](float chart_position) { m_event_handler->on_chart_open_xyce_fft_calculation(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
     chart_actions.on_step_tool([this](float chart_position) { m_event_handler->on_chart_step_tool(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
@@ -168,6 +168,17 @@ std::optional<PluginConfig> SlintMainWindowView2::show_plugin_config_dialog(cons
 void SlintMainWindowView2::start_simulation_process(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory) { spdlog::info("start simulation: {} {} cwd={}", program, netlist_path.string(), working_directory.string()); }
 
 void SlintMainWindowView2::spawn_raw_file_window(std::shared_ptr<XyceOutputFile> /*raw_file*/) { spdlog::info("spawn raw file window"); }
+
+void SlintMainWindowView2::show_add_remove_plots_dialog(float chart_position) {
+    // the dialog needs the charts renderer, which is created on first charts show
+    ensure_charts_renderer();
+    // create the dialog view wrapper on first use
+    if (!m_add_plot_dialog) {
+        m_add_plot_dialog = std::make_unique<add_plot_dialog_view::AddPlotDialogView>(*m_charts_renderer);
+    }
+    // show the dialog for the chart at the given position
+    m_add_plot_dialog->show_for_chart(chart_position);
+}
 
 void SlintMainWindowView2::handle_open() {
     // run the native file dialog

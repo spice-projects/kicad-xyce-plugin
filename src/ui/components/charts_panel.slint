@@ -100,9 +100,11 @@ export component ChartsPanel inherits Rectangle {
             background: Palette.alternate-background;
 
             ta := TouchArea {
+
                 pointer-event(event) => {
-                    // store the Y position for context menu action handlers
+                    // right click, TODO: MacOS control-click opens the context menu at the click position
                     if (event.kind == PointerEventKind.down && event.button == PointerEventButton.right) {
+                        // store the Y position where the context menu was triggered
                         root.context-menu-y = self.mouse-y;
                         // programmatically show the context menu at the click position
                         ctx.show({ x: self.mouse-x, y: self.mouse-y });

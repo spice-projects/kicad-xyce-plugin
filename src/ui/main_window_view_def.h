@@ -83,7 +83,6 @@ public:
     virtual void on_configure_plugin() = 0;
 
     // charts context menu
-    virtual void on_chart_add_remove_plots(size_t chart_index) = 0;
     virtual void on_chart_calculate_fft(size_t chart_index) = 0;
     virtual void on_chart_open_xyce_fft_calculation(size_t chart_index) = 0;
     virtual void on_chart_step_tool(size_t chart_index) = 0;

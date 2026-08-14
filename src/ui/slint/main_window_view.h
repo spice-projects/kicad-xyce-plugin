@@ -12,6 +12,7 @@
 #include "../../config/plugin_config.h"
 #include "../../netlist/netlist_source.h"
 #include "../main_window_view_def.h"
+#include "add_plot_dialog_view.h"
 #include "charts_renderer.h"
 
 class SlintMainWindowView2 : public MainWindowViewDef
@@ -63,11 +64,16 @@ private:
     // create the charts renderer the first time the charts panel is shown
     void ensure_charts_renderer();
 
-    slint::ComponentHandle<MainWindow> m_window;
+    void show_add_remove_plots_dialog(float chart_position);
+
+    slint::ComponentHandle<main_window::MainWindow> m_window;
     MainWindowViewDefEvents* m_event_handler = nullptr;
     std::string m_netlist_content;
     bool m_netlist_read_only = false;
 
     // platform-neutral charts renderer
     std::unique_ptr<ChartsRenderer> m_charts_renderer;
+
+    // add plot dialog, kept alive for the lifetime of the view
+    std::unique_ptr<add_plot_dialog_view::AddPlotDialogView> m_add_plot_dialog;
 };

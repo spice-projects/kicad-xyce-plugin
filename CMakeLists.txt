@@ -80,9 +80,6 @@ protobuf_generate(
     OUT_VAR KICAD_PROTO_GENERATED_SOURCES
 )
 
-# gather slint sources (all platforms)
-file(GLOB_RECURSE SLINT_SOURCES "src/*.slint")
-
 # gather cpp sources (all platforms)
 file(GLOB_RECURSE CPP_SOURCES "src/*.cpp")
 
@@ -164,8 +161,17 @@ endif()
 # same way the wxWidgets IconManager embeds its icon bundles
 set_property(TARGET kicad-xyce-core PROPERTY SLINT_EMBED_RESOURCES embed-files)
 
-# slint
-slint_target_sources(kicad-xyce-core ${SLINT_SOURCES})
+# Only root widgets (windows/dialogs) are compiled as independent Slint roots.
+# Shared components under src/ui/components/ are purely imported by these roots
+# and are never compiled standalone, so they are excluded here. Each root is
+# compiled into its own C++ namespace: the Slint compiler emits the embedded
+# image/font tables (slint_embedded_resource_*) with the same global symbol
+# names in every root, so distinct namespaces prevent duplicate symbols.
+file(GLOB_RECURSE SLINT_WIDGET_SOURCES "src/ui/widgets/*.slint")
+foreach(widget_source IN LISTS SLINT_WIDGET_SOURCES)
+    get_filename_component(widget_namespace ${widget_source} NAME_WE)
+    slint_target_sources(kicad-xyce-core ${widget_source} NAMESPACE ${widget_namespace})
+endforeach()
 
 # the application executable owns only the wxApp entry point
 add_executable(kicad-xyce-plugin src/main.cpp)
