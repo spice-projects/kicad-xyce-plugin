@@ -82,6 +82,11 @@ public:
     // plugin configuration
     virtual void on_configure_plugin() = 0;
 
+    // accepted plugin configuration delivered by the view after the config
+    // dialog closes; the slint dialog is non-modal, so the view reports the
+    // result asynchronously instead of through show_plugin_config_dialog()
+    virtual void on_plugin_config_dialog_result(const PluginConfig& config) = 0;
+
     // charts context menu
     virtual void on_chart_calculate_fft(size_t chart_index) = 0;
     virtual void on_chart_open_xyce_fft_calculation(size_t chart_index) = 0;

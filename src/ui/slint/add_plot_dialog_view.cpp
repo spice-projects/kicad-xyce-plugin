@@ -8,6 +8,7 @@
 
 #include <add_plot_dialog.h>
 
+#include "../../util.h"
 #include "add_plot_dialog_view.h"
 
 namespace add_plot_dialog_view
@@ -15,11 +16,6 @@ namespace add_plot_dialog_view
     namespace
     {
         slint::SharedString to_shared_string(std::string value) { return slint::SharedString(value); }
-
-        std::string to_lower(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            return value;
-        }
     } // namespace
 
     struct AddPlotDialogView::Impl
@@ -29,6 +25,10 @@ namespace add_plot_dialog_view
 
         // the slint dialog window, created lazily on the first use
         slint::ComponentHandle<add_plot_dialog::AddPlotDialog> dialog;
+
+        // notified on both accept and cancel, after the dialog window is hidden;
+        // the caller releases the modal state from here
+        std::function<void()> on_closed;
 
         // expression model shown in the dialog grid; the dialog uses the indices
         // of this model in the expression-clicked callback
@@ -164,6 +164,9 @@ namespace add_plot_dialog_view
             }
             // hide the dialog before applying the selection
             dialog->hide();
+            // release the modal state held by the caller
+            if (on_closed)
+                on_closed();
             // apply the selection to the chart
             renderer.plot_chart_expressions(chart_index, selected);
         }
@@ -171,6 +174,9 @@ namespace add_plot_dialog_view
         void dismiss() {
             // hide the dialog and drop the pending state
             dialog->hide();
+            // release the modal state held by the caller
+            if (on_closed)
+                on_closed();
         }
 
         // active filter text, reapplied when the item list changes
@@ -182,7 +188,14 @@ namespace add_plot_dialog_view
 
     AddPlotDialogView::~AddPlotDialogView() = default;
 
-    void AddPlotDialogView::show_for_chart(float chart_position) {
+    slint::Window& AddPlotDialogView::window() {
+        // expose the dialog window (dialog must be shown first)
+        return m_impl->dialog->window();
+    }
+
+    void AddPlotDialogView::show_for_chart(float chart_position, const std::function<void()>& on_closed) {
+        // remember the close notification for this show
+        m_impl->on_closed = on_closed;
         // resolve the chart index from the panel position
         m_impl->chart_index = m_impl->renderer.position_to_index(chart_position);
         // rebuild the expression list for the current state

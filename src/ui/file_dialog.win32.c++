@@ -11,3 +11,10 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_file() {
     // no file selected
     return std::nullopt;
 }
+
+std::optional<std::filesystem::path> FileDialog::open_xyce_executable() {
+    // native win32 dialog not implemented yet
+    spdlog::warn("open-xyce-executable: win32 file dialog not implemented");
+    // no file selected
+    return std::nullopt;
+}

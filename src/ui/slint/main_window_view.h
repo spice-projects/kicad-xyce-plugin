@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <main_window.h>
@@ -14,6 +15,8 @@
 #include "../main_window_view_def.h"
 #include "add_plot_dialog_view.h"
 #include "charts_renderer.h"
+#include "modal_manager.h"
+#include "plugin_config_dialog_view.h"
 
 class SlintMainWindowView2 : public MainWindowViewDef
 {
@@ -66,6 +69,30 @@ private:
 
     void show_add_remove_plots_dialog(float chart_position);
 
+    // modal dialog lifecycle: dialogs are mutually exclusive (only the main
+    // window opens them), so a single flag gates all of them
+    bool begin_modal_dialog();
+
+    void end_modal_dialog();
+
+    // invoke the given callback only when no modal dialog is open; rejects the
+    // interaction otherwise, as the caller cannot act behind a modal dialog
+    template <typename Fn>
+    void guard_modal(Fn&& fn) {
+        // check another modal dialog is not open; if it is, reject the interaction
+        if (m_modal_dialog_open)
+            return;
+        // invoke the callback, which may open a modal dialog and set the modal state
+        std::forward<Fn>(fn)();
+    }
+
+    // track whether a modal dialog is currently open
+    bool m_modal_dialog_open = false;
+
+    // the window of the dialog currently open, used to restore the native
+    // parent/dialog relationship when the modal state is released
+    slint::Window* m_modal_dialog_window = nullptr;
+
     slint::ComponentHandle<main_window::MainWindow> m_window;
     MainWindowViewDefEvents* m_event_handler = nullptr;
     std::string m_netlist_content;
@@ -76,4 +103,7 @@ private:
 
     // add plot dialog, kept alive for the lifetime of the view
     std::unique_ptr<add_plot_dialog_view::AddPlotDialogView> m_add_plot_dialog;
+
+    // plugin config dialog, kept alive for the lifetime of the view
+    std::unique_ptr<plugin_config_dialog_view::PluginConfigDialogView> m_plugin_config_dialog;
 };

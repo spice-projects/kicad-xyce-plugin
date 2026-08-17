@@ -40,3 +40,25 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_file() {
     // convert the cocoa path to std::filesystem::path
     return std::filesystem::path(std::string(url.path.UTF8String));
 }
+
+std::optional<std::filesystem::path> FileDialog::open_xyce_executable() {
+    // create the native open panel
+    NSOpenPanel* panel = [NSOpenPanel openPanel];
+    // configure the dialog for a single existing file; no content type filter
+    // so any executable file is selectable (mirrors the wx "All files (*)|*"
+    // wildcard used for the Xyce executable)
+    panel.title = @"Select Xyce Executable";
+    panel.canChooseFiles = YES;
+    panel.canChooseDirectories = NO;
+    panel.allowsMultipleSelection = NO;
+    panel.allowedContentTypes = nil;
+    // run the dialog modally
+    if ([panel runModal] != NSModalResponseOK) {
+        // user canceled the dialog
+        return std::nullopt;
+    }
+    // selected file url
+    NSURL* url = [panel URL];
+    // convert the cocoa path to std::filesystem::path
+    return std::filesystem::path(std::string(url.path.UTF8String));
+}

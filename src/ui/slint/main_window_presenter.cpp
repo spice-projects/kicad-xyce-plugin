@@ -11,9 +11,7 @@
 #include "main_window_presenter.h"
 
 SlintMainWindowPresenter2::SlintMainWindowPresenter2(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config) :
-    m_view(view), m_netlist_source(std::move(netlist_source)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(std::move(plugin_config)) {
-    spdlog::info("slint presenter2 created");
-}
+    m_view(view), m_netlist_source(std::move(netlist_source)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(std::move(plugin_config)) {}
 
 SlintMainWindowPresenter2::~SlintMainWindowPresenter2() = default;
 
@@ -71,8 +69,16 @@ void SlintMainWindowPresenter2::on_configure_simulation() {
 }
 
 void SlintMainWindowPresenter2::on_configure_plugin() {
-    // dialog wiring pending; presenter opens the plugin configuration dialog
-    spdlog::info("presenter2: configure plugin (stub)");
+    // the view owns the config dialog; it seeds it with the current config and
+    // reports the accepted result back through on_plugin_config_dialog_result
+    static_cast<void>(m_view.show_plugin_config_dialog(m_plugin_config));
+}
+
+void SlintMainWindowPresenter2::on_plugin_config_dialog_result(const PluginConfig& config) {
+    // log the update before applying
+    spdlog::info("Plugin configuration updated: Xyce path = {}", m_plugin_config.xyce_executable_path());
+    // store the updated plugin configuration
+    m_plugin_config = config;
 }
 
 void SlintMainWindowPresenter2::on_chart_calculate_fft(size_t chart_index) { spdlog::info("presenter2: chart calculate fft (stub) index={}", chart_index); }

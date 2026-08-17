@@ -91,6 +91,13 @@ export component MainWindow inherits Window {
     // is shown (controlled from the view adapter)
     in property <bool> charts-visible: false;
 
+    // a modal dialog is open, the window dims and must not accept input; the
+    // slint dialog is a separate native window, so the OS window input block
+    // (per-platform helper) is what actually enforces modality
+    in property <bool> modal-active: false;
+
+    background: root.modal-active ? Palette.background.transparentize(0.35) : Palette.background;
+
     VerticalLayout {
         toolbar := Rectangle {
             background: Palette.background;

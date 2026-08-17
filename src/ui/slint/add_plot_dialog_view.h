@@ -1,6 +1,9 @@
 #pragma once
 
+#include <functional>
 #include <memory>
+
+#include <slint.h>
 
 #include "charts_renderer.h"
 
@@ -21,8 +24,14 @@ namespace add_plot_dialog_view
 
         ~AddPlotDialogView();
 
-        // shows the dialog for the chart at the given panel position [0, 1]
-        void show_for_chart(float chart_position);
+        // the underlying slint window of the dialog; the dialog must be shown
+        // before accessing it
+        slint::Window& window();
+
+        // shows the dialog for the chart at the given panel position [0, 1]. The
+        // on_closed callback is invoked on both accept and cancel, after the
+        // dialog window is hidden, so the caller can release the modal state.
+        void show_for_chart(float chart_position, const std::function<void()>& on_closed);
 
     private:
         struct Impl;

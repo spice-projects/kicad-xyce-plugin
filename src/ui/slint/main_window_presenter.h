@@ -43,6 +43,7 @@ public:
 
     // plugin configuration
     void on_configure_plugin() override;
+    void on_plugin_config_dialog_result(const PluginConfig& config) override;
 
     // charts context menu
     void on_chart_calculate_fft(size_t chart_index) override;

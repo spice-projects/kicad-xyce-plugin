@@ -9,6 +9,7 @@
 
 #include "../file_dialog.h"
 #include "main_window_view.h"
+#include "modal_manager.h"
 
 SlintMainWindowView2::SlintMainWindowView2(std::unique_ptr<NetlistSource> /*netlist_source*/, PluginConfig /*plugin_config*/) :
     m_window(main_window::MainWindow::create()) {}
@@ -16,23 +17,27 @@ SlintMainWindowView2::SlintMainWindowView2(std::unique_ptr<NetlistSource> /*netl
 void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
     // store the event handler reference for later use
     m_event_handler = &handler;
-
     // bind the toolbar actions to the event handler methods
     const auto& actions = m_window->global<main_window::MainWindowActions>();
     // file group
     actions.on_open_xyce_file([this] { handle_open(); });
-    actions.on_save_netlist([this] { m_event_handler->on_save_netlist(); });
+    actions.on_save_netlist([this] { guard_modal([this] { m_event_handler->on_save_netlist(); }); });
     // content view group
-    actions.on_show_netlist([this] { m_event_handler->on_show_netlist(); });
-    actions.on_show_charts([this] { m_event_handler->on_show_charts(); });
-    actions.on_show_simulation_output([this] { m_event_handler->on_show_simulation_output(); });
+    actions.on_show_netlist([this] { guard_modal([this] { m_event_handler->on_show_netlist(); }); });
+    actions.on_show_charts([this] { guard_modal([this] { m_event_handler->on_show_charts(); }); });
+    actions.on_show_simulation_output([this] { guard_modal([this] { m_event_handler->on_show_simulation_output(); }); });
     // simulation group
-    actions.on_run_simulation([this] { m_event_handler->on_run_simulation(); });
-    actions.on_configure_simulation([this] { m_event_handler->on_configure_simulation(); });
+    actions.on_run_simulation([this] { guard_modal([this] { m_event_handler->on_run_simulation(); }); });
+    actions.on_configure_simulation([this] { guard_modal([this] { m_event_handler->on_configure_simulation(); }); });
     // plugin configuration
-    actions.on_configure_plugin([this] { m_event_handler->on_configure_plugin(); });
+    actions.on_configure_plugin([this] { guard_modal([this] { m_event_handler->on_configure_plugin(); }); });
     // exit
-    actions.on_exit([this] { m_window->hide(); });
+    actions.on_exit([this] {
+        // do not close the window while a modal dialog is open
+        if (m_modal_dialog_open)
+            return;
+        m_window->hide();
+    });
 
     // charts context menu actions; chart_position is a float [0..1] from the
     // slint panel, the renderer translates it to an index using its own count
@@ -78,6 +83,9 @@ void SlintMainWindowView2::set_status_text(const std::string& text) {
 }
 
 void SlintMainWindowView2::apply_action_enablement(const ActionStateEnablement& enablement) {
+    // do not re-enable toolbar actions while a modal dialog blocks input
+    if (m_modal_dialog_open)
+        return;
     // toolbar enablement bindings land with the toolbar state wiring
     spdlog::info("enablement: run={} configure={} save={}", enablement.run_simulation, enablement.configure_simulation, enablement.save);
 }
@@ -159,9 +167,27 @@ std::optional<SimulationConfig> SlintMainWindowView2::show_simulation_parameters
     return std::nullopt;
 }
 
-std::optional<PluginConfig> SlintMainWindowView2::show_plugin_config_dialog(const PluginConfig& /*current*/) {
-    // dialog wired once the plugin config dialog component is integrated
-    spdlog::info("show plugin config dialog");
+std::optional<PluginConfig> SlintMainWindowView2::show_plugin_config_dialog(const PluginConfig& current) {
+    // the presenter must be wired before the dialog can deliver its result
+    if (m_event_handler == nullptr)
+        return std::nullopt;
+    // check a modal dialog is already open, do not stack another one
+    if (!begin_modal_dialog())
+        return std::nullopt;
+    // create the dialog view wrapper on first use
+    if (!m_plugin_config_dialog)
+        m_plugin_config_dialog = std::make_unique<plugin_config_dialog_view::PluginConfigDialogView>();
+    // show the dialog seeded with the current configuration; the slint dialog is
+    // non-modal, so the accepted configuration is delivered asynchronously through
+    // MainWindowViewDefEvents::on_plugin_config_dialog_result, and the modal state
+    // (kept in this view) is released through the on_closed callback on both accept
+    // and cancel
+    m_plugin_config_dialog->show(current, *m_event_handler, [this] { end_modal_dialog(); });
+    // remember the dialog window for unblocking when it closes
+    m_modal_dialog_window = &m_plugin_config_dialog->window();
+    // block input to the native main window while the dialog is shown
+    modal_manager::set_input_blocked(window(), *m_modal_dialog_window, true);
+    // nothing to return, TODO: remove return value once wxWidgets dialog is replaced with slint
     return std::nullopt;
 }
 
@@ -170,6 +196,9 @@ void SlintMainWindowView2::start_simulation_process(const std::string& program, 
 void SlintMainWindowView2::spawn_raw_file_window(std::shared_ptr<XyceOutputFile> /*raw_file*/) { spdlog::info("spawn raw file window"); }
 
 void SlintMainWindowView2::show_add_remove_plots_dialog(float chart_position) {
+    // a modal dialog is already open, do not stack another one
+    if (!begin_modal_dialog())
+        return;
     // the dialog needs the charts renderer, which is created on first charts show
     ensure_charts_renderer();
     // create the dialog view wrapper on first use
@@ -177,7 +206,11 @@ void SlintMainWindowView2::show_add_remove_plots_dialog(float chart_position) {
         m_add_plot_dialog = std::make_unique<add_plot_dialog_view::AddPlotDialogView>(*m_charts_renderer);
     }
     // show the dialog for the chart at the given position
-    m_add_plot_dialog->show_for_chart(chart_position);
+    m_add_plot_dialog->show_for_chart(chart_position, [this] { end_modal_dialog(); });
+    // remember the dialog window for unblocking when it closes
+    m_modal_dialog_window = &m_add_plot_dialog->window();
+    // block input to the native main window while the dialog is shown
+    modal_manager::set_input_blocked(window(), *m_modal_dialog_window, true);
 }
 
 void SlintMainWindowView2::handle_open() {
@@ -208,4 +241,27 @@ void SlintMainWindowView2::ensure_charts_renderer() {
     m_charts_renderer->initialize();
     // render the first frame
     m_charts_renderer->render();
+}
+
+bool SlintMainWindowView2::begin_modal_dialog() {
+    // a modal dialog is already open, refuse to open another one
+    if (m_modal_dialog_open)
+        return false;
+    // dim the main window while a dialog is open
+    m_window->set_modal_active(true);
+    // remember the modal state
+    m_modal_dialog_open = true;
+    return true;
+}
+
+void SlintMainWindowView2::end_modal_dialog() {
+    // no modal state to release
+    if (!m_modal_dialog_open)
+        return;
+    // restore the main window input
+    modal_manager::set_input_blocked(window(), *m_modal_dialog_window, false);
+    // restore the main window appearance
+    m_window->set_modal_active(false);
+    // clear the modal state
+    m_modal_dialog_open = false;
 }

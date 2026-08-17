@@ -1,12 +1,86 @@
-import { AboutSlint, VerticalBox } from "std-widgets.slint";
+import { Button, LineEdit, Palette, StandardButton } from "std-widgets.slint";
 
-export component MainWindow inherits Window {
-    VerticalBox {
-        Text {
-            text: "Hello World!";
-        }
-        AboutSlint {
-            preferred-height: 150px;
+// form row: bold macOS-style field label (fixed width for column alignment)
+// followed by the injected controls
+component FieldRow inherits HorizontalLayout {
+    in property <string> label;
+    spacing: 10px;
+
+    Text {
+        width: 120px;
+        text: root.label;
+        font-size: 13px;
+        font-weight: 600;
+        color: Palette.foreground;
+        horizontal-alignment: left;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    @children
+}
+
+// Xyce executable configuration dialog: path selection (read-only field +
+// native browse), validation feedback, and standard OK/Cancel actions.
+// Mirrors the wx `PluginConfigDialog` surface.
+export component PluginConfigDialog inherits Dialog {
+    title: "Plugin Configuration";
+
+    in-out property <string> xyce-path: "";
+    in property <bool> show-error: false;
+    in property <string> error-message: "";
+    in property <bool> browse-enabled: true;
+
+    callback accepted;
+    callback dismissed;
+    callback browse-clicked;
+    callback path-edited(string);
+
+    preferred-width: 540px;
+    preferred-height: 200px;
+
+    Rectangle {
+        background: Palette.background;
+        vertical-stretch: 1;
+
+        VerticalLayout {
+            padding: 14px;
+            spacing: 10px;
+
+            Text {
+                text: "Configure the Xyce executable path:";
+                font-size: 13px;
+                font-weight: 600;
+                color: Palette.foreground;
+            }
+
+            FieldRow {
+                label: "Xyce path:";
+
+                LineEdit {
+                    horizontal-stretch: 1;
+                    height: 30px;
+                    text <=> root.xyce-path;
+                    read-only: true;
+                    enabled: root.browse-enabled;
+                    edited => { root.path-edited(self.text); }
+                    accepted => { root.path-edited(self.text); }
+                }
+
+                Button {
+                    text: "Browse...";
+                    clicked => { root.browse-clicked(); }
+                }
+            }
+
+            if root.show-error: Text {
+                text: root.error-message;
+                font-size: 12px;
+                color: #cc0000;
+            }
         }
     }
+
+    StandardButton { kind: cancel; clicked => { root.dismissed(); } }
+    StandardButton { kind: ok; primary: true; clicked => { root.accepted(); } }
 }
