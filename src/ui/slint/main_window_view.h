@@ -17,6 +17,7 @@
 #include "charts_renderer.h"
 #include "modal_manager.h"
 #include "plugin_config_dialog_view.h"
+#include "simulation_parameters_dialog_view.h"
 
 class SlintMainWindowView2 : public MainWindowViewDef
 {
@@ -106,4 +107,7 @@ private:
 
     // plugin config dialog, kept alive for the lifetime of the view
     std::unique_ptr<plugin_config_dialog_view::PluginConfigDialogView> m_plugin_config_dialog;
+
+    // simulation parameters dialog, kept alive for the lifetime of the view
+    std::unique_ptr<simulation_parameters_dialog_view::SimulationParametersDialogView> m_simulation_parameters_dialog;
 };

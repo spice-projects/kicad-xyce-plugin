@@ -6,12 +6,16 @@
 #include <spdlog/spdlog.h>
 
 #include "../../file/xyce_raw_file.h"
+#include "../../kicad/kicad_session.h"
 #include "../../simulation_parameters/simulation_config.h"
 #include "../main_window_state.h"
 #include "main_window_presenter.h"
 
-SlintMainWindowPresenter2::SlintMainWindowPresenter2(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config) :
-    m_view(view), m_netlist_source(std::move(netlist_source)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(std::move(plugin_config)) {}
+SlintMainWindowPresenter2::SlintMainWindowPresenter2(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config, std::shared_ptr<KiCadSession> kicad_session) :
+    m_view(view), m_netlist_source(std::move(netlist_source)), m_kicad_session(std::move(kicad_session)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(std::move(plugin_config)) {
+    // initialize the toolbar action states before the window is shown
+    refresh_action_states();
+}
 
 SlintMainWindowPresenter2::~SlintMainWindowPresenter2() = default;
 
@@ -64,8 +68,9 @@ void SlintMainWindowPresenter2::on_run_simulation() {
 }
 
 void SlintMainWindowPresenter2::on_configure_simulation() {
-    // dialog wiring pending; presenter opens the simulation parameters dialog
-    spdlog::info("presenter2: configure simulation (stub)");
+    // the view owns the dialog; it seeds it with the current config and reports
+    // the accepted result back through on_simulation_parameters_dialog_result
+    static_cast<void>(m_view.show_simulation_parameters_dialog(m_simulation_config));
 }
 
 void SlintMainWindowPresenter2::on_configure_plugin() {
@@ -79,6 +84,11 @@ void SlintMainWindowPresenter2::on_plugin_config_dialog_result(const PluginConfi
     spdlog::info("Plugin configuration updated: Xyce path = {}", m_plugin_config.xyce_executable_path());
     // store the updated plugin configuration
     m_plugin_config = config;
+}
+
+void SlintMainWindowPresenter2::on_simulation_parameters_dialog_result(const SimulationConfig& config) {
+    // store the updated simulation configuration
+    m_simulation_config = config;
 }
 
 void SlintMainWindowPresenter2::on_chart_calculate_fft(size_t chart_index) { spdlog::info("presenter2: chart calculate fft (stub) index={}", chart_index); }
@@ -101,8 +111,16 @@ void SlintMainWindowPresenter2::on_netlist_editor_modified() {
 }
 
 void SlintMainWindowPresenter2::on_extract_schematic_netlist() {
-    // kiCad integration wiring pending
-    spdlog::info("presenter2: extract schematic netlist (stub)");
+    // extract the netlist from the schematic through the session-backed source
+    const auto [reloaded, content] = m_netlist_source->load_netlist();
+    // ensure the editor content matches the schematic netlist
+    update_netlist_editor_content(content, false);
+    // keep the netlist editor read-only in KiCad plugin mode
+    m_view.set_netlist_editor_read_only(true);
+    // show the netlist editor over the charts view
+    m_view.show_netlist_view();
+    // refresh toolbar/menu states
+    refresh_action_states();
 }
 
 std::shared_ptr<XyceSimulationRunner> SlintMainWindowPresenter2::simulation_runner() const {
@@ -131,7 +149,13 @@ void SlintMainWindowPresenter2::refresh_action_states() {
     input.output_hidden = m_view.simulation_output_panel_hidden();
     input.log_has_content = m_view.simulation_output_has_content();
     // compute the action enablement for the current state
-    const ActionStateEnablement enablement = compute_action_enablement(input);
+    ActionStateEnablement enablement = compute_action_enablement(input);
+    // file actions are only available in standalone mode; KiCad provides the
+    // netlist, so there is no file to load/save when connected
+    if (m_kicad_session != nullptr) {
+        enablement.open = false;
+        enablement.save = false;
+    }
     // apply the enablement to the view
     m_view.apply_action_enablement(enablement);
     // forward the parsed FFT calculation files so the charts context menu can expose the action

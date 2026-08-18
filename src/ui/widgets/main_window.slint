@@ -87,6 +87,20 @@ export component MainWindow inherits Window {
     in property <bool> enable-step-tool: false;
     in property <bool> has-fft-files: false;
 
+    // simulation actions are enabled only when a netlist is loaded (or the app
+    // is connected to KiCad); driven from apply_action_enablement
+    in property <bool> enable-run-simulation: false;
+    in property <bool> enable-configure-simulation: false;
+
+    // content-view switching actions; also driven from apply_action_enablement
+    in property <bool> enable-show-netlist: false;
+    in property <bool> enable-show-charts: false;
+    in property <bool> enable-show-sim-output: false;
+
+    // file actions; driven from apply_action_enablement
+    in property <bool> enable-open: false;
+    in property <bool> enable-save: false;
+
     // the charts panel is hidden by default and appears when the charts view
     // is shown (controlled from the view adapter)
     in property <bool> charts-visible: false;
@@ -112,19 +126,19 @@ export component MainWindow inherits Window {
                     spacing: 1px;
 
                     // group 1: file (standalone mode only)
-                    ToolbarButton { text: "Open"; icon: @image-url("../kicad-icons/directory_open_48.png"); clicked => { MainWindowActions.open-xyce-file(); } }
-                    ToolbarButton { text: "Save"; icon: @image-url("../kicad-icons/save_48.png"); clicked => { MainWindowActions.save-netlist(); } }
+                    ToolbarButton { text: "Open"; icon: @image-url("../kicad-icons/directory_open_48.png"); enabled: root.enable-open; clicked => { MainWindowActions.open-xyce-file(); } }
+                    ToolbarButton { text: "Save"; icon: @image-url("../kicad-icons/save_48.png"); enabled: root.enable-save; clicked => { MainWindowActions.save-netlist(); } }
                     ToolbarSeparator {}
 
                     // group 2: content views
-                    ToolbarButton { text: "Show Netlist"; icon: @image-url("../kicad-icons/netlist_48.png"); clicked => { MainWindowActions.show-netlist(); } }
-                    ToolbarButton { text: "Show Charts"; icon: @image-url("../kicad-icons/simulator_48.png"); clicked => { MainWindowActions.show-charts(); } }
-                    ToolbarButton { text: "Show Sim Output"; icon: @image-url("../kicad-icons/sim_command_48.png"); clicked => { MainWindowActions.show-simulation-output(); } }
+                    ToolbarButton { text: "Show Netlist"; icon: @image-url("../kicad-icons/netlist_48.png"); enabled: root.enable-show-netlist; clicked => { MainWindowActions.show-netlist(); } }
+                    ToolbarButton { text: "Show Charts"; icon: @image-url("../kicad-icons/simulator_48.png"); enabled: root.enable-show-charts; clicked => { MainWindowActions.show-charts(); } }
+                    ToolbarButton { text: "Show Sim Output"; icon: @image-url("../kicad-icons/sim_command_48.png"); enabled: root.enable-show-sim-output; clicked => { MainWindowActions.show-simulation-output(); } }
                     ToolbarSeparator {}
 
                     // group 3: simulation
-                    ToolbarButton { text: "Run"; icon: @image-url("../kicad-icons/sim_run_48.png"); clicked => { MainWindowActions.run-simulation(); } }
-                    ToolbarButton { text: "Configure"; icon: @image-url("../kicad-icons/sim_tune_48.png"); clicked => { MainWindowActions.configure-simulation(); } }
+                    ToolbarButton { text: "Run"; icon: @image-url("../kicad-icons/sim_run_48.png"); enabled: root.enable-run-simulation; clicked => { MainWindowActions.run-simulation(); } }
+                    ToolbarButton { text: "Configure"; icon: @image-url("../kicad-icons/sim_tune_48.png"); enabled: root.enable-configure-simulation; clicked => { MainWindowActions.configure-simulation(); } }
                     ToolbarSeparator {}
 
                     // group 4: plugin configuration

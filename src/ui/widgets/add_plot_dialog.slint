@@ -37,83 +37,101 @@ export component AddPlotDialog inherits Dialog {
     callback accepted;
     callback dismissed;
     callback expression-clicked(int);
+    callback expression-right-clicked(int);
     callback filter-changed(string);
     callback custom-add;
 
     preferred-width: 600px;
     preferred-height: 560px;
 
-    Rectangle {
-        background: Palette.background;
+    forward-focus: focus-scope;
 
-        VerticalLayout {
-            padding: 14px;
-            spacing: 10px;
+    focus-scope := FocusScope {
 
-            Text {
-                text: "Select one or more expressions to plot:";
-                font-size: 13px;
-                font-weight: 600;
-                color: Palette.foreground;
+        key-pressed(event) => {
+            // dismiss the dialog on escape, but don't propagate the event to the parent
+            if event.text == Key.Escape {
+                root.dismissed();
+                accept
+            } 
+            else {
+                reject
             }
+        }
 
-            LineEdit {
-                height: 30px;
-                placeholder-text: root.filter-placeholder;
-                text <=> root.filter-text;
-                edited => { root.filter-changed(self.text); }
-            }
+        Rectangle {
+            background: Palette.background;
 
-            ExpressionGrid {
-                vertical-stretch: 1;
-                expressions: root.expressions;
-                expression-clicked(i) => { root.expression-clicked(i); }
-            }
-
-            if root.show-error: Text {
-                text: "Invalid expression";
-                font-size: 12px;
-                color: #ff3b30;
-            }
-
-            if root.allow-custom-expressions: HorizontalLayout {
-                spacing: 8px;
+            VerticalLayout {
+                padding: 14px;
+                spacing: 10px;
 
                 Text {
-                    text: "Expression:";
+                    text: "Select one or more expressions to plot:";
                     font-size: 13px;
+                    font-weight: 600;
                     color: Palette.foreground;
-                    vertical-alignment: center;
                 }
 
                 LineEdit {
-                    placeholder-text: root.custom-hint;
-                    height: 30px;
-                    horizontal-stretch: 1;
-                    text <=> root.custom-text;
-                    accepted => { root.custom-add(); }
+                    height: 28px;
+                    placeholder-text: root.filter-placeholder;
+                    text <=> root.filter-text;
+                    edited => { root.filter-changed(self.text); }
                 }
 
-                Button {
-                    text: "Add";
-                    clicked => { root.custom-add(); }
+                ExpressionGrid {
+                    vertical-stretch: 1;
+                    expressions: root.expressions;
+                    expression-clicked(i) => { root.expression-clicked(i); }
+                    expression-right-clicked(i) => { root.expression-right-clicked(i); }
                 }
-            }
 
-            Rectangle {
-                height: 1px;
-                background: Palette.border;
-            }
+                if root.show-error: Text {
+                    text: "Invalid expression";
+                    font-size: 12px;
+                    color: #ff3b30;
+                }
 
-            Legend {
-                items: [
-                    { label: "Voltage", color: #5b9bd5 },
-                    { label: "Current", color: #7cb342 },
-                    { label: "Freq", color: #e57373 },
-                    { label: "Time", color: #ba68c8 },
-                    { label: "Power", color: #ffb74d },
-                    { label: "Misc", color: #3a3d4a },
-                ];
+                if root.allow-custom-expressions: HorizontalLayout {
+                    spacing: 8px;
+
+                    Text {
+                        text: "Expression:";
+                        font-size: 13px;
+                        color: Palette.foreground;
+                        vertical-alignment: center;
+                    }
+
+                    LineEdit {
+                        placeholder-text: root.custom-hint;
+                        height: 28px;
+                        horizontal-stretch: 1;
+                        text <=> root.custom-text;
+                        accepted => { root.custom-add(); }
+                    }
+
+                    Button {
+                        text: "Add";
+                        clicked => { root.custom-add(); }
+                    }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: Palette.border;
+                }
+
+                Legend {
+                    items: [
+                        { label: "Voltage", color: #5b9bd5 },
+                        { label: "Current", color: #7cb342 },
+                        { label: "Freq", color: #e57373 },
+                        { label: "Time", color: #ba68c8 },
+                        { label: "Power", color: #ffb74d },
+                        { label: "Misc", color: #3a3d4a },
+                    ];
+                }
             }
         }
     }

@@ -87,6 +87,12 @@ public:
     // result asynchronously instead of through show_plugin_config_dialog()
     virtual void on_plugin_config_dialog_result(const PluginConfig& config) = 0;
 
+    // accepted simulation configuration delivered by the view after the
+    // simulation parameters dialog closes; the slint dialog is non-modal, so
+    // the view reports the result asynchronously instead of through
+    // show_simulation_parameters_dialog()
+    virtual void on_simulation_parameters_dialog_result(const SimulationConfig& config) = 0;
+
     // charts context menu
     virtual void on_chart_calculate_fft(size_t chart_index) = 0;
     virtual void on_chart_open_xyce_fft_calculation(size_t chart_index) = 0;

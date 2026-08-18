@@ -32,8 +32,49 @@ After editing:
 4. Summarize changed files
 5. Do not execute unit tests unless explicitly asked
 
+## UI (Slint migration)
+
+The wxWidgets UI is being migrated to Slint. The new UI lives under `src/ui`:
+
+- Root widgets (windows/dialogs): `src/ui/widgets/*.slint`
+- Shared components (imported only by roots): `src/ui/components/*.slint`
+- Host C++ (`slint.h`, wiring, platform backends): `src/ui/slint/`
+
+### Build integration (`CMakeLists.txt`)
+
+- Only `src/ui/widgets/*.slint` are compiled via `slint_target_sources(... NAMESPACE <file-stem>)`. Components under `src/ui/components/` are imported by roots only; never register them standalone.
+- Each root widget becomes a C++ namespace named after its file stem (e.g. `main_window::MainWindow`); its generated header is included with angle brackets: `#include <main_window.h>`.
+- Slint names are kebab-case; generated C++ accessors/callbacks are camelCase: property `charts-visible` → `get_charts_visible()`/`set_charts_visible()`; callback `show-charts` → `on_show_charts()`.
+- `SLINT_STYLE=cupertino`, `SLINT_FEATURE_RENDERER_SKIA=ON`, Slint pinned to `release/1` via FetchContent.
+- `@image-url()` assets are embedded with `SLINT_EMBED_RESOURCES embed-files`; image paths resolve relative to the `.slint` file (`../kicad-icons/..._48.png`).
+- Platform host code uses the suffixes `.osx.mm` / `.win32.c++` / `.linux.c++`; UI colors come from `Palette` in `std-widgets.slint`.
+
+### MVP wiring
+
+- Keep the view adapter pattern: a `*View` implements `MainWindowViewDef` and forwards user interactions through `MainWindowViewDefEvents` (the presenter implements it and never touches the UI). The parent creates both and wires them with `view->set_event_handler(*presenter)`.
+- Expose UI actions as `export global ... Actions { callback ...; }` on the root widget; bind them from `set_event_handler` via `m_window->global<...Actions>().on_<callback>(...)`.
+- Views/presenters hold `slint::ComponentHandle` members and are non-copyable/non-movable; keep them alive while the event loop runs.
+- Prefer `slint::SharedString` for string interop and `slint::VectorModel<T>` for models (`set_row_data` to update a row).
+
+### Dialogs
+
+- Slint `Dialog`s are non-modal, separate native windows. Emulate modality with `modal_manager::set_input_blocked(parent, dialog, blocked)` (per-platform); gate every dialog through the view's `begin_modal_dialog()`/`end_modal_dialog()` and wrap toolbar callbacks in `guard_modal(...)` so they are rejected while a dialog is open.
+- Each dialog wrapper (e.g. `PluginConfigDialogView`) must live in its own translation unit — generated dialog headers define a `SharedGlobals` type that conflicts with the main-window header — and uses a pimpl `Impl`. It exposes `show(...)`, an `on_closed` callback and `window()`; on accept/cancel, hide the dialog, call `on_closed()`, then deliver results through `MainWindowViewDefEvents`.
+
+### Charts renderer
+
+- `ChartsRenderer` is platform-neutral and owns isolated ImGui/ImPlot contexts; the per-platform backend (`charts_renderer.osx.mm`, ...) owns the native view/layer/font and frame encoding. The overlay must be pointer-transparent (macOS: `hitTest:` returns `nil`) so events reach Slint.
+- Always use `ChartsContextScope` (RAII) around host ImGui/ImPlot calls — never assume a global context.
+- Drive the redraw loop with a `slint::Timer` (16 ms) via `on_idle()`; position the overlay below the 59px toolbar with `set_frame(x, y, w, h, scale)`.
+- Slint passes chart interaction positions as `float [0..1]`; translate to a chart index with `ChartsRenderer::position_to_index()` before acting.
+
+### Lifecycle
+
+- `App::run()` owns the event loop: build the view + presenter, wire them, `show()`, then `slint::run_event_loop()`.
+- Known slint bug: opening the charts context menu and then quitting causes a use-after-free (see `slint-bug.md`); the workaround intentionally leaks the view/presenter on exit. Keep it until the upstream fix is vendored.
+
 ## Architecture
 
-- wxWidgets owns application lifecycle
+- Slint owns the application lifecycle (`App` singleton + `slint::run_event_loop`); wxWidgets remains a legacy dependency until the migration completes
 - Rendering components should remain independent where possible
 - Avoid unnecessary dependency coupling

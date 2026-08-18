@@ -1,26 +1,6 @@
 import { CheckBox, ComboBox, LineEdit, Palette, RadioGroup, StandardButton } from "std-widgets.slint";
 import { ExpressionItem, ExpressionGrid, Legend, LegendItem } from "../components/expression_selector.slint";
 
-// form row: bold macOS-style field label (fixed width for column alignment)
-// followed by the injected controls
-component FieldRow inherits HorizontalLayout {
-    in property <string> label;
-    spacing: 10px;
-
-    Text {
-        width: 120px;
-        text: root.label;
-        font-size: 13px;
-        font-weight: 600;
-        color: Palette.foreground;
-        horizontal-alignment: left;
-        vertical-alignment: center;
-        overflow: elide;
-    }
-
-    @children
-}
-
 // FFT setup dialog: expression picker, data-range mode, and window / format /
 // output / NP parameter rows. Mirrors the wx `FftDialog` surface.
 export component FftDialog inherits Dialog {
@@ -77,7 +57,7 @@ export component FftDialog inherits Dialog {
             }
 
             LineEdit {
-                height: 30px;
+                height: 28px;
                 placeholder-text: "Filter expressions...";
                 text <=> root.filter-text;
                 edited => { root.filter-changed(self.text); }
@@ -105,8 +85,20 @@ export component FftDialog inherits Dialog {
                 background: Palette.border;
             }
 
-            FieldRow {
-                label: "Data Range:";
+            HorizontalLayout {
+                spacing: 10px;
+
+                Text {
+                    width: 120px;
+                    text: "Data Range:";
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: Palette.foreground;
+                    horizontal-alignment: left;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
                 RadioGroup {
                     orientation: Orientation.horizontal;
                     RadioButton { text: "All"; checked: true; }
@@ -132,8 +124,20 @@ export component FftDialog inherits Dialog {
                 }
             }
 
-            FieldRow {
-                label: "Window:";
+            HorizontalLayout {
+                spacing: 10px;
+
+                Text {
+                    width: 120px;
+                    text: "Window:";
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: Palette.foreground;
+                    horizontal-alignment: left;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
                 ComboBox {
                     height: 28px;
                     model: ["Rectangular", "Hamming", "Hanning", "Blackman"];
@@ -155,8 +159,20 @@ export component FftDialog inherits Dialog {
                 }
             }
 
-            FieldRow {
-                label: "Output:";
+            HorizontalLayout {
+                spacing: 10px;
+
+                Text {
+                    width: 120px;
+                    text: "Output:";
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: Palette.foreground;
+                    horizontal-alignment: left;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
                 ComboBox {
                     height: 28px;
                     model: ["Magnitude", "Magnitude (dB)", "Phase"];
@@ -169,8 +185,20 @@ export component FftDialog inherits Dialog {
                 }
             }
 
-            FieldRow {
-                label: "FFT Points (NP):";
+            HorizontalLayout {
+                spacing: 10px;
+
+                Text {
+                    width: 120px;
+                    text: "FFT Points (NP):";
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: Palette.foreground;
+                    horizontal-alignment: left;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
                 ComboBox {
                     height: 28px;
                     model: ["256", "512", "1024", "2048", "4096", "8192", "16384", "Custom..."];

@@ -12,6 +12,7 @@
 #include "../../simulation_parameters/simulation_config.h"
 #include "../main_window_view_def.h"
 
+class KiCadSession;
 class XyceSimulationRunner;
 
 // business/orchestration logic for the slint main window, decoupled from the
@@ -21,7 +22,7 @@ class XyceSimulationRunner;
 class SlintMainWindowPresenter2 : public MainWindowViewDefEvents
 {
 public:
-    SlintMainWindowPresenter2(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config);
+    SlintMainWindowPresenter2(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config, std::shared_ptr<KiCadSession> kicad_session);
 
     ~SlintMainWindowPresenter2() override;
 
@@ -44,6 +45,9 @@ public:
     // plugin configuration
     void on_configure_plugin() override;
     void on_plugin_config_dialog_result(const PluginConfig& config) override;
+
+    // simulation configuration
+    void on_simulation_parameters_dialog_result(const SimulationConfig& config) override;
 
     // charts context menu
     void on_chart_calculate_fft(size_t chart_index) override;
@@ -82,12 +86,14 @@ private:
     void refresh_action_states();
 
     MainWindowViewDef& m_view;
+
+    std::shared_ptr<KiCadSession> m_kicad_session;
+
     std::unique_ptr<NetlistSource> m_netlist_source;
     bool m_netlist_editor_dirty = false;
     bool m_netlist_has_content = false;
 
     std::optional<std::shared_ptr<XyceOutputFile>> m_xyce_raw_file;
-
     std::vector<std::shared_ptr<XyceOutputFile>> m_fft_files;
 
     SimulationConfig m_simulation_config;

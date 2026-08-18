@@ -173,8 +173,19 @@ foreach(widget_source IN LISTS SLINT_WIDGET_SOURCES)
     slint_target_sources(kicad-xyce-core ${widget_source} NAMESPACE ${widget_namespace})
 endforeach()
 
-# the application executable owns only the wxApp entry point
-add_executable(kicad-xyce-plugin src/main.cpp)
+# if(APPLE)
+#     set_source_files_properties("plugin-icon-64x64.png" PROPERTIES MACOSX_BUNDLE_OUTPUT_DIRECTORY "Resources")
+
+#     # create bundle
+#     add_executable(kicad-xyce-plugin MACOSX_BUNDLE src/main.cpp)
+
+#     set_target_properties(kicad-xyce-plugin PROPERTIES MACOSX_BUNDLE_BUNDLE_NAME "KiCad Xyce Plugin" MACOSX_BUNDLE_GUI_IDENTIFIER "com.github.spice-projects.kicad-xyce-plugin")
+    
+# else()
+    # declare application
+    add_executable(kicad-xyce-plugin src/main.cpp)
+# endif()
+
 target_link_libraries(kicad-xyce-plugin PRIVATE kicad-xyce-core)
 
 if(WIN32)

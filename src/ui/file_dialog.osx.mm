@@ -44,14 +44,16 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_file() {
 std::optional<std::filesystem::path> FileDialog::open_xyce_executable() {
     // create the native open panel
     NSOpenPanel* panel = [NSOpenPanel openPanel];
-    // configure the dialog for a single existing file; no content type filter
-    // so any executable file is selectable (mirrors the wx "All files (*)|*"
-    // wildcard used for the Xyce executable)
+    // configure the dialog for a single existing file; restrict the allowed
+    // types to the abstract "item" type, which every file conforms to, so any
+    // executable is selectable (mirrors the wx "All files (*)|*" wildcard used
+    // for the Xyce executable). A nil/empty content type array is rejected by
+    // the AppKit assertion in setAllowedContentTypes:.
     panel.title = @"Select Xyce Executable";
     panel.canChooseFiles = YES;
     panel.canChooseDirectories = NO;
     panel.allowsMultipleSelection = NO;
-    panel.allowedContentTypes = nil;
+    panel.allowedContentTypes = @[ UTTypeItem ];
     // run the dialog modally
     if ([panel runModal] != NSModalResponseOK) {
         // user canceled the dialog

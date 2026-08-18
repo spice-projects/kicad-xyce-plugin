@@ -33,10 +33,7 @@ namespace plugin_config_dialog_view
 
         Impl() :
             dialog(plugin_config_dialog::PluginConfigDialog::create()) {
-            connect_callbacks();
-        }
-
-        void connect_callbacks() {
+            // wire callbacks
             dialog->on_browse_clicked([this] { browse(); });
             dialog->on_accepted([this] { accept(); });
             dialog->on_dismissed([this] { dismiss(); });
@@ -56,31 +53,35 @@ namespace plugin_config_dialog_view
         void accept() {
             // read the path and trim surrounding whitespace
             const std::string raw = std::string(dialog->get_xyce_path());
-            const auto first = raw.find_first_not_of(" \t\r\n");
-            if (first == std::string::npos) {
-                // require a non-empty path so the plugin can launch Xyce
-                dialog->set_error_message(slint::SharedString(REQUIRED_ERROR));
-                dialog->set_show_error(true);
+            // check non-empty path
+            if (const auto first = raw.find_first_not_of(" \t\r\n"); first != std::string::npos) {
+                // trim
+                const auto last = raw.find_last_not_of(" \t\r\n");
+                const PluginConfig config(raw.substr(first, last - first + 1));
+                // reject path values that are not executable files
+                if (!config.is_xyce_executable_valid()) {
+                    // show error message
+                    dialog->set_error_message(slint::SharedString(INVALID_ERROR));
+                    dialog->set_show_error(true);
+                    // exit
+                    return;
+                }
+                // persist the validated configuration
+                config.save();
+                // close the dialog before delivering the result
+                dialog->hide();
+                // release the modal state held by the caller
+                if (on_closed)
+                    on_closed();
+                // deliver the updated configuration to the presenter
+                if (handler != nullptr)
+                    handler->on_plugin_config_dialog_result(config);
+                // exit
                 return;
             }
-            const auto last = raw.find_last_not_of(" \t\r\n");
-            const PluginConfig config(raw.substr(first, last - first + 1));
-            // reject path values that are not executable files
-            if (!config.is_xyce_executable_valid()) {
-                dialog->set_error_message(slint::SharedString(INVALID_ERROR));
-                dialog->set_show_error(true);
-                return;
-            }
-            // persist the validated configuration
-            config.save();
-            // close the dialog before delivering the result
-            dialog->hide();
-            // release the modal state held by the caller
-            if (on_closed)
-                on_closed();
-            // deliver the updated configuration to the presenter
-            if (handler != nullptr)
-                handler->on_plugin_config_dialog_result(config);
+            // require a non-empty path so the plugin can launch Xyce
+            dialog->set_error_message(slint::SharedString(REQUIRED_ERROR));
+            dialog->set_show_error(true);
         }
 
         void dismiss() {

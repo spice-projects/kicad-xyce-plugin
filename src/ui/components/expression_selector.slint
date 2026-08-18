@@ -35,6 +35,7 @@ component ExpressionChip inherits Rectangle {
     in property <color> dot-color;
     in property <bool> selected: false;
     callback clicked;
+    callback right-clicked;
 
     height: 32px;
     border-radius: 8px;
@@ -87,6 +88,11 @@ component ExpressionChip inherits Rectangle {
 
     touch := TouchArea {
         mouse-cursor: pointer;
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down && event.button == PointerEventButton.right) {
+                root.right-clicked();
+            }
+        }
         clicked => {
             root.clicked();
         }
@@ -97,6 +103,7 @@ component ExpressionChip inherits Rectangle {
 export component ExpressionGrid inherits ScrollView {
     in property <[ExpressionItem]> expressions;
     callback expression-clicked(int);
+    callback expression-right-clicked(int);
 
     private property <length> gap: 8px;
     private property <int> columns: max(1, Math.round(self.width / 190px));
@@ -121,6 +128,9 @@ export component ExpressionGrid inherits ScrollView {
         selected: exp.selected;
         clicked => {
             root.expression-clicked(index);
+        }
+        right-clicked => {
+            root.expression-right-clicked(index);
         }
     }
 }

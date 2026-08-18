@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <cctype>
 #include <memory>
 #include <string>
@@ -7,6 +6,8 @@
 #include <spdlog/spdlog.h>
 
 #include "app.h"
+#include "util.h"
+
 #include "kicad/kicad_session.h"
 #include "ui/editor_netlist_source.h"
 #include "ui/slint/main_window_presenter.h"
@@ -19,34 +20,6 @@ App& App::instance() {
 
 App::~App() = default;
 
-int App::run() {
-    // build a session when running as a KiCad plugin
-    auto session = KiCadSession::from_environment();
-    // share the session with the app when present
-    if (session)
-        m_kicad_session = std::make_shared<KiCadSession>(std::move(*session));
-    // create the view and presenter separately; the parent owns both and wires them together so neither knows about the other at compile time
-    auto view = std::make_unique<SlintMainWindowView2>(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), PluginConfig::load());
-    auto presenter = std::make_unique<SlintMainWindowPresenter2>(*view, std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), PluginConfig::load());
-    // wire the event handler so the view forwards user interactions to the presenter
-    view->set_event_handler(*presenter);
-    // show the main window
-    view->show();
-    // run the slint event loop until the last window closes
-    slint::run_event_loop();
-    // WORKAROUND (see slint-bug.md): slint 1.17.1 caches the native context menu item tree in
-    // WinitWindowAdapter::context_menu and never releases it, and that field is declared after the
-    // renderer, so destroying the window frees the skia renderer first and the cached menu item tree
-    // then calls free_graphics_resources() on it. The result is a use-after-free that aborts on exit
-    // as soon as the charts context menu has been opened once. Intentionally leak the view (and the
-    // presenter it is wired to) so the window adapter is never destroyed; the process is exiting and
-    // the OS reclaims the memory. Remove once the slint bug is fixed.
-    (void)view.release();
-    (void)presenter.release();
-    // the event loop exited, end the application
-    return 0;
-}
-
 void App::initialize(int argc, char** argv) {
     // parse command line arguments
     for (int i = 1; i < argc; ++i) {
@@ -57,8 +30,8 @@ void App::initialize(int argc, char** argv) {
         else if (std::string(argv[i]).starts_with("--log-level="))
             m_log_level = std::string(argv[i]).substr(12);
     }
-    // normalize to lowercase (matches prior wxString::Lower() behaviour)
-    std::transform(m_log_level.begin(), m_log_level.end(), m_log_level.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    // normalize to lowercase
+    m_log_level = to_lower(m_log_level);
     // apply the configured log level
     setup_logger();
     // run platform-specific initialization (dock icon, etc.)
@@ -83,4 +56,42 @@ void App::setup_logger() {
         spdlog::set_level(spdlog::level::err);
         return;
     }
+}
+
+int App::run() {
+    // build a session when running as a KiCad plugin
+    auto session = KiCadSession::from_environment();
+    // share the session with the app when present
+    if (session)
+        m_kicad_session = std::make_shared<KiCadSession>(std::move(*session));
+    // create the view and presenter separately; the parent owns both and wires them together so neither knows about the other at compile time
+    auto view = std::make_unique<SlintMainWindowView2>(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), PluginConfig::load());
+    // the presenter netlist source: the schematic-backed source when running as a
+    // KiCad plugin (taken from the session), or an editable editor source standalone
+    std::unique_ptr<NetlistSource> netlist_source;
+    if (m_kicad_session != nullptr)
+        netlist_source = m_kicad_session->take_netlist_source();
+    else
+        netlist_source = std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{});
+    auto presenter = std::make_unique<SlintMainWindowPresenter2>(*view, std::move(netlist_source), PluginConfig::load(), m_kicad_session);
+    // wire the event handler so the view forwards user interactions to the presenter
+    view->set_event_handler(*presenter);
+    // extract the schematic netlist before showing the window (KiCad plugin mode)
+    if (m_kicad_session != nullptr)
+        presenter->on_extract_schematic_netlist();
+    // show the main window
+    view->show();
+    // run the slint event loop until the last window closes
+    slint::run_event_loop();
+    // WORKAROUND (see slint-bug.md): slint 1.17.1 caches the native context menu item tree in
+    // WinitWindowAdapter::context_menu and never releases it, and that field is declared after the
+    // renderer, so destroying the window frees the skia renderer first and the cached menu item tree
+    // then calls free_graphics_resources() on it. The result is a use-after-free that aborts on exit
+    // as soon as the charts context menu has been opened once. Intentionally leak the view (and the
+    // presenter it is wired to) so the window adapter is never destroyed; the process is exiting and
+    // the OS reclaims the memory. Remove once the slint bug is fixed.
+    (void)view.release();
+    (void)presenter.release();
+    // the event loop exited, end the application
+    return 0;
 }

@@ -54,6 +54,7 @@ namespace add_plot_dialog_view
         void connect_callbacks() {
             dialog->on_filter_changed([this](slint::SharedString query) { apply_filter(query); });
             dialog->on_expression_clicked([this](int index) { toggle_expression(index); });
+            dialog->on_expression_right_clicked([this](int index) { append_expression_name(index); });
             dialog->on_custom_add([this] { add_custom_expression(); });
             dialog->on_accepted([this] { accept(); });
             dialog->on_dismissed([this] { dismiss(); });
@@ -73,6 +74,7 @@ namespace add_plot_dialog_view
                 item.selected = std::any_of(selected.begin(), selected.end(), [&item](AnyExpression* expression) { return expression_name(*expression) == std::string(item.name); });
             }
             // reset the filter and error state
+            m_filter_query.clear();
             dialog->set_filter_text(slint::SharedString(""));
             dialog->set_show_error(false);
             // rebuild the grid with the empty filter
@@ -116,6 +118,19 @@ namespace add_plot_dialog_view
             m_all_items[real_index].selected = !m_all_items[real_index].selected;
             // keep the grid in sync
             expressions->set_row_data(static_cast<size_t>(index), m_all_items[real_index]);
+        }
+
+        void append_expression_name(int index) {
+            // copy the right-clicked expression name into the Expression builder,
+            // mirroring the wx panel; only when the custom entry is shown
+            if (!dialog->get_allow_custom_expressions())
+                return;
+            if (index < 0 || static_cast<size_t>(index) >= m_filtered_indices.size())
+                return;
+            const size_t real_index = m_filtered_indices[static_cast<size_t>(index)];
+            slint::SharedString value = dialog->get_custom_text();
+            value = slint::SharedString(std::string(value) + std::string(m_all_items[real_index].name));
+            dialog->set_custom_text(value);
         }
 
         void add_custom_expression() {

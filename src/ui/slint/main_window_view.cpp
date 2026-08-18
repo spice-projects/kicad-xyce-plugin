@@ -36,6 +36,7 @@ void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
         // do not close the window while a modal dialog is open
         if (m_modal_dialog_open)
             return;
+        // close the window, which will terminate the application
         m_window->hide();
     });
 
@@ -86,8 +87,14 @@ void SlintMainWindowView2::apply_action_enablement(const ActionStateEnablement& 
     // do not re-enable toolbar actions while a modal dialog blocks input
     if (m_modal_dialog_open)
         return;
-    // toolbar enablement bindings land with the toolbar state wiring
-    spdlog::info("enablement: run={} configure={} save={}", enablement.run_simulation, enablement.configure_simulation, enablement.save);
+    // update the slint window with the action enablement state
+    m_window->set_enable_open(enablement.open);
+    m_window->set_enable_save(enablement.save);
+    m_window->set_enable_run_simulation(enablement.run_simulation);
+    m_window->set_enable_configure_simulation(enablement.configure_simulation);
+    m_window->set_enable_show_netlist(enablement.show_netlist);
+    m_window->set_enable_show_charts(enablement.show_charts);
+    m_window->set_enable_show_sim_output(enablement.show_simulation_output);
 }
 
 void SlintMainWindowView2::show_netlist_view() {
@@ -147,23 +154,40 @@ void SlintMainWindowView2::update_charts(ExpressionManager& expression_manager, 
     // the renderer here if it does not exist yet
     ensure_charts_renderer();
     // forward the data to the renderer
-    if (m_charts_renderer) {
-        m_charts_renderer->update(expression_manager, step_information, abscissa_scale, suggested_plots);
-    }
+    m_charts_renderer->update(expression_manager, step_information, abscissa_scale, suggested_plots);
 }
 
 void SlintMainWindowView2::delete_all_charts() {
     // the renderer may not exist yet on the first file open
     if (m_charts_renderer) {
+        // delete all charts from the renderer and refresh the slint panel
         m_charts_renderer->delete_all_charts();
     }
 }
 
 void SlintMainWindowView2::set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>&) { spdlog::info("set fft files"); }
 
-std::optional<SimulationConfig> SlintMainWindowView2::show_simulation_parameters_dialog(const SimulationConfig& /*current*/) {
-    // dialog wired once the simulation dialog component is integrated
-    spdlog::info("show simulation parameters dialog");
+std::optional<SimulationConfig> SlintMainWindowView2::show_simulation_parameters_dialog(const SimulationConfig& current) {
+    // the presenter must be wired before the dialog can deliver its result
+    if (m_event_handler == nullptr)
+        return std::nullopt;
+    // check a modal dialog is already open, do not stack another one
+    if (!begin_modal_dialog())
+        return std::nullopt;
+    // create the dialog view wrapper on first use
+    if (!m_simulation_parameters_dialog)
+        m_simulation_parameters_dialog = std::make_unique<simulation_parameters_dialog_view::SimulationParametersDialogView>();
+    // show the dialog seeded with the current configuration; the slint dialog is
+    // non-modal, so the accepted configuration is delivered asynchronously through
+    // MainWindowViewDefEvents::on_simulation_parameters_dialog_result, and the modal
+    // state (kept in this view) is released through the on_closed callback on both
+    // accept and cancel
+    m_simulation_parameters_dialog->show(current, *m_event_handler, [this] { end_modal_dialog(); });
+    // remember the dialog window for unblocking when it closes
+    m_modal_dialog_window = &m_simulation_parameters_dialog->window();
+    // block input to the native main window while the dialog is shown
+    modal_manager::set_input_blocked(window(), *m_modal_dialog_window, true);
+    // nothing to return, TODO: remove return value once wxWidgets dialog is replaced with slint
     return std::nullopt;
 }
 
