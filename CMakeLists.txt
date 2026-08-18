@@ -53,7 +53,7 @@ if(APPLE)
     set(SLINT_STYLE "cupertino" CACHE STRING "Slint widget style" FORCE)
 elseif (WIN32)
     # slint style
-    set(SLINT_STYLE "cupertino" CACHE STRING "Slint widget style" FORCE)
+    set(SLINT_STYLE "fluent" CACHE STRING "Slint widget style" FORCE)
 elseif (LINUX)
     # slint style
     set(SLINT_STYLE "cupertino" CACHE STRING "Slint widget style" FORCE)
