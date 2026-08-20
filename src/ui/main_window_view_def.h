@@ -24,6 +24,9 @@ public:
     virtual void set_status_text(const std::string& text) = 0;
     virtual void apply_action_enablement(const ActionStateEnablement& enablement) = 0;
 
+    // simulation run state, drives the Run/Stop toolbar toggle
+    virtual void set_simulation_running(bool running) = 0;
+
     // content views (netlist editor vs charts, mutually exclusive)
     virtual void show_netlist_view() = 0;
     virtual void show_charts_view() = 0;
@@ -54,6 +57,9 @@ public:
     // simulation process lifecycle (presenter decides when, the view wires the wx process events)
     virtual void start_simulation_process(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory) = 0;
 
+    // cancel the running simulation process owned by the view
+    virtual void cancel_simulation_process() = 0;
+
     // window management
     virtual void spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) = 0;
 };
@@ -74,9 +80,11 @@ public:
     virtual void on_show_netlist() = 0;
     virtual void on_show_charts() = 0;
     virtual void on_show_simulation_output() = 0;
+    virtual void on_close_simulation_output() = 0;
 
     // simulation control
     virtual void on_run_simulation() = 0;
+    virtual void on_cancel_simulation() = 0;
     virtual void on_configure_simulation() = 0;
 
     // plugin configuration

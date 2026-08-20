@@ -677,6 +677,18 @@ void MainWindow::start_simulation_process(const std::string& program, const std:
     runner->start(program, netlist_path, working_directory);
 }
 
+void MainWindow::set_simulation_running(bool /*running*/) {
+    // the wx toolbar keeps a single run action; the Slint ui toggles Run/Stop
+}
+
+void MainWindow::cancel_simulation_process() {
+    // get the active simulation runner from the presenter
+    const auto runner = m_presenter->simulation_runner();
+    // request a graceful shutdown when a runner is active
+    if (runner)
+        runner->cancel();
+}
+
 void MainWindow::spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) {
     // create a new main window instance
     const auto frame = new MainWindow("KiCad Xyce Plugin");

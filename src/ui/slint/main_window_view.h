@@ -18,6 +18,7 @@
 #include "modal_manager.h"
 #include "plugin_config_dialog_view.h"
 #include "simulation_parameters_dialog_view.h"
+#include "simulation_runner.h"
 
 class SlintMainWindowView2 : public MainWindowViewDef
 {
@@ -41,6 +42,7 @@ public:
     void set_title(const std::string& title) override;
     void set_status_text(const std::string& text) override;
     void apply_action_enablement(const ActionStateEnablement& enablement) override;
+    void set_simulation_running(bool running) override;
     void show_netlist_view() override;
     void show_charts_view() override;
     void set_netlist_editor_content(const std::string& content) override;
@@ -59,6 +61,7 @@ public:
     std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig& current) override;
     std::optional<PluginConfig> show_plugin_config_dialog(const PluginConfig& current) override;
     void start_simulation_process(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory) override;
+    void cancel_simulation_process() override;
     void spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) override;
 
 private:
@@ -67,6 +70,14 @@ private:
 
     // create the charts renderer the first time the charts panel is shown
     void ensure_charts_renderer();
+
+    // copy the buffered log lines [start..end] to the platform clipboard
+    void copy_simulation_selection(int start, int end);
+
+    // reposition the charts renderer over the body area, accounting for the
+    // simulation output panel height; the overlay is hidden when the charts
+    // panel is not shown
+    void update_charts_frame();
 
     void show_add_remove_plots_dialog(float chart_position);
 
@@ -99,8 +110,16 @@ private:
     std::string m_netlist_content;
     bool m_netlist_read_only = false;
 
+    // simulation output log lines, exposed as a model to the output panel's
+    // ListView; appending a line only touches the new row (virtualized list)
+    std::shared_ptr<slint::VectorModel<slint::SharedString>> m_simulation_log;
+
     // platform-neutral charts renderer
     std::unique_ptr<ChartsRenderer> m_charts_renderer;
+
+    // simulation runner for the current run; the view owns it and forwards the
+    // process output and termination through the event handler
+    std::unique_ptr<SimulationRunner> m_simulation_runner;
 
     // add plot dialog, kept alive for the lifetime of the view
     std::unique_ptr<add_plot_dialog_view::AddPlotDialogView> m_add_plot_dialog;

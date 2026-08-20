@@ -518,10 +518,7 @@ namespace simulation_parameters_dialog_view
             dialog->set_ac_start(slint::SharedString(params.start));
             dialog->set_ac_end(slint::SharedString(params.end));
             dialog->set_ac_data_table(slint::SharedString(params.data_table_name));
-            // measure directives, one per line
-            std::vector<std::string> measure_lines;
-            for (const auto& m : params.measure_parameters)
-                measure_lines.push_back(m.to_xyce_statement());
+            // measure directives (one per line)
             dialog->set_ac_measure(slint::SharedString(format_measure_lines(params.measure_parameters)));
             // print section (power is not available for an AC analysis)
             apply_print_section(params.print_parameters, false, true, true, true, AC_PRINT_TYPES,
@@ -1084,6 +1081,7 @@ namespace simulation_parameters_dialog_view
             apply_transient_parameters(m_impl->dialog, *tran);
         else
             apply_transient_parameters(m_impl->dialog, default_transient_parameters());
+        // mirror the replace-ground toggle onto the TRAN panel state
         m_impl->dialog->set_tran_replace_ground(current.replace_ground);
         // sync the DC analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
@@ -1091,6 +1089,7 @@ namespace simulation_parameters_dialog_view
             apply_dc_parameters(m_impl->dialog, *dc);
         else
             apply_dc_parameters(m_impl->dialog, default_dc_parameters());
+        // mirror the replace-ground toggle onto the DC panel state
         m_impl->dialog->set_dc_replace_ground(current.replace_ground);
         // sync the noise analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
@@ -1098,6 +1097,7 @@ namespace simulation_parameters_dialog_view
             apply_noise_parameters(m_impl->dialog, *noise);
         else
             apply_noise_parameters(m_impl->dialog, default_noise_parameters());
+        // mirror the replace-ground toggle onto the noise panel state
         m_impl->dialog->set_noise_replace_ground(current.replace_ground);
         // sync the harmonic balance panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
@@ -1105,6 +1105,7 @@ namespace simulation_parameters_dialog_view
             apply_hb_parameters(m_impl->dialog, *hb);
         else
             apply_hb_parameters(m_impl->dialog, default_hb_parameters());
+        // mirror the replace-ground toggle onto the HB panel state
         m_impl->dialog->set_hb_replace_ground(current.replace_ground);
         // sync the linear analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
@@ -1112,6 +1113,7 @@ namespace simulation_parameters_dialog_view
             apply_lin_parameters(m_impl->dialog, *lin);
         else
             apply_lin_parameters(m_impl->dialog, default_lin_parameters());
+        // mirror the replace-ground toggle onto the LIN panel state
         m_impl->dialog->set_lin_replace_ground(current.replace_ground);
         // clear any previous validation feedback
         m_impl->dialog->set_show_error(false);

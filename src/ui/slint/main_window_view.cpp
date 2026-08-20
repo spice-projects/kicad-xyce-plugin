@@ -1,18 +1,24 @@
+#include <algorithm>
 #include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <slint.h>
 #include <spdlog/spdlog.h>
 
 #include "../file_dialog.h"
+#include "clipboard.h"
 #include "main_window_view.h"
 #include "modal_manager.h"
 
 SlintMainWindowView2::SlintMainWindowView2(std::unique_ptr<NetlistSource> /*netlist_source*/, PluginConfig /*plugin_config*/) :
-    m_window(main_window::MainWindow::create()) {}
+    m_window(main_window::MainWindow::create()), m_simulation_log(std::make_shared<slint::VectorModel<slint::SharedString>>()) {
+    // expose the log model to the output panel
+    m_window->set_simulation_output_log(m_simulation_log);
+}
 
 void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
     // store the event handler reference for later use
@@ -26,8 +32,12 @@ void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
     actions.on_show_netlist([this] { guard_modal([this] { m_event_handler->on_show_netlist(); }); });
     actions.on_show_charts([this] { guard_modal([this] { m_event_handler->on_show_charts(); }); });
     actions.on_show_simulation_output([this] { guard_modal([this] { m_event_handler->on_show_simulation_output(); }); });
+    actions.on_close_simulation_output([this] { guard_modal([this] { m_event_handler->on_close_simulation_output(); }); });
+    // the copy action is a pure view operation on the buffered log
+    actions.on_copy_simulation_output([this](int start, int end) { copy_simulation_selection(start, end); });
     // simulation group
     actions.on_run_simulation([this] { guard_modal([this] { m_event_handler->on_run_simulation(); }); });
+    actions.on_stop_simulation([this] { guard_modal([this] { m_event_handler->on_cancel_simulation(); }); });
     actions.on_configure_simulation([this] { guard_modal([this] { m_event_handler->on_configure_simulation(); }); });
     // plugin configuration
     actions.on_configure_plugin([this] { guard_modal([this] { m_event_handler->on_configure_plugin(); }); });
@@ -39,6 +49,10 @@ void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
         // close the window, which will terminate the application
         m_window->hide();
     });
+
+    // netlist editor edits are reported live so the presenter can track the
+    // dirty state and content changes
+    actions.on_netlist_edited([this] { m_event_handler->on_netlist_editor_modified(); });
 
     // charts context menu actions; chart_position is a float [0..1] from the
     // slint panel, the renderer translates it to an index using its own count
@@ -73,14 +87,18 @@ slint::Window& SlintMainWindowView2::window() {
 }
 
 void SlintMainWindowView2::set_title(const std::string& title) {
-    // the window title is set in the .slint file; runtime updates can be wired
-    // once the slint api supports it
-    spdlog::info("set title: {}", title);
+    // update the window title property, which is bound to the native title
+    m_window->set_window_title(slint::SharedString(title));
 }
 
 void SlintMainWindowView2::set_status_text(const std::string& text) {
-    // status bar wiring pending; the slint window does not have a native status bar
-    spdlog::info("status: {}", text);
+    // update the status bar text in the slint window
+    m_window->set_status_text(slint::SharedString(text));
+}
+
+void SlintMainWindowView2::set_simulation_running(bool running) {
+    // toggle the Run/Stop toolbar action
+    m_window->set_simulation_running(running);
 }
 
 void SlintMainWindowView2::apply_action_enablement(const ActionStateEnablement& enablement) {
@@ -98,8 +116,10 @@ void SlintMainWindowView2::apply_action_enablement(const ActionStateEnablement& 
 }
 
 void SlintMainWindowView2::show_netlist_view() {
-    // netlist editor view wiring pending
-    spdlog::info("show netlist view");
+    // reveal the netlist panel and hide the charts panel
+    m_window->set_charts_visible(false);
+    // reposition the renderer so it no longer covers the netlist editor
+    update_charts_frame();
 }
 
 void SlintMainWindowView2::show_charts_view() {
@@ -107,12 +127,17 @@ void SlintMainWindowView2::show_charts_view() {
     m_window->set_charts_visible(true);
     // create the charts renderer the first time the charts panel is shown
     ensure_charts_renderer();
+    // reposition the overlay over the now-visible charts panel and render a
+    // frame; without this the overlay stays at the last frame (e.g. zero-sized
+    // when the renderer was created while the charts view was hidden)
+    update_charts_frame();
 }
 
 void SlintMainWindowView2::set_netlist_editor_content(const std::string& content) {
     // store the netlist content for the presenter to retrieve
     m_netlist_content = content;
-    spdlog::info("netlist content set ({} bytes)", content.size());
+    // push the content into the slint editor widget
+    m_window->set_netlist_text(slint::SharedString(content));
 }
 
 std::string SlintMainWindowView2::netlist_editor_content() const {
@@ -123,7 +148,8 @@ std::string SlintMainWindowView2::netlist_editor_content() const {
 void SlintMainWindowView2::set_netlist_editor_read_only(bool read_only) {
     // store the read-only state for the editor
     m_netlist_read_only = read_only;
-    spdlog::info("netlist read only = {}", read_only);
+    // push the read-only state into the slint editor widget
+    m_window->set_netlist_read_only(read_only);
 }
 
 bool SlintMainWindowView2::charts_shown() const {
@@ -132,22 +158,82 @@ bool SlintMainWindowView2::charts_shown() const {
 }
 
 void SlintMainWindowView2::show_simulation_output_panel() {
-    // simulation output panel wiring pending
-    spdlog::info("show simulation output");
+    // reveal the simulation output panel in the body
+    m_window->set_simulation_output_visible(true);
+    // reposition the charts renderer above the output panel
+    update_charts_frame();
 }
 
 void SlintMainWindowView2::hide_simulation_output_panel() {
-    // simulation output panel wiring pending
-    spdlog::info("hide simulation output");
+    // hide the simulation output panel from the body
+    m_window->set_simulation_output_visible(false);
+    // reposition the charts renderer over the released space
+    update_charts_frame();
 }
 
-void SlintMainWindowView2::clear_simulation_output() { spdlog::info("clear simulation output"); }
+// replace tab characters with spaces at fixed 8-column stops so the log columns
+// line up; the slint text renderer draws an unsupported tab as a box character
+namespace
+{
+    std::string expand_tabs(std::string_view line) {
+        std::string expanded;
+        expanded.reserve(line.size());
+        std::size_t column = 0;
+        for (const char c : line) {
+            if (c == '\t') {
+                const std::size_t to_next_stop = 8 - (column % 8);
+                expanded.append(to_next_stop, ' ');
+                column += to_next_stop;
+            }
+            else {
+                expanded.push_back(c);
+                ++column;
+            }
+        }
+        return expanded;
+    }
+} // namespace
 
-void SlintMainWindowView2::append_simulation_output_line(const std::string& line) { spdlog::info("sim output: {}", line); }
+void SlintMainWindowView2::clear_simulation_output() {
+    // drop all buffered log lines from the panel model
+    m_simulation_log->clear();
+}
 
-bool SlintMainWindowView2::simulation_output_panel_hidden() const { return true; }
+void SlintMainWindowView2::append_simulation_output_line(const std::string& line) {
+    // append the line to the panel log model; tabs are expanded to spaces
+    // because the slint text renderer has no tab support
+    m_simulation_log->push_back(slint::SharedString(expand_tabs(line)));
+}
 
-bool SlintMainWindowView2::simulation_output_has_content() const { return false; }
+void SlintMainWindowView2::copy_simulation_selection(int start, int end) {
+    // the panel reports no selection with start < 0 or start > end
+    if (start < 0 || end < start)
+        return;
+    // clamp the selection to the buffered log
+    const std::size_t row_count = m_simulation_log->row_count();
+    if (row_count == 0)
+        return;
+    const std::size_t first = std::min(static_cast<std::size_t>(start), row_count - 1);
+    const std::size_t last = std::min(static_cast<std::size_t>(end), row_count - 1);
+    // join the selected lines
+    std::string text;
+    for (std::size_t i = first; i <= last; ++i) {
+        if (!text.empty())
+            text.push_back('\n');
+        text.append(m_simulation_log->row_data(i).value_or(slint::SharedString()));
+    }
+    copy_to_clipboard(text);
+}
+
+bool SlintMainWindowView2::simulation_output_panel_hidden() const {
+    // report whether the simulation output panel is currently hidden
+    return !m_window->get_simulation_output_visible();
+}
+
+bool SlintMainWindowView2::simulation_output_has_content() const {
+    // report whether the buffered log holds any lines
+    return m_simulation_log->row_count() > 0;
+}
 
 void SlintMainWindowView2::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
     // the presenter updates the charts before showing the charts view, so create
@@ -215,7 +301,23 @@ std::optional<PluginConfig> SlintMainWindowView2::show_plugin_config_dialog(cons
     return std::nullopt;
 }
 
-void SlintMainWindowView2::start_simulation_process(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory) { spdlog::info("start simulation: {} {} cwd={}", program, netlist_path.string(), working_directory.string()); }
+void SlintMainWindowView2::start_simulation_process(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory) {
+    // create a fresh runner for this run
+    m_simulation_runner = std::make_unique<SimulationRunner>();
+    // forward the process output and termination to the event handler; the
+    // callbacks are already marshalled to the slint event loop thread by the runner
+    m_simulation_runner->set_stdout_callback([this](const std::string& line) { m_event_handler->on_simulation_stdout(line); });
+    m_simulation_runner->set_stderr_callback([this](const std::string& line) { m_event_handler->on_simulation_stderr(line); });
+    m_simulation_runner->set_finished_callback([this](int exit_code, bool was_canceled) { m_event_handler->on_simulation_finished(exit_code, was_canceled); });
+    // launch the child process
+    m_simulation_runner->start(program, netlist_path, working_directory);
+}
+
+void SlintMainWindowView2::cancel_simulation_process() {
+    // request a graceful shutdown when a runner is active
+    if (m_simulation_runner)
+        m_simulation_runner->cancel();
+}
 
 void SlintMainWindowView2::spawn_raw_file_window(std::shared_ptr<XyceOutputFile> /*raw_file*/) { spdlog::info("spawn raw file window"); }
 
@@ -255,16 +357,40 @@ void SlintMainWindowView2::ensure_charts_renderer() {
     m_charts_renderer = std::make_unique<ChartsRenderer>();
     // attach the renderer to the slint window
     m_charts_renderer->attach(m_window->window());
-    // position the renderer over the charts panel region and render a frame
-    const auto size = m_window->window().size();
-    const auto scale = m_window->window().scale_factor();
-    // the charts panel fills the window below the 59px toolbar
-    const uint32_t toolbar_px = static_cast<uint32_t>(59 * scale);
-    m_charts_renderer->set_frame(0, toolbar_px, size.width, size.height - toolbar_px, scale);
     // initialize the ImGui/ImPlot backend
     m_charts_renderer->initialize();
-    // render the first frame
-    m_charts_renderer->render();
+    // position the renderer over the charts panel region and render a frame
+    update_charts_frame();
+}
+
+void SlintMainWindowView2::update_charts_frame() {
+    // the renderer is created lazily on the first charts panel show
+    if (m_charts_renderer == nullptr)
+        return;
+    // position the renderer in physical pixels below the toolbar
+    const auto size = m_window->window().size();
+    const auto scale = m_window->window().scale_factor();
+    // the content area starts below the 59px toolbar
+    const uint32_t toolbar_px = static_cast<uint32_t>(59 * scale);
+    uint32_t y = toolbar_px;
+    uint32_t height = size.height > toolbar_px ? size.height - toolbar_px : 0;
+    // reserve the status bar (24px + 1px divider) at the bottom of the window
+    const uint32_t statusbar_px = static_cast<uint32_t>(25 * scale);
+    height = height > statusbar_px ? height - statusbar_px : 0;
+    // reserve the simulation output panel height when it is visible; the panel
+    // is docked at the bottom of the body (below the charts/netlist area), so
+    // only the overlay height shrinks, its top stays below the toolbar
+    if (m_window->get_simulation_output_visible()) {
+        const uint32_t output_px = static_cast<uint32_t>(200 * scale);
+        height = height > output_px ? height - output_px : 0;
+    }
+    // hide the overlay when the charts panel is not shown
+    const bool charts_shown = m_window->get_charts_visible();
+    m_charts_renderer->set_frame(0, y, charts_shown ? size.width : 0, charts_shown ? height : 0, scale);
+    // render the repositioned frame; when the panel is hidden the overlay is
+    // sized to zero and render_frame skips the degenerate frame
+    if (charts_shown)
+        m_charts_renderer->render();
 }
 
 bool SlintMainWindowView2::begin_modal_dialog() {

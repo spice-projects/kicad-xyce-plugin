@@ -119,9 +119,11 @@ namespace
     const CGSize bounds = self.bounds.size;
     _metal_layer.drawableSize = CGSizeMake(bounds.width * scale, bounds.height * scale);
     _metal_layer.contentsScale = scale;
-    // raise the redraw on the owning renderer
-    if (_owner) {
-        _owner->render();
+    // schedule a redraw on the owning renderer; the redraw loop is driven by
+    // the render timer, so rendering must never happen from an appkit layout
+    // callback (it would re-enter ImGui mid-frame), only the counter is bumped
+    if (_owner && bounds.width > 0.0 && bounds.height > 0.0) {
+        _owner->refresh_charts(1);
     }
 }
 
@@ -273,6 +275,11 @@ void ChartsRenderer::render_frame(const std::function<void()>& renderer) {
         // cast fields as apple types
         auto metal_layer = (__bridge CAMetalLayer*)m_layer;
         auto command_queue = (__bridge id<MTLCommandQueue>)m_command_queue;
+        // degenerate frames (the overlay is sized to zero when the charts panel is hidden) must not enter ImGui; plotting into a zero-size viewport
+        // leaves windows in an unbalanced state and breaks later frames
+        const CGSize bounds = [metal_layer bounds].size;
+        if (bounds.width <= 0.0 || bounds.height <= 0.0)
+            return;
         // drawable
         id<CAMetalDrawable> drawable = [metal_layer nextDrawable];
         if (!drawable)
@@ -292,8 +299,6 @@ void ChartsRenderer::render_frame(const std::function<void()>& renderer) {
         update_delta_time();
         // scale used in the metal layer for retina displays
         const CGFloat scale = [metal_layer contentsScale];
-        // view size in logical points
-        const CGSize bounds = [metal_layer bounds].size;
         // ImGui io configuration
         ImGuiIO& io = ImGui::GetIO();
         io.DisplaySize = ImVec2(static_cast<float>(bounds.width), static_cast<float>(bounds.height));

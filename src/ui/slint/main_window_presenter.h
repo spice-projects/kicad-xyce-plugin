@@ -8,12 +8,12 @@
 
 #include "../../config/plugin_config.h"
 #include "../../file/xyce_output_file.h"
+#include "../../netlist/netlist.h"
 #include "../../netlist/netlist_source.h"
 #include "../../simulation_parameters/simulation_config.h"
 #include "../main_window_view_def.h"
 
 class KiCadSession;
-class XyceSimulationRunner;
 
 // business/orchestration logic for the slint main window, decoupled from the
 // ui through MainWindowViewDef and MainWindowViewDefEvents; the presenter
@@ -37,9 +37,11 @@ public:
     void on_show_netlist() override;
     void on_show_charts() override;
     void on_show_simulation_output() override;
+    void on_close_simulation_output() override;
 
     // simulation control
     void on_run_simulation() override;
+    void on_cancel_simulation() override;
     void on_configure_simulation() override;
 
     // plugin configuration
@@ -67,11 +69,14 @@ public:
     void on_extract_schematic_netlist() override;
 
     // accessors
-    [[nodiscard]] std::shared_ptr<XyceSimulationRunner> simulation_runner() const;
     [[nodiscard]] const std::optional<std::shared_ptr<XyceOutputFile>>& raw_file() const;
     [[nodiscard]] const std::vector<std::shared_ptr<XyceOutputFile>>& fft_files() const;
 
 private:
+    // launch the simulation with the configured analysis and the stored parse
+    // result; used by on_run_simulation and by the pending dialog result
+    void launch_simulation();
+
     bool update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>> raw_file, bool delete_charts);
 
     void show_raw_file_view();
@@ -100,4 +105,18 @@ private:
     PluginConfig m_plugin_config;
 
     std::string m_base_title;
+
+    // parse result of the netlist shown in the editor, kept while a modal
+    // simulation parameters dialog is open so the accepted configuration can
+    // rebuild the netlist (configure flow) or launch the simulation (run flow)
+    std::string m_pending_sanitized_netlist;
+    NetlistTopology m_pending_topology;
+    std::string m_pending_original_netlist;
+
+    // simulation run state; the view owns the platform runner, the presenter
+    // keeps the paths it needs once the run finishes
+    bool m_simulation_running = false;
+    bool m_run_pending = false;
+    std::filesystem::path m_simulation_working_directory;
+    std::filesystem::path m_simulation_netlist_path;
 };

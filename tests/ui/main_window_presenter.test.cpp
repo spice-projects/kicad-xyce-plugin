@@ -57,6 +57,8 @@ public:
         apply_count++;
     }
 
+    void set_simulation_running(bool running) override { simulation_running = running; }
+
     void show_netlist_view() override {
         // switch to the netlist view
         netlist_view_shown = true;
@@ -115,6 +117,11 @@ public:
         start_program = program;
     }
 
+    void cancel_simulation_process() override {
+        // count the cancel requests
+        cancel_process_calls++;
+    }
+
     void spawn_raw_file_window(std::shared_ptr<XyceOutputFile>) override {
         // count the spawned raw-file windows
         spawn_raw_file_calls++;
@@ -134,10 +141,12 @@ public:
     bool netlist_view_shown = false;
     bool charts_view_shown = false;
     bool output_panel_hidden = true;
+    bool simulation_running = false;
     int apply_count = 0;
     int update_charts_calls = 0;
     int delete_all_charts_calls = 0;
     int start_process_calls = 0;
+    int cancel_process_calls = 0;
     int spawn_raw_file_calls = 0;
     ActionStateEnablement applied_enablement;
     std::vector<std::vector<std::string>> update_charts_suggested_plots;

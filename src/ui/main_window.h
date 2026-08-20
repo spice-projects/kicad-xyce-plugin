@@ -36,6 +36,7 @@ public:
     void set_title(const std::string& title) override;
     void set_status_text(const std::string& text) override;
     void apply_action_enablement(const ActionStateEnablement& enablement) override;
+    void set_simulation_running(bool running) override;
 
     void show_netlist_view() override;
     void show_charts_view() override;
@@ -60,6 +61,7 @@ public:
     std::optional<PluginConfig> show_plugin_config_dialog(const PluginConfig& current) override;
 
     void start_simulation_process(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory) override;
+    void cancel_simulation_process() override;
 
     void spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) override;
 
