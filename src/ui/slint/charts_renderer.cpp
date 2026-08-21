@@ -236,12 +236,43 @@ std::vector<AnyExpression*> ChartsRenderer::chart_selected_expressions(size_t ch
     return m_charts[chart_index]->selected_expressions();
 }
 
+std::pair<double, double> ChartsRenderer::abscissa_range() const {
+    // no step information loaded yet, fall back to a safe default
+    if (m_step_information == nullptr)
+        return {0.0, 1.0};
+    // full abscissa value range of the loaded file
+    return {m_step_information->abscissa_left_value(), m_step_information->abscissa_right_value()};
+}
+
 AnyExpression* ChartsRenderer::evaluate_expression(const std::string& expression) {
     // nothing to evaluate without an expression manager
     if (m_expression_manager == nullptr)
         return nullptr;
     // delegate to the expression manager
     return m_expression_manager->evaluate(expression, expression);
+}
+
+std::set<size_t> ChartsRenderer::chart_selected_steps(size_t chart_index) const {
+    // guard against an invalid chart index
+    if (chart_index >= m_charts.size())
+        return {};
+    // delegate to the chart
+    return m_charts[chart_index]->selected_steps();
+}
+
+void ChartsRenderer::set_chart_selected_steps(size_t chart_index, const std::set<size_t>& steps) {
+    // guard against an invalid chart index
+    if (chart_index >= m_charts.size())
+        return;
+    // apply the step selection to the chart
+    m_charts[chart_index]->set_selected_steps(steps);
+    // refresh to show the updated selection
+    refresh_charts();
+}
+
+const StepInformation* ChartsRenderer::step_information() const {
+    // expose the step information of the loaded file
+    return m_step_information;
 }
 
 void ChartsRenderer::plot_chart_expressions(size_t chart_index, const std::set<AnyExpression*>& expressions) {

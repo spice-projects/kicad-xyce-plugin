@@ -38,6 +38,9 @@ ActionStateEnablement compute_action_enablement(const ActionStateInput& input) {
     enablement.show_simulation_output = show_output_enabled;
     enablement.configure_simulation = netlist_actions_enabled;
     enablement.run_simulation = netlist_actions_enabled;
+    // chart context tools: FFT for time-domain abscissa, step tool for stepped runs
+    enablement.fft = input.abscissa_is_time;
+    enablement.step_tool = input.has_steps;
     // return the enablement result
     return enablement;
 }

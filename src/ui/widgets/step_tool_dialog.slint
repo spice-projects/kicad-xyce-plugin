@@ -1,12 +1,179 @@
-import { AboutSlint, VerticalBox } from "std-widgets.slint";
+import { Button, CheckBox, Palette, ScrollView, StandardButton } from "std-widgets.slint";
 
-export component MainWindow inherits Window {
-    VerticalBox {
-        Text {
-            text: "Hello World!";
-        }
-        AboutSlint {
-            preferred-height: 150px;
+// one parameter combination offered by the step tool, mirroring the wx
+// `StepToolDialog` list rows: step index, the parameter values, and selection
+export struct StepItem {
+    index: int,
+    values: [string],
+    selected: bool,
+}
+
+// column header row: checkbox spacer, step index, one column per sweep parameter
+component StepHeader inherits HorizontalLayout {
+    in property <[string]> keys;
+    spacing: 0px;
+    height: 30px;
+
+    Rectangle {
+        width: 56px;
+        background: transparent;
+    }
+
+    Text {
+        width: 60px;
+        text: "Step";
+        font-size: 12px;
+        font-weight: 600;
+        color: Palette.foreground.transparentize(0.25);
+        horizontal-alignment: right;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    for key in root.keys: Text {
+        width: 140px;
+        text: key;
+        font-size: 12px;
+        font-weight: 600;
+        color: Palette.foreground.transparentize(0.25);
+        horizontal-alignment: right;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}
+
+// selectable step row: checkbox, step index, one cell per sweep parameter value.
+// columns are aligned with the header by iterating over the same `keys` model and
+// reading the matching value by index.
+component StepRow inherits HorizontalLayout {
+    in property <StepItem> step-item;
+    in property <[string]> keys;
+    callback toggled;
+    spacing: 0px;
+    height: 32px;
+
+    CheckBox {
+        width: 56px;
+        checked: root.step-item.selected;
+        toggled => {
+            root.toggled();
         }
     }
+
+    Text {
+        width: 60px;
+        text: root.step-item.index;
+        font-size: 12px;
+        color: Palette.foreground;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    for value in root.step-item.values: Text {
+        width: 140px;
+        text: value;
+        font-size: 12px;
+        color: Palette.foreground;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}
+
+// step tool dialog: checkbox grid of parameter combinations, mirroring the wx
+// `StepToolDialog` surface. The selection is applied back to the chart on accept.
+export component StepToolDialog inherits Dialog {
+    title: "Step Tool";
+
+    in-out property <[StepItem]> steps: [];
+    in property <[string]> keys: [];
+    in property <string> selection-count: "";
+
+    callback accepted;
+    callback dismissed;
+    callback select-all;
+    callback clear-all;
+    callback invert-selection;
+    callback step-toggled(int);
+
+    preferred-width: 620px;
+    preferred-height: 500px;
+
+    // height of the scrollable step grid: header row + one row per step
+    private property <length> grid-height: 30px + root.steps.length * 32px + 8px;
+
+    Rectangle {
+        background: Palette.background;
+
+        VerticalLayout {
+            padding: 14px;
+            spacing: 7px;
+
+            Text {
+                text: "Step Tool";
+                font-size: 16px;
+                font-weight: 700;
+                color: Palette.foreground;
+            }
+
+            Text {
+                text: "Select one or more parameter combinations to keep active for this chart";
+                font-size: 10px;
+                color: Palette.foreground.transparentize(0.15);
+            }
+
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: LayoutAlignment.start;
+
+                Button {
+                    text: "Select All";
+                    clicked => { root.select-all(); }
+                }
+
+                Button {
+                    text: "Clear All";
+                    clicked => { root.clear-all(); }
+                }
+
+                Button {
+                    text: "Invert";
+                    clicked => { root.invert-selection(); }
+                }
+
+                Text {
+                    text: root.selection-count;
+                    font-size: 12px;
+                    color: Palette.foreground;
+                    vertical-alignment: center;
+                }
+            }
+
+            StepHeader {
+                keys: root.keys;
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Palette.border;
+            }
+
+            ScrollView {
+                vertical-stretch: 1;
+                horizontal-scrollbar-policy: ScrollBarPolicy.as-needed;
+                viewport-height: root.grid-height;
+                VerticalLayout {
+                    for step[index] in root.steps: StepRow {
+                        step-item: step;
+                        keys: root.keys;
+                        toggled => { root.step-toggled(index); }
+                    }
+                }
+            }
+        }
+    }
+
+    StandardButton { kind: cancel; clicked => { root.dismissed(); } }
+    StandardButton { kind: ok; primary: true; clicked => { root.accepted(); } }
 }

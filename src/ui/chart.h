@@ -49,6 +49,8 @@ public:
 
     const std::set<size_t>& selected_steps();
 
+    void set_selected_steps(const std::set<size_t>& steps);
+
     std::vector<AnyExpression*> selected_expressions();
 
     void render(const std::tuple<float, float, float, float>&);

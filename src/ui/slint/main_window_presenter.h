@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "../../config/plugin_config.h"
+#include "../../fft/fft.h"
 #include "../../file/xyce_output_file.h"
 #include "../../netlist/netlist.h"
 #include "../../netlist/netlist_source.h"
@@ -51,11 +52,18 @@ public:
     // simulation configuration
     void on_simulation_parameters_dialog_result(const SimulationConfig& config) override;
 
+    // FFT configuration, delivered by the view after the FFT dialog closes
+    void on_fft_dialog_result(std::vector<AnyExpression*> selected_expressions, const fft::FftParameters& parameters) override;
+
     // charts context menu
     void on_chart_calculate_fft(size_t chart_index) override;
     void on_chart_open_xyce_fft_calculation(size_t chart_index) override;
     void on_chart_step_tool(size_t chart_index) override;
     void on_chart_new_window(size_t chart_index) override;
+
+    // load an already-parsed raw file into this window and switch to the charts
+    // view; used to seed windows spawned through App::new_window
+    void load_raw_file(std::shared_ptr<XyceOutputFile> raw_file);
 
     // simulation lifecycle events (forwarded by the view from the runner)
     void on_simulation_finished(int exit_code, bool was_canceled) override;

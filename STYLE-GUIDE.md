@@ -43,7 +43,7 @@ This document defines the code style preferences for this project.
 ### Comments
 
 - Comments are placed **above** the code they describe, not inline
-- Format: `// comment text` (starts with lowercase letter, no period)
+- Format: `// comment text` (starts with lowercase letter, no period), single line
 - Every non-trivial statement gets its own comment line above it — including statements inside `if` blocks, loops, and other control structures
 - No docstring format; use plain `//` comments
 

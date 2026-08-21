@@ -15,10 +15,12 @@
 #include "../main_window_view_def.h"
 #include "add_plot_dialog_view.h"
 #include "charts_renderer.h"
+#include "fft_dialog_view.h"
 #include "modal_manager.h"
 #include "plugin_config_dialog_view.h"
 #include "simulation_parameters_dialog_view.h"
 #include "simulation_runner.h"
+#include "step_tool_dialog_view.h"
 
 class SlintMainWindowView2 : public MainWindowViewDef
 {
@@ -58,6 +60,8 @@ public:
     void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) override;
     void delete_all_charts() override;
     void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) override;
+    void show_fft_dialog(size_t chart_index) override;
+    void show_step_tool_dialog(size_t chart_index) override;
     std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig& current) override;
     std::optional<PluginConfig> show_plugin_config_dialog(const PluginConfig& current) override;
     void start_simulation_process(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory) override;
@@ -129,4 +133,10 @@ private:
 
     // simulation parameters dialog, kept alive for the lifetime of the view
     std::unique_ptr<simulation_parameters_dialog_view::SimulationParametersDialogView> m_simulation_parameters_dialog;
+
+    // FFT setup dialog, kept alive for the lifetime of the view
+    std::unique_ptr<fft_dialog_view::FftDialogView> m_fft_dialog;
+
+    // step tool dialog, kept alive for the lifetime of the view
+    std::unique_ptr<step_tool_dialog_view::StepToolDialogView> m_step_tool_dialog;
 };

@@ -1,10 +1,13 @@
+#include <algorithm>
 #include <filesystem>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 
 #include <spdlog/spdlog.h>
 
+#include "../../fft/fft.h"
 #include "../../file/xyce_fft_file.h"
 #include "../../file/xyce_raw_file.h"
 #include "../../kicad/kicad_session.h"
@@ -231,13 +234,197 @@ void SlintMainWindowPresenter2::on_simulation_parameters_dialog_result(const Sim
         refresh_action_states();
 }
 
-void SlintMainWindowPresenter2::on_chart_calculate_fft(size_t chart_index) { spdlog::info("presenter2: chart calculate fft (stub) index={}", chart_index); }
+void SlintMainWindowPresenter2::on_fft_dialog_result(std::vector<AnyExpression*> selected_expressions, const fft::FftParameters& fft_params) {
+    // the transform needs the charts data (expression manager and step
+    // information) from the raw file loaded in this window
+    if (!m_xyce_raw_file.has_value())
+        return;
+    auto& file = m_xyce_raw_file.value();
+    ExpressionManager& expression_manager = file->expression_manager();
+    const StepInformation& step_information = file->step_information();
+    // validate the expression selection
+    if (selected_expressions.empty()) {
+        m_view.set_status_text("No expressions selected for FFT");
+        return;
+    }
+    // from/to abscissa values chosen in the dialog
+    const double from_abscissa_value = fft_params.start;
+    const double to_abscissa_value = fft_params.stop;
+    // list of frequency bins for each step, to be concatenated across steps later
+    std::vector<std::vector<double>> frequency_chunks;
+    // fft data chunks for each expression, to be concatenated across steps later
+    std::vector<std::vector<std::vector<double>>> fft_chunks(selected_expressions.size());
+    // processed step indices and abscissa slices
+    std::vector<size_t> fft_steps;
+    std::vector<std::pair<size_t, size_t>> fft_abscissa_indices;
+    std::vector<std::pair<double, double>> fft_abscissa_value_ranges;
+    // fft step index offset
+    size_t fft_offset = 0;
+    // loop steps
+    for (size_t step = 0; step < step_information.length(); ++step) {
+        // abscissa values for this step — zero copy per-step view
+        std::span<const double> step_abscissa = expression_manager.abscissa().step_data(step);
+        // find the indices corresponding to the selected abscissa range
+        auto it_left = std::lower_bound(step_abscissa.begin(), step_abscissa.end(), from_abscissa_value);
+        auto it_right = std::upper_bound(step_abscissa.begin(), step_abscissa.end(), to_abscissa_value);
+        // from and to indices for the selected abscissa range (inclusive of from, exclusive of to)
+        const size_t from_index = static_cast<size_t>(std::distance(step_abscissa.begin(), it_left));
+        const size_t to_index = static_cast<size_t>(std::distance(step_abscissa.begin(), it_right));
+        // require at least 2 samples
+        if (to_index - from_index < 2) {
+            spdlog::warn("Skipping FFT for step {}: selected range has fewer than 2 samples", step);
+            continue;
+        }
+        // expressions in this step
+        std::vector<std::span<const double>> y_matrix;
+        y_matrix.reserve(selected_expressions.size());
+        for (AnyExpression* expression : selected_expressions) {
+            // only real-valued expressions are eligible for the transform
+            if (std::holds_alternative<Expression<double>>(*expression)) {
+                auto& double_expr = std::get<Expression<double>>(*expression);
+                const auto y_data = double_expr.step_data(step);
+                y_matrix.push_back(y_data.subspan(from_index, to_index - from_index));
+            }
+        }
+        // skip empty matrices (should not happen since the dialog filters real expressions)
+        if (y_matrix.empty())
+            continue;
+        // extract the x interval for the FFT
+        const auto x_interval = step_abscissa.subspan(from_index, to_index - from_index);
+        try {
+            // compute the FFT; all expressions in y_matrix are processed together for this step
+            auto result = fft::compute_fft_many(x_interval, y_matrix, fft_params.np, fft_params.window, fft_params.format, 0, x_interval.size() - 1, fft_params.output, fft_params.keep_dc);
+            // check the frequency axis is not empty
+            if (result.frequencies.empty()) {
+                spdlog::error("FFT computation returned an empty frequency axis for step {}", step);
+                m_view.set_status_text("FFT computation failed");
+                return;
+            }
+            // remember the first and last frequency bins before moving the chunks
+            const double first_frequency = result.frequencies.front();
+            const double last_frequency = result.frequencies.back();
+            const size_t chunk_size = result.frequencies.size();
+            // store the step output slice
+            fft_abscissa_indices.emplace_back(fft_offset, fft_offset + chunk_size);
+            // update the offset
+            fft_offset += chunk_size;
+            // store the frequency bins and per-expression values
+            frequency_chunks.push_back(std::move(result.frequencies));
+            for (size_t i = 0; i < result.values.size(); ++i)
+                fft_chunks[i].push_back(std::move(result.values[i]));
+            // append the step and its abscissa value range
+            fft_steps.push_back(step);
+            fft_abscissa_value_ranges.emplace_back(first_frequency, last_frequency);
+        }
+        catch (const std::exception& e) {
+            spdlog::error("FFT computation failed for step {}: {}", step, e.what());
+            m_view.set_status_text("FFT computation failed");
+            return;
+        }
+    }
+    // require at least one processed step
+    if (fft_steps.empty()) {
+        spdlog::warn("FFT computation skipped: no step has at least 2 samples in the selected range");
+        m_view.set_status_text("FFT computation skipped: no data in the selected range");
+        return;
+    }
+    // build the expression name for the title
+    std::string fft_title = "FFT - ";
+    for (size_t i = 0; i < selected_expressions.size(); ++i) {
+        // append separator
+        if (i > 0)
+            fft_title += ", ";
+        // append the expression name
+        fft_title += std::get<Expression<double>>(*selected_expressions[i]).name();
+    }
+    // build FFT expressions using the Expression<double> constructor with step slices
+    std::vector<AnyExpression> fft_expressions;
+    {
+        // create flat frequency data
+        std::vector<double> freq_data;
+        freq_data.reserve(fft_offset);
+        // concatenate the frequency chunks across steps
+        for (const auto& chunk : frequency_chunks)
+            freq_data.insert(freq_data.end(), chunk.begin(), chunk.end());
+        // append the expression for the frequency abscissa with unit "Hz"
+        fft_expressions.emplace_back(Expression<double>("Frequency", std::move(freq_data), fft_abscissa_indices, "Hz"));
+    }
+    // suggested plots
+    std::vector<std::vector<std::string>> suggested_plots;
+    for (size_t i = 0; i < selected_expressions.size(); ++i) {
+        // current expression
+        auto& real_expression = std::get<Expression<double>>(*selected_expressions[i]);
+        // determine the unit
+        std::string unit;
+        if (fft_params.output == fft::FftOutput::PHASE)
+            unit = "°";
+        else if (fft_params.output == fft::FftOutput::MAGNITUDE_DB)
+            unit = "dB";
+        else
+            unit = real_expression.unit();
+        // expression name for the FFT result
+        const auto expr_name = "FFT(" + real_expression.name() + ")";
+        // create flat data
+        std::vector<double> data;
+        data.reserve(fft_offset);
+        // concatenate the FFT chunks across steps
+        for (const auto& chunk : fft_chunks[i])
+            data.insert(data.end(), chunk.begin(), chunk.end());
+        // suggest a maximum of three expressions for plotting
+        if (suggested_plots.size() < 3)
+            suggested_plots.push_back({expr_name});
+        // append the expression for the FFT result with the step slices
+        fft_expressions.emplace_back(Expression<double>(expr_name, std::move(data), fft_abscissa_indices, unit));
+    }
+    // step information for the FFT output (only include the processed steps)
+    StepInformation fft_step_information(step_information.keys(), step_information.values(), fft_abscissa_value_ranges);
+    // build the expression manager (moves from the expression list)
+    ExpressionManager fft_expression_manager(fft_expressions, fft_abscissa_indices);
+    // create a raw file with the FFT results and spawn a result window
+    auto fft_raw = std::make_shared<XyceOutputFile>("", fft_title, false, std::move(fft_step_information), PlotType::FFT, AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, suggested_plots);
+    m_view.spawn_raw_file_window(std::move(fft_raw));
+}
 
-void SlintMainWindowPresenter2::on_chart_open_xyce_fft_calculation(size_t chart_index) { spdlog::info("presenter2: chart open xyce fft calculation (stub) index={}", chart_index); }
+void SlintMainWindowPresenter2::on_chart_calculate_fft(size_t chart_index) {
+    // the FFT dialog needs the charts data (expression manager and step
+    // information) from the raw file loaded in this window
+    if (!m_xyce_raw_file.has_value())
+        return;
+    // ask the view to show the FFT setup dialog for the chart; the accepted
+    // expressions and parameters are delivered through on_fft_dialog_result
+    m_view.show_fft_dialog(chart_index);
+}
 
-void SlintMainWindowPresenter2::on_chart_step_tool(size_t chart_index) { spdlog::info("presenter2: chart step tool (stub) index={}", chart_index); }
+void SlintMainWindowPresenter2::on_chart_open_xyce_fft_calculation(size_t) {
+    // open a new window for each parsed FFT calculation output file
+    for (const auto& fft_file : m_fft_files)
+        m_view.spawn_raw_file_window(fft_file);
+}
 
-void SlintMainWindowPresenter2::on_chart_new_window(size_t chart_index) { spdlog::info("presenter2: chart new window (stub) index={}", chart_index); }
+void SlintMainWindowPresenter2::on_chart_step_tool(size_t chart_index) {
+    // the step tool needs the charts data (step information) from the raw file
+    // loaded in this window
+    if (!m_xyce_raw_file.has_value())
+        return;
+    // ask the view to show the step tool dialog for the chart; the accepted
+    // step selection is applied back to the chart through the renderer
+    m_view.show_step_tool_dialog(chart_index);
+}
+
+void SlintMainWindowPresenter2::on_chart_new_window(size_t) {
+    // spawn a new window seeded with the current raw file
+    if (m_xyce_raw_file.has_value())
+        m_view.spawn_raw_file_window(m_xyce_raw_file.value());
+}
+
+void SlintMainWindowPresenter2::load_raw_file(std::shared_ptr<XyceOutputFile> raw_file) {
+    // store the already-parsed raw file; the parsed FFT calculation files belong
+    // to the previous run
+    m_fft_files.clear();
+    // update the charts with the raw file data and switch to the charts view
+    if (update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>>(std::move(raw_file)), true))
+        show_raw_file_view();
+}
 
 void SlintMainWindowPresenter2::on_simulation_finished(int exit_code, bool was_canceled) {
     // mark the simulation as no longer running
@@ -354,6 +541,9 @@ void SlintMainWindowPresenter2::refresh_action_states() {
     input.netlist_editor_dirty = m_netlist_editor_dirty;
     input.output_hidden = m_view.simulation_output_panel_hidden();
     input.log_has_content = m_view.simulation_output_has_content();
+    // chart context tools are tied to the loaded raw output
+    input.abscissa_is_time = m_xyce_raw_file.has_value() && m_xyce_raw_file.value()->expression_manager().abscissa().unit() == "s";
+    input.has_steps = m_xyce_raw_file.has_value() && m_xyce_raw_file.value()->step_information().length() > 1;
     // compute the action enablement for the current state
     ActionStateEnablement enablement = compute_action_enablement(input);
     // file actions are only available in standalone mode; KiCad provides the

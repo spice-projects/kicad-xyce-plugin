@@ -57,6 +57,10 @@ public:
 
     void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) override;
 
+    void show_fft_dialog(size_t chart_index) override;
+
+    void show_step_tool_dialog(size_t chart_index) override;
+
     std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig& current) override;
     std::optional<PluginConfig> show_plugin_config_dialog(const PluginConfig& current) override;
 

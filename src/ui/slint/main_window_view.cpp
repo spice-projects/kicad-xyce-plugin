@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -9,6 +10,7 @@
 #include <slint.h>
 #include <spdlog/spdlog.h>
 
+#include "../../app.h"
 #include "../file_dialog.h"
 #include "clipboard.h"
 #include "main_window_view.h"
@@ -79,6 +81,10 @@ void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
 void SlintMainWindowView2::show() {
     // show the slint main window
     m_window->show();
+    // the native content view may not exist yet on the very first show, so a
+    // charts renderer created right after show() fails to attach; retry once the
+    // native view exists so a window spawned with a raw file renders its charts
+    slint::Timer::single_shot(std::chrono::milliseconds(50), [this] { update_charts_frame(); });
 }
 
 slint::Window& SlintMainWindowView2::window() {
@@ -113,6 +119,9 @@ void SlintMainWindowView2::apply_action_enablement(const ActionStateEnablement& 
     m_window->set_enable_show_netlist(enablement.show_netlist);
     m_window->set_enable_show_charts(enablement.show_charts);
     m_window->set_enable_show_sim_output(enablement.show_simulation_output);
+    // chart context tools
+    m_window->set_enable_fft(enablement.fft);
+    m_window->set_enable_step_tool(enablement.step_tool);
 }
 
 void SlintMainWindowView2::show_netlist_view() {
@@ -251,7 +260,11 @@ void SlintMainWindowView2::delete_all_charts() {
     }
 }
 
-void SlintMainWindowView2::set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>&) { spdlog::info("set fft files"); }
+void SlintMainWindowView2::set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) {
+    // drive the charts context menu "Open Xyce FFT Calculation" action from the
+    // parsed FFT calculation output files
+    m_window->set_has_fft_files(!files.empty());
+}
 
 std::optional<SimulationConfig> SlintMainWindowView2::show_simulation_parameters_dialog(const SimulationConfig& current) {
     // the presenter must be wired before the dialog can deliver its result
@@ -319,7 +332,11 @@ void SlintMainWindowView2::cancel_simulation_process() {
         m_simulation_runner->cancel();
 }
 
-void SlintMainWindowView2::spawn_raw_file_window(std::shared_ptr<XyceOutputFile> /*raw_file*/) { spdlog::info("spawn raw file window"); }
+void SlintMainWindowView2::spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) {
+    // delegate the new-window creation to the app, which owns the window wiring
+    // (create the view/presenter pair, bind, show) in a single place
+    App::instance().new_window(std::move(raw_file));
+}
 
 void SlintMainWindowView2::show_add_remove_plots_dialog(float chart_position) {
     // a modal dialog is already open, do not stack another one
@@ -339,6 +356,46 @@ void SlintMainWindowView2::show_add_remove_plots_dialog(float chart_position) {
     modal_manager::set_input_blocked(window(), *m_modal_dialog_window, true);
 }
 
+void SlintMainWindowView2::show_fft_dialog(size_t chart_index) {
+    // a modal dialog is already open, do not stack another one
+    if (!begin_modal_dialog())
+        return;
+    // the dialog needs the charts renderer, which is created on first charts show
+    ensure_charts_renderer();
+    // create the dialog view wrapper on first use
+    if (!m_fft_dialog)
+        m_fft_dialog = std::make_unique<fft_dialog_view::FftDialogView>(*m_charts_renderer);
+    // show the dialog for the chart at the given index; the accepted expressions
+    // and FFT parameters are delivered asynchronously through
+    // on_fft_dialog_result, and the modal state is released through the on_closed
+    // callback on both accept and cancel
+    m_fft_dialog->show_for_chart(chart_index, *m_event_handler, [this] { end_modal_dialog(); });
+    // remember the dialog window for unblocking when it closes
+    m_modal_dialog_window = &m_fft_dialog->window();
+    // block input to the native main window while the dialog is shown
+    modal_manager::set_input_blocked(window(), *m_modal_dialog_window, true);
+}
+
+void SlintMainWindowView2::show_step_tool_dialog(size_t chart_index) {
+    // a modal dialog is already open, do not stack another one
+    if (!begin_modal_dialog())
+        return;
+    // the dialog needs the charts renderer, which is created on first charts show
+    ensure_charts_renderer();
+    // create the dialog view wrapper on first use
+    if (!m_step_tool_dialog)
+        m_step_tool_dialog = std::make_unique<step_tool_dialog_view::StepToolDialogView>(*m_charts_renderer);
+    // show the dialog for the chart at the given index; the accepted step
+    // selection is applied back to the chart through the renderer, and the
+    // modal state is released through the on_closed callback on both accept
+    // and cancel
+    m_step_tool_dialog->show_for_chart(chart_index, [this] { end_modal_dialog(); });
+    // remember the dialog window for unblocking when it closes
+    m_modal_dialog_window = &m_step_tool_dialog->window();
+    // block input to the native main window while the dialog is shown
+    modal_manager::set_input_blocked(window(), *m_modal_dialog_window, true);
+}
+
 void SlintMainWindowView2::handle_open() {
     // run the native file dialog
     const auto filepath = FileDialog::open_xyce_file();
@@ -353,13 +410,9 @@ void SlintMainWindowView2::ensure_charts_renderer() {
     // the renderer already exists
     if (m_charts_renderer)
         return;
-    // create the renderer on the first charts panel show
+    // create the renderer on the first charts panel show; update_charts_frame
+    // attaches it to the native content view and initializes the backend
     m_charts_renderer = std::make_unique<ChartsRenderer>();
-    // attach the renderer to the slint window
-    m_charts_renderer->attach(m_window->window());
-    // initialize the ImGui/ImPlot backend
-    m_charts_renderer->initialize();
-    // position the renderer over the charts panel region and render a frame
     update_charts_frame();
 }
 
@@ -367,6 +420,14 @@ void SlintMainWindowView2::update_charts_frame() {
     // the renderer is created lazily on the first charts panel show
     if (m_charts_renderer == nullptr)
         return;
+    // attach and initialize the renderer the first time the native content view
+    // exists; when the renderer was created right after the window was shown the
+    // native view may not exist yet, so the attach is deferred until this frame
+    // recompute runs again (e.g. from the show() single-shot timer)
+    if (!m_charts_renderer->attached()) {
+        m_charts_renderer->attach(m_window->window());
+        m_charts_renderer->initialize();
+    }
     // position the renderer in physical pixels below the toolbar
     const auto size = m_window->window().size();
     const auto scale = m_window->window().scale_factor();

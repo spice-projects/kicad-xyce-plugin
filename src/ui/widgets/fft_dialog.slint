@@ -27,6 +27,8 @@ export component FftDialog inherits Dialog {
         { name: "freq", type: "Freq", selected: false },
     ];
     in-out property <string> filter-text: "";
+    in property <bool> show-error: false;
+    in property <string> error-message: "";
 
     callback accepted;
     callback dismissed;
@@ -67,6 +69,12 @@ export component FftDialog inherits Dialog {
                 vertical-stretch: 1;
                 expressions: root.expressions;
                 expression-clicked(i) => { root.expression-clicked(i); }
+            }
+
+            if root.show-error: Text {
+                text: root.error-message;
+                font-size: 12px;
+                color: #ff3b30;
             }
 
             Legend {

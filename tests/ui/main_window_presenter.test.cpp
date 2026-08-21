@@ -107,6 +107,16 @@ public:
         open_fft_calculation_files = files;
     }
 
+    void show_fft_dialog(size_t) override {
+        // count the FFT dialog requests
+        fft_dialog_calls++;
+    }
+
+    void show_step_tool_dialog(size_t) override {
+        // count the step tool dialog requests
+        step_tool_dialog_calls++;
+    }
+
     std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig&) override { return simulation_parameters_result; }
 
     std::optional<PluginConfig> show_plugin_config_dialog(const PluginConfig&) override { return plugin_config_result; }
@@ -148,6 +158,8 @@ public:
     int start_process_calls = 0;
     int cancel_process_calls = 0;
     int spawn_raw_file_calls = 0;
+    int fft_dialog_calls = 0;
+    int step_tool_dialog_calls = 0;
     ActionStateEnablement applied_enablement;
     std::vector<std::vector<std::string>> update_charts_suggested_plots;
     std::vector<std::shared_ptr<XyceOutputFile>> open_fft_calculation_files;

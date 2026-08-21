@@ -201,6 +201,14 @@ const std::set<size_t>& Chart::selected_steps() {
     return m_selected_steps;
 }
 
+void Chart::set_selected_steps(const std::set<size_t>& steps) {
+    // store the new step selection
+    m_selected_steps = steps;
+    // re-plot the current expressions so only the selected steps remain
+    const auto current = selected_expressions();
+    plot_series(std::set<AnyExpression*>(current.begin(), current.end()));
+}
+
 std::vector<AnyExpression*> Chart::selected_expressions() {
     // result
     std::vector<AnyExpression*> result;

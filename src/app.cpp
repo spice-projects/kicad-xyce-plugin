@@ -64,34 +64,49 @@ int App::run() {
     // share the session with the app when present
     if (session)
         m_kicad_session = std::make_shared<KiCadSession>(std::move(*session));
-    // create the view and presenter separately; the parent owns both and wires them together so neither knows about the other at compile time
-    auto view = std::make_unique<SlintMainWindowView2>(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), PluginConfig::load());
-    // the presenter netlist source: the schematic-backed source when running as a
-    // KiCad plugin (taken from the session), or an editable editor source standalone
-    std::unique_ptr<NetlistSource> netlist_source;
+    // the main window's netlist source: the schematic-backed source when running as a KiCad plugin (taken from the session), or an editable editor source standalone
+    std::unique_ptr<NetlistSource> netlist_source = m_kicad_session != nullptr ? m_kicad_session->take_netlist_source() : std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{});
+    // the main window goes through the same creation path as any spawned window
+    auto* main_presenter = create_window(std::move(netlist_source), m_kicad_session);
+    // extract the schematic netlist before the first frame (KiCad plugin mode)
     if (m_kicad_session != nullptr)
-        netlist_source = m_kicad_session->take_netlist_source();
-    else
-        netlist_source = std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{});
-    auto presenter = std::make_unique<SlintMainWindowPresenter2>(*view, std::move(netlist_source), PluginConfig::load(), m_kicad_session);
-    // wire the event handler so the view forwards user interactions to the presenter
-    view->set_event_handler(*presenter);
-    // extract the schematic netlist before showing the window (KiCad plugin mode)
-    if (m_kicad_session != nullptr)
-        presenter->on_extract_schematic_netlist();
-    // show the main window
-    view->show();
+        main_presenter->on_extract_schematic_netlist();
     // run the slint event loop until the last window closes
     slint::run_event_loop();
     // WORKAROUND (see slint-bug.md): slint 1.17.1 caches the native context menu item tree in
     // WinitWindowAdapter::context_menu and never releases it, and that field is declared after the
-    // renderer, so destroying the window frees the skia renderer first and the cached menu item tree
+    // renderer, so destroying a window frees the skia renderer first and the cached menu item tree
     // then calls free_graphics_resources() on it. The result is a use-after-free that aborts on exit
-    // as soon as the charts context menu has been opened once. Intentionally leak the view (and the
-    // presenter it is wired to) so the window adapter is never destroyed; the process is exiting and
-    // the OS reclaims the memory. Remove once the slint bug is fixed.
-    (void)view.release();
-    (void)presenter.release();
+    // as soon as the charts context menu has been opened once. Intentionally leak every window (the
+    // main window and any spawned through new_window()) so the window adapters are never destroyed;
+    // the process is exiting and the OS reclaims the memory. Remove once the slint bug is fixed.
+    for (auto& window : m_windows)
+        (void)window.release();
     // the event loop exited, end the application
     return 0;
+}
+
+void App::new_window(std::shared_ptr<XyceOutputFile> raw_file) {
+    // spawned windows are standalone (no kicad session), matching the wx
+    // new-window behavior; the window is wired and shown by create_window
+    auto* presenter = create_window(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), nullptr);
+    // seed the new window with the raw file, switching to the charts view; the
+    // window was shown by create_window, so the native content view exists when
+    // the charts renderer attaches
+    presenter->load_raw_file(std::move(raw_file));
+}
+
+SlintMainWindowPresenter2* App::create_window(std::unique_ptr<NetlistSource> netlist_source, std::shared_ptr<KiCadSession> session) {
+    // the view needs only a placeholder netlist source; the presenter owns the real source
+    auto instance = std::make_unique<WindowInstance>();
+    instance->view = std::make_unique<SlintMainWindowView2>(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), PluginConfig::load());
+    instance->presenter = std::make_unique<SlintMainWindowPresenter2>(*instance->view, std::move(netlist_source), PluginConfig::load(), std::move(session));
+    // wire the event handler so the view forwards user interactions to the presenter
+    instance->view->set_event_handler(*instance->presenter);
+    // keep the window alive while the event loop runs
+    m_windows.push_back(std::move(instance));
+    // show the window; the caller seeds the content afterwards
+    m_windows.back()->view->show();
+    // hand back the presenter so the caller can seed the window
+    return m_windows.back()->presenter.get();
 }

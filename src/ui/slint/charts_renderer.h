@@ -57,6 +57,10 @@ public:
     // extracts the native content view (NSView on macOS)
     void attach(slint::Window& window);
 
+    // whether the renderer is attached to the native content view; false while
+    // the native view does not exist yet (e.g. right after the window is shown)
+    [[nodiscard]] bool attached() const { return m_view != nullptr; }
+
     // detach the renderer view from its content view
     void detach();
 
@@ -95,8 +99,20 @@ public:
     // all expressions known to the loaded file, from the expression manager
     [[nodiscard]] std::vector<AnyExpression*> all_expressions() const;
 
+    // current abscissa value range [min, max] from the loaded step information
+    [[nodiscard]] std::pair<double, double> abscissa_range() const;
+
     // expressions currently plotted on the chart at the given index
     [[nodiscard]] std::vector<AnyExpression*> chart_selected_expressions(size_t chart_index) const;
+
+    // steps currently selected on the chart at the given index
+    [[nodiscard]] std::set<size_t> chart_selected_steps(size_t chart_index) const;
+
+    // apply the given step selection to the chart at the given index and refresh
+    void set_chart_selected_steps(size_t chart_index, const std::set<size_t>& steps);
+
+    // step information of the loaded file, or nullptr when not loaded
+    [[nodiscard]] const StepInformation* step_information() const;
 
     // evaluate a custom expression against the expression manager, or nullptr when invalid
     AnyExpression* evaluate_expression(const std::string& expression);

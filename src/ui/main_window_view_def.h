@@ -7,7 +7,9 @@
 #include <vector>
 
 #include "../config/plugin_config.h"
+#include "../expression/expression.h"
 #include "../expression/expression_manager.h"
+#include "../fft/fft.h"
 #include "../file/xyce_output_file.h"
 #include "../simulation_parameters/simulation_config.h"
 #include "../step_information.h"
@@ -49,6 +51,14 @@ public:
 
     // parsed Xyce FFT calculation output files, forwarded to the charts context menu
     virtual void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) = 0;
+
+    // show the FFT setup dialog for the chart at the given index; the accepted
+    // result is delivered asynchronously through on_fft_dialog_result
+    virtual void show_fft_dialog(size_t chart_index) = 0;
+
+    // show the step tool dialog for the chart at the given index; the accepted
+    // step selection is applied back to the chart through the renderer
+    virtual void show_step_tool_dialog(size_t chart_index) = 0;
 
     // modal dialogs (still the view's job, they need a wx parent window)
     [[nodiscard]] virtual std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig& current) = 0;
@@ -100,6 +110,12 @@ public:
     // the view reports the result asynchronously instead of through
     // show_simulation_parameters_dialog()
     virtual void on_simulation_parameters_dialog_result(const SimulationConfig& config) = 0;
+
+    // accepted FFT setup delivered by the view after the FFT dialog closes: the
+    // selected real (time-domain filtered) expressions and the FFT parameters;
+    // the slint dialog is non-modal, so the view reports the result
+    // asynchronously instead of through show_fft_dialog()
+    virtual void on_fft_dialog_result(std::vector<AnyExpression*> selected_expressions, const fft::FftParameters& parameters) = 0;
 
     // charts context menu
     virtual void on_chart_calculate_fft(size_t chart_index) = 0;

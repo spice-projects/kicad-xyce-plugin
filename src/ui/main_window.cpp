@@ -646,6 +646,16 @@ void MainWindow::set_open_fft_calculation_files(const std::vector<std::shared_pt
     m_charts_panel->set_open_fft_calculation_files(files);
 }
 
+void MainWindow::show_fft_dialog(size_t /*chart_index*/) {
+    // the wx charts panel launches its own FFT dialog through the context menu,
+    // so the presenter-driven dialog has no wx counterpart
+}
+
+void MainWindow::show_step_tool_dialog(size_t /*chart_index*/) {
+    // the wx charts panel launches its own step tool dialog through the context
+    // menu, so the presenter-driven dialog has no wx counterpart
+}
+
 std::optional<SimulationConfig> MainWindow::show_simulation_parameters_dialog(const SimulationConfig& current) {
     // create the dialog with the current config
     SimulationParametersDialog dialog(this, current);

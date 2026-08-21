@@ -2,8 +2,15 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 class KiCadSession;
+class NetlistSource;
+class XyceOutputFile;
+
+// forward-declared window pair owned by the app window registry
+class SlintMainWindowView2;
+class SlintMainWindowPresenter2;
 
 // application singleton managing the lifecycle, shared kicad session, and event loop
 class App
@@ -17,6 +24,12 @@ public:
 
     // create the main window and run the application event loop; returns when the loop exits
     int run();
+
+    // spawn an additional window seeded with the given raw file (charts view).
+    // the app creates and wires the view/presenter pair so all window wiring
+    // stays in a single place, and keeps the window alive for the event loop
+    // lifetime
+    void new_window(std::shared_ptr<XyceOutputFile> raw_file);
 
     // release the shared kicad session
     ~App();
@@ -33,8 +46,26 @@ private:
     // apply the configured log level to spdlog
     void setup_logger();
 
+    // create a view/presenter pair for a window, wire them together, keep the
+    // window alive in the registry, and show it; returns the presenter so the
+    // caller can seed the window content (main window netlist or raw file)
+    [[nodiscard]] SlintMainWindowPresenter2* create_window(std::unique_ptr<NetlistSource> netlist_source, std::shared_ptr<KiCadSession> session);
+
+    // a spawned window pair: the view owns the slint component and the
+    // presenter owns the business logic; both must stay alive for the window
+    // lifetime
+    struct WindowInstance
+    {
+        std::unique_ptr<SlintMainWindowView2> view;
+        std::unique_ptr<SlintMainWindowPresenter2> presenter;
+    };
+
     std::shared_ptr<KiCadSession> m_kicad_session;
     std::string m_log_level = "info";
+
+    // windows kept alive while the event loop runs; the main window is the
+    // first entry
+    std::vector<std::unique_ptr<WindowInstance>> m_windows;
 };
 
 // platform-specific initialization (e.g. dock icon), implemented per-platform

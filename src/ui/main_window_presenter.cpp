@@ -327,6 +327,9 @@ void MainWindowPresenter::refresh_action_states() {
     input.netlist_editor_dirty = m_netlist_editor_dirty;
     input.output_hidden = m_view.simulation_output_panel_hidden();
     input.log_has_content = m_view.simulation_output_has_content();
+    // chart context tools are tied to the loaded raw output
+    input.abscissa_is_time = m_xyce_raw_file.has_value() && m_xyce_raw_file.value()->expression_manager().abscissa().unit() == "s";
+    input.has_steps = m_xyce_raw_file.has_value() && m_xyce_raw_file.value()->step_information().length() > 1;
     // derive the current application state
     const AppState state = derive_app_state(input);
     // log state transitions
