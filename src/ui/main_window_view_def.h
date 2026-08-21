@@ -7,12 +7,12 @@
 #include <vector>
 
 #include "../config/plugin_config.h"
+#include "../core/step_information.h"
+#include "../dsp/fft.h"
 #include "../expression/expression.h"
 #include "../expression/expression_manager.h"
-#include "../fft/fft.h"
-#include "../file/xyce_output_file.h"
-#include "../simulation_parameters/simulation_config.h"
-#include "../step_information.h"
+#include "../io/xyce_output_file.h"
+#include "../simulation/simulation_config.h"
 #include "main_window_state.h"
 
 // abstract view backed by the main wx window, so the presenter can be tested without wx

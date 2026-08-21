@@ -6,10 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include "charts/chart.h"
+#include "core/step_information.h"
 #include "expression/expression.h"
 #include "expression/expression_manager.h"
-#include "step_information.h"
-#include "ui/chart.h"
 
 TEST(ChartRatioTest, linear_ratio_interpolates_linearly) {
     // arrange

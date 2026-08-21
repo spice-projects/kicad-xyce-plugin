@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "fft/pchip_interpolation.h"
+#include "dsp/pchip_interpolation.h"
 
 TEST(PchipInterpolationChecks, interpolate_linear_data_matches_linear_interpolation) {
     // arrange

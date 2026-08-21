@@ -13,7 +13,7 @@
 
 #include <spdlog/spdlog.h>
 
-#include "view.h"
+#include "../core/view.h"
 
 template <typename T>
 class Expression

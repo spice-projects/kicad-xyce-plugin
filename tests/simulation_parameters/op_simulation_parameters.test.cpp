@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "netlist/netlist.h"
-#include "simulation_parameters/op_simulation_parameters.h"
+#include "simulation/op_simulation_parameters.h"
 
 // ========================================================================================
 // NodesetEntry

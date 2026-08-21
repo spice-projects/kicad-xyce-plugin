@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "fft/cubic_spline_interpolation.h"
+#include "dsp/cubic_spline_interpolation.h"
 
 TEST(CubicSplineInterpolationChecks, two_points_produces_linear_interpolation) {
     // arrange: with only 2 points, natural cubic spline reduces to linear (M_0 = M_1 = 0)

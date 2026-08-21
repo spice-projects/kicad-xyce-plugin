@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "simulation_parameters/data_block.h"
+#include "simulation/data_block.h"
 
 // ========================================================================================
 // from_xyce_directives

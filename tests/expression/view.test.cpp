@@ -9,7 +9,7 @@
 
 #include <gtest/gtest.h>
 
-#include "expression/view.h"
+#include "core/view.h"
 
 static_assert(std::is_default_constructible_v<View<double>>);
 static_assert(!std::is_copy_constructible_v<View<double>>);

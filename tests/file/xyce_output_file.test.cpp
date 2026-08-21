@@ -7,10 +7,10 @@
 
 #include <gtest/gtest.h>
 
+#include "core/step_information.h"
 #include "expression/expression.h"
 #include "expression/expression_manager.h"
-#include "file/xyce_output_file.h"
-#include "step_information.h"
+#include "io/xyce_output_file.h"
 
 // ========================================================================================
 // type traits

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "simulation_parameters/four_parameters.h"
+#include "simulation/four_parameters.h"
 
 // ========================================================================================
 // from_xyce_statement

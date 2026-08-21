@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "simulation_parameters/lin_simulation_parameters.h"
+#include "simulation/lin_simulation_parameters.h"
 
 namespace
 {

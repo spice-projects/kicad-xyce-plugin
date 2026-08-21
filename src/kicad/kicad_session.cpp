@@ -4,9 +4,9 @@
 
 #include <spdlog/spdlog.h>
 
+#include "../core/util.h"
 #include "kicad_cli_netlist_source.h"
 #include "kicad_session.h"
-#include "util.h"
 
 namespace
 {

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "netlist/netlist.h"
-#include "simulation_parameters/noise_simulation_parameters.h"
+#include "simulation/noise_simulation_parameters.h"
 
 // ========================================================================================
 // DeviceNoiseOperator

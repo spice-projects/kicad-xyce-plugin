@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "simulation_parameters/dc_simulation_parameters.h"
+#include "simulation/dc_simulation_parameters.h"
 
 // ========================================================================================
 // from_xyce_directives

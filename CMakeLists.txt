@@ -54,6 +54,19 @@ include(FetchContent)
 FetchContent_Declare(Slint GIT_REPOSITORY https://github.com/slint-ui/slint.git GIT_TAG release/1 SOURCE_SUBDIR api/cpp)
 FetchContent_MakeAvailable(Slint)
 
+# slint's generated internal headers trigger -Wgnu-anonymous-struct and -Wextra-semi
+# under our warning set; collect slint's interface include directories here and expose
+# them as system directories on the core library below, so warnings from slint headers
+# are suppressed for the core library and every consumer of it
+set(SLINT_SYSTEM_INCLUDE_DIRS)
+get_target_property(SLINT_INTERFACE_INCLUDES Slint INTERFACE_INCLUDE_DIRECTORIES)
+foreach(include_dir IN LISTS SLINT_INTERFACE_INCLUDES)
+    # keep build-interface paths only; install-interface paths never apply to this build
+    if(include_dir MATCHES "^\\$<BUILD_INTERFACE:(.+)>$")
+        list(APPEND SLINT_SYSTEM_INCLUDE_DIRS "${CMAKE_MATCH_1}")
+    endif()
+endforeach()
+
 # generate C++ code from the vendored KiCad API protos
 set(KICAD_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/kicad/proto")
 set(KICAD_PROTO_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/kicad-proto")
@@ -118,6 +131,8 @@ add_library(kicad-xyce-core STATIC ${SOURCE_FILES})
 target_include_directories(kicad-xyce-core PUBLIC "src")
 # link the core library with the vendored pocketfft library
 target_include_directories(kicad-xyce-core PRIVATE ${POCKETFFT_INCLUDE_DIRS})
+# expose slint's headers as system directories (see note above the slint fetch)
+target_include_directories(kicad-xyce-core SYSTEM PUBLIC ${SLINT_SYSTEM_INCLUDE_DIRS})
 
 # clang-cl treats -Wall as MSVC's /Wall (enable every warning), so only apply
 # the standard warning set to GNU-style frontends (g++, clang++)

@@ -9,7 +9,7 @@
 
 #include <gtest/gtest.h>
 
-#include "ui/decimate.h"
+#include "charts/decimate.h"
 
 // ---------------------------------------------------------------------------
 // test helpers

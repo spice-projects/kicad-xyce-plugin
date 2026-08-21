@@ -2,9 +2,9 @@
 #include <string>
 #include <unordered_map>
 
+#include "../core/util.h"
 #include "probe_names.h"
 #include "unit_utils.h"
-#include "util.h"
 #include "xyce_parser.h"
 
 namespace

@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 
 #include "netlist/netlist.h"
-#include "simulation_parameters/option_parameters.h"
+#include "simulation/option_parameters.h"
 
 // ========================================================================================
 // from_xyce_directives

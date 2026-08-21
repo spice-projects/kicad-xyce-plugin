@@ -7,7 +7,7 @@
 
 #include <gtest/gtest.h>
 
-#include "fft/fft.h"
+#include "dsp/fft.h"
 
 TEST(FftChecks, throws_on_too_few_elements_in_x) {
     // arrange

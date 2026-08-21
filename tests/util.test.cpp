@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include "util.h"
+#include "core/util.h"
 
 TEST(UtilChecks, get_environment_variable_returns_value_when_set) {
     // arrange

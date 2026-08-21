@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "netlist/netlist.h"
-#include "simulation_parameters/print_parameters.h"
+#include "simulation/print_parameters.h"
 
 // ========================================================================================
 // from_xyce_statement

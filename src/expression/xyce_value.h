@@ -3,8 +3,8 @@
 #include <complex>
 #include <variant>
 
+#include "../core/view.h"
 #include "expression.h"
-#include "view.h"
 
 using XyceValue = std::variant<double, std::complex<double>, std::shared_ptr<View<double>>, std::shared_ptr<View<std::complex<double>>>>;
 

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "simulation_parameters/step_parameters.h"
+#include "simulation/step_parameters.h"
 
 // ========================================================================================
 // from_single_directive

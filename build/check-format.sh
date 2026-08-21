@@ -9,7 +9,6 @@ cd "$ROOT"
 
 # generated sources that clang-format must not reformat
 EXCLUDED=(
-    "src/ui/icon_manager.cpp"
     "src/ui/font_data.h"
 )
 

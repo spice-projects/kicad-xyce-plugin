@@ -7,8 +7,8 @@
 #include <utility>
 #include <vector>
 
+#include "../core/util.h"
 #include "netlist.h"
-#include "util.h"
 
 namespace
 {

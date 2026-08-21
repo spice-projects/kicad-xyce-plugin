@@ -9,9 +9,9 @@
 
 #include <spdlog/spdlog.h>
 
+#include "../core/util.h"
+#include "../core/view.h"
 #include "probe_names.h"
-#include "util.h"
-#include "view.h"
 #include "xyce_evaluator.h"
 #include "xyce_value.h"
 

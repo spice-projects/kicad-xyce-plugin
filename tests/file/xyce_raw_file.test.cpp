@@ -11,7 +11,7 @@
 
 #include "expression/expression.h"
 #include "expression/expression_manager.h"
-#include "file/xyce_raw_file.h"
+#include "io/xyce_raw_file.h"
 
 namespace
 {

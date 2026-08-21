@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include "fft/linear_interpolation.h"
+#include "dsp/linear_interpolation.h"
 
 TEST(LinearInterpolationChecks, interpolate_midpoint_between_two_points) {
     // arrange

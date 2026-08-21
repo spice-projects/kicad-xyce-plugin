@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "netlist/netlist.h"
-#include "simulation_parameters/hb_simulation_parameters.h"
+#include "simulation/hb_simulation_parameters.h"
 
 // ========================================================================================
 // from_xyce_directives

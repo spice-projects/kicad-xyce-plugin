@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "view.h"
+#include "../core/view.h"
 #include "xyce_evaluator.h"
 #include "xyce_value.h"
 

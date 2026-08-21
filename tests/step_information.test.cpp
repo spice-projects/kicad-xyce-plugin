@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include "step_information.h"
+#include "core/step_information.h"
 
 // ========================================================================================
 // type traits

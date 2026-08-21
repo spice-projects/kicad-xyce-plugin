@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include "simulation_parameters/simulation_config.h"
+#include "simulation/simulation_config.h"
 
 TEST(SimulationConfigReplaceGroundChecks, from_xyce_directives_parses_disabled_statement) {
     // arrange / act

@@ -22,15 +22,18 @@ KiCad plugin that integrates the Xyce circuit simulator into the KiCad UI, so yo
 
 - `src/`: main source directory containing the plugin logic and files
   - `src/main.cpp`: application entry point
-  - `src/app.cpp` / `src/app.h`: wxWidgets application lifecycle
+  - `src/app/`: application lifecycle (singleton, platform initialization)
+  - `src/core/`: shared utilities (`util`, `view`, `step_information`)
   - `src/plugin.json`: KiCad Plugin and Content Manager (PCM) executable-plugin metadata
   - `src/kicad/`: KiCad IPC connection (NNG), session handling, and netlist source
   - `src/netlist/`: Xyce netlist generation
-  - `src/simulation_parameters/`: simulation parameter models
+  - `src/simulation/`: simulation parameter models
   - `src/expression/`: expression parsing/evaluation
-  - `src/fft/`: FFT computation for spectral analysis
+  - `src/dsp/`: FFT computation for spectral analysis
+  - `src/io/`: Xyce output/raw/FFT file readers
+  - `src/charts/`: chart data model and decimation algorithms
   - `src/config/`: plugin configuration
-  - `src/ui/`: desktop UI (wxWidgets shell with ImGui/ImPlot charts, dialogs, charts panel)
+  - `src/ui/`: Slint desktop UI (flat layout: views/presenters, dialog wrappers, platform backends, ImGui/ImPlot charts renderer)
 - `netlists/`: sample/test netlists
 - `tests/`: C++ unit tests (GoogleTest)
 - `xyce-docs/`: vendor-provided Xyce documentation PDFs

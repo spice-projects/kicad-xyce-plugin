@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "simulation_parameters/fft_parameters.h"
+#include "simulation/fft_parameters.h"
 
 // ========================================================================================
 // from_xyce_statement

@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include "simulation_parameters/measure_parameters.h"
+#include "simulation/measure_parameters.h"
 
 // ========================================================================================
 // from_xyce_statement

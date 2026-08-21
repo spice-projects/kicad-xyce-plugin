@@ -38,7 +38,7 @@ The wxWidgets UI is being migrated to Slint. The new UI lives under `src/ui`:
 
 - Root widgets (windows/dialogs): `src/ui/widgets/*.slint`
 - Shared components (imported only by roots): `src/ui/components/*.slint`
-- Host C++ (`slint.h`, wiring, platform backends): `src/ui/slint/`
+- Host C++ (`slint.h`, wiring, platform backends): flat under `src/ui/` (views/presenters, dialog wrappers, `file_dialog.*`, `clipboard.*`, `modal_manager.*`, `charts_renderer.*`)
 
 ### Build integration (`CMakeLists.txt`)
 

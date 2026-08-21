@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "file/mapped_file.h"
+#include "io/mapped_file.h"
 
 TEST(MappedFileChecks, default_constructed_is_invalid) {
     // arrange / act

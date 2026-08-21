@@ -15,8 +15,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include "../core/util.h"
 #include "plugin_config.h"
-#include "util.h"
 
 namespace
 {

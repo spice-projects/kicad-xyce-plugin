@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "netlist/netlist.h"
-#include "simulation_parameters/transient_simulation_parameters.h"
+#include "simulation/transient_simulation_parameters.h"
 
 // ========================================================================================
 // TransientSchedulePoint
