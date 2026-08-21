@@ -1,5 +1,6 @@
 #include <cmath>
 #include <cstdint>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -217,4 +218,239 @@ TEST(ChartFormatTest, metric_uses_micro_sign) {
     EXPECT_EQ(Chart::format_metric(1e-6, "A"), "1 µA");
     // the former ASCII 'u' prefix is no longer emitted
     EXPECT_EQ(Chart::format_metric(1e-6, "A").find("uA"), std::string::npos);
+}
+
+TEST(ChartFormatTest, metric_covers_all_si_scales) {
+    EXPECT_EQ(Chart::format_metric(1e9, "V"), "1 GV");
+    EXPECT_EQ(Chart::format_metric(2.5e6, "V"), "2.5 MV");
+    EXPECT_EQ(Chart::format_metric(1e-9, "V"), "1 nV");
+    EXPECT_EQ(Chart::format_metric(2.5e-12, "V"), "2.5 pV");
+}
+
+TEST(ChartFormatTest, metric_formats_negative_values) {
+    EXPECT_EQ(Chart::format_metric(-0.001, "A"), "-1 mA");
+    EXPECT_EQ(Chart::format_metric(-1500.0, "V"), "-1.5 kV");
+}
+
+TEST(ChartFormatTest, metric_bumps_kilo_mantissa_to_mega) {
+    // 999.5 kV rounds up to the next prefix instead of overflowing the mantissa
+    EXPECT_EQ(Chart::format_metric(999500.0, "V"), "1 MV");
+    EXPECT_EQ(Chart::format_metric(1e10, "V"), "10 GV");
+}
+
+// ========================================================================================
+// ratio clamping and zoom window handling
+// ========================================================================================
+
+TEST(ChartZoomTest, ratio_clamps_to_unit_interval) {
+    // arrange
+    std::vector<double> abscissa_data = {0.0, 2.0, 4.0, 6.0, 8.0, 10.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 6}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"time"}, {{}}, {{0.0, 10.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    // act
+    const double below = chart.ratio_to_abscissa_value(-0.5);
+    const double above = chart.ratio_to_abscissa_value(1.5);
+    // assert — out-of-range ratios clamp to the range endpoints
+    ASSERT_NEAR(below, 0.0, 1e-9);
+    ASSERT_NEAR(above, 10.0, 1e-9);
+}
+
+TEST(ChartZoomTest, update_zoom_window_stores_ratios) {
+    // arrange
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 4}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"time"}, {{}}, {{0.0, 3.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    // act
+    chart.update_zoom_window(0.2, 0.4, 0.3, 0.7);
+    // assert
+    const auto& zoom = chart.zoom_window();
+    ASSERT_NEAR(std::get<0>(zoom), 0.2, 1e-9);
+    ASSERT_NEAR(std::get<1>(zoom), 0.3, 1e-9);
+    ASSERT_NEAR(std::get<2>(zoom), 0.4, 1e-9);
+    ASSERT_NEAR(std::get<3>(zoom), 0.7, 1e-9);
+}
+
+TEST(ChartZoomTest, update_zoom_window_without_ratios_keeps_window) {
+    // arrange
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 4}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"time"}, {{}}, {{0.0, 3.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    chart.update_zoom_window(0.2, 0.4, -1.0, -1.0);
+    // act — a call without ratios leaves the stored window untouched
+    chart.update_zoom_window(-1.0, -1.0, -1.0, -1.0);
+    // assert
+    const auto& zoom = chart.zoom_window();
+    ASSERT_NEAR(std::get<0>(zoom), 0.2, 1e-9);
+    ASSERT_NEAR(std::get<2>(zoom), 0.4, 1e-9);
+}
+
+TEST(ChartZoomTest, reset_zoom_window_restores_full_range) {
+    // arrange
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0};
+    std::vector<double> voltage_data = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 6}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    expressions.emplace_back(Expression<double>("V(out)", std::move(voltage_data), step_slices, "V"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"time"}, {{}}, {{0.0, 5.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    chart.plot_series({expression_manager.expressions()[1]});
+    chart.update_zoom_window(0.2, 0.4, -1.0, -1.0);
+    // act
+    chart.reset_zoom_window(true, false);
+    // assert — the visible range spans the full data again
+    ASSERT_NEAR(chart.plot_ratio_to_abscissa_value(0.0), 0.0, 1e-9);
+    ASSERT_NEAR(chart.plot_ratio_to_abscissa_value(1.0), 5.0, 1e-9);
+}
+
+// ========================================================================================
+// series and step management
+// ========================================================================================
+
+TEST(ChartSeriesTest, selected_expressions_returns_plotted_expressions) {
+    // arrange
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0};
+    std::vector<double> voltage_data = {1.0, 2.0, 3.0, 4.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 4}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    expressions.emplace_back(Expression<double>("V(out)", std::move(voltage_data), step_slices, "V"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"time"}, {{}}, {{0.0, 3.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    // act
+    chart.plot_series({expression_manager.expressions()[1]});
+    const auto selected = chart.selected_expressions();
+    // assert
+    ASSERT_EQ(selected.size(), 1);
+    EXPECT_EQ(&std::get<Expression<double>>(*selected[0]), &std::get<Expression<double>>(*expression_manager.expressions()[1]));
+}
+
+TEST(ChartSeriesTest, plotting_empty_set_removes_existing_series) {
+    // arrange
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0};
+    std::vector<double> voltage_data = {1.0, 2.0, 3.0, 4.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 4}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    expressions.emplace_back(Expression<double>("V(out)", std::move(voltage_data), step_slices, "V"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"time"}, {{}}, {{0.0, 3.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    chart.plot_series({expression_manager.expressions()[1]});
+    // act
+    chart.plot_series({});
+    // assert
+    EXPECT_TRUE(chart.selected_expressions().empty());
+}
+
+TEST(ChartSeriesTest, clear_removes_all_series) {
+    // arrange
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0};
+    std::vector<double> voltage_data = {1.0, 2.0, 3.0, 4.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 4}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    expressions.emplace_back(Expression<double>("V(out)", std::move(voltage_data), step_slices, "V"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"time"}, {{}}, {{0.0, 3.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    chart.plot_series({expression_manager.expressions()[1]});
+    // act
+    chart.clear();
+    // assert
+    EXPECT_TRUE(chart.selected_expressions().empty());
+}
+
+TEST(ChartSeriesTest, selected_steps_default_to_the_first_step) {
+    // arrange
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0};
+    std::vector<double> voltage_data = {1.0, 2.0, 3.0, 4.0, 2.0, 3.0, 4.0, 5.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 4}, {4, 8}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    expressions.emplace_back(Expression<double>("V(out)", std::move(voltage_data), step_slices, "V"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"R1"}, {{1000.0, 2000.0}}, {{0.0, 3.0}, {0.0, 3.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    // act
+    const auto& steps = chart.selected_steps();
+    // assert
+    ASSERT_EQ(steps.size(), 1);
+    EXPECT_EQ(*steps.begin(), 0u);
+}
+
+TEST(ChartSeriesTest, set_selected_steps_drops_unselected_step_data) {
+    // arrange — two stepped runs of the same expression
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0};
+    std::vector<double> voltage_data = {1.0, 2.0, 3.0, 4.0, 2.0, 3.0, 4.0, 5.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 4}, {4, 8}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    expressions.emplace_back(Expression<double>("V(out)", std::move(voltage_data), step_slices, "V"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"R1"}, {{1000.0, 2000.0}}, {{0.0, 3.0}, {0.0, 3.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    // plot both steps first
+    std::set<size_t> both_steps = {0, 1};
+    chart.set_selected_steps(both_steps);
+    chart.plot_series({expression_manager.expressions()[1]});
+    // act — narrow the selection to the second step
+    std::set<size_t> second_step = {1};
+    chart.set_selected_steps(second_step);
+    // assert — the hover text groups a single step as a plain value, not a list
+    const std::string text = chart.hovered_series_text(1.5);
+    EXPECT_NE(text.find("V(out)="), std::string::npos);
+    EXPECT_EQ(text.find("V(out)="), text.rfind("V(out)="));
+    EXPECT_EQ(text.find("["), std::string::npos);
+}
+
+// ========================================================================================
+// hover text edge cases
+// ========================================================================================
+
+TEST(ChartHoverTest, hovered_series_text_is_empty_without_series) {
+    // arrange
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 4}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"time"}, {{}}, {{0.0, 3.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    // act / assert
+    EXPECT_EQ(chart.hovered_series_text(1.5), "");
+}
+
+TEST(ChartHoverTest, hovered_series_text_groups_multiple_steps) {
+    // arrange — two stepped runs with different values at the same abscissa
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0};
+    std::vector<double> voltage_data = {1.0, 2.0, 3.0, 4.0, 2.0, 3.0, 4.0, 5.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 4}, {4, 8}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    expressions.emplace_back(Expression<double>("V(out)", std::move(voltage_data), step_slices, "V"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"R1"}, {{1000.0, 2000.0}}, {{0.0, 3.0}, {0.0, 3.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    std::set<size_t> both_steps = {0, 1};
+    chart.set_selected_steps(both_steps);
+    chart.plot_series({expression_manager.expressions()[1]});
+    // act
+    const std::string text = chart.hovered_series_text(1.5);
+    // assert — both step values are grouped in a bracketed list
+    EXPECT_NE(text.find("V(out)=[2.5 V, 3.5 V]"), std::string::npos);
 }

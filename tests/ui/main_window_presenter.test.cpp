@@ -1,0 +1,604 @@
+#include <filesystem>
+#include <fstream>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <gtest/gtest.h>
+
+#include "config/plugin_config.h"
+#include "core/step_information.h"
+#include "dsp/fft.h"
+#include "expression/expression.h"
+#include "expression/expression_manager.h"
+#include "io/xyce_output_file.h"
+#include "netlist/netlist_source.h"
+#include "simulation/simulation_config.h"
+#include "simulation/transient_simulation_parameters.h"
+#include "ui/main_window_presenter.h"
+
+namespace
+{
+    // recording view double that captures every presenter interaction
+    class RecordingView : public MainWindowViewDef
+    {
+    public:
+        // window chrome
+        void set_title(const std::string& title) override { m_title = title; }
+
+        void set_status_text(const std::string& text) override { m_status_text = text; }
+
+        void apply_action_enablement(const ActionStateEnablement& enablement) override { m_last_enablement = enablement; }
+
+        // simulation run state, drives the Run/Stop toolbar toggle
+        void set_simulation_running(bool running) override { m_simulation_running_ui = running; }
+
+        // content views (netlist editor vs charts, mutually exclusive)
+        void show_netlist_view() override {
+            m_netlist_view_shown = true;
+            m_charts_view_shown = false;
+        }
+
+        void show_charts_view() override {
+            m_charts_view_shown = true;
+            m_netlist_view_shown = false;
+        }
+
+        void set_netlist_editor_content(const std::string& content) override { m_editor_content = content; }
+
+        [[nodiscard]] std::string netlist_editor_content() const override { return m_editor_content; }
+
+        void set_netlist_editor_read_only(bool read_only) override { m_editor_read_only = read_only; }
+
+        [[nodiscard]] bool charts_shown() const override { return m_charts_view_shown && !m_netlist_view_shown; }
+
+        // simulation output panel / log
+        void show_simulation_output_panel() override { m_output_panel_hidden = false; }
+
+        void hide_simulation_output_panel() override { m_output_panel_hidden = true; }
+
+        void clear_simulation_output() override { m_output_lines.clear(); }
+
+        void append_simulation_output_line(const std::string& line) override { m_output_lines.push_back(line); }
+
+        [[nodiscard]] bool simulation_output_panel_hidden() const override { return m_output_panel_hidden; }
+
+        [[nodiscard]] bool simulation_output_has_content() const override { return !m_output_lines.empty(); }
+
+        // charts
+        void update_charts(ExpressionManager&, const StepInformation&, AbscissaScale, const std::vector<std::vector<std::string>>&) override { m_update_charts_count++; }
+
+        void delete_all_charts() override { m_delete_all_charts_count++; }
+
+        // parsed Xyce FFT calculation output files, forwarded to the charts context menu
+        void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) override { m_fft_files_count = files.size(); }
+
+        // show the FFT setup dialog for the chart at the given index
+        void show_fft_dialog(size_t chart_index) override { m_fft_dialog_index = chart_index; }
+
+        // show the step tool dialog for the chart at the given index
+        void show_step_tool_dialog(size_t chart_index) override { m_step_tool_dialog_index = chart_index; }
+
+        // modal dialogs (the view's job, they need a parent window)
+        [[nodiscard]] std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig&) override {
+            m_simulation_dialog_requests++;
+            return m_simulation_config_result;
+        }
+
+        [[nodiscard]] std::optional<PluginConfig> show_plugin_config_dialog(const PluginConfig&) override { return m_plugin_config_result; }
+
+        // simulation process lifecycle (presenter decides when, the view wires the process events)
+        void start_simulation_process(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory) override {
+            m_started = true;
+            m_started_program = program;
+            m_started_netlist_path = netlist_path;
+            m_started_working_directory = working_directory;
+        }
+
+        // cancel the running simulation process owned by the view
+        void cancel_simulation_process() override { m_cancel_count++; }
+
+        // window management
+        void spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) override { m_spawned_files.push_back(std::move(raw_file)); }
+
+        // event handler wiring (unused by the recording view)
+        void set_event_handler(MainWindowViewDefEvents&) override {}
+
+        // recorded state
+        std::string m_title;
+        std::string m_status_text;
+        ActionStateEnablement m_last_enablement;
+        bool m_simulation_running_ui = false;
+        bool m_netlist_view_shown = false;
+        bool m_charts_view_shown = false;
+        std::string m_editor_content;
+        bool m_editor_read_only = true;
+        bool m_output_panel_hidden = true;
+        std::vector<std::string> m_output_lines;
+        int m_update_charts_count = 0;
+        int m_delete_all_charts_count = 0;
+        size_t m_fft_files_count = 0;
+        std::optional<size_t> m_fft_dialog_index;
+        std::optional<size_t> m_step_tool_dialog_index;
+        std::optional<SimulationConfig> m_simulation_config_result;
+        int m_simulation_dialog_requests = 0;
+        std::optional<PluginConfig> m_plugin_config_result;
+        bool m_started = false;
+        std::string m_started_program;
+        std::filesystem::path m_started_netlist_path;
+        std::filesystem::path m_started_working_directory;
+        int m_cancel_count = 0;
+        std::vector<std::shared_ptr<XyceOutputFile>> m_spawned_files;
+    };
+
+    // stub netlist source returning canned content
+    class StubNetlistSource : public NetlistSource
+    {
+    public:
+        StubNetlistSource(std::string content, std::filesystem::path working_directory) :
+            m_content(std::move(content)), m_working_directory(std::move(working_directory)) {}
+
+        [[nodiscard]] std::string title() const override { return "stub.net"; }
+
+        [[nodiscard]] bool is_read_only() const override { return false; }
+
+        [[nodiscard]] std::filesystem::path working_directory() const override { return m_working_directory; }
+
+        [[nodiscard]] std::tuple<bool, std::string> load_netlist() override { return {m_reloaded, m_content}; }
+
+        void save_netlist(const std::string& content = "") override {
+            m_save_count++;
+            m_saved_content = content;
+        }
+
+        std::string m_content;
+        std::filesystem::path m_working_directory;
+        bool m_reloaded = false;
+        int m_save_count = 0;
+        std::string m_saved_content;
+    };
+} // namespace
+
+// ========================================================================================
+// construction and initial state
+// ========================================================================================
+
+TEST(SlintMainWindowPresenterChecks, constructor_applies_initial_action_states) {
+    // arrange
+    RecordingView view;
+    // act
+    const SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // assert — the empty window allows opening files but no editing actions
+    EXPECT_TRUE(view.m_last_enablement.open);
+    EXPECT_FALSE(view.m_last_enablement.save);
+    EXPECT_FALSE(view.m_last_enablement.run_simulation);
+    EXPECT_FALSE(view.m_last_enablement.show_netlist);
+}
+
+TEST(SlintMainWindowPresenterChecks, run_simulation_with_invalid_xyce_path_sets_error_status) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.on_run_simulation();
+    // assert
+    EXPECT_EQ(view.m_status_text, "Configured Xyce executable path is invalid");
+    EXPECT_FALSE(view.m_started);
+}
+
+TEST(SlintMainWindowPresenterChecks, run_simulation_with_empty_netlist_never_launches) {
+    // arrange — use the test binary as a stand-in valid executable
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    // act
+    presenter.on_run_simulation();
+    // assert — nothing can be simulated, so no process starts
+    EXPECT_FALSE(view.m_started);
+}
+
+// ========================================================================================
+// simulation control flow
+// ========================================================================================
+
+TEST(SlintMainWindowPresenterChecks, run_simulation_without_analysis_prompts_for_parameters) {
+    // arrange — netlist without any analysis directive leaves the config empty
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    // act
+    presenter.on_run_simulation();
+    // assert — the configure dialog was requested instead of launching
+    EXPECT_EQ(view.m_simulation_dialog_requests, 1);
+    EXPECT_FALSE(view.m_started);
+}
+
+TEST(SlintMainWindowPresenterChecks, run_simulation_with_transient_launches_process) {
+    // arrange
+    RecordingView view;
+    const auto working_directory = std::filesystem::temp_directory_path();
+    StubNetlistSource* source = new StubNetlistSource("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 1m\n.END\n", working_directory);
+    SlintMainWindowPresenter2 presenter(view, std::unique_ptr<StubNetlistSource>(source), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    // act
+    presenter.on_run_simulation();
+    // assert — the process was started with the plugin executable and a temp netlist
+    ASSERT_TRUE(view.m_started);
+    EXPECT_EQ(view.m_started_program, testing::internal::GetArgvs()[0]);
+    EXPECT_EQ(view.m_started_working_directory, working_directory);
+    EXPECT_FALSE(view.m_started_netlist_path.empty());
+    EXPECT_TRUE(std::filesystem::exists(view.m_started_netlist_path));
+    // the output panel was prepared for this run and the ui shows the running state
+    EXPECT_FALSE(view.m_output_panel_hidden);
+    EXPECT_TRUE(view.m_simulation_running_ui);
+    EXPECT_FALSE(view.m_last_enablement.run_simulation);
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove(view.m_started_netlist_path, ec);
+}
+
+TEST(SlintMainWindowPresenterChecks, pending_dialog_result_launches_the_simulation) {
+    // arrange — no analysis directive so the run flow parks on the dialog
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    presenter.on_run_simulation();
+    ASSERT_FALSE(view.m_started);
+    // act — accept a transient configuration through the dialog result
+    const SimulationConfig config("TRAN", TransientSimulationParameters("1u", "1m", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    presenter.on_simulation_parameters_dialog_result(config);
+    // assert
+    ASSERT_TRUE(view.m_started);
+    EXPECT_TRUE(view.m_simulation_running_ui);
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove(view.m_started_netlist_path, ec);
+}
+
+TEST(SlintMainWindowPresenterChecks, configure_result_updates_netlist_without_launching) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    presenter.on_configure_simulation();
+    ASSERT_FALSE(view.m_started);
+    // act — accept a transient configuration from the configure dialog
+    const SimulationConfig config("TRAN", TransientSimulationParameters("1u", "1m", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    presenter.on_simulation_parameters_dialog_result(config);
+    // assert — the editor was rebuilt with the new directives, nothing launched
+    EXPECT_FALSE(view.m_started);
+    EXPECT_NE(view.m_editor_content.find(".TRAN 1u 1m"), std::string::npos);
+}
+
+TEST(SlintMainWindowPresenterChecks, cancel_simulation_forwards_to_view) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.on_cancel_simulation();
+    // assert
+    EXPECT_EQ(view.m_cancel_count, 1);
+}
+
+TEST(SlintMainWindowPresenterChecks, simulation_finished_canceled_sets_status) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.on_simulation_finished(0, true);
+    // assert
+    EXPECT_EQ(view.m_status_text, "Simulation canceled");
+    EXPECT_FALSE(view.m_simulation_running_ui);
+}
+
+TEST(SlintMainWindowPresenterChecks, simulation_finished_failure_reports_exit_code) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.on_simulation_finished(3, false);
+    // assert
+    EXPECT_EQ(view.m_status_text, "Simulation failed (exit code 3)");
+    EXPECT_FALSE(view.m_simulation_running_ui);
+}
+
+TEST(SlintMainWindowPresenterChecks, simulation_finished_success_loads_raw_file) {
+    // arrange — launch a transient simulation first so the run paths are known
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 1m\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    presenter.on_run_simulation();
+    ASSERT_TRUE(view.m_started);
+    // arrange — write an ascii raw file at the expected output location
+    const auto raw_path = view.m_started_netlist_path.string() + ".raw";
+    {
+        std::ofstream raw_file(raw_path, std::ios::out | std::ios::trunc);
+        raw_file << "Title: Presenter Test Circuit\n";
+        raw_file << "Plotname: Transient Analysis\n";
+        raw_file << "Flags: real\n";
+        raw_file << "No. Variables: 2\n";
+        raw_file << "No. Points: 3\n";
+        raw_file << "Variables:\n";
+        raw_file << "\t0\ttime\ttime\n";
+        raw_file << "\t1\tV(1)\tvoltage\n";
+        raw_file << "Values:\n";
+        raw_file << " 0  0.0  1.0\n";
+        raw_file << " 1  0.001  2.0\n";
+        raw_file << " 2  0.002  3.0\n";
+    }
+    // act
+    presenter.on_simulation_finished(0, false);
+    // assert — charts are shown with the parsed data and the title comes from the raw file
+    EXPECT_TRUE(view.m_charts_view_shown);
+    EXPECT_EQ(view.m_title, "Presenter Test Circuit");
+    EXPECT_EQ(view.m_status_text, "Simulation finished successfully");
+    ASSERT_TRUE(presenter.raw_file().has_value());
+    EXPECT_GT(view.m_update_charts_count, 0);
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove(view.m_started_netlist_path, ec);
+    std::filesystem::remove(raw_path, ec);
+}
+
+// ========================================================================================
+// simulation output forwarding
+// ========================================================================================
+
+TEST(SlintMainWindowPresenterChecks, simulation_stdout_is_appended_to_output) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.on_simulation_stdout("line one");
+    // assert
+    ASSERT_EQ(view.m_output_lines.size(), 1);
+    EXPECT_EQ(view.m_output_lines[0], "line one");
+}
+
+TEST(SlintMainWindowPresenterChecks, simulation_stderr_updates_output_and_status) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.on_simulation_stderr("boom");
+    // assert
+    ASSERT_EQ(view.m_output_lines.size(), 1);
+    EXPECT_EQ(view.m_output_lines[0], "boom");
+    EXPECT_EQ(view.m_status_text, "Simulation error: boom");
+}
+
+// ========================================================================================
+// view switching
+// ========================================================================================
+
+TEST(SlintMainWindowPresenterChecks, view_switching_forwards_to_view_and_refreshes_states) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.on_show_netlist();
+    // assert
+    EXPECT_TRUE(view.m_netlist_view_shown);
+    // act
+    presenter.on_show_charts();
+    // assert — the charts view became visible over the netlist editor
+    EXPECT_TRUE(view.charts_shown());
+    // act
+    presenter.on_show_netlist();
+    // assert — the netlist editor hides the charts again
+    EXPECT_FALSE(view.charts_shown());
+    // act
+    presenter.on_show_simulation_output();
+    // assert
+    EXPECT_FALSE(view.m_output_panel_hidden);
+    // act
+    presenter.on_close_simulation_output();
+    // assert
+    EXPECT_TRUE(view.m_output_panel_hidden);
+}
+
+// ========================================================================================
+// netlist editing lifecycle
+// ========================================================================================
+
+namespace
+{
+    // write a file with the given content
+    void write_file(const std::filesystem::path& path, const std::string& content) {
+        std::ofstream file(path, std::ios::out | std::ios::trunc);
+        file << content;
+    }
+} // namespace
+
+TEST(SlintMainWindowPresenterChecks, open_cir_file_loads_editor_content) {
+    // arrange
+    const auto netlist_dir = std::filesystem::temp_directory_path() / "kicad_xyce_presenter_cir";
+    std::filesystem::create_directories(netlist_dir);
+    const auto netlist_path = netlist_dir / "demo.cir";
+    write_file(netlist_path, "V1 1 0 5\nR1 1 0 1K\n.END\n");
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", netlist_dir), PluginConfig(""), nullptr);
+    // act
+    presenter.on_open_xyce_file(netlist_path);
+    // assert — the editor is editable, holds the file content and the title tracks the file
+    EXPECT_FALSE(view.m_editor_read_only);
+    EXPECT_NE(view.m_editor_content.find(".END"), std::string::npos);
+    EXPECT_EQ(view.m_title, "demo.cir");
+    EXPECT_TRUE(view.m_netlist_view_shown);
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove_all(netlist_dir, ec);
+}
+
+TEST(SlintMainWindowPresenterChecks, open_raw_extension_ignores_missing_file) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.on_open_xyce_file("/nonexistent/presenter_missing.raw");
+    // assert — parse failure leaves the window untouched
+    EXPECT_FALSE(presenter.raw_file().has_value());
+    EXPECT_FALSE(view.m_charts_view_shown);
+}
+
+TEST(SlintMainWindowPresenterChecks, editor_modified_marks_dirty_and_enables_save) {
+    // arrange — open a .cir file so a base title exists
+    const auto netlist_dir = std::filesystem::temp_directory_path() / "kicad_xyce_presenter_dirty";
+    std::filesystem::create_directories(netlist_dir);
+    const auto netlist_path = netlist_dir / "demo.cir";
+    write_file(netlist_path, "V1 1 0 5\nR1 1 0 1K\n.END\n");
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", netlist_dir), PluginConfig(""), nullptr);
+    presenter.on_open_xyce_file(netlist_path);
+    // act — simulate user edits in the editor
+    view.m_editor_content = "V1 1 0 6\nR1 1 0 2K\n.END\n";
+    presenter.on_netlist_editor_modified();
+    // assert — dirty marker prefixes the title and save becomes available
+    EXPECT_EQ(view.m_title, "* demo.cir");
+    EXPECT_TRUE(view.m_last_enablement.save);
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove_all(netlist_dir, ec);
+}
+
+TEST(SlintMainWindowPresenterChecks, save_netlist_clears_dirty_state_and_writes_the_file) {
+    // arrange — open a .cir file and dirty it
+    const auto netlist_dir = std::filesystem::temp_directory_path() / "kicad_xyce_presenter_save";
+    std::filesystem::create_directories(netlist_dir);
+    const auto netlist_path = netlist_dir / "demo.cir";
+    write_file(netlist_path, "V1 1 0 5\nR1 1 0 1K\n.END\n");
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", netlist_dir), PluginConfig(""), nullptr);
+    presenter.on_open_xyce_file(netlist_path);
+    view.m_editor_content = "V1 1 0 6\nR1 1 0 2K\n.END\n";
+    presenter.on_netlist_editor_modified();
+    // act
+    presenter.on_save_netlist();
+    // assert — the live editor text was written back to the file and the dirty marker cleared
+    std::ifstream saved(netlist_path);
+    const std::string saved_content((std::istreambuf_iterator<char>(saved)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(saved_content, "V1 1 0 6\nR1 1 0 2K\n.END\n");
+    EXPECT_EQ(view.m_title, "demo.cir");
+    EXPECT_FALSE(view.m_last_enablement.save);
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove_all(netlist_dir, ec);
+}
+
+TEST(SlintMainWindowPresenterChecks, extract_schematic_netlist_loads_readonly_editor) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.on_extract_schematic_netlist();
+    // assert
+    EXPECT_TRUE(view.m_editor_read_only);
+    EXPECT_NE(view.m_editor_content.find("R1"), std::string::npos);
+    EXPECT_TRUE(view.m_netlist_view_shown);
+}
+
+// ========================================================================================
+// plugin configuration flow
+// ========================================================================================
+
+TEST(SlintMainWindowPresenterChecks, configure_plugin_requests_dialog_and_stores_result) {
+    // arrange
+    RecordingView view;
+    StubNetlistSource* source = new StubNetlistSource("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 1m\n.END\n", std::filesystem::temp_directory_path());
+    SlintMainWindowPresenter2 presenter(view, std::unique_ptr<StubNetlistSource>(source), PluginConfig(""), nullptr);
+    // act — request the dialog, the recording view reports no result yet
+    presenter.on_configure_plugin();
+    // act — deliver an accepted configuration with a valid executable
+    const PluginConfig accepted(testing::internal::GetArgvs()[0]);
+    presenter.on_plugin_config_dialog_result(accepted);
+    // assert — the stored config is now valid, so a run proceeds past validation
+    presenter.on_run_simulation();
+    EXPECT_TRUE(view.m_started);
+    EXPECT_EQ(view.m_started_program, testing::internal::GetArgvs()[0]);
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove(view.m_started_netlist_path, ec);
+}
+
+// ========================================================================================
+// raw file loading and chart actions
+// ========================================================================================
+
+namespace
+{
+    // build a single-step real raw file for chart interactions
+    std::shared_ptr<XyceOutputFile> make_raw_file() {
+        std::vector<double> abscissa_data = {0.0, 0.001, 0.002};
+        std::vector<double> voltage_data = {1.0, 2.0, 3.0};
+        std::vector<std::pair<size_t, size_t>> step_slices = {{0, 3}};
+        std::vector<AnyExpression> expressions;
+        expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+        expressions.emplace_back(Expression<double>("V(1)", std::move(voltage_data), step_slices, "V"));
+        ExpressionManager expression_manager(expressions, step_slices);
+        StepInformation step_information({"time"}, {{}}, {{0.0, 0.002}});
+        return std::make_shared<XyceOutputFile>("", "Loaded Circuit", false, std::move(step_information), PlotType::TRANSIENT, AbscissaScale::LINEAR, std::move(expression_manager), nullptr);
+    }
+} // namespace
+
+TEST(SlintMainWindowPresenterChecks, load_raw_file_switches_to_charts_view) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.load_raw_file(make_raw_file());
+    // assert
+    EXPECT_EQ(view.m_delete_all_charts_count, 1);
+    EXPECT_EQ(view.m_update_charts_count, 1);
+    EXPECT_TRUE(view.m_charts_view_shown);
+    EXPECT_EQ(view.m_title, "Loaded Circuit");
+    ASSERT_TRUE(presenter.raw_file().has_value());
+}
+
+TEST(SlintMainWindowPresenterChecks, chart_actions_are_guarded_without_raw_file) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.on_chart_calculate_fft(0);
+    presenter.on_chart_step_tool(0);
+    presenter.on_chart_new_window(0);
+    // assert — nothing was opened or spawned
+    EXPECT_FALSE(view.m_fft_dialog_index.has_value());
+    EXPECT_FALSE(view.m_step_tool_dialog_index.has_value());
+    EXPECT_TRUE(view.m_spawned_files.empty());
+}
+
+TEST(SlintMainWindowPresenterChecks, chart_actions_delegate_with_loaded_raw_file) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    presenter.load_raw_file(make_raw_file());
+    // act
+    presenter.on_chart_calculate_fft(2);
+    presenter.on_chart_step_tool(1);
+    presenter.on_chart_new_window(7);
+    presenter.on_chart_open_xyce_fft_calculation(7);
+    // assert — dialogs target the requested chart and the raw file spawns a window
+    EXPECT_EQ(view.m_fft_dialog_index, 2u);
+    EXPECT_EQ(view.m_step_tool_dialog_index, 1u);
+    ASSERT_EQ(view.m_spawned_files.size(), 1);
+}
+
+TEST(SlintMainWindowPresenterChecks, fft_dialog_result_guards_without_raw_file) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.on_fft_dialog_result({}, fft::FftParameters{});
+    // assert — no status update, no spawned window
+    EXPECT_EQ(view.m_status_text, "");
+    EXPECT_TRUE(view.m_spawned_files.empty());
+}
+
+TEST(SlintMainWindowPresenterChecks, fft_dialog_result_with_empty_selection_sets_status) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    presenter.load_raw_file(make_raw_file());
+    // act
+    presenter.on_fft_dialog_result({}, fft::FftParameters{});
+    // assert
+    EXPECT_EQ(view.m_status_text, "No expressions selected for FFT");
+    EXPECT_TRUE(view.m_spawned_files.empty());
+}
