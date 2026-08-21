@@ -1,5 +1,17 @@
 cmake_minimum_required(VERSION 3.21)
 
+# on windows, default both compilers to clang-cl before the first project() call;
+# slint's fetched subproject enables the C language late, and without an explicit
+# C compiler CMake can pick the gnu-like clang driver from PATH, which rejects the
+# msvc-style flags it is then fed (configure failure: "no such file or directory: '/DWIN32'")
+if(WIN32 AND NOT DEFINED CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CXX} AND NOT DEFINED ENV{CC})
+    find_program(KICAD_CLANG_CL_EXECUTABLE clang-cl)
+    if(KICAD_CLANG_CL_EXECUTABLE)
+        set(CMAKE_C_COMPILER clang-cl CACHE FILEPATH "windows c compiler" FORCE)
+        set(CMAKE_CXX_COMPILER clang-cl CACHE FILEPATH "windows c++ compiler" FORCE)
+    endif()
+endif()
+
 if(APPLE)
     project(kicad-xyce-plugin LANGUAGES CXX OBJCXX)
 else()
