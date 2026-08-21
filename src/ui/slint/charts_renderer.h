@@ -131,6 +131,24 @@ public:
 
     void delete_chart(float chart_position);
 
+    // interactive drag-zoom lifecycle
+    void zoom_drag_started(float x, float y);
+
+    void zoom_drag_moved(float x, float y);
+
+    void zoom_drag_ended();
+
+    void zoom_drag_canceled();
+
+    // hover readout callback and interaction
+    using HoverCallback = std::function<void(const std::string&)>;
+
+    void set_hover_callback(HoverCallback callback) { m_hover_callback = std::move(callback); }
+
+    void hover_moved(float x, float y);
+
+    void hover_ended();
+
 private:
     friend class ChartsContextScope;
 
@@ -145,6 +163,8 @@ private:
     void update_decimation_target();
 
     void on_idle();
+
+    void publish_hover();
 
     void* m_view = nullptr;
 
@@ -168,6 +188,14 @@ private:
     std::vector<std::unique_ptr<Chart>> m_charts;
     size_t m_selected_chart_index = 0;
     std::tuple<float, float, float, float> m_zoom_selection = {-1, -1, -1, -1};
+
+    // hover readout state
+    slint::Timer m_hover_timer;
+    double m_hover_abscissa_value = 0.0;
+    size_t m_hover_chart_index = 0;
+    bool m_hover_in_plot = false;
+    std::string m_last_hover_text;
+    HoverCallback m_hover_callback;
 
     ImVec4 m_background_color;
 

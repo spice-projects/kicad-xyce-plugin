@@ -76,6 +76,32 @@ void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
     chart_actions.on_open_xyce_fft_calculation([this](float chart_position) { m_event_handler->on_chart_open_xyce_fft_calculation(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
     chart_actions.on_step_tool([this](float chart_position) { m_event_handler->on_chart_step_tool(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
     chart_actions.on_new_window([this](float chart_position) { m_event_handler->on_chart_new_window(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
+    // chart drag-zoom interactions
+    chart_actions.on_zoom_drag_started([this](float x, float y) {
+        if (m_charts_renderer)
+            m_charts_renderer->zoom_drag_started(x, y);
+    });
+    chart_actions.on_zoom_drag_moved([this](float x, float y) {
+        if (m_charts_renderer)
+            m_charts_renderer->zoom_drag_moved(x, y);
+    });
+    chart_actions.on_zoom_drag_ended([this] {
+        if (m_charts_renderer)
+            m_charts_renderer->zoom_drag_ended();
+    });
+    chart_actions.on_zoom_drag_canceled([this] {
+        if (m_charts_renderer)
+            m_charts_renderer->zoom_drag_canceled();
+    });
+    // chart hover readout interactions
+    chart_actions.on_hover_moved([this](float x, float y) {
+        if (m_charts_renderer)
+            m_charts_renderer->hover_moved(x, y);
+    });
+    chart_actions.on_hover_ended([this] {
+        if (m_charts_renderer)
+            m_charts_renderer->hover_ended();
+    });
 }
 
 void SlintMainWindowView2::show() {
@@ -98,6 +124,8 @@ void SlintMainWindowView2::set_title(const std::string& title) {
 }
 
 void SlintMainWindowView2::set_status_text(const std::string& text) {
+    // retain the latest permanent status text
+    m_last_status_text = text;
     // update the status bar text in the slint window
     m_window->set_status_text(slint::SharedString(text));
 }
@@ -413,6 +441,13 @@ void SlintMainWindowView2::ensure_charts_renderer() {
     // create the renderer on the first charts panel show; update_charts_frame
     // attaches it to the native content view and initializes the backend
     m_charts_renderer = std::make_unique<ChartsRenderer>();
+    // wire hover readout to update the status bar
+    m_charts_renderer->set_hover_callback([this](const std::string& text) {
+        if (text.empty())
+            m_window->set_status_text(slint::SharedString(m_last_status_text));
+        else
+            m_window->set_status_text(slint::SharedString(text));
+    });
     update_charts_frame();
 }
 

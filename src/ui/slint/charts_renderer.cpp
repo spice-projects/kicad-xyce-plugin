@@ -134,6 +134,7 @@ void ChartsRenderer::update(ExpressionManager& expression_manager, const StepInf
     m_step_information = &step_information;
     m_abscissa_scale = abscissa_scale;
     // new simulation data, clear any hover readout from the previous file
+    hover_ended();
     // check charts are present, if not add one
     if (!m_charts.empty()) {
         // loop charts
@@ -187,6 +188,8 @@ Chart* ChartsRenderer::add_chart() {
 }
 
 void ChartsRenderer::delete_all_charts() {
+    // clear active hover readout
+    hover_ended();
     // simple, clean vector
     m_charts.clear();
     // refresh
@@ -333,22 +336,13 @@ void ChartsRenderer::autorange(float chart_position) {
     const size_t chart_index = position_to_index(chart_position);
     // log information
     spdlog::debug("User requested autorange on chart at position {} (index {})", chart_position, chart_index);
-    // loop charts
-    for (size_t i = 0; i < m_charts.size(); i++) {
-        // chart at i
-        const auto& chart = m_charts[i];
-        // check if this is the chart that triggered the autorange action
-        if (i == chart_index) {
-            // reset zoom window
-            chart->reset_zoom_window(true, true);
-            // next
-            continue;
-        }
-        // update horizontal zoom window only, keep vertical zoom as is
-        chart->reset_zoom_window(true, false);
+    // reset vertical zoom only on the selected chart
+    if (chart_index < m_charts.size()) {
+        // reset vertical zoom window
+        m_charts[chart_index]->reset_zoom_window(false, true);
+        // refresh
+        refresh_charts();
     }
-    // refresh
-    refresh_charts();
 }
 
 void ChartsRenderer::zoom_abscissa_extent(float chart_position) {
@@ -391,4 +385,169 @@ void ChartsRenderer::delete_chart(float chart_position) {
         add_chart();
     // refresh
     refresh_charts();
+}
+
+void ChartsRenderer::zoom_drag_started(float x, float y) {
+    // clear active hover readout during drag interactions
+    hover_ended();
+    // nothing to select when no charts exist
+    if (m_charts.empty())
+        return;
+    // find the chart whose plot area contains the start point
+    for (size_t i = 0; i < m_charts.size(); ++i) {
+        // plot bounding box for chart i
+        const auto [x_min, y_min, x_max, y_max] = m_charts[i]->get_plot_rect();
+        // check if click is inside the plot rectangle
+        if (x >= x_min && x <= x_max && y >= y_min && y <= y_max) {
+            // retain active chart index
+            m_selected_chart_index = i;
+            // anchor the selection start point
+            m_zoom_selection = {x, y, -1.0f, -1.0f};
+            // exit loop
+            return;
+        }
+    }
+    // click was outside any plot area
+    m_zoom_selection = {-1.0f, -1.0f, -1.0f, -1.0f};
+}
+
+void ChartsRenderer::zoom_drag_moved(float x, float y) {
+    // check a drag selection was initiated inside a valid chart
+    const auto [x1, y1, x2, y2] = m_zoom_selection;
+    if (x1 < 0.0f || y1 < 0.0f || m_selected_chart_index >= m_charts.size())
+        return;
+    // current chart plot bounds
+    const auto [x_min, y_min, x_max, y_max] = m_charts[m_selected_chart_index]->get_plot_rect();
+    // clamp mouse coordinates to the active plot area
+    const float clamped_x = std::clamp(x, x_min, x_max);
+    const float clamped_y = std::clamp(y, y_min, y_max);
+    // update zoom selection box
+    m_zoom_selection = {x1, y1, clamped_x, clamped_y};
+    // refresh charts to render the selection rectangle
+    refresh_charts();
+}
+
+void ChartsRenderer::zoom_drag_ended() {
+    // check a valid zoom selection exists
+    const auto [x1, y1, x2, y2] = m_zoom_selection;
+    const bool valid_zoom = m_selected_chart_index < m_charts.size() && x1 >= 0.0f && y1 >= 0.0f && x2 >= 0.0f && y2 >= 0.0f && std::abs(x2 - x1) > 10.0f && std::abs(y2 - y1) > 10.0f;
+    if (valid_zoom) {
+        // current chart plot bounds
+        const auto [x_min, y_min, x_max, y_max] = m_charts[m_selected_chart_index]->get_plot_rect();
+        // plot dimensions
+        const float width = x_max - x_min;
+        const float height = y_max - y_min;
+        // ensure non-zero plot dimensions
+        if (width > 0.0f && height > 0.0f) {
+            // compute normalized zoom window ratios [0..1]
+            const double z_x1 = (static_cast<double>((std::min)(x1, x2)) - x_min) / width;
+            const double z_y1 = (static_cast<double>((std::min)(y1, y2)) - y_min) / height;
+            const double z_x2 = (static_cast<double>((std::max)(x1, x2)) - x_min) / width;
+            const double z_y2 = (static_cast<double>((std::max)(y1, y2)) - y_min) / height;
+            // loop all charts to apply zoom
+            for (size_t i = 0; i < m_charts.size(); ++i) {
+                // chart at index i
+                const auto& chart = m_charts[i];
+                // check if this is the chart that triggered the zoom action
+                if (i == m_selected_chart_index) {
+                    // log information
+                    spdlog::debug("Updating zoom window in chart at index [{}] to [{}, {}, {}, {}]", i, z_x1, z_y1, z_x2, z_y2);
+                    // update 2D zoom window in selected chart
+                    chart->update_zoom_window(z_x1, z_x2, z_y1, z_y2);
+                }
+                else {
+                    // log information
+                    spdlog::debug("Updating zoom window in chart at index [{}] to [{}, {}, {}, {}]", i, z_x1, z_y1, -1, -1);
+                    // update horizontal zoom window only, keep vertical zoom as is
+                    chart->update_zoom_window(z_x1, z_x2, -1, -1);
+                }
+            }
+        }
+    }
+    // reset zoom selection
+    m_zoom_selection = {-1.0f, -1.0f, -1.0f, -1.0f};
+    // refresh
+    refresh_charts();
+    // update hover readout at the release position when zoom was performed
+    if (valid_zoom)
+        hover_moved(x2, y2);
+}
+
+void ChartsRenderer::zoom_drag_canceled() {
+    // reset zoom selection
+    m_zoom_selection = {-1.0f, -1.0f, -1.0f, -1.0f};
+    // refresh
+    refresh_charts();
+}
+
+void ChartsRenderer::hover_moved(float x, float y) {
+    // nothing to hover without charts
+    if (m_charts.empty()) {
+        // clear hover state
+        hover_ended();
+        // exit
+        return;
+    }
+    // look for the chart whose plot area contains the cursor
+    m_hover_in_plot = false;
+    // loop charts
+    for (size_t i = 0; i < m_charts.size(); ++i) {
+        // current chart plot bounds
+        const auto [px_min, py_min, px_max, py_max] = m_charts[i]->get_plot_rect();
+        // check the cursor is inside the plot area
+        if (x >= px_min && x <= px_max && y >= py_min && y <= py_max && (px_max - px_min) > 0.0f) {
+            // chart index being hovered
+            m_hover_chart_index = i;
+            // set plot flag
+            m_hover_in_plot = true;
+            // ratio of the cursor within the plot area
+            const double ratio = static_cast<double>(x - px_min) / static_cast<double>(px_max - px_min);
+            // scale-aware abscissa value at the ratio
+            m_hover_abscissa_value = m_charts[i]->plot_ratio_to_abscissa_value(ratio);
+            // only the first matching chart is considered
+            break;
+        }
+    }
+    // cursor is inside a plot area
+    if (m_hover_in_plot) {
+        // restart the debounce timer (one-shot, fires 20ms after the last move)
+        m_hover_timer.start(slint::TimerMode::SingleShot, std::chrono::milliseconds(20), [this] { publish_hover(); });
+    }
+    else {
+        // cursor is outside any plot area
+        hover_ended();
+    }
+}
+
+void ChartsRenderer::hover_ended() {
+    // cancel any pending hover publication timer
+    m_hover_timer.stop();
+    // clear plot hover flag
+    m_hover_in_plot = false;
+    // no hover text is currently active
+    if (m_last_hover_text.empty())
+        return;
+    // clear last hover text
+    m_last_hover_text.clear();
+    // notify callback with empty string to restore status text
+    if (m_hover_callback)
+        m_hover_callback("");
+}
+
+void ChartsRenderer::publish_hover() {
+    // hover text to publish, empty restores the previous status bar text
+    std::string text;
+    // cursor is inside the plot area of a valid chart
+    if (m_hover_in_plot && m_hover_chart_index < m_charts.size()) {
+        // series values as a single string for the current abscissa value
+        text = m_charts[m_hover_chart_index]->hovered_series_text(m_hover_abscissa_value);
+    }
+    // publish when the hover text has changed
+    if (text != m_last_hover_text) {
+        // update last hover text
+        m_last_hover_text = text;
+        // invoke hover callback
+        if (m_hover_callback)
+            m_hover_callback(text);
+    }
 }

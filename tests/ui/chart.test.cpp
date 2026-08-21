@@ -162,6 +162,27 @@ TEST(ChartRatioTest, hovered_series_text_avoids_scientific_prefix_overflow) {
     EXPECT_EQ(text.find("1e+03"), std::string::npos);
 }
 
+TEST(ChartRatioTest, hovered_series_text_after_zoom) {
+    // arrange
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0};
+    std::vector<double> current_data = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 6}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    expressions.emplace_back(Expression<double>("V(out)", std::move(current_data), step_slices, "V"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"time"}, {{}}, {{0.0, 5.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    chart.plot_series({expression_manager.expressions()[1]});
+    // act
+    // zoom from 1.2s to 1.8s (ratios 0.24 to 0.36)
+    chart.update_zoom_window(0.24, 0.36, 0.0, 1.0);
+    const double hovered_x = chart.plot_ratio_to_abscissa_value(0.5);
+    const std::string text = chart.hovered_series_text(hovered_x);
+    // assert
+    EXPECT_NE(text.find("V(out)="), std::string::npos);
+}
+
 TEST(ChartFormatTest, metric_places_space_before_unit) {
     // si format: value + space + prefix + unit
     EXPECT_EQ(Chart::format_metric(0.001, "A"), "1 mA");

@@ -113,6 +113,7 @@ private:
     MainWindowViewDefEvents* m_event_handler = nullptr;
     std::string m_netlist_content;
     bool m_netlist_read_only = false;
+    std::string m_last_status_text;
 
     // simulation output log lines, exposed as a model to the output panel's
     // ListView; appending a line only touches the new row (virtualized list)
