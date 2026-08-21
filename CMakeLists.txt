@@ -13,15 +13,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # disable compiler specific things
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# do not use precompiled headers (keeps wx/wxprec.h include blocks active)
-add_compile_definitions(NOPCH)
-
-# on Windows, prevent winsock.h (WinSock 1.1) from being auto-included by
-# windows.h, which conflicts with winsock2.h pulled in by wxWidgets headers
-if(WIN32)
-    add_compile_definitions(WIN32_LEAN_AND_MEAN)
-endif()
-
 # generate compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -38,12 +29,8 @@ endif()
 
 option(BUILD_TESTS "Build tests" ON)
 
-set(wxBUILD_SAMPLES OFF)
-set(wxBUILD_SHARED OFF)
-
 find_package(imgui CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
-find_package(wxwidgets CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(nng CONFIG REQUIRED)
 find_package(protobuf CONFIG REQUIRED)
@@ -100,7 +87,7 @@ elseif (WIN32)
     # combine remaining cpp sources with .mm sources
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 elseif (LINUX)
-    # opengl is required for the wxGLCanvas backend on linux
+    # opengl is required on linux
     find_package(OpenGL REQUIRED)
     # gather linux sources
     file(GLOB_RECURSE PLATFORM_SOURCES "src/*.linux.c++")
@@ -108,10 +95,6 @@ elseif (LINUX)
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 endif()
 
-# The executable only needs to own the wxApp entry point (src/main.cpp); all
-# other sources are shared with the test runner. Compile them into a single
-# static library so each file is compiled exactly once, then link both the
-# executable and the tests against it.
 list(REMOVE_ITEM SOURCE_FILES "src/main.cpp")
 
 # compile the generated proto sources into a library shared by the app and tests
@@ -143,22 +126,21 @@ if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 endif()
 
 # third-party dependencies, PUBLIC so both the executable and the tests transitively link the same set of libraries
-target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog nng::nng protobuf::libprotobuf kicad-proto)
+target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng protobuf::libprotobuf kicad-proto)
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis
-    target_link_libraries(kicad-xyce-core PUBLIC "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController" "-framework UniformTypeIdentifiers")
+    target_link_libraries(kicad-xyce-core PUBLIC "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController" "-framework UniformTypeIdentifiers" "-framework QuartzCore")
     # suppress duplicate library warnings on macOS, which are emitted when linking against the same framework multiple times (e.g. AppKit and Metal)
     target_link_options(kicad-xyce-core PUBLIC "-Wl,-no_warn_duplicate_libraries")
 elseif(WIN32)
     # link windows graphics and system libraries required by the ui backend
     target_link_libraries(kicad-xyce-core PUBLIC d3d11 d3dcompiler dxgi gdi32 user32 shell32 ole32 oleaut32 uuid comdlg32 advapi32 version ws2_32 wininet oleacc uxtheme)
 elseif(LINUX)
-    target_link_libraries(kicad-xyce-core PUBLIC wx::gl OpenGL::GL)
+    target_link_libraries(kicad-xyce-core PUBLIC OpenGL::GL)
 endif()
 
-# slint: embed images/fonts referenced with @image-url() into the binary, the
-# same way the wxWidgets IconManager embeds its icon bundles
+# slint: embed images/fonts referenced with @image-url() into the binary
 set_property(TARGET kicad-xyce-core PROPERTY SLINT_EMBED_RESOURCES embed-files)
 
 # Only root widgets (windows/dialogs) are compiled as independent Slint roots.

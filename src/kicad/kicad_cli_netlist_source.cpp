@@ -1,14 +1,22 @@
+#include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
+#include <tuple>
+#include <utility>
+#include <vector>
 
-#include <wx/wxprec.h>
-
-#ifndef WX_PRECOMP
-#include <wx/filename.h>
-#include <wx/process.h>
-#include <wx/utils.h>
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+#else
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #endif
 
 #include <spdlog/spdlog.h>
@@ -17,56 +25,180 @@
 
 namespace
 {
-    // prefix used by wxFileName::CreateTempFileName for exported netlists
-    constexpr const char* TEMP_FILE_PREFIX = "kicad_xyce_";
+    // create a unique temporary file path for exported netlists
+    std::filesystem::path create_temp_netlist_path() {
+        // atomic counter for unique names
+        static std::atomic<uint64_t> counter{0};
+#if defined(_WIN32)
+        const auto pid = static_cast<long long>(GetCurrentProcessId());
+#else
+        const auto pid = static_cast<long long>(getpid());
+#endif
+        const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+        const auto name = "kicad_xyce_" + std::to_string(pid) + "_" + std::to_string(now) + "_" + std::to_string(counter.fetch_add(1)) + ".net";
+        return std::filesystem::temp_directory_path() / name;
+    }
 
-    // read the full content of an open stream
-    std::string read_stream(wxInputStream* stream) {
-        // empty string when no stream is available
-        if (!stream)
-            return {};
-        // reserve a reasonable buffer for the content
+#if !defined(_WIN32)
+    // read all content from an open file descriptor until EOF
+    std::string read_all_fd(int fd) {
         std::string content;
-        // read available chunks
-        while (stream->CanRead()) {
-            // read a chunk of data
-            char chunk[4096];
-            size_t bytes_read = stream->Read(chunk, sizeof(chunk)).LastRead();
-            // stop at the end of the stream
-            if (bytes_read == 0)
+        char buffer[4096];
+        while (true) {
+            const ssize_t bytes_read = ::read(fd, buffer, sizeof(buffer));
+            if (bytes_read <= 0)
                 break;
-            // append the chunk
-            content.append(chunk, bytes_read);
+            content.append(buffer, static_cast<size_t>(bytes_read));
         }
-        // exit
         return content;
     }
 
     // run kicad-cli and return the process exit code, capturing stdout and stderr
     int run_kicad_cli(const std::filesystem::path& command_cwd, const std::vector<std::string>& args, std::string& stdout_text, std::string& stderr_text) {
-        // build the command line with quoted arguments
-        wxString command_line;
-        // iterate over the arguments
-        for (const auto& arg : args) {
-            // quote each argument to preserve spaces in paths
-            command_line += "\"" + wxString(arg) + "\" ";
+        if (args.empty())
+            return -1;
+        // create pipes for stdout and stderr
+        int out_pipe[2] = {-1, -1};
+        int err_pipe[2] = {-1, -1};
+        if (::pipe(out_pipe) != 0 || ::pipe(err_pipe) != 0) {
+            if (out_pipe[0] >= 0) {
+                ::close(out_pipe[0]);
+                ::close(out_pipe[1]);
+            }
+            if (err_pipe[0] >= 0) {
+                ::close(err_pipe[0]);
+                ::close(err_pipe[1]);
+            }
+            return -1;
         }
-        // trim the trailing space
-        command_line.Trim();
-        // process object that captures the redirected output
-        wxProcess process;
-        process.Redirect();
-        // working directory for the export
-        wxExecuteEnv env;
-        env.cwd = command_cwd.string();
-        // execute the command synchronously
-        long exit_code = wxExecute(command_line, wxEXEC_SYNC, &process, &env);
-        // read the captured stdout and stderr
-        stdout_text = read_stream(process.GetInputStream());
-        stderr_text = read_stream(process.GetErrorStream());
-        // exit
+        // fork child process
+        const pid_t pid = ::fork();
+        if (pid < 0) {
+            ::close(out_pipe[0]);
+            ::close(out_pipe[1]);
+            ::close(err_pipe[0]);
+            ::close(err_pipe[1]);
+            return -1;
+        }
+        if (pid == 0) {
+            // child process: change working directory if specified
+            if (!command_cwd.empty() && ::chdir(command_cwd.c_str()) != 0)
+                _exit(127);
+            // redirect stdout and stderr to pipe write ends
+            ::dup2(out_pipe[1], STDOUT_FILENO);
+            ::dup2(err_pipe[1], STDERR_FILENO);
+            // close unused pipe descriptors
+            ::close(out_pipe[0]);
+            ::close(out_pipe[1]);
+            ::close(err_pipe[0]);
+            ::close(err_pipe[1]);
+            // prepare argv array
+            std::vector<const char*> argv;
+            argv.reserve(args.size() + 1);
+            for (const auto& arg : args)
+                argv.push_back(arg.c_str());
+            argv.push_back(nullptr);
+            // execute kicad-cli
+            ::execvp(argv[0], const_cast<char* const*>(argv.data()));
+            // exec failed
+            _exit(127);
+        }
+        // parent: close pipe write ends
+        ::close(out_pipe[1]);
+        ::close(err_pipe[1]);
+        // read stdout and stderr in parallel threads to avoid pipe deadlocks
+        std::thread thread_out([&] { stdout_text = read_all_fd(out_pipe[0]); });
+        std::thread thread_err([&] { stderr_text = read_all_fd(err_pipe[0]); });
+        thread_out.join();
+        thread_err.join();
+        ::close(out_pipe[0]);
+        ::close(err_pipe[0]);
+        // wait for child process to exit
+        int status = 0;
+        ::waitpid(pid, &status, 0);
+        if (WIFEXITED(status))
+            return WEXITSTATUS(status);
+        if (WIFSIGNALED(status))
+            return 128 + WTERMSIG(status);
+        return -1;
+    }
+#else
+    // read all content from a pipe handle until EOF
+    std::string read_all_handle(HANDLE handle) {
+        std::string content;
+        char buffer[4096];
+        DWORD bytes_read = 0;
+        while (ReadFile(handle, buffer, sizeof(buffer), &bytes_read, nullptr) && bytes_read > 0) {
+            content.append(buffer, bytes_read);
+        }
+        return content;
+    }
+
+    // run kicad-cli and return the process exit code, capturing stdout and stderr
+    int run_kicad_cli(const std::filesystem::path& command_cwd, const std::vector<std::string>& args, std::string& stdout_text, std::string& stderr_text) {
+        if (args.empty())
+            return -1;
+        // inheritable security attributes for the pipe write ends
+        SECURITY_ATTRIBUTES sa{};
+        sa.nLength = sizeof(sa);
+        sa.bInheritHandle = TRUE;
+        HANDLE out_read = nullptr;
+        HANDLE out_write = nullptr;
+        HANDLE err_read = nullptr;
+        HANDLE err_write = nullptr;
+        if (!CreatePipe(&out_read, &out_write, &sa, 0) || !CreatePipe(&err_read, &err_write, &sa, 0)) {
+            if (out_read)
+                CloseHandle(out_read);
+            if (out_write)
+                CloseHandle(out_write);
+            if (err_read)
+                CloseHandle(err_read);
+            if (err_write)
+                CloseHandle(err_write);
+            return -1;
+        }
+        SetHandleInformation(out_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+        SetHandleInformation(err_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+        // build quoted command line
+        std::wstring command_line;
+        for (const auto& arg : args) {
+            std::wstring wide_arg = std::filesystem::path(arg).wstring();
+            if (!command_line.empty())
+                command_line += L" ";
+            command_line += L"\"" + wide_arg + L"\"";
+        }
+        STARTUPINFOW si{};
+        si.cb = sizeof(si);
+        si.dwFlags = STARTF_USESTDHANDLES;
+        si.hStdOutput = out_write;
+        si.hStdError = err_write;
+        si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+        const std::wstring cwd_wide = command_cwd.empty() ? std::wstring() : command_cwd.wstring();
+        PROCESS_INFORMATION pi{};
+        if (!CreateProcessW(nullptr, command_line.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, cwd_wide.empty() ? nullptr : cwd_wide.c_str(), &si, &pi)) {
+            CloseHandle(out_read);
+            CloseHandle(out_write);
+            CloseHandle(err_read);
+            CloseHandle(err_write);
+            return -1;
+        }
+        CloseHandle(out_write);
+        CloseHandle(err_write);
+        // read stdout and stderr in parallel threads to avoid pipe deadlocks
+        std::thread thread_out([&] { stdout_text = read_all_handle(out_read); });
+        std::thread thread_err([&] { stderr_text = read_all_handle(err_read); });
+        thread_out.join();
+        thread_err.join();
+        CloseHandle(out_read);
+        CloseHandle(err_read);
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        DWORD exit_code = 1;
+        GetExitCodeProcess(pi.hProcess, &exit_code);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
         return static_cast<int>(exit_code);
     }
+#endif
 } // namespace
 
 KicadCliNetlistSource::KicadCliNetlistSource(std::filesystem::path project_dir, std::string kicad_cli_path) :
@@ -93,13 +225,8 @@ std::tuple<bool, std::string> KicadCliNetlistSource::load_netlist() {
     }
     // log information
     spdlog::info("Exporting schematic netlist from {}", m_schematic_path.string());
-    // create a temporary output file for the exported netlist
-    const wxString temp_path = wxFileName::CreateTempFileName(TEMP_FILE_PREFIX);
-    // fail when no temporary file could be created
-    if (temp_path.IsEmpty())
-        throw std::runtime_error("failed to create a temporary netlist output file");
-    // resolve the temporary output path
-    const std::filesystem::path output_path = temp_path.ToStdString();
+    // create a temporary output file path for the exported netlist
+    const std::filesystem::path output_path = create_temp_netlist_path();
     // run the export through the kicad-cli binary
     std::string stdout_text;
     std::string stderr_text;
