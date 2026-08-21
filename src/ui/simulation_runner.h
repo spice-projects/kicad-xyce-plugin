@@ -6,9 +6,8 @@
 #include <string>
 #include <string_view>
 
-// platform-neutral Xyce simulation runner for the slint ui, replacing the
-// wxWidgets XyceSimulationRunner (which depends on the wx event loop for its
-// wxProcess/wxTimer notifications). The child process is spawned with stdout
+// platform-neutral Xyce simulation runner for the slint ui. The child process
+// is spawned with stdout
 // and stderr captured on dedicated reader threads, and the callbacks are
 // marshalled back to the slint event loop thread so the presenter can update
 // the ui without extra synchronization.

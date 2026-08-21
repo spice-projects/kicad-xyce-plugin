@@ -87,8 +87,8 @@ int App::run() {
 }
 
 void App::new_window(std::shared_ptr<XyceOutputFile> raw_file) {
-    // spawned windows are standalone (no kicad session), matching the wx
-    // new-window behavior; the window is wired and shown by create_window
+    // spawned windows are standalone (no kicad session); the window is wired
+    // and shown by create_window
     auto* presenter = create_window(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), nullptr);
     // seed the new window with the raw file, switching to the charts view; the
     // window was shown by create_window, so the native content view exists when

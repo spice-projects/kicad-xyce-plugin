@@ -15,7 +15,7 @@
 #include "../simulation/simulation_config.h"
 #include "main_window_state.h"
 
-// abstract view backed by the main wx window, so the presenter can be tested without wx
+// abstract view interface for the main window, so the presenter can be tested without a ui
 class MainWindowView
 {
 public:
@@ -60,11 +60,11 @@ public:
     // step selection is applied back to the chart through the renderer
     virtual void show_step_tool_dialog(size_t chart_index) = 0;
 
-    // modal dialogs (still the view's job, they need a wx parent window)
+    // modal dialogs (the view's job, they need a parent window)
     [[nodiscard]] virtual std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig& current) = 0;
     [[nodiscard]] virtual std::optional<PluginConfig> show_plugin_config_dialog(const PluginConfig& current) = 0;
 
-    // simulation process lifecycle (presenter decides when, the view wires the wx process events)
+    // simulation process lifecycle (presenter decides when, the view wires the process events)
     virtual void start_simulation_process(const std::string& program, const std::filesystem::path& netlist_path, const std::filesystem::path& working_directory) = 0;
 
     // cancel the running simulation process owned by the view

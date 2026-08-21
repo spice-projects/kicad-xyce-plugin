@@ -16,8 +16,8 @@
 
 namespace
 {
-    // wx-free ImGui/ImPlot style, using a light palette that matches the slint
-    // cupertino widgets instead of wxSystemSettings
+    // ImGui/ImPlot style, using a light palette that matches the slint
+    // cupertino widgets
     void apply_slint_style() {
         // light theme colors
         const ImVec4 text = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);

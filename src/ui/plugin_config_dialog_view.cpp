@@ -14,7 +14,7 @@ namespace plugin_config_dialog_view
 {
     namespace
     {
-        // validation feedback strings, mirroring the wx dialog
+        // validation feedback strings
         constexpr const char* REQUIRED_ERROR = "Xyce executable path is required";
         constexpr const char* INVALID_ERROR = "Selected path is not an executable file";
     } // namespace

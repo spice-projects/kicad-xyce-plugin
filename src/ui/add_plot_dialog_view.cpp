@@ -34,8 +34,7 @@ namespace add_plot_dialog_view
         // of this model in the expression-clicked callback
         std::shared_ptr<slint::VectorModel<add_plot_dialog::ExpressionItem>> expressions;
 
-        // all expressions known to the dialog with their selection state,
-        // mirroring the wx expression selector panel
+        // all expressions known to the dialog with their selection state
         std::vector<add_plot_dialog::ExpressionItem> m_all_items;
 
         // indices into m_all_items that pass the current filter
@@ -122,7 +121,7 @@ namespace add_plot_dialog_view
 
         void append_expression_name(int index) {
             // copy the right-clicked expression name into the Expression builder,
-            // mirroring the wx panel; only when the custom entry is shown
+            // only when the custom entry is shown
             if (!dialog->get_allow_custom_expressions())
                 return;
             if (index < 0 || static_cast<size_t>(index) >= m_filtered_indices.size())

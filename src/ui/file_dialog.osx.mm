@@ -11,8 +11,7 @@
 
 std::optional<std::filesystem::path> FileDialog::open_xyce_file() {
     // build the content types accepted by the dialog from the extensions
-    // matching the wxWidgets wildcard "Netlist files (*.cir)|*.cir|Xyce output
-    // files (*.raw, *.fftX)|*.raw;*.fft?;*.fft??"
+    // (*.cir, *.raw, *.fft?)
     NSMutableArray<UTType*>* content_types = [NSMutableArray array];
     for (NSString* extension in @[ @"cir", @"raw" ]) {
         // skip extensions that map to no known type
@@ -46,8 +45,7 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_executable() {
     NSOpenPanel* panel = [NSOpenPanel openPanel];
     // configure the dialog for a single existing file; restrict the allowed
     // types to the abstract "item" type, which every file conforms to, so any
-    // executable is selectable (mirrors the wx "All files (*)|*" wildcard used
-    // for the Xyce executable). A nil/empty content type array is rejected by
+    // executable is selectable. A nil/empty content type array is rejected by
     // the AppKit assertion in setAllowedContentTypes:.
     panel.title = @"Select Xyce Executable";
     panel.canChooseFiles = YES;

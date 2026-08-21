@@ -62,8 +62,8 @@ namespace fft_dialog_view
         // of this model in the expression-clicked callback
         std::shared_ptr<slint::VectorModel<fft_dialog::ExpressionItem>> expressions;
 
-        // eligible expressions known to the dialog with their selection state,
-        // mirroring the wx expression selector panel (real, non-time-domain)
+        // eligible expressions known to the dialog with their selection state;
+        // only real, non-time-domain expressions are eligible
         std::vector<fft_dialog::ExpressionItem> m_all_items;
 
         // indices into m_all_items that pass the current filter
@@ -179,8 +179,8 @@ namespace fft_dialog_view
         }
 
         void accept() {
-            // build the FFT parameters from the dialog state; validation failures
-            // keep the dialog open with an inline error, mirroring the wx dialog
+            // build the FFT parameters from the dialog state; validation
+            // failures keep the dialog open with an inline error
             fft::FftParameters params;
             // resolve the data range
             switch (dialog->get_range_mode()) {

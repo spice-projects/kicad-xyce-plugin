@@ -15,7 +15,7 @@ namespace step_tool_dialog_view
     {
         slint::SharedString to_shared_string(std::string value) { return slint::SharedString(value); }
 
-        // format a step parameter value the same way the wx dialog does
+        // format a step parameter value for display in the steps grid
         slint::SharedString format_value(double value) {
             std::ostringstream oss;
             oss << value;

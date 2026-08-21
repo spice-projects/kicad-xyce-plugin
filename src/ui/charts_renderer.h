@@ -19,8 +19,8 @@ namespace slint
     class Window;
 }
 
-// wx-free scope guard that activates a ChartsRenderer's isolated ImGui/ImPlot
-// contexts for the duration of a scope, replacing the wx-coupled im_context.h
+// scope guard that activates a ChartsRenderer's isolated ImGui/ImPlot
+// contexts for the duration of a scope
 class ChartsRenderer;
 
 class ChartsContextScope

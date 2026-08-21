@@ -314,7 +314,8 @@ std::optional<SimulationConfig> SlintMainWindowView2::show_simulation_parameters
     m_modal_dialog_window = &m_simulation_parameters_dialog->window();
     // block input to the native main window while the dialog is shown
     modal_manager::set_input_blocked(window(), *m_modal_dialog_window, true);
-    // nothing to return, TODO: remove return value once wxWidgets dialog is replaced with slint
+    // nothing to return, the accepted configuration is delivered asynchronously
+    // through MainWindowViewDefEvents::on_simulation_parameters_dialog_result
     return std::nullopt;
 }
 
@@ -338,7 +339,8 @@ std::optional<PluginConfig> SlintMainWindowView2::show_plugin_config_dialog(cons
     m_modal_dialog_window = &m_plugin_config_dialog->window();
     // block input to the native main window while the dialog is shown
     modal_manager::set_input_blocked(window(), *m_modal_dialog_window, true);
-    // nothing to return, TODO: remove return value once wxWidgets dialog is replaced with slint
+    // nothing to return, the accepted configuration is delivered asynchronously
+    // through MainWindowViewDefEvents::on_plugin_config_dialog_result
     return std::nullopt;
 }
 

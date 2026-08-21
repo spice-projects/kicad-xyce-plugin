@@ -33,7 +33,7 @@ namespace simulation_parameters_dialog_view
 {
     namespace
     {
-        // analysis type string per sidebar tab index, matching the wx page order
+        // analysis type string per sidebar tab index
         constexpr std::array<const char*, 7> ANALYSIS_TYPES = {"OP", "TRAN", "DC", "AC", "NOISE", "HB", "LIN"};
 
         // join a range of strings with a delimiter; util.h has no join() helper
@@ -56,7 +56,7 @@ namespace simulation_parameters_dialog_view
             return 0;
         }
 
-        // sidebar tab index of each analysis, matching the wx page order
+        // sidebar tab index of each analysis
         static constexpr int PAGE_OP = 0;
         static constexpr int PAGE_TRAN = 1;
         static constexpr int PAGE_DC = 2;
@@ -69,21 +69,21 @@ namespace simulation_parameters_dialog_view
         // index 0 is the "(default)" entry which serializes to an empty string
         static constexpr std::array<const char*, 9> PRINT_FORMAT_VALUES = {"", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"};
 
-        // AC/LIN/NOISE sweep mode values matching the wx combo order
+        // AC/LIN/NOISE sweep mode values in combo order
         static constexpr std::array<const char*, 4> SWEEP_MODE_VALUES = {"LIN", "DEC", "OCT", "DATA"};
 
-        // DC sweep mode values matching the wx DcParametersPanel combo order
+        // DC sweep mode values in combo order
         static constexpr std::array<const char*, 5> DC_SWEEP_MODE_VALUES = {"LIN", "DEC", "OCT", "LIST", "DATA"};
 
-        // OP keyword values matching the wx TransientParametersPanel combo order
+        // transient analysis OP keyword values in combo order
         static constexpr std::array<const char*, 3> OP_KEYWORD_VALUES = {"", "NOOP", "UIC"};
 
-        // LIN panel choice models matching the wx LinParametersPanel combo order
+        // LIN panel choice models in combo order
         static constexpr std::array<const char*, 4> LIN_FORMAT_CHOICES = {"TOUCHSTONE2", "TOUCHSTONE1", "CITIFILE", "TSI"};
         static constexpr std::array<const char*, 5> LIN_LINTYPE_CHOICES = {"S", "Y", "Z", "G", "H"};
         static constexpr std::array<const char*, 3> LIN_DATAFORMAT_CHOICES = {"RI", "MA", "DB"};
 
-        // .PRINT type combo models matching the wx PrintSectionPanel combo order;
+        // .PRINT type combo models per analysis;
         // index 0 is the analysis prefix fallback type
         static constexpr std::array<const char*, 2> TRAN_PRINT_TYPES = {"TRAN", "TRANADJOINT"};
         static constexpr std::array<const char*, 2> DC_PRINT_TYPES = {"DC", "HOMOTOPY"};
@@ -94,20 +94,19 @@ namespace simulation_parameters_dialog_view
         // empty model for analyses without a print-type combo (index 0 is unused)
         static constexpr std::array<const char*, 0> NO_PRINT_TYPES = {};
 
-        // HB TAHB combo values matching the wx HbParametersPanel combo order;
+        // HB TAHB combo values;
         // index 0 is the "(None)" entry
         static constexpr std::array<int, 7> TAHB_VALUES = {-1, 0, 1, 2, 5, 10, 20};
 
-        // HB SELECTHARMS combo values matching the wx HbParametersPanel combo
-        // order; index 0 is the "(None)" entry
+        // HB SELECTHARMS combo values; index 0 is the "(None)" entry
         static constexpr std::array<const char*, 7> SELECTHARMS_VALUES = {"", "ALL", "1", "2", "3", "5", "10"};
 
         // wildcard tokens shared by the BJT and FET lead groups
         static const std::set<std::string> WILDCARD_TOKENS = {"V(*)", "I(*)", "P(*)", "W(*)", "IB(*)", "IC(*)", "IE(*)", "IS(*)", "ID(*)", "IG(*)"};
 
-        // ordered BJT lead current wildcards, matching the wx PrintSectionPanel
+        // ordered BJT lead current wildcards
         static const std::vector<std::string> BJT_WILDCARDS = {"IB(*)", "IC(*)", "IE(*)", "IS(*)"};
-        // ordered FET lead current wildcards, matching the wx PrintSectionPanel
+        // ordered FET lead current wildcards
         static const std::vector<std::string> FET_WILDCARDS = {"IB(*)", "ID(*)", "IG(*)", "IS(*)"};
 
         using DialogHandle = slint::ComponentHandle<simulation_parameters_dialog::SimulationParametersDialog>;
@@ -151,7 +150,7 @@ namespace simulation_parameters_dialog_view
             return std::string(view.substr(begin, end - begin + 1));
         }
 
-        // parse a leading integer, tolerating trailing junk like wx ToLong
+        // parse a leading integer, tolerating trailing junk
         [[nodiscard]] std::optional<int> parse_int(std::string_view text) {
             const std::string value = trim(text);
             if (value.empty())
@@ -964,7 +963,7 @@ namespace simulation_parameters_dialog_view
         // the caller releases the modal state from here
         std::function<void()> on_closed;
 
-        // configuration seeded on show; all analysis panels are migrated to Slint
+        // configuration seeded on show
         SimulationConfig m_config;
 
         Impl() :
@@ -979,23 +978,23 @@ namespace simulation_parameters_dialog_view
             const int selected_tab = dialog->get_selected_tab();
             // update the analysis type from the selected tab
             m_config.analysis_type = ANALYSIS_TYPES[static_cast<size_t>(selected_tab)];
-            // read the migrated operating point panel back into the analysis variant
+            // read the operating point panel back into the analysis variant
             if (selected_tab == PAGE_OP) {
                 m_config.analysis = build_op_parameters(dialog);
                 m_config.replace_ground = dialog->get_op_replace_ground();
             }
-            // read the migrated AC analysis panel back into the analysis variant
+            // read the AC analysis panel back into the analysis variant
             else if (selected_tab == PAGE_AC) {
                 m_config.analysis = build_ac_parameters(dialog);
                 m_config.replace_ground = dialog->get_ac_replace_ground();
             }
-            // read the migrated transient analysis panel back into the analysis variant
+            // read the transient analysis panel back into the analysis variant
             else if (selected_tab == PAGE_TRAN) {
                 m_config.analysis = build_transient_parameters(dialog);
                 m_config.replace_ground = dialog->get_tran_replace_ground();
             }
-            // read the migrated DC analysis panel back into the analysis variant;
-            // mirror the wx dialog by rejecting an invalid DC sweep without closing
+            // read the DC analysis panel back into the analysis variant;
+            // reject an invalid DC sweep without closing the dialog
             else if (selected_tab == PAGE_DC) {
                 auto dc = build_dc_parameters(dialog);
                 if (const auto error = dc.validate()) {
@@ -1006,17 +1005,17 @@ namespace simulation_parameters_dialog_view
                 m_config.analysis = std::move(dc);
                 m_config.replace_ground = dialog->get_dc_replace_ground();
             }
-            // read the migrated noise analysis panel back into the analysis variant
+            // read the noise analysis panel back into the analysis variant
             else if (selected_tab == PAGE_NOISE) {
                 m_config.analysis = build_noise_parameters(dialog);
                 m_config.replace_ground = dialog->get_noise_replace_ground();
             }
-            // read the migrated harmonic balance panel back into the analysis variant
+            // read the harmonic balance panel back into the analysis variant
             else if (selected_tab == PAGE_HB) {
                 m_config.analysis = build_hb_parameters(dialog);
                 m_config.replace_ground = dialog->get_hb_replace_ground();
             }
-            // read the migrated linear analysis panel back into the analysis variant
+            // read the linear analysis panel back into the analysis variant
             else if (selected_tab == PAGE_LIN) {
                 m_config.analysis = build_lin_parameters(dialog);
                 m_config.replace_ground = dialog->get_lin_replace_ground();
