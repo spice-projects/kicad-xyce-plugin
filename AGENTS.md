@@ -13,9 +13,7 @@
 - Build system: `cmake`
   - Configure: `cmake --preset debug`
   - Build: `cmake --build --preset debug`
-- Unit Tests, avoid running unit tests using `ctest`. Execute unit tests by executing the process corresponding to the host OS:
-  - macOS: `./.build-debug-Darwin/tests/kicad-xyce-plugin-tests`
-  - Linux: `./.build-debug-Linux/tests/kicad-xyce-plugin-tests`
+- Unit Tests, avoid running unit tests using `ctest`. Execute unit tests by executing the process: `./.build-debug/tests/kicad-xyce-plugin-tests`
 - Unit tests must be self-contained: no helper functions, no test utilities, no external fixtures
 - Dependencies: `vcpkg`
 

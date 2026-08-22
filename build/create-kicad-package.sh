@@ -1,32 +1,13 @@
 #!/bin/bash
 
-# detect host operating system
-UNAME_S=$(uname -s)
-
-# default build directory based on host OS
-DEFAULT_BUILD_DIR=".build-debug-${UNAME_S}"
-if [ ! -d "$DEFAULT_BUILD_DIR" ] && [ -d ".build-debug" ]; then
-    DEFAULT_BUILD_DIR=".build-debug"
-fi
-
 # project version, defaults to 0.0.1
 PROJECT_VERSION=${1:-0.0.1}
 # path to the compiled plugin executable, defaults to the debug build output
-EXECUTABLE=${2:-${DEFAULT_BUILD_DIR}/kicad-xyce-plugin}
+EXECUTABLE=${2:-.build-debug/kicad-xyce-plugin}
 # plugin entrypoint name as referenced by src/plugin.json
 ENTRYPOINT_NAME=${3:-kicad-xyce-plugin}
-
-# platform, allowed values: macos, linux, windows (auto-detected if not specified)
-if [ -n "$4" ]; then
-    PLATFORM="$4"
-else
-    case "$UNAME_S" in
-        Darwin) PLATFORM="macos" ;;
-        Linux)  PLATFORM="linux" ;;
-        MINGW*|MSYS*|CYGWIN*) PLATFORM="windows" ;;
-        *) PLATFORM="macos" ;;
-    esac
-fi
+# platform, allowed values: macos, linux, windows
+PLATFORM=${4:-macos}
 
 # fail early when the executable is missing
 if [ ! -f "$EXECUTABLE" ]; then

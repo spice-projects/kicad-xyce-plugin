@@ -38,6 +38,7 @@ vcpkg-manifest-install.log
 
 # Clangd / editor index cache
 .clangd/
+.cache/
 
 # IDE and editor files
 .vscode/*

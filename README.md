@@ -69,20 +69,15 @@ The build produces the `kicad-xyce-plugin` executable under the build directory.
 ./build/create-kicad-package.sh <version>
 ```
 
-The executable defaults to `.build-debug-<OS>/kicad-xyce-plugin` (e.g., `.build-debug-Darwin/kicad-xyce-plugin` on macOS or `.build-debug-Linux/kicad-xyce-plugin` on Linux) and can be overridden as the second argument. The result is written to `dist/`.
+The executable defaults to `.build-debug/kicad-xyce-plugin` and can be overridden as the second argument. The result is written to `dist/`.
 
 ## Testing
 
 Tests are built alongside the plugin. Run the test executable directly:
 
-- **macOS**:
-  ```bash
-  ./.build-debug-Darwin/tests/kicad-xyce-plugin-tests
-  ```
-- **Linux**:
-  ```bash
-  ./.build-debug-Linux/tests/kicad-xyce-plugin-tests
-  ```
+```bash
+./.build-debug/tests/kicad-xyce-plugin-tests
+```
 
 ## Configuration
 
