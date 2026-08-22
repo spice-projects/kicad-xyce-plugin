@@ -11,49 +11,31 @@ component TabButton inherits Rectangle {
     in property <string> text;
     in property <bool> active;
     callback clicked;
-    
-    height: 38px;
+
+    height: 32px;
     border-radius: 6px;
-    
-    // Background changes on hover and active state
-    background: active ? Palette.control-background : (touch-area.has-hover ? Palette.alternate-background : transparent);
-    
-    // Border for the active tab
-    border-width: active ? 1px : 0px;
-    border-color: Palette.border;
-    
-    animate background { duration: 150ms; }
-    animate border-color { duration: 150ms; }
-    
+
+    // macOS-sidebar-style selection: tinted fill for active, subtle hover fill
+    background: active ? Palette.selection-background : (touch-area.has-hover ? Palette.alternate-background : transparent);
+
+    animate background { duration: 120ms; }
+
     HorizontalLayout {
         padding-left: 12px;
         padding-right: 12px;
-        spacing: 8px;
-        
-        // Active indicator dot/bar (always present to prevent shifting)
-        VerticalLayout {
-            alignment: center;
-            Rectangle {
-                width: 3px;
-                height: 16px;
-                background: active ? Palette.foreground : transparent;
-                border-radius: 1.5px;
-                animate background { duration: 150ms; }
-            }
-        }
-        
+
         Text {
             text: root.text;
             font-size: 13px;
-            font-weight: active ? 600 : 500;
-            color: Palette.foreground;
-            opacity: active ? 1.0 : 0.7;
+            font-weight: 500;
+            color: active ? Palette.selection-foreground : Palette.foreground;
+            opacity: active ? 1.0 : 0.75;
             vertical-alignment: center;
             horizontal-alignment: left;
-            animate opacity { duration: 150ms; }
+            animate opacity { duration: 120ms; }
         }
     }
-    
+
     touch-area := TouchArea {
         clicked => { root.clicked(); }
     }
