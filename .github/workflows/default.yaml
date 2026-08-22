@@ -192,11 +192,11 @@ jobs:
       - name: Generate Cobertura report
         shell: bash
         run: |
-          xcrun llvm-profdata merge -sparse coverage.profraw -o coverage.profdata
+          xcrun llvm-profdata merge --sparse coverage.profraw --output coverage.profdata
           xcrun llvm-cov export \
-            -instrprofile coverage.profdata \
-            -format=lcov \
-            -sources "$PWD/src" \
+            --instr-profile coverage.profdata \
+            --format=lcov \
+            --sources "$PWD/src" \
             ./.build-profile/tests/kicad-xyce-plugin-tests > coverage.lcov
           pip install lcov_cobertura
           lcov_cobertura coverage.lcov --output cobertura.xml
