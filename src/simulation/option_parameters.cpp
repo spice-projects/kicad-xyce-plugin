@@ -30,8 +30,8 @@ static std::map<std::string, std::string> parse_option_tokens(const std::vector<
     return options;
 }
 
-OptionParameters::OptionParameters(std::map<std::string, std::string> device, std::map<std::string, std::string> timeint, std::map<std::string, std::string> nonlin, std::map<std::string, std::string> linsol, std::map<std::string, std::string> fft) :
-    device(std::move(device)), timeint(std::move(timeint)), nonlin(std::move(nonlin)), linsol(std::move(linsol)), fft(std::move(fft)) {}
+OptionParameters::OptionParameters(std::map<std::string, std::string> device, std::map<std::string, std::string> timeint, std::map<std::string, std::string> nonlin, std::map<std::string, std::string> linsol, std::map<std::string, std::string> fft, std::map<std::string, std::string> diagnostic) :
+    device(std::move(device)), timeint(std::move(timeint)), nonlin(std::move(nonlin)), linsol(std::move(linsol)), fft(std::move(fft)), diagnostic(std::move(diagnostic)) {}
 
 OptionParameters OptionParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // init option groups
@@ -40,6 +40,7 @@ OptionParameters OptionParameters::from_xyce_directives(const std::vector<std::s
     std::map<std::string, std::string> nonlin;
     std::map<std::string, std::string> linsol;
     std::map<std::string, std::string> fft;
+    std::map<std::string, std::string> diagnostic;
 
     // parse each directive looking for supported option packages
     for (const auto& directive : directives) {
@@ -93,9 +94,13 @@ OptionParameters OptionParameters::from_xyce_directives(const std::vector<std::s
             fft = parse_option_tokens(std::vector<std::string>(tokens.begin() + 2, tokens.end()));
             continue;
         }
+        if (package == "DIAGNOSTIC") {
+            diagnostic = parse_option_tokens(std::vector<std::string>(tokens.begin() + 2, tokens.end()));
+            continue;
+        }
     }
 
-    return OptionParameters(device, timeint, nonlin, linsol, fft);
+    return OptionParameters(device, timeint, nonlin, linsol, fft, diagnostic);
 }
 
 std::vector<std::string> OptionParameters::to_xyce_directives(const NetlistTopology& topology) const {
@@ -135,11 +140,14 @@ std::vector<std::string> OptionParameters::to_xyce_directives(const NetlistTopol
     if (!fft.empty()) {
         directives.push_back(".OPTIONS FFT " + format_options(fft));
     }
+    if (!diagnostic.empty()) {
+        directives.push_back(".OPTIONS DIAGNOSTIC " + format_options(diagnostic));
+    }
 
     return directives;
 }
 
 bool OptionParameters::operator==(const OptionParameters& other) const {
     // compare all fields for equality
-    return device == other.device && timeint == other.timeint && nonlin == other.nonlin && linsol == other.linsol && fft == other.fft;
+    return device == other.device && timeint == other.timeint && nonlin == other.nonlin && linsol == other.linsol && fft == other.fft && diagnostic == other.diagnostic;
 }

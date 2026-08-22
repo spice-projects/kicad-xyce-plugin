@@ -13,7 +13,7 @@
 TEST(OptionParametersChecks, parse_option_directives) {
     // arrange
     const std::vector<std::string> directives = {
-        ".OPTIONS DEVICE TEMP=25 GMIN=1e-12", ".OPTIONS TIMEINT RELTOL=1e-3 ABSTOL=1e-12", ".OPTIONS NONLIN MAXSTEP=10", ".OPTIONS LINSOL TYPE=AZTECOO", ".OPTIONS FFT FFT_ACCURATE=1 FFTOUT=1 FFT_MODE=0",
+        ".OPTIONS DEVICE TEMP=25 GMIN=1e-12", ".OPTIONS TIMEINT RELTOL=1e-3 ABSTOL=1e-12", ".OPTIONS NONLIN MAXSTEP=10", ".OPTIONS LINSOL TYPE=AZTECOO", ".OPTIONS FFT FFT_ACCURATE=1 FFTOUT=1 FFT_MODE=0", ".OPTIONS DIAGNOSTIC DEBUGLEVEL=3",
     };
     // act
     const auto params = OptionParameters::from_xyce_directives(directives);
@@ -32,24 +32,24 @@ TEST(OptionParametersChecks, parse_option_directives) {
     ASSERT_EQ(params.fft.at("FFT_ACCURATE"), "1");
     ASSERT_EQ(params.fft.at("FFTOUT"), "1");
     ASSERT_EQ(params.fft.at("FFT_MODE"), "0");
+    ASSERT_EQ(params.diagnostic.size(), 1);
+    ASSERT_EQ(params.diagnostic.at("DEBUGLEVEL"), "3");
 }
 
-TEST(OptionParametersChecks, parse_fft_options) {
+TEST(OptionParametersChecks, parse_diagnostic_flag_style_option) {
     // arrange
     const std::vector<std::string> directives = {
-        ".OPTIONS FFT FFT_ACCURATE=0 FFTOUT=1 FFT_MODE=1",
+        ".OPTIONS DIAGNOSTIC DEBUGLEVEL=2",
     };
     // act
     const auto params = OptionParameters::from_xyce_directives(directives);
     // assert
     ASSERT_EQ(params.device.size(), 0);
-    ASSERT_EQ(params.fft.size(), 3);
-    ASSERT_EQ(params.fft.at("FFT_ACCURATE"), "0");
-    ASSERT_EQ(params.fft.at("FFTOUT"), "1");
-    ASSERT_EQ(params.fft.at("FFT_MODE"), "1");
+    ASSERT_EQ(params.diagnostic.size(), 1);
+    ASSERT_EQ(params.diagnostic.at("DEBUGLEVEL"), "2");
 }
 
-TEST(OptionParametersChecks, parse_fft_options_with_mixed_case) {
+TEST(OptionParametersChecks, parse_fft_options) {
     // arrange
     const std::vector<std::string> directives = {
         ".OPTIONS fft ffT_ACCURATE=0 fFtOut=0",
@@ -152,6 +152,16 @@ TEST(OptionParametersChecks, generate_flag_style_option) {
     ASSERT_EQ(directives[0], ".OPTIONS FFT FFTOUT");
 }
 
+TEST(OptionParametersChecks, generate_diagnostic_directive) {
+    // arrange
+    const OptionParameters params({}, {}, {}, {}, {}, {{"DEBUGLEVEL", "2"}});
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 1);
+    ASSERT_EQ(directives[0], ".OPTIONS DIAGNOSTIC DEBUGLEVEL=2");
+}
+
 TEST(OptionParametersChecks, generate_empty_directives) {
     // arrange
     const OptionParameters params({}, {}, {}, {}, {});
@@ -196,6 +206,19 @@ TEST(OptionParametersChecks, round_trip_fft_options) {
     ASSERT_EQ(round_trip[0], ".OPTIONS FFT FFTOUT=1 FFT_ACCURATE=0 FFT_MODE=1");
 }
 
+TEST(OptionParametersChecks, round_trip_diagnostic_options) {
+    // arrange
+    const std::vector<std::string> directives = {
+        ".OPTIONS DIAGNOSTIC DEBUGLEVEL=2",
+    };
+    // act
+    const auto params = OptionParameters::from_xyce_directives(directives);
+    const auto round_trip = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(round_trip.size(), 1);
+    ASSERT_EQ(round_trip[0], ".OPTIONS DIAGNOSTIC DEBUGLEVEL=2");
+}
+
 // ========================================================================================
 // equality
 // ========================================================================================
@@ -212,6 +235,14 @@ TEST(OptionParametersChecks, differing_fft_options_compare_unequal) {
     // arrange
     const OptionParameters a({}, {}, {}, {}, {{"FFTOUT", "1"}});
     const OptionParameters b({}, {}, {}, {}, {{"FFTOUT", "0"}});
+    // act / assert
+    ASSERT_FALSE(a == b);
+}
+
+TEST(OptionParametersChecks, differing_diagnostic_options_compare_unequal) {
+    // arrange
+    const OptionParameters a({}, {}, {}, {}, {}, {{"DEBUGLEVEL", "1"}});
+    const OptionParameters b({}, {}, {}, {}, {}, {{"DEBUGLEVEL", "2"}});
     // act / assert
     ASSERT_FALSE(a == b);
 }
