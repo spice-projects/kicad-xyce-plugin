@@ -82,7 +82,11 @@ FetchContent_MakeAvailable(Slint)
 # slint's generated internal headers trigger -Wgnu-anonymous-struct and -Wextra-semi
 # under our warning set; collect slint's interface include directories here and expose
 # them as system directories on the core library below, so warnings from slint headers
-# are suppressed for the core library and every consumer of it
+# are suppressed for the core library and every consumer of it.
+# slint_target_sources additionally adds the build dir itself as a plain include
+# directory for the generated widget headers (main_window.h, ...); those are generated
+# code too, so treat them as system headers as well (e.g. the unused private
+# 'live_preview' field emitted when live-preview is enabled)
 set(SLINT_SYSTEM_INCLUDE_DIRS)
 get_target_property(SLINT_INTERFACE_INCLUDES Slint INTERFACE_INCLUDE_DIRECTORIES)
 foreach(include_dir IN LISTS SLINT_INTERFACE_INCLUDES)
@@ -91,6 +95,7 @@ foreach(include_dir IN LISTS SLINT_INTERFACE_INCLUDES)
         list(APPEND SLINT_SYSTEM_INCLUDE_DIRS "${CMAKE_MATCH_1}")
     endif()
 endforeach()
+list(APPEND SLINT_SYSTEM_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}")
 
 # generate C++ code from the vendored KiCad API protos
 set(KICAD_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/kicad/proto")
@@ -193,6 +198,12 @@ file(GLOB_RECURSE SLINT_WIDGET_SOURCES "src/ui/widgets/*.slint")
 foreach(widget_source IN LISTS SLINT_WIDGET_SOURCES)
     get_filename_component(widget_namespace ${widget_source} NAME_WE)
     slint_target_sources(kicad-xyce-core ${widget_source} NAMESPACE ${widget_namespace})
+    # the generated translation unit lives in the build dir next to the generated
+    # headers, so it picks them up through the quoted-include path before any
+    # -isystem entry and compiles them with our full warning set; silence all
+    # warnings for this fully generated code instead
+    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp"
+        PROPERTIES COMPILE_OPTIONS "-w")
 endforeach()
 
 # if(APPLE)
