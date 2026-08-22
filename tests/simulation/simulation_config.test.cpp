@@ -128,6 +128,15 @@ TEST(SimulationConfigUnassociatedPrintChecks, prints_handled_by_the_analysis_are
     EXPECT_TRUE(config.unassociated_prints.empty());
 }
 
+TEST(SimulationConfigUnassociatedPrintChecks, hb_ic_and_hb_startup_prints_are_handled_by_hb_analysis) {
+    // arrange — HB_IC and HB_STARTUP prints belong to a harmonic balance analysis
+    const std::vector<std::string> directives = {".HB 1MEG 10", ".PRINT HB_IC V(1)", ".PRINT HB_STARTUP I(V1)"};
+    // act
+    const auto config = SimulationConfig::from_xyce_directives(directives);
+    // assert
+    EXPECT_TRUE(config.unassociated_prints.empty());
+}
+
 TEST(SimulationConfigUnassociatedPrintChecks, other_print_types_become_unassociated) {
     // arrange — a DC print under a transient analysis is not handled by it
     const std::vector<std::string> directives = {".TRAN 1u 1m", ".PRINT DC V(1)"};

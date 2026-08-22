@@ -149,6 +149,8 @@ SimulationConfig SimulationConfig::from_xyce_directives(const std::vector<std::s
             handled_print_types.insert("HB");
             handled_print_types.insert("HB_FD");
             handled_print_types.insert("HB_TD");
+            handled_print_types.insert("HB_IC");
+            handled_print_types.insert("HB_STARTUP");
         }
         else if (analysis_type == "NOISE") {
             handled_print_types.insert("NOISE");
