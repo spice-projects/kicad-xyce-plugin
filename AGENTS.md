@@ -32,9 +32,9 @@ After editing:
 4. Summarize changed files
 5. Do not execute unit tests unless explicitly asked
 
-## UI (Slint migration)
+## UI (Slint)
 
-The wxWidgets UI is being migrated to Slint. The new UI lives under `src/ui`:
+The UI is built with Slint and lives under `src/ui`:
 
 - Root widgets (windows/dialogs): `src/ui/widgets/*.slint`
 - Shared components (imported only by roots): `src/ui/components/*.slint`
@@ -75,6 +75,6 @@ The wxWidgets UI is being migrated to Slint. The new UI lives under `src/ui`:
 
 ## Architecture
 
-- Slint owns the application lifecycle (`App` singleton + `slint::run_event_loop`); wxWidgets remains a legacy dependency until the migration completes
+- Slint owns the application lifecycle (`App` singleton + `slint::run_event_loop`)
 - Rendering components should remain independent where possible
 - Avoid unnecessary dependency coupling

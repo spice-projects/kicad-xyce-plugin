@@ -27,9 +27,9 @@ export global ChartsPanelActions {
 
 // open canvas panel for the charts view. Chart rendering lands in a later
 // milestone; for now the channel is an empty panel and the context menu is the
-// only interactive surface, mirroring the wx `ChartsPanel` actions.
+// only interactive surface.
 export component ChartsPanel inherits Rectangle {
-    // action availability flags, mirroring the wx ChartsPanel conditions
+    // action availability flags for the context-menu tools
     in property <bool> enable-fft: false;
     in property <bool> enable-step-tool: false;
     in property <bool> has-fft-files: false;

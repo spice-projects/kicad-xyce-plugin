@@ -124,7 +124,7 @@ jobs:
         if: ${{ matrix.build_enabled }}
         shell: bash
         # run the test executable directly, not ctest (see AGENTS.md)
-        # the Ui-prefixed suites construct real wxWidgets windows, which crash in
+        # the Ui-prefixed suites construct real native windows, which crash in
         # the non-interactive windows runner session; macOS runs everything
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then

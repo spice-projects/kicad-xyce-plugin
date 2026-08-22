@@ -206,7 +206,7 @@ export component DcParametersPanel inherits Rectangle {
                         current-index <=> root.sweep-mode-index;
                         selected(current-value) => {
                             // carry the numeric value between the step and points
-                            // fields when switching modes (matches the wx panel)
+                            // fields when switching modes
                             if current-value == "LIN" {
                                 if root.step == "" && root.points != "" { root.step = root.points; }
                                 if root.secondary-step == "" && root.secondary-points != "" { root.secondary-step = root.secondary-points; }

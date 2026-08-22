@@ -1,7 +1,7 @@
 import { CheckBox, Palette, ScrollView, StandardButton } from "std-widgets.slint";
 
-// one parameter combination offered by the step tool, mirroring the wx
-// `StepToolDialog` list rows: step index, the parameter values, and selection
+// one parameter combination offered by the step tool: step index, the
+// parameter values, and selection
 export struct StepItem {
     index: int,
     values: [string],
@@ -130,8 +130,8 @@ component LinkButton inherits Rectangle {
     }
 }
 
-// step tool dialog: checkbox grid of parameter combinations, mirroring the wx
-// `StepToolDialog` surface. The selection is applied back to the chart on accept.
+// step tool dialog: checkbox grid of parameter combinations. The selection is
+// applied back to the chart on accept.
 export component StepToolDialog inherits Dialog {
     title: "Step Tool";
 

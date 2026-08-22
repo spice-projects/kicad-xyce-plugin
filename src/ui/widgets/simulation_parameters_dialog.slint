@@ -54,9 +54,9 @@ export component SimulationParametersDialog inherits Dialog {
 
     title: "Xyce Simulation";
 
-    // analysis tab selected in the tab widget, matching the wx page order
+    // analysis tab selected in the tab widget
     in-out property <int> selected-tab: 0;
-    // validation feedback, mirrors the wx error label above the footer buttons
+    // validation feedback shown above the footer buttons
     in property <bool> show-error: false;
     in property <string> error-message: "";
 

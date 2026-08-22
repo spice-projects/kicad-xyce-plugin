@@ -84,7 +84,7 @@ component ToolbarButton inherits Rectangle {
     }
 }
 
-// bottom simulation log, mirroring the wx splitter pane. the panel lives in
+// bottom simulation log. the panel lives in
 // ../components/simulation_output_panel.slint: a header row with a title and
 // a close button over a monospaced, virtualized list of log lines. a ListView
 // (instead of a single TextEdit) keeps scrolling fast for long logs and
@@ -199,7 +199,7 @@ export component MainWindow inherits Window {
 
         // body: the body container owns the exclusive content views, the
         // schematic panel is shown by default and the charts panel replaces
-        // it once the charts view is shown (mirrors the wx content panel)
+        // it once the charts view is shown
         body := Rectangle {
             vertical-stretch: 1;
             background: Palette.alternate-background;
@@ -228,7 +228,7 @@ export component MainWindow inherits Window {
             }
         }
 
-        // status bar at the bottom of the window, mirroring the wx statusbar
+        // status bar at the bottom of the window
         statusbar := Rectangle {
             height: 24px;
             background: Palette.background;

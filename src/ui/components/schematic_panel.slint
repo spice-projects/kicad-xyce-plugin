@@ -1,10 +1,9 @@
 import { Palette, TextEdit } from "std-widgets.slint";
 
 // netlist editor panel; replaces the schematic rendering placeholder. The
-// netlist is shown as plain text in a monospaced, multi-line input, mirroring
-// the wx netlist editor without its SPICE syntax coloring. The host writes the
-// netlist through the `text` property and is notified of user edits through the
-// `edited` callback, so the presenter can track the dirty state.
+// netlist is shown as plain text in a monospaced, multi-line input. The host
+// writes the netlist through the `text` property and is notified of user edits
+// through the `edited` callback, so the presenter can track the dirty state.
 export component SchematicPanel inherits Rectangle {
     in-out property <string> text: "";
     in property <bool> read-only: false;

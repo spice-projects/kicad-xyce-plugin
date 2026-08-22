@@ -1,13 +1,13 @@
 import { ScrollView, Palette } from "std-widgets.slint";
 
-// expression offered for plotting, mirrors the wx `ExpressionItem`
+// expression offered for plotting
 export struct ExpressionItem {
     name: string,
     type: string,
     selected: bool,
 }
 
-// resolves a signal category to its color, matching the wx type palette
+// resolves a signal category to its color
 export global TypePalette {
     public pure function color(type: string) -> color {
         if (type == "Voltage") { return #5b9bd5; }
