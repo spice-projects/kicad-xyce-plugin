@@ -61,6 +61,19 @@ endif()
 # slint renderer
 set(SLINT_FEATURE_RENDERER_SKIA ON CACHE BOOL "Include Skia renderer" FORCE)
 
+# slint live-preview: debug builds can load/reload .slint files from disk at runtime
+# (activate by setting SLINT_LIVE_PREVIEW=1 in the environment when launching the app);
+# release/profile builds keep the ahead-of-time compiled designs
+# slint mcp server: debug builds can be inspected/driven by AI agents over HTTP
+# (activate by setting SLINT_MCP_PORT=<port> in the environment when launching the app)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(SLINT_FEATURE_LIVE_PREVIEW ON CACHE BOOL "Enable Slint live-preview" FORCE)
+    set(SLINT_FEATURE_MCP ON CACHE BOOL "Enable Slint embedded MCP server" FORCE)
+else()
+    set(SLINT_FEATURE_LIVE_PREVIEW OFF CACHE BOOL "Enable Slint live-preview" FORCE)
+    set(SLINT_FEATURE_MCP OFF CACHE BOOL "Enable Slint embedded MCP server" FORCE)
+endif()
+
 # slint
 include(FetchContent)
 FetchContent_Declare(Slint GIT_REPOSITORY https://github.com/slint-ui/slint.git GIT_TAG release/1 SOURCE_SUBDIR api/cpp)
