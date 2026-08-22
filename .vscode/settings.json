@@ -2,7 +2,9 @@
   "C_Cpp.intelliSenseEngine": "disabled",
   "C_Cpp.clang_format_style": "file",
   "editor.defaultFormatter": "ms-vscode.cpptools",
-  "clangd.arguments": [],
+  "clangd.arguments": [
+    "--compile-commands-dir=${workspaceFolder}"
+  ],
   "[cpp]": {
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
   },
