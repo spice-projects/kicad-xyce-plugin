@@ -11,6 +11,15 @@
             }
         },
         {
+            "name": "linux-debug",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/.build-linux-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+            }
+        },
+        {
             "name": "release",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/.build-release",
@@ -45,6 +54,18 @@
                 "SLINT_LIVE_PREVIEW": "1",
                 "SLINT_EMIT_DEBUG_INFO": "1"
             }
+        },
+        {
+            "name": "linux-debug",
+            "description": "",
+            "displayName": "",
+            "configurePreset": "linux-debug",
+            "targets": [
+                "kicad-xyce-plugin",
+                "kicad-xyce-plugin-tests"
+            ],
+            "configuration": "Debug",
+            "inheritConfigureEnvironment": true
         },
         {
             "name": "release",

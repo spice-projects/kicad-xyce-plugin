@@ -41,6 +41,15 @@ component TabButton inherits Rectangle {
     }
 }
 
+component TabSectionLabel inherits Text {
+    height: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    color: Palette.foreground;
+    opacity: 0.45;
+    vertical-alignment: center;
+}
+
 export component SimulationParametersDialog inherits Dialog {
 
     title: "Xyce Simulation";
@@ -249,10 +258,12 @@ export component SimulationParametersDialog inherits Dialog {
                     spacing: 10px;
                     vertical-stretch: 1;
 
-                    // Custom vertical tab bar on the left
+                    // Custom vertical tab bar on the left, grouped by analysis domain
                     VerticalLayout {
                         width: 130px;
                         spacing: 4px;
+
+                        TabSectionLabel { text: "DC"; }
 
                         TabButton {
                             text: ".OP";
@@ -260,15 +271,21 @@ export component SimulationParametersDialog inherits Dialog {
                             clicked => { root.selected-tab = 0; }
                         }
                         TabButton {
-                            text: ".TRAN";
-                            active: root.selected-tab == 1;
-                            clicked => { root.selected-tab = 1; }
-                        }
-                        TabButton {
                             text: ".DC";
                             active: root.selected-tab == 2;
                             clicked => { root.selected-tab = 2; }
                         }
+
+                        TabSectionLabel { text: "Time-domain"; }
+
+                        TabButton {
+                            text: ".TRAN";
+                            active: root.selected-tab == 1;
+                            clicked => { root.selected-tab = 1; }
+                        }
+
+                        TabSectionLabel { text: "Frequency-domain"; }
+
                         TabButton {
                             text: ".AC";
                             active: root.selected-tab == 3;
@@ -289,7 +306,7 @@ export component SimulationParametersDialog inherits Dialog {
                             active: root.selected-tab == 6;
                             clicked => { root.selected-tab = 6; }
                         }
-                        
+
                         Rectangle { vertical-stretch: 1; } // spacer
                     }
 
