@@ -19,6 +19,7 @@ export component OpParametersPanel inherits Rectangle {
     in-out property <bool> save-enabled: false;
     in-out property <int> save-type-index: 0; // 0 = NODESET, 1 = IC
     in-out property <string> save-file: "";
+    in-out property <int> save-level-index: 0; // 0 = (default), 1 = all, 2 = none
 
     // --- convergence hints / initial conditions ---
     in-out property <string> nodeset: "";
@@ -73,11 +74,13 @@ export component OpParametersPanel inherits Rectangle {
                     // wildcard voltage/current/power row
                     HorizontalLayout {
                         spacing: 16px;
-                        CheckBox { text: "All voltages V(*)"; checked <=> root.print-all-nodes; }
-                        CheckBox { text: "All currents I(*)"; checked <=> root.print-all-currents; }
-                        CheckBox { text: "Power P(*)"; checked <=> root.print-power; }
-                        CheckBox { text: "BJT leads"; checked <=> root.print-bjt-leads; }
-                        CheckBox { text: "FET leads"; checked <=> root.print-fet-leads; }
+                        // min-widths pin each checkbox so toggling cannot reflow the row
+                        // (the cupertino style reports a narrower preferred width when checked)
+                        CheckBox { text: "All voltages V(*)"; min-width: 142px; checked <=> root.print-all-nodes; }
+                        CheckBox { text: "All currents I(*)"; min-width: 136px; checked <=> root.print-all-currents; }
+                        CheckBox { text: "Power P(*)"; min-width: 115px; checked <=> root.print-power; }
+                        CheckBox { text: "BJT leads"; min-width: 110px; checked <=> root.print-bjt-leads; }
+                        CheckBox { text: "FET leads"; min-width: 111px; checked <=> root.print-fet-leads; }
                     }
 
                     // additional variables
@@ -189,6 +192,25 @@ export component OpParametersPanel inherits Rectangle {
                             height: 28px;
                             placeholder-text: "optional output file path";
                             text <=> root.save-file;
+                        }
+                    }
+
+                    // save level selector (HSPICE compatibility; Xyce default is all)
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Level";
+                            font-size: 13px;
+                            color: Palette.foreground.transparentize(0.4);
+                            min-width: 120px;
+                            vertical-alignment: center;
+                            horizontal-alignment: left;
+                            overflow: elide;
+                        }
+                        ComboBox {
+                            height: 28px;
+                            model: ["(default)", "all", "none"];
+                            current-index <=> root.save-level-index;
                         }
                     }
                 }

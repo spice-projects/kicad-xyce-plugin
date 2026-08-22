@@ -96,8 +96,10 @@ export component HbParametersPanel inherits Rectangle {
                     // not available for an HB analysis
                     HorizontalLayout {
                         spacing: 16px;
-                        CheckBox { text: "All voltages V(*)"; checked <=> root.print-all-nodes; }
-                        CheckBox { text: "All currents I(*)"; checked <=> root.print-all-currents; }
+                        // min-widths pin each checkbox so toggling cannot reflow the row
+                        // (the cupertino style reports a narrower preferred width when checked)
+                        CheckBox { text: "All voltages V(*)"; min-width: 142px; checked <=> root.print-all-nodes; }
+                        CheckBox { text: "All currents I(*)"; min-width: 136px; checked <=> root.print-all-currents; }
                     }
 
                     // additional variables
