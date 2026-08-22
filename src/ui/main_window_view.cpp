@@ -250,8 +250,8 @@ void SlintMainWindowView2::copy_simulation_selection(int start, int end) {
     const std::size_t row_count = m_simulation_log->row_count();
     if (row_count == 0)
         return;
-    const std::size_t first = std::min(static_cast<std::size_t>(start), row_count - 1);
-    const std::size_t last = std::min(static_cast<std::size_t>(end), row_count - 1);
+    const std::size_t first = (std::min)(static_cast<std::size_t>(start), row_count - 1);
+    const std::size_t last = (std::min)(static_cast<std::size_t>(end), row_count - 1);
     // join the selected lines
     std::string text;
     for (std::size_t i = first; i <= last; ++i) {

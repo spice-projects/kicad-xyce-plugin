@@ -295,7 +295,7 @@ size_t ChartsRenderer::position_to_index(float position) const {
     // clamp the position to [0, 1] and compute the corresponding chart index
     const float clamped = std::clamp(position, 0.0f, 1.0f);
     const size_t index = static_cast<size_t>(clamped * static_cast<float>(m_charts.size()));
-    return std::min(index, m_charts.size() - 1);
+    return (std::min)(index, m_charts.size() - 1);
 }
 
 void ChartsRenderer::on_idle() {
