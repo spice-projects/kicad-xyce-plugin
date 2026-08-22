@@ -448,8 +448,10 @@ void SlintMainWindowPresenter2::on_simulation_finished(int exit_code, bool was_c
             auto raw_file = xyce_raw_file_parser(raw_path->string());
             // check the raw file was parsed
             if (raw_file.has_value()) {
-                // update the charts view with the parsed data
-                update_xyce_raw_file(std::move(raw_file), true);
+                // update the charts view with the parsed data; keep the existing
+                // charts since this is a re-run of the same netlist, so plots and
+                // their step selections survive across runs
+                update_xyce_raw_file(std::move(raw_file), false);
                 // switch to the charts view
                 m_view.show_charts_view();
                 // update the window title from the raw file

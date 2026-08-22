@@ -375,7 +375,7 @@ TEST(ChartSeriesTest, clear_removes_all_series) {
     EXPECT_TRUE(chart.selected_expressions().empty());
 }
 
-TEST(ChartSeriesTest, selected_steps_default_to_the_first_step) {
+TEST(ChartSeriesTest, selected_steps_default_to_all_steps) {
     // arrange
     std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0};
     std::vector<double> voltage_data = {1.0, 2.0, 3.0, 4.0, 2.0, 3.0, 4.0, 5.0};
@@ -388,9 +388,71 @@ TEST(ChartSeriesTest, selected_steps_default_to_the_first_step) {
     Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
     // act
     const auto& steps = chart.selected_steps();
-    // assert
-    ASSERT_EQ(steps.size(), 1);
-    EXPECT_EQ(*steps.begin(), 0u);
+    // assert — a fresh chart selects every available step
+    ASSERT_EQ(steps.size(), 2);
+    EXPECT_NE(steps.find(0u), steps.end());
+    EXPECT_NE(steps.find(1u), steps.end());
+}
+
+TEST(ChartSeriesTest, update_preserves_step_selection_and_replots_from_new_data) {
+    // arrange — two stepped runs, plot narrowed to the first step
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0};
+    std::vector<double> voltage_data = {1.0, 2.0, 3.0, 4.0, 2.0, 3.0, 4.0, 5.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 4}, {4, 8}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    expressions.emplace_back(Expression<double>("V(out)", std::move(voltage_data), step_slices, "V"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"R1"}, {{1000.0, 2000.0}}, {{0.0, 3.0}, {0.0, 3.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    std::set<size_t> first_step = {0};
+    chart.set_selected_steps(first_step);
+    chart.plot_series({expression_manager.expressions()[1]});
+    // act — simulate a re-run producing fresh data for the same signals
+    std::vector<double> new_abscissa_data = {0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0};
+    std::vector<double> new_voltage_data = {10.0, 20.0, 30.0, 40.0, 20.0, 30.0, 40.0, 50.0};
+    std::vector<std::pair<size_t, size_t>> new_step_slices = {{0, 4}, {4, 8}};
+    std::vector<AnyExpression> new_expressions;
+    new_expressions.emplace_back(Expression<double>("time", std::move(new_abscissa_data), new_step_slices, "s"));
+    new_expressions.emplace_back(Expression<double>("V(out)", std::move(new_voltage_data), new_step_slices, "V"));
+    ExpressionManager new_expression_manager(new_expressions, new_step_slices);
+    StepInformation new_step_information({"R1"}, {{1000.0, 2000.0}}, {{0.0, 3.0}, {0.0, 3.0}});
+    chart.update(&new_expression_manager, &new_step_information, AbscissaScale::LINEAR);
+    // assert — the step selection survives the re-run
+    ASSERT_EQ(chart.selected_steps().size(), 1);
+    EXPECT_EQ(*chart.selected_steps().begin(), 0u);
+    // the restored series points into the new data, not the previous run
+    const auto restored = chart.selected_expressions();
+    ASSERT_EQ(restored.size(), 1);
+    EXPECT_EQ(&std::get<Expression<double>>(*restored[0]), &std::get<Expression<double>>(*new_expression_manager.expressions()[1]));
+    // hovering reads values from the new run (step 0 interpolates to 25 V at 1.5 s)
+    const std::string text = chart.hovered_series_text(1.5);
+    EXPECT_NE(text.find("V(out)=25 V"), std::string::npos);
+}
+
+TEST(ChartSeriesTest, update_drops_series_missing_from_new_data) {
+    // arrange — a chart with a plotted series
+    std::vector<double> abscissa_data = {0.0, 1.0, 2.0, 3.0};
+    std::vector<double> voltage_data = {1.0, 2.0, 3.0, 4.0};
+    std::vector<std::pair<size_t, size_t>> step_slices = {{0, 4}};
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(Expression<double>("time", std::move(abscissa_data), step_slices, "s"));
+    expressions.emplace_back(Expression<double>("V(out)", std::move(voltage_data), step_slices, "V"));
+    ExpressionManager expression_manager(expressions, step_slices);
+    StepInformation step_information({"time"}, {{}}, {{0.0, 3.0}});
+    Chart chart(&expression_manager, &step_information, AbscissaScale::LINEAR, 1000);
+    chart.plot_series({expression_manager.expressions()[1]});
+    // act — the re-run produces data without the plotted signal
+    std::vector<double> new_abscissa_data = {0.0, 1.0, 2.0, 3.0};
+    std::vector<std::pair<size_t, size_t>> new_step_slices = {{0, 4}};
+    std::vector<AnyExpression> new_expressions;
+    new_expressions.emplace_back(Expression<double>("time", std::move(new_abscissa_data), new_step_slices, "s"));
+    ExpressionManager new_expression_manager(new_expressions, new_step_slices);
+    StepInformation new_step_information({"time"}, {{}}, {{0.0, 3.0}});
+    chart.update(&new_expression_manager, &new_step_information, AbscissaScale::LINEAR);
+    // assert — the unresolvable series is gone without crashing
+    EXPECT_TRUE(chart.selected_expressions().empty());
+    EXPECT_EQ(chart.hovered_series_text(1.5), "");
 }
 
 TEST(ChartSeriesTest, set_selected_steps_drops_unselected_step_data) {

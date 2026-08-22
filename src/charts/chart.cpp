@@ -194,6 +194,9 @@ Chart::Chart(ExpressionManager* expression_manager, const StepInformation* step_
     // abscissa name & unit
     m_abscissa_name = abscissa.name();
     m_abscissa_unit = abscissa.unit();
+    // default to selecting every step so new charts show all available data
+    for (size_t step = 0; step < m_step_information->length(); ++step)
+        m_selected_steps.insert(step);
 }
 
 const std::set<size_t>& Chart::selected_steps() {
@@ -683,6 +686,15 @@ void Chart::update_zoom_window(double x_left_ratio, double x_right_ratio, double
 }
 
 void Chart::update(ExpressionManager* expression_manager, const StepInformation* step_information, AbscissaScale abscissa_scale) {
+    // remember the plotted series names so the same plots can be restored
+    // against the new data (e.g. after a simulation re-run)
+    std::vector<std::string> plotted_names;
+    plotted_names.reserve(m_series.size());
+    for (const auto& name : m_series | std::views::keys)
+        plotted_names.push_back(name);
+    // drop the rendered series: their expression pointers and data views point
+    // into the previous file, while zoom window, colors and step selection survive
+    clear();
     // update internal references
     m_expression_manager = expression_manager;
     m_step_information = step_information;
@@ -693,6 +705,17 @@ void Chart::update(ExpressionManager* expression_manager, const StepInformation*
     m_abscissa_unit = abscissa.unit();
     // scale
     m_abscissa_scale = abscissa_scale;
+    // re-plot the previous expressions against the new data for the preserved
+    // step selection; names that no longer resolve are silently skipped
+    if (!plotted_names.empty()) {
+        // resolved expressions from the new manager
+        std::set<AnyExpression*> expressions;
+        for (const auto& name : plotted_names) {
+            if (auto* expression = m_expression_manager->evaluate(name); expression != nullptr)
+                expressions.insert(expression);
+        }
+        plot_series(expressions);
+    }
 }
 
 void Chart::set_decimate_target(const size_t decimate_target) {
