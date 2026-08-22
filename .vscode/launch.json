@@ -5,7 +5,18 @@
             "name": "kicad-xyce-plugin (lldb)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
+            "program": "${workspaceFolder}/.build-debug-Darwin/kicad-xyce-plugin",
+            "osx": {
+                "program": "${workspaceFolder}/.build-debug-Darwin/kicad-xyce-plugin",
+                "MIMode": "lldb"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/.build-debug-Linux/kicad-xyce-plugin",
+                "MIMode": "gdb"
+            },
+            "windows": {
+                "program": "${workspaceFolder}/.build-debug-Windows/kicad-xyce-plugin.exe"
+            },
             "args": [
                 "--log-level=debug"
             ],
@@ -19,7 +30,18 @@
             "name": "kicad-xyce-plugin (plugin)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
+            "program": "${workspaceFolder}/.build-debug-Darwin/kicad-xyce-plugin",
+            "osx": {
+                "program": "${workspaceFolder}/.build-debug-Darwin/kicad-xyce-plugin",
+                "MIMode": "lldb"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/.build-debug-Linux/kicad-xyce-plugin",
+                "MIMode": "gdb"
+            },
+            "windows": {
+                "program": "${workspaceFolder}/.build-debug-Windows/kicad-xyce-plugin.exe"
+            },
             "args": [
                 "--log-level=debug"
             ],
@@ -33,7 +55,7 @@
             "name": "kicad-xyce-plugin (profile)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
+            "program": "${workspaceFolder}/.build-profile/kicad-xyce-plugin",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -50,7 +72,18 @@
             "name": "kicad-xyce-plugin-tests (lldb)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/.build-debug/tests/kicad-xyce-plugin-tests",
+            "program": "${workspaceFolder}/.build-debug-Darwin/tests/kicad-xyce-plugin-tests",
+            "osx": {
+                "program": "${workspaceFolder}/.build-debug-Darwin/tests/kicad-xyce-plugin-tests",
+                "MIMode": "lldb"
+            },
+            "linux": {
+                "program": "${workspaceFolder}/.build-debug-Linux/tests/kicad-xyce-plugin-tests",
+                "MIMode": "gdb"
+            },
+            "windows": {
+                "program": "${workspaceFolder}/.build-debug-Windows/tests/kicad-xyce-plugin-tests.exe"
+            },
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -62,7 +95,7 @@
             "name": "kicad-xyce-plugin (Windows)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin.exe",
+            "program": "${workspaceFolder}/.build-debug-Windows/kicad-xyce-plugin.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
