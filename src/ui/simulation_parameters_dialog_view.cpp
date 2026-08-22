@@ -101,6 +101,9 @@ namespace simulation_parameters_dialog_view
         // HB SELECTHARMS combo values; index 0 is the "(None)" entry
         static constexpr std::array<const char*, 7> SELECTHARMS_VALUES = {"", "ALL", "1", "2", "3", "5", "10"};
 
+        // .SAVE LEVEL combo values; index 0 is the "(default)" entry
+        static constexpr std::array<const char*, 3> SAVE_LEVEL_VALUES = {"", "ALL", "NONE"};
+
         // wildcard tokens shared by the BJT and FET lead groups
         static const std::set<std::string> WILDCARD_TOKENS = {"V(*)", "I(*)", "P(*)", "W(*)", "IB(*)", "IC(*)", "IE(*)", "IS(*)", "ID(*)", "IG(*)"};
 
@@ -475,6 +478,7 @@ namespace simulation_parameters_dialog_view
             dialog->set_op_save_enabled(params.save_enabled);
             dialog->set_op_save_type_index(to_upper(params.save_type) == "IC" ? 1 : 0);
             dialog->set_op_save_file(slint::SharedString(params.save_file));
+            dialog->set_op_save_level_index(choice_index_for(SAVE_LEVEL_VALUES, params.save_level));
             // convergence hints / initial conditions
             dialog->set_op_nodeset(slint::SharedString(join_entries(params.nodeset_entries)));
             dialog->set_op_initial_conditions(slint::SharedString(join_entries(params.ic_entries)));
@@ -500,10 +504,11 @@ namespace simulation_parameters_dialog_view
             const bool save_enabled = dialog->get_op_save_enabled();
             const std::string save_type = dialog->get_op_save_type_index() == 1 ? "IC" : "NODESET";
             const std::string save_file = std::string(dialog->get_op_save_file());
+            const std::string save_level = SAVE_LEVEL_VALUES[static_cast<size_t>(std::clamp(dialog->get_op_save_level_index(), 0, static_cast<int>(SAVE_LEVEL_VALUES.size()) - 1))];
             // nodeset / initial conditions
             const auto nodeset_entries = parse_nodeset_entries(std::string(dialog->get_op_nodeset()));
             const auto ic_entries = parse_ic_entries(std::string(dialog->get_op_initial_conditions()));
-            return OpSimulationParameters(print_params.has_value(), false, false, {}, "", "", save_enabled, save_type, save_file, std::move(nodeset_entries), std::move(ic_entries), std::move(print_params));
+            return OpSimulationParameters(print_params.has_value(), false, false, {}, "", "", save_enabled, save_type, save_file, std::move(nodeset_entries), std::move(ic_entries), std::move(print_params), save_level);
         }
 
         // default operating point parameters, used to reset the panel to defaults

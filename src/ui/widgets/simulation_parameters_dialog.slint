@@ -87,6 +87,7 @@ export component SimulationParametersDialog inherits Dialog {
     in-out property <bool> op-save-enabled: false;
     in-out property <int> op-save-type-index: 0;
     in-out property <string> op-save-file: "";
+    in-out property <int> op-save-level-index: 0;
     in-out property <string> op-nodeset: "";
     in-out property <string> op-initial-conditions: "";
     in-out property <bool> op-replace-ground: true;
@@ -340,6 +341,7 @@ export component SimulationParametersDialog inherits Dialog {
                                 save-enabled <=> root.op-save-enabled;
                                 save-type-index <=> root.op-save-type-index;
                                 save-file <=> root.op-save-file;
+                                save-level-index <=> root.op-save-level-index;
                                 nodeset <=> root.op-nodeset;
                                 initial-conditions <=> root.op-initial-conditions;
                                 replace-ground <=> root.op-replace-ground;
