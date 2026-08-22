@@ -196,7 +196,7 @@ jobs:
           xcrun llvm-cov export \
             --instr-profile coverage.profdata \
             --format=lcov \
-            --sources "$PWD/src" \
+            ./.build-profile/tests/kicad-xyce-plugin-tests "$PWD/src" \
             ./.build-profile/tests/kicad-xyce-plugin-tests > coverage.lcov
           pip install lcov_cobertura
           lcov_cobertura coverage.lcov --output cobertura.xml
