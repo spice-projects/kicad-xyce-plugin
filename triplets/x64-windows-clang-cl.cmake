@@ -3,3 +3,6 @@ set(VCPKG_CRT_LINKAGE dynamic)
 set(VCPKG_LIBRARY_LINKAGE static)
 # forward the compiler selection (cc/cxx=clang-cl) into dependency builds and the abi hash
 set(VCPKG_ENV_PASSTHROUGH PATH CC CXX)
+# ports add msvc-only flags (e.g. /MP) that clang-cl rejects as "argument unused"; silence those instead of patching every port
+set(VCPKG_C_FLAGS "-Qunused-arguments")
+set(VCPKG_CXX_FLAGS "-Qunused-arguments")
