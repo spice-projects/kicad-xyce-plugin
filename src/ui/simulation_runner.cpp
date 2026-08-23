@@ -218,7 +218,7 @@ struct SimulationRunner::Impl
         // build the command line with both paths quoted
         const std::wstring program_wide = std::filesystem::path(program).wstring();
         const std::wstring netlist_wide = netlist_path.wstring();
-        const std::wstring command = L"\"" + program_wide + L"\" \"" + netlist_wide + L"\"";
+        std::wstring command = L"\"" + program_wide + L"\" \"" + netlist_wide + L"\"";
         const std::wstring cwd_wide = cwd.empty() ? std::wstring() : cwd.wstring();
         // launch the process without a console window
         PROCESS_INFORMATION process_info{};
