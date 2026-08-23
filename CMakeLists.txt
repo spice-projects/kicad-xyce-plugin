@@ -140,7 +140,7 @@ elseif (LINUX)
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 endif()
 
-list(REMOVE_ITEM SOURCE_FILES "src/main.cpp")
+list(REMOVE_ITEM SOURCE_FILES "src/main.osx.mm" "src/main.win32.c++" "src/main.linux.c++")
 
 # compile the generated proto sources into a library shared by the app and tests
 add_library(kicad-proto STATIC ${KICAD_PROTO_GENERATED_SOURCES})
@@ -173,7 +173,7 @@ if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 endif()
 
 # third-party dependencies, PUBLIC so both the executable and the tests transitively link the same set of libraries
-target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng protobuf::libprotobuf kicad-proto)
+target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng kicad-proto)
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis
@@ -208,18 +208,23 @@ foreach(widget_source IN LISTS SLINT_WIDGET_SOURCES)
         PROPERTIES COMPILE_OPTIONS "-w")
 endforeach()
 
-# if(APPLE)
+if(APPLE)
 #     set_source_files_properties("plugin-icon-64x64.png" PROPERTIES MACOSX_BUNDLE_OUTPUT_DIRECTORY "Resources")
 
 #     # create bundle
-#     add_executable(kicad-xyce-plugin MACOSX_BUNDLE src/main.cpp)
+#     add_executable(kicad-xyce-plugin MACOSX_BUNDLE src/main.osx.mm)
 
 #     set_target_properties(kicad-xyce-plugin PROPERTIES MACOSX_BUNDLE_BUNDLE_NAME "KiCad Xyce Plugin" MACOSX_BUNDLE_GUI_IDENTIFIER "com.github.spice-projects.kicad-xyce-plugin")
-    
-# else()
+
     # declare application
-    add_executable(kicad-xyce-plugin src/main.cpp)
-# endif()
+    add_executable(kicad-xyce-plugin src/main.osx.mm)
+elseif(WIN32)
+    # declare application
+    add_executable(kicad-xyce-plugin src/main.win32.c++)
+elseif(LINUX)
+    # declare application
+    add_executable(kicad-xyce-plugin src/main.linux.c++)
+endif()
 
 target_link_libraries(kicad-xyce-plugin PRIVATE kicad-xyce-core)
 
