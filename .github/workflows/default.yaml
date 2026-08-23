@@ -70,7 +70,7 @@ jobs:
           bash build/check-format.sh
 
       - name: Setup Ninja
-        if: ${{ matrix.build_enabled && runner.os != 'Windows' }}
+        if: ${{ matrix.build_enabled }}
         shell: bash
         run: pip install ninja
 
@@ -108,12 +108,8 @@ jobs:
       - name: Configure CMake
         if: ${{ matrix.build_enabled }}
         shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            cmake --preset release -DCMAKE_CXX_COMPILER=clang-cl
-          else
-            cmake --preset release
-          fi
+        # the windows clang-cl toolchain is selected inside CMakeLists.txt (cc/cxx env + vcpkg overlay triplet)
+        run: cmake --preset release
 
       - name: Build C++ Target
         if: ${{ matrix.build_enabled }}
