@@ -1,14 +1,16 @@
 cmake_minimum_required(VERSION 3.21)
 
-# on windows, default both compilers to clang-cl before the first project() call;
-# slint's fetched subproject enables the C language late, and without an explicit
-# C compiler CMake can pick the gnu-like clang driver from PATH, which rejects the
-# msvc-style flags it is then fed (configure failure: "no such file or directory: '/DWIN32'")
-if(WIN32 AND NOT DEFINED CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CXX} AND NOT DEFINED ENV{CC})
-    find_program(KICAD_CLANG_CL_EXECUTABLE clang-cl)
-    if(KICAD_CLANG_CL_EXECUTABLE)
-        set(CMAKE_C_COMPILER clang-cl CACHE FILEPATH "windows c compiler" FORCE)
-        set(CMAKE_CXX_COMPILER clang-cl CACHE FILEPATH "windows c++ compiler" FORCE)
+# on windows, build the app and all vcpkg dependencies with clang-cl (before project(), so both cmake and the vcpkg toolchain pick it up)
+if(WIN32)
+    # vcpkg community triplet that compiles dependencies with clang-cl instead of msvc
+    set(VCPKG_TARGET_TRIPLET "x64-windows-clang-cl" CACHE STRING "vcpkg target triplet" FORCE)
+    # default the project compilers to clang-cl, avoiding cmake picking the gnu-like clang driver from path
+    if(NOT DEFINED CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CXX} AND NOT DEFINED ENV{CC})
+        find_program(KICAD_CLANG_CL_EXECUTABLE clang-cl)
+        if(KICAD_CLANG_CL_EXECUTABLE)
+            set(CMAKE_C_COMPILER clang-cl CACHE FILEPATH "windows c compiler" FORCE)
+            set(CMAKE_CXX_COMPILER clang-cl CACHE FILEPATH "windows c++ compiler" FORCE)
+        endif()
     endif()
 endif()
 

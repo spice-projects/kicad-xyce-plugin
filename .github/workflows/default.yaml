@@ -46,7 +46,7 @@ jobs:
             build_enabled: true
           - os: windows-latest
             platform: windows-x64
-            build_enabled: false
+            build_enabled: true
           - os: ubuntu-latest
             platform: ubuntu-x64
             build_enabled: false
