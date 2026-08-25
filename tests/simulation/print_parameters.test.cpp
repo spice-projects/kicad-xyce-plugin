@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "core/util.h"
 #include "netlist/netlist.h"
 #include "simulation/print_parameters.h"
 
@@ -369,4 +370,16 @@ TEST(PrintParametersChecks, equality_operator_different_extra_options) {
     const bool result = params1 == params2;
     // assert
     ASSERT_FALSE(result);
+}
+
+TEST(PrintParametersChecks, s_parameter_variable_list_survives_dialog_round_trip_shape) {
+    // arrange: the variable list from netlists/lin-simple-01.cir as the
+    // dialog's additional-variables field would carry it
+    const std::string line_edit_text = "SR(1,1) SI(1,1) SM(1,1) SP(1,1) SDB(1,1) SR(2,1) SI(2,1) SM(2,1) SP(2,1) SDB(2,1) SR(1,2) SI(1,2) SM(1,2) SP(1,2) SDB(1,2) SR(2,2) SI(2,2) SM(2,2) SP(2,2) SDB(2,2)";
+    PrintParameters params("AC", "RAW", "lin-simple-01.raw", tokenize_owned(line_edit_text), {});
+    // act
+    const std::string rebuilt = params.to_xyce_statement();
+    // assert: every token survives verbatim and in order after FORMAT/FILE
+    const std::string expected = ".PRINT AC FORMAT=RAW FILE=lin-simple-01.raw " + line_edit_text;
+    EXPECT_EQ(rebuilt, expected);
 }

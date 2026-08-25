@@ -78,9 +78,9 @@ namespace simulation_parameters_dialog_view
         // transient analysis OP keyword values in combo order
         static constexpr std::array<const char*, 3> OP_KEYWORD_VALUES = {"", "NOOP", "UIC"};
 
-        // LIN panel choice models in combo order
-        static constexpr std::array<const char*, 4> LIN_FORMAT_CHOICES = {"TOUCHSTONE2", "TOUCHSTONE1", "CITIFILE", "TSI"};
-        static constexpr std::array<const char*, 5> LIN_LINTYPE_CHOICES = {"S", "Y", "Z", "G", "H"};
+        // LIN panel choice models in combo order per Xyce RG 2.1.17
+        static constexpr std::array<const char*, 2> LIN_FORMAT_CHOICES = {"TOUCHSTONE2", "TOUCHSTONE"};
+        static constexpr std::array<const char*, 3> LIN_LINTYPE_CHOICES = {"S", "Y", "Z"};
         static constexpr std::array<const char*, 3> LIN_DATAFORMAT_CHOICES = {"RI", "MA", "DB"};
 
         // .PRINT type combo models per analysis;
@@ -258,23 +258,18 @@ namespace simulation_parameters_dialog_view
                         output_vars.push_back(w);
                 }
             }
-            // additional variables (tokenize trims whitespace and skips empties);
-            // cast to string_view so the util overload wins over the parser's
-            // global tokenize(const std::string&)
-            for (const auto& tok : tokenize(std::string_view(g.specific_variables())))
-                output_vars.emplace_back(std::string(tok));
+            // additional variables as owning tokens so they outlive the
+            // temporary string returned by the property getter
+            for (const auto& tok : tokenize_owned(g.specific_variables()))
+                output_vars.push_back(tok);
             // format index -> format string (0 == default == empty)
             const int fmt_idx = g.format_index();
             const std::string print_format = (fmt_idx > 0 && fmt_idx < static_cast<int>(PRINT_FORMAT_VALUES.size())) ? PRINT_FORMAT_VALUES[static_cast<size_t>(fmt_idx)] : "";
             // the print type comes from the combo, or the analysis prefix when
             // the combo is hidden
             const std::string print_type = has_type_combo ? type_model[static_cast<size_t>(std::clamp(g.type_index(), 0, static_cast<int>(N) - 1))] : std::string(default_type);
-            // extra options (tokenize trims whitespace and skips empties);
-            // cast to string_view so the util overload wins over the parser's
-            // global tokenize(const std::string&)
-            std::vector<std::string> extra_options;
-            for (const auto& tok : tokenize(std::string_view(g.extra_options())))
-                extra_options.emplace_back(std::string(tok));
+            // extra options as owning tokens (see note above)
+            std::vector<std::string> extra_options = tokenize_owned(g.extra_options());
             return PrintParameters(print_type, print_format, g.output_file(), std::move(output_vars), std::move(extra_options));
         }
 
@@ -708,8 +703,8 @@ namespace simulation_parameters_dialog_view
                     points = std::string(dialog->get_dc_step());
             }
             else if (sweep_mode == "LIST") {
-                for (const auto& tok : tokenize(dialog->get_dc_list_values()))
-                    list_values.emplace_back(std::string(tok));
+                // list values as owning tokens (see build_print_section)
+                list_values = tokenize_owned(dialog->get_dc_list_values());
             }
             else if (sweep_mode == "DATA") {
                 data_table_name = std::string(dialog->get_dc_data_table());
@@ -865,13 +860,13 @@ namespace simulation_parameters_dialog_view
 
         // read the HB parameters from the dialog root's hb-* fields
         [[nodiscard]] HbSimulationParameters build_hb_parameters(const DialogHandle& dialog) {
-            // parse frequencies as space-separated values
-            std::vector<std::string> frequencies;
-            for (const auto& tok : tokenize(dialog->get_hb_frequencies()))
-                frequencies.emplace_back(std::string(tok));
+            // frequencies as owning tokens so they outlive the property getter
+            const std::vector<std::string> frequencies = tokenize_owned(dialog->get_hb_frequencies());
+            // harmonics text materialized first since split_by borrows views
+            const std::string harmonics_text(dialog->get_hb_harmonics());
             // parse harmonics as comma-separated integers
             std::vector<int> harmonics;
-            for (const auto& part : split_by(dialog->get_hb_harmonics(), ',')) {
+            for (const auto& part : split_by(harmonics_text, ',')) {
                 if (const auto value = parse_int(part))
                     harmonics.push_back(*value);
             }

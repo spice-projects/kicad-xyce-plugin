@@ -174,3 +174,69 @@ TEST(UtilChecks, strip_chars_handles_empty_input) {
     // assert
     EXPECT_TRUE(result.empty());
 }
+
+TEST(UtilChecks, tokenize_owned_splits_on_whitespace) {
+    // arrange / act
+    const auto tokens = tokenize_owned("  R1  1 0 100k \n\t");
+    // assert
+    ASSERT_EQ(tokens.size(), 4);
+    EXPECT_EQ(tokens[0], "R1");
+    EXPECT_EQ(tokens[1], "1");
+    EXPECT_EQ(tokens[2], "0");
+    EXPECT_EQ(tokens[3], "100k");
+}
+
+TEST(UtilChecks, tokenize_owned_preserves_punctuation_tokens_and_order) {
+    // arrange / act
+    const auto tokens = tokenize_owned("SR(1,1) SI(1,1) SM(1,1) SP(1,1) SDB(2,2)");
+    // assert
+    ASSERT_EQ(tokens.size(), 5);
+    EXPECT_EQ(tokens[0], "SR(1,1)");
+    EXPECT_EQ(tokens[1], "SI(1,1)");
+    EXPECT_EQ(tokens[2], "SM(1,1)");
+    EXPECT_EQ(tokens[3], "SP(1,1)");
+    EXPECT_EQ(tokens[4], "SDB(2,2)");
+}
+
+TEST(UtilChecks, tokenize_owned_returns_empty_for_blank_input) {
+    // arrange / act
+    const auto tokens = tokenize_owned("   \n\t  ");
+    // assert
+    EXPECT_TRUE(tokens.empty());
+}
+
+TEST(UtilChecks, tokenize_owned_returns_empty_for_empty_input) {
+    // arrange / act
+    const auto tokens = tokenize_owned("");
+    // assert
+    EXPECT_TRUE(tokens.empty());
+}
+
+TEST(UtilChecks, tokenize_owned_stays_valid_when_source_is_a_temporary) {
+    // arrange: source text returned by value like a UI property getter
+    struct Source
+    {
+        std::string text() const { return "SR(1,1) SI(1,1) SM(1,1)"; }
+    };
+    const Source source;
+    std::vector<std::string> tokens;
+    // act: consume tokens from the temporary directly in the range-for
+    for (const auto& tok : tokenize_owned(source.text()))
+        tokens.push_back(tok);
+    // assert
+    ASSERT_EQ(tokens.size(), 3);
+    EXPECT_EQ(tokens[0], "SR(1,1)");
+    EXPECT_EQ(tokens[1], "SI(1,1)");
+    EXPECT_EQ(tokens[2], "SM(1,1)");
+}
+
+TEST(UtilChecks, tokenize_views_reference_input_buffer) {
+    // arrange
+    const std::string text = "AA BB";
+    // act
+    const auto tokens = tokenize(text);
+    // assert: views point into the caller's buffer, not a copy
+    ASSERT_EQ(tokens.size(), 2);
+    EXPECT_EQ(tokens[0].data(), text.data());
+    EXPECT_EQ(tokens[1].data(), text.data() + 3);
+}

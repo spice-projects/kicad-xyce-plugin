@@ -181,10 +181,10 @@ TEST(LinSimulationParametersChecks, parses_sparcalc_true) {
 
 TEST(LinSimulationParametersChecks, parses_format_keyword) {
     // arrange / act
-    const auto result = LinSimulationParameters::from_xyce_directives({".AC LIN 100 1 1MEG", ".LIN FORMAT=TOUCHSTONE1"});
+    const auto result = LinSimulationParameters::from_xyce_directives({".AC LIN 100 1 1MEG", ".LIN FORMAT=TOUCHSTONE"});
     // assert
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result->format, "TOUCHSTONE1");
+    EXPECT_EQ(result->format, "TOUCHSTONE");
 }
 
 TEST(LinSimulationParametersChecks, parses_output_layout_keywords) {
@@ -308,12 +308,13 @@ TEST(LinSimulationParametersChecks, omits_sparcalc_keyword_for_default) {
 
 TEST(LinSimulationParametersChecks, emits_format_when_not_default) {
     // arrange
-    const LinSimulationParameters params(true, "TOUCHSTONE1", "S", "RI", "", "", "", "LIN", "100", "1", "1MEG", "", std::nullopt);
+    const LinSimulationParameters params(true, "TOUCHSTONE", "S", "RI", "", "", "", "LIN", "100", "1", "1MEG", "", std::nullopt);
     // act
     const auto directives = params.to_xyce_directives(NetlistTopology{});
     // assert
     const std::string lin_line = find_lin_directive(directives);
-    EXPECT_NE(lin_line.find("FORMAT=TOUCHSTONE1"), std::string::npos);
+    EXPECT_NE(lin_line.find("FORMAT=TOUCHSTONE"), std::string::npos);
+    EXPECT_EQ(lin_line.find("FORMAT=TOUCHSTONE2"), std::string::npos);
 }
 
 TEST(LinSimulationParametersChecks, omits_format_for_default) {
@@ -433,7 +434,7 @@ TEST(LinSimulationParametersChecks, data_sweep_round_trips_through_directives) {
 
 TEST(LinSimulationParametersChecks, full_keyword_set_round_trips_through_directives) {
     // arrange
-    const auto input = LinSimulationParameters::from_xyce_directives({".AC OCT 5 1 1MEG", ".LIN SPARCALC=0 FORMAT=TOUCHSTONE1 LINTYPE=Y DATAFORMAT=MA FILE=out.s2p WIDTH=20 PRECISION=6", ".PRINT AC V(1)"});
+    const auto input = LinSimulationParameters::from_xyce_directives({".AC OCT 5 1 1MEG", ".LIN SPARCALC=0 FORMAT=TOUCHSTONE LINTYPE=Y DATAFORMAT=MA FILE=out.s2p WIDTH=20 PRECISION=6", ".PRINT AC V(1)"});
     ASSERT_TRUE(input.has_value());
     // act
     const auto directives = input->to_xyce_directives(NetlistTopology{});

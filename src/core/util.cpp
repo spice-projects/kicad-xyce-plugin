@@ -84,6 +84,20 @@ std::vector<std::string_view> tokenize(std::string_view view) {
     return tokens;
 }
 
+std::vector<std::string> tokenize_owned(std::string_view text) {
+    // output token list
+    std::vector<std::string> tokens;
+    // borrow views into the source buffer
+    const auto views = tokenize(text);
+    // reserve space for all tokens up front
+    tokens.reserve(views.size());
+    // copy each borrowed view into an owning string
+    for (const auto& view : views)
+        tokens.emplace_back(view);
+    // return the owned tokens
+    return tokens;
+}
+
 std::vector<std::string_view> split_by(std::string_view view, char delimiter) {
     // init result list
     std::vector<std::string_view> parts;

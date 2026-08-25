@@ -4,9 +4,11 @@ export component LinParametersPanel inherits Rectangle {
 
     // --- s-parameter options ---
     in-out property <bool> sparcalc: false;
-    // 0 = TOUCHSTONE2, 1 = TOUCHSTONE1, 2 = CITIFILE, 3 = TSI
+    // Xyce RG 2.1.17: FORMAT=<TOUCHSTONE2|TOUCHSTONE>
+    // 0 = TOUCHSTONE2 (default), 1 = TOUCHSTONE (v1)
     in-out property <int> format-index: 0;
-    // 0 = S, 1 = Y, 2 = Z, 3 = G, 4 = H
+    // Xyce RG 2.1.17: LINTYPE=<S|Y|Z>
+    // 0 = S, 1 = Y, 2 = Z
     in-out property <int> lintype-index: 0;
     // 0 = RI, 1 = MA, 2 = DB
     in-out property <int> dataformat-index: 0;
@@ -197,7 +199,7 @@ export component LinParametersPanel inherits Rectangle {
             }
         }
 
-        // ---- s-parameter options ----
+        // ---- parameter extraction options ----
         spar-card := Rectangle {
 
             border-width: 1px;
@@ -211,7 +213,7 @@ export component LinParametersPanel inherits Rectangle {
                 spacing: 8px;
 
                 Text {
-                    text: "S-parameter options";
+                    text: "Parameter extraction options";
                     font-size: 13px;
                     font-weight: 600;
                     color: Palette.foreground;
@@ -224,114 +226,121 @@ export component LinParametersPanel inherits Rectangle {
                     checked <=> root.sparcalc;
                 }
 
-                HorizontalLayout {
+                // extraction options only apply while SPARCALC is enabled;
+                // without it Xyce runs a plain AC analysis and ignores them
+                if root.sparcalc: VerticalLayout {
+                    padding-left: 24px;
                     spacing: 8px;
-                    alignment: LayoutAlignment.start;
-                    Text {
-                        text: "Format";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-                    ComboBox {
-                        height: 28px;
-                        model: ["TOUCHSTONE2", "TOUCHSTONE1", "CITIFILE", "TSI"];
-                        current-index <=> root.format-index;
-                    }
-                }
 
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: LayoutAlignment.start;
-                    Text {
-                        text: "Type";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: LayoutAlignment.start;
+                        Text {
+                            text: "Format";
+                            font-size: 13px;
+                            color: Palette.foreground;
+                            min-width: 120px;
+                            vertical-alignment: center;
+                            horizontal-alignment: left;
+                            overflow: elide;
+                        }
+                        ComboBox {
+                            height: 28px;
+                            model: ["TOUCHSTONE2", "TOUCHSTONE"];
+                            current-index <=> root.format-index;
+                        }
                     }
-                    ComboBox {
-                        height: 28px;
-                        model: ["S", "Y", "Z", "G", "H"];
-                        current-index <=> root.lintype-index;
-                    }
-                }
 
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: LayoutAlignment.start;
-                    Text {
-                        text: "Data format";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: LayoutAlignment.start;
+                        Text {
+                            text: "Type";
+                            font-size: 13px;
+                            color: Palette.foreground;
+                            min-width: 120px;
+                            vertical-alignment: center;
+                            horizontal-alignment: left;
+                            overflow: elide;
+                        }
+                        ComboBox {
+                            height: 28px;
+                            model: ["S", "Y", "Z"];
+                            current-index <=> root.lintype-index;
+                        }
                     }
-                    ComboBox {
-                        height: 28px;
-                        model: ["RI", "MA", "DB"];
-                        current-index <=> root.dataformat-index;
-                    }
-                }
 
-                HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Output file";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: LayoutAlignment.start;
+                        Text {
+                            text: "Data format";
+                            font-size: 13px;
+                            color: Palette.foreground;
+                            min-width: 120px;
+                            vertical-alignment: center;
+                            horizontal-alignment: left;
+                            overflow: elide;
+                        }
+                        ComboBox {
+                            height: 28px;
+                            model: ["RI", "MA", "DB"];
+                            current-index <=> root.dataformat-index;
+                        }
                     }
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "touchstone output file path";
-                        text <=> root.file;
-                    }
-                }
 
-                HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Width";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Output file";
+                            font-size: 13px;
+                            color: Palette.foreground;
+                            min-width: 120px;
+                            vertical-alignment: center;
+                            horizontal-alignment: left;
+                            overflow: elide;
+                        }
+                        LineEdit {
+                            height: 28px;
+                            placeholder-text: "touchstone output file path";
+                            text <=> root.file;
+                        }
                     }
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "width in characters";
-                        text <=> root.output-width;
-                    }
-                }
 
-                HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Precision";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Width";
+                            font-size: 13px;
+                            color: Palette.foreground;
+                            min-width: 120px;
+                            vertical-alignment: center;
+                            horizontal-alignment: left;
+                            overflow: elide;
+                        }
+                        LineEdit {
+                            height: 28px;
+                            placeholder-text: "width in characters";
+                            text <=> root.output-width;
+                        }
                     }
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "decimal precision";
-                        text <=> root.precision;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Precision";
+                            font-size: 13px;
+                            color: Palette.foreground;
+                            min-width: 120px;
+                            vertical-alignment: center;
+                            horizontal-alignment: left;
+                            overflow: elide;
+                        }
+                        LineEdit {
+                            height: 28px;
+                            placeholder-text: "decimal precision";
+                            text <=> root.precision;
+                        }
                     }
                 }
             }
