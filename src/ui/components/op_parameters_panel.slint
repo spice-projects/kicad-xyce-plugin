@@ -142,8 +142,11 @@ export component OpParametersPanel inherits Rectangle {
                         }
                     }
 
-                    // extra print options (WIDTH=, PRECISION=, ...)
-                    HorizontalLayout {
+                    // extra print options (WIDTH=, PRECISION=, ...). The RAW
+                    // format writes binary rawfiles and ignores them (Xyce RG
+                    // 2.1.31 / section 8.2), so the row is hidden for RAW;
+                    // RAW is index 5 of the format model below
+                    if root.print-format-index != 5: HorizontalLayout {
                         spacing: 8px;
                         Text {
                             text: "Extra options";
