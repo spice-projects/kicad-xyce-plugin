@@ -1,0 +1,107 @@
+name: C++ Coverage (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      checkout_ref:
+        description: Git ref to check out (empty = default for the triggering event)
+        type: string
+        required: false
+        default: ''
+      upload_enabled:
+        description: Whether to publish the Cobertura report to the code coverage API
+        type: boolean
+        required: false
+        default: true
+
+jobs:
+  coverage:
+    name: C++ Coverage
+    runs-on: macos-latest
+    env:
+      VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
+    steps:
+      - name: Checkout repository
+        # persist-credentials: false keeps the job token out of .git/config;
+        # required for the fork-PR path where untrusted code is built and tested
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout_ref }}
+          persist-credentials: false
+
+      - name: Setup Ninja
+        shell: bash
+        run: pip install ninja
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.vcpkg-cache
+          key: vcpkg-${{ runner.os }}-macos-arm64-profile-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-macos-arm64-
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: 'vcpkg.json'
+
+      - name: Configure CMake (Profile)
+        run: cmake --preset profile
+
+      - name: Build C++ Test Target (Profile)
+        run: cmake --build --preset profile --target kicad-xyce-plugin-tests
+
+      - name: Run C++ Tests with coverage instrumentation
+        shell: bash
+        # run the test executable directly, not ctest (see AGENTS.md);
+        # skip the Ui-prefixed suites like the Windows job since this is a
+        # non-interactive runner session and they are not worth the flakiness
+        # for coverage numbers
+        env:
+          LLVM_PROFILE_FILE: ${{ github.workspace }}/coverage.profraw
+        run: |
+          ./.build-profile/tests/kicad-xyce-plugin-tests --gtest_filter=-Ui*
+
+      - name: Generate Cobertura report
+        shell: bash
+        run: |
+          xcrun llvm-profdata merge --sparse coverage.profraw --output coverage.profdata
+          xcrun llvm-cov export \
+            --instr-profile coverage.profdata \
+            --format=lcov \
+            ./.build-profile/tests/kicad-xyce-plugin-tests "$PWD/src" \
+            ./.build-profile/tests/kicad-xyce-plugin-tests > coverage.lcov
+          pip install lcov_cobertura
+          lcov_cobertura coverage.lcov --output cobertura.xml
+
+      - name: Upload coverage report artifact
+        if: ${{ inputs.upload_enabled }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: cobertura-report
+          path: cobertura.xml
+          if-no-files-found: error
+          retention-days: 7
+
+  upload-coverage:
+    name: Upload Coverage
+    needs: [coverage]
+    if: ${{ !cancelled() && !failure() && needs.coverage.result == 'success' && inputs.upload_enabled }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      code-quality: write
+    steps:
+      - name: Download coverage report
+        uses: actions/download-artifact@v8
+        with:
+          name: cobertura-report
+
+      - name: Upload to GitHub code coverage API
+        uses: actions/upload-code-coverage@v1
+        with:
+          file: cobertura.xml
+          language: C++
+          label: code-coverage/c++
