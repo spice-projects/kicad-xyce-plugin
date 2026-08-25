@@ -181,6 +181,7 @@ namespace simulation_parameters_dialog_view
             std::function<void(slint::SharedString)> specific_variables;
             std::function<void(int)> format_index;
             std::function<void(slint::SharedString)> output_file;
+            std::function<void(slint::SharedString)> extra_options;
             std::function<void(int)> type_index;
         };
 
@@ -195,6 +196,7 @@ namespace simulation_parameters_dialog_view
             std::function<std::string()> specific_variables;
             std::function<int()> format_index;
             std::function<std::string()> output_file;
+            std::function<std::string()> extra_options;
             std::function<int()> type_index;
         };
 
@@ -225,6 +227,8 @@ namespace simulation_parameters_dialog_view
             s.specific_variables(slint::SharedString(join(specific, " ")));
             s.format_index(format_index_for_string(pp.print_format));
             s.output_file(slint::SharedString(pp.print_file));
+            // extra options are space-separated KEY=VALUE tokens (WIDTH=, PRECISION=, ...)
+            s.extra_options(slint::SharedString(join(pp.extra_options, " ")));
             if (has_type_combo)
                 s.type_index(choice_index_for(type_model, pp.print_type));
         }
@@ -265,7 +269,13 @@ namespace simulation_parameters_dialog_view
             // the print type comes from the combo, or the analysis prefix when
             // the combo is hidden
             const std::string print_type = has_type_combo ? type_model[static_cast<size_t>(std::clamp(g.type_index(), 0, static_cast<int>(N) - 1))] : std::string(default_type);
-            return PrintParameters(print_type, print_format, g.output_file(), std::move(output_vars), {});
+            // extra options (tokenize trims whitespace and skips empties);
+            // cast to string_view so the util overload wins over the parser's
+            // global tokenize(const std::string&)
+            std::vector<std::string> extra_options;
+            for (const auto& tok : tokenize(std::string_view(g.extra_options())))
+                extra_options.emplace_back(std::string(tok));
+            return PrintParameters(print_type, print_format, g.output_file(), std::move(output_vars), std::move(extra_options));
         }
 
         // --- shared multi-line directive helpers ---
@@ -472,6 +482,7 @@ namespace simulation_parameters_dialog_view
                                     .specific_variables = [&](slint::SharedString v) { dialog->set_op_print_specific_variables(v); },
                                     .format_index = [&](int v) { dialog->set_op_print_format_index(v); },
                                     .output_file = [&](slint::SharedString v) { dialog->set_op_print_output_file(v); },
+                                    .extra_options = [&](slint::SharedString v) { dialog->set_op_print_extra_options(v); },
                                     .type_index = [&](int) {},
                                 });
             // save section
@@ -498,6 +509,7 @@ namespace simulation_parameters_dialog_view
                                                         .specific_variables = [&] { return std::string(dialog->get_op_print_specific_variables()); },
                                                         .format_index = [&] { return dialog->get_op_print_format_index(); },
                                                         .output_file = [&] { return std::string(dialog->get_op_print_output_file()); },
+                                                        .extra_options = [&] { return std::string(dialog->get_op_print_extra_options()); },
                                                         .type_index = [&] { return 0; },
                                                     });
             // save section
@@ -536,6 +548,7 @@ namespace simulation_parameters_dialog_view
                                     .specific_variables = [&](slint::SharedString v) { dialog->set_ac_print_specific_variables(v); },
                                     .format_index = [&](int v) { dialog->set_ac_print_format_index(v); },
                                     .output_file = [&](slint::SharedString v) { dialog->set_ac_print_output_file(v); },
+                                    .extra_options = [&](slint::SharedString v) { dialog->set_ac_print_extra_options(v); },
                                     .type_index = [&](int v) { dialog->set_ac_print_type_index(v); },
                                 });
         }
@@ -565,6 +578,7 @@ namespace simulation_parameters_dialog_view
                                                         .specific_variables = [&] { return std::string(dialog->get_ac_print_specific_variables()); },
                                                         .format_index = [&] { return dialog->get_ac_print_format_index(); },
                                                         .output_file = [&] { return std::string(dialog->get_ac_print_output_file()); },
+                                                        .extra_options = [&] { return std::string(dialog->get_ac_print_extra_options()); },
                                                         .type_index = [&] { return dialog->get_ac_print_type_index(); },
                                                     });
             return AcSimulationParameters(sweep_mode, points, start, end, data_table, std::move(print_params), std::move(measures), std::nullopt);
@@ -598,6 +612,7 @@ namespace simulation_parameters_dialog_view
                                     .specific_variables = [&](slint::SharedString v) { dialog->set_tran_print_specific_variables(v); },
                                     .format_index = [&](int v) { dialog->set_tran_print_format_index(v); },
                                     .output_file = [&](slint::SharedString v) { dialog->set_tran_print_output_file(v); },
+                                    .extra_options = [&](slint::SharedString v) { dialog->set_tran_print_extra_options(v); },
                                     .type_index = [&](int v) { dialog->set_tran_print_type_index(v); },
                                 });
         }
@@ -626,6 +641,7 @@ namespace simulation_parameters_dialog_view
                                                         .specific_variables = [&] { return std::string(dialog->get_tran_print_specific_variables()); },
                                                         .format_index = [&] { return dialog->get_tran_print_format_index(); },
                                                         .output_file = [&] { return std::string(dialog->get_tran_print_output_file()); },
+                                                        .extra_options = [&] { return std::string(dialog->get_tran_print_extra_options()); },
                                                         .type_index = [&] { return dialog->get_tran_print_type_index(); },
                                                     });
             return TransientSimulationParameters(std::string(dialog->get_tran_initial_step()), std::string(dialog->get_tran_final_time()), std::string(dialog->get_tran_start_time()), std::string(dialog->get_tran_step_ceiling()), std::move(op_keyword), std::move(schedule_points), std::move(print_params), std::move(fft_params), std::move(four_params), std::move(measure_params), std::nullopt);
@@ -664,6 +680,7 @@ namespace simulation_parameters_dialog_view
                                     .specific_variables = [&](slint::SharedString v) { dialog->set_dc_print_specific_variables(v); },
                                     .format_index = [&](int v) { dialog->set_dc_print_format_index(v); },
                                     .output_file = [&](slint::SharedString v) { dialog->set_dc_print_output_file(v); },
+                                    .extra_options = [&](slint::SharedString v) { dialog->set_dc_print_extra_options(v); },
                                     .type_index = [&](int v) { dialog->set_dc_print_type_index(v); },
                                 });
         }
@@ -726,6 +743,7 @@ namespace simulation_parameters_dialog_view
                                                         .specific_variables = [&] { return std::string(dialog->get_dc_print_specific_variables()); },
                                                         .format_index = [&] { return dialog->get_dc_print_format_index(); },
                                                         .output_file = [&] { return std::string(dialog->get_dc_print_output_file()); },
+                                                        .extra_options = [&] { return std::string(dialog->get_dc_print_extra_options()); },
                                                         .type_index = [&] { return dialog->get_dc_print_type_index(); },
                                                     });
             return DCSimulationParameters(std::move(sweep_mode), std::move(primary_variable), std::move(start), std::move(stop), std::move(step), std::move(points), std::move(list_values), std::move(data_table_name), std::move(secondary_variable), std::move(secondary_start), std::move(secondary_stop), std::move(secondary_step), std::move(secondary_points), std::move(print_params), std::move(measure_params), std::nullopt);
@@ -759,6 +777,7 @@ namespace simulation_parameters_dialog_view
                                     .specific_variables = [&](slint::SharedString v) { dialog->set_noise_print_specific_variables(v); },
                                     .format_index = [&](int v) { dialog->set_noise_print_format_index(v); },
                                     .output_file = [&](slint::SharedString v) { dialog->set_noise_print_output_file(v); },
+                                    .extra_options = [&](slint::SharedString v) { dialog->set_noise_print_extra_options(v); },
                                     .type_index = [&](int v) { dialog->set_noise_print_type_index(v); },
                                 });
         }
@@ -787,6 +806,7 @@ namespace simulation_parameters_dialog_view
                                                         .specific_variables = [&] { return std::string(dialog->get_noise_print_specific_variables()); },
                                                         .format_index = [&] { return dialog->get_noise_print_format_index(); },
                                                         .output_file = [&] { return std::string(dialog->get_noise_print_output_file()); },
+                                                        .extra_options = [&] { return std::string(dialog->get_noise_print_extra_options()); },
                                                         .type_index = [&] { return dialog->get_noise_print_type_index(); },
                                                     });
             return NoiseSimulationParameters(std::string(dialog->get_noise_output_node()), std::string(dialog->get_noise_ref_node()), std::string(dialog->get_noise_source_name()), std::move(start_freq), std::move(end_freq), std::move(num_points), std::move(sweep_type), std::move(device_noise), std::move(data_table), std::move(print_params));
@@ -838,6 +858,7 @@ namespace simulation_parameters_dialog_view
                                     .specific_variables = [&](slint::SharedString v) { dialog->set_hb_print_specific_variables(v); },
                                     .format_index = [&](int v) { dialog->set_hb_print_format_index(v); },
                                     .output_file = [&](slint::SharedString v) { dialog->set_hb_print_output_file(v); },
+                                    .extra_options = [&](slint::SharedString v) { dialog->set_hb_print_extra_options(v); },
                                     .type_index = [&](int v) { dialog->set_hb_print_type_index(v); },
                                 });
         }
@@ -879,6 +900,7 @@ namespace simulation_parameters_dialog_view
                                                         .specific_variables = [&] { return std::string(dialog->get_hb_print_specific_variables()); },
                                                         .format_index = [&] { return dialog->get_hb_print_format_index(); },
                                                         .output_file = [&] { return std::string(dialog->get_hb_print_output_file()); },
+                                                        .extra_options = [&] { return std::string(dialog->get_hb_print_extra_options()); },
                                                         .type_index = [&] { return dialog->get_hb_print_type_index(); },
                                                     });
             // solver options (one key=value per line)
@@ -918,6 +940,7 @@ namespace simulation_parameters_dialog_view
                                     .specific_variables = [&](slint::SharedString v) { dialog->set_lin_print_specific_variables(v); },
                                     .format_index = [&](int v) { dialog->set_lin_print_format_index(v); },
                                     .output_file = [&](slint::SharedString v) { dialog->set_lin_print_output_file(v); },
+                                    .extra_options = [&](slint::SharedString v) { dialog->set_lin_print_extra_options(v); },
                                     .type_index = [&](int v) { dialog->set_lin_print_type_index(v); },
                                 });
         }
@@ -947,6 +970,7 @@ namespace simulation_parameters_dialog_view
                                                         .specific_variables = [&] { return std::string(dialog->get_lin_print_specific_variables()); },
                                                         .format_index = [&] { return dialog->get_lin_print_format_index(); },
                                                         .output_file = [&] { return std::string(dialog->get_lin_print_output_file()); },
+                                                        .extra_options = [&] { return std::string(dialog->get_lin_print_extra_options()); },
                                                         .type_index = [&] { return dialog->get_lin_print_type_index(); },
                                                     });
             return LinSimulationParameters(dialog->get_lin_sparcalc(), LIN_FORMAT_CHOICES[static_cast<size_t>(format_index)], LIN_LINTYPE_CHOICES[static_cast<size_t>(lintype_index)], LIN_DATAFORMAT_CHOICES[static_cast<size_t>(dataformat_index)], std::string(dialog->get_lin_file()), std::string(dialog->get_lin_output_width()), std::string(dialog->get_lin_precision()), std::move(sweep_mode), std::move(points), std::move(start), std::move(end), std::move(data_table), std::move(print_params));

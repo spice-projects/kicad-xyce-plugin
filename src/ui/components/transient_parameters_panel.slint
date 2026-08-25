@@ -28,6 +28,7 @@ export component TransientParametersPanel inherits Rectangle {
     in-out property <string> print-specific-variables: "";
     in-out property <int> print-format-index: 0;
     in-out property <string> print-output-file: "";
+    in-out property <string> print-extra-options: "";
 
     // --- global settings (replace ground) ---
     in-out property <bool> replace-ground: true;
@@ -300,6 +301,25 @@ export component TransientParametersPanel inherits Rectangle {
                             height: 28px;
                             placeholder-text: "optional output file path";
                             text <=> root.print-output-file;
+                        }
+                    }
+
+                    // extra print options (WIDTH=, PRECISION=, ...)
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Extra options";
+                            font-size: 13px;
+                            color: Palette.foreground;
+                            min-width: 120px;
+                            vertical-alignment: center;
+                            horizontal-alignment: left;
+                            overflow: elide;
+                        }
+                        LineEdit {
+                            height: 28px;
+                            placeholder-text: "e.g. WIDTH=20 PRECISION=12";
+                            text <=> root.print-extra-options;
                         }
                     }
                 }
