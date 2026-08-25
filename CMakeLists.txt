@@ -13,11 +13,6 @@ endif()
 if(APPLE)
     # enable objective-c++ language for .mm files
     project(kicad-xyce-plugin LANGUAGES CXX OBJCXX)
-    # the binary mixes c++, objective-c and rust (static slint) unwind personalities; ld64's
-    # compact unwind encoding cannot represent that reliably on arm64 and mismaps catch
-    # handlers, so thrown exceptions stop matching c++ catch blocks (rust-lang/rust#102754).
-    # fall back to dwarf-based unwind tables, which carry the correct personality per frame.
-    add_link_options("-Wl,-no_compact_unwind")
 else()
     # on windows and linux, objective-c++ is not supported, so only enable c++ language
     project(kicad-xyce-plugin LANGUAGES CXX)
@@ -82,7 +77,6 @@ endif()
 # slint
 include(FetchContent)
 FetchContent_Declare(Slint GIT_REPOSITORY https://github.com/slint-ui/slint.git GIT_TAG release/1 SOURCE_SUBDIR api/cpp)
-set(BUILD_SHARED_LIBS OFF)
 FetchContent_MakeAvailable(Slint)
 
 # slint's generated internal headers trigger -Wgnu-anonymous-struct and -Wextra-semi
