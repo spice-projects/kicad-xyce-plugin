@@ -28,6 +28,11 @@ if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     target_compile_options(kicad-xyce-plugin-tests PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
+if(WIN32 AND TARGET slint_cpp-shared)
+    # copy the slint shared library to the output path
+    add_custom_command(TARGET kicad-xyce-plugin-tests POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:slint_cpp-shared> $<TARGET_FILE_DIR:kicad-xyce-plugin-tests>)
+endif()
+
 # auto-discover Gtests as Ctests
 include(CTest)
 include(GoogleTest)

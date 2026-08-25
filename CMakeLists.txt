@@ -217,16 +217,17 @@ if(APPLE)
 elseif(WIN32)
     # declare application
     add_executable(kicad-xyce-plugin src/main.win32.c++)
+    # mark it as win32 executable
+    set_target_properties(kicad-xyce-plugin PROPERTIES WIN32_EXECUTABLE TRUE)
+    # copy the slint dll to the target folder
+    add_custom_command(TARGET kicad-xyce-plugin POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:slint_cpp-shared> $<TARGET_FILE_DIR:kicad-xyce-plugin>)
 elseif(LINUX)
     # declare application
     add_executable(kicad-xyce-plugin src/main.linux.c++)
 endif()
 
+# link with the core library defined above
 target_link_libraries(kicad-xyce-plugin PRIVATE kicad-xyce-core)
-
-if(WIN32)
-    set_target_properties(kicad-xyce-plugin PROPERTIES WIN32_EXECUTABLE TRUE)
-endif()
 
 # profile build type, activate with `cmake --preset debug -DCMAKE_BUILD_TYPE=Profile` && `cmake --build --preset debug`
 set(CMAKE_CXX_FLAGS_PROFILE "-O2 -fprofile-instr-generate -fcoverage-mapping")
