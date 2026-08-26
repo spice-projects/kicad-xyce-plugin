@@ -214,8 +214,7 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
     }
 
     // parse sensitivity as a companion directive before analysis detection
-    // For now, we'll return nullopt for sensitivity
-    // In the full implementation, this would parse .SENS directives
+    sensitivity = SensParameter::from_xyce_directives(directives);
 
     // return instance if a valid directive was found
     if (!found) {
