@@ -5,9 +5,9 @@
 #include <optional>
 #include <vector>
 
+#include "../core/util.h"
 #include "expression_manager.h"
 #include "unit_utils.h"
-#include "util.h"
 #include "xyce_evaluator.h"
 
 ExpressionManager::ExpressionManager(std::vector<AnyExpression>& expressions, std::vector<std::pair<size_t, size_t>>& step_slices) :

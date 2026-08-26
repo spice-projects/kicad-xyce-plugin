@@ -6,6 +6,12 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
+            "linux": {
+                "MIMode": "gdb"
+            },
+            "windows": {
+                "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin.exe"
+            },
             "args": [
                 "--log-level=debug"
             ],
@@ -20,6 +26,12 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
+            "linux": {
+                "MIMode": "gdb"
+            },
+            "windows": {
+                "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin.exe"
+            },
             "args": [
                 "--log-level=debug"
             ],
@@ -33,7 +45,10 @@
             "name": "kicad-xyce-plugin (profile)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
+            "program": "${workspaceFolder}/.build-profile/kicad-xyce-plugin",
+            "windows": {
+                "program": "${workspaceFolder}/.build-profile/kicad-xyce-plugin.exe"
+            },
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -51,6 +66,12 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/.build-debug/tests/kicad-xyce-plugin-tests",
+            "linux": {
+                "MIMode": "gdb"
+            },
+            "windows": {
+                "program": "${workspaceFolder}/.build-debug/tests/kicad-xyce-plugin-tests.exe"
+            },
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

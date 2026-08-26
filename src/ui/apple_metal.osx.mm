@@ -1,11 +1,11 @@
-#import <Metal/Metal.h>
 #import <AppKit/AppKit.h>
+#import <Metal/Metal.h>
 
 #import "apple_metal.h"
 
 MetalResourceManager* MetalResourceManager::get_instance() {
     // create instance
-    static MetalResourceManager *instance = new MetalResourceManager();
+    static MetalResourceManager* instance = new MetalResourceManager();
     // exit
     return instance;
 }
@@ -37,7 +37,7 @@ MetalGPUHandle MetalResourceManager::get_gpu(void* handle) {
             m_default_device = default_device;
         }
         // exit
-        return { m_default_device, m_default_queue };
+        return {m_default_device, m_default_queue};
     }
     // device key for dict lookup
     void* device_key = (__bridge void*)target_device;

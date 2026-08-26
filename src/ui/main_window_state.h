@@ -24,6 +24,10 @@ struct ActionStateInput
     bool netlist_editor_dirty = false;
     bool output_hidden = false;
     bool log_has_content = false;
+    // the raw output abscissa is time (unit "s"), making FFT available
+    bool abscissa_is_time = false;
+    // the raw output spans multiple steps, making the step tool available
+    bool has_steps = false;
 };
 
 // enablement of each main window action
@@ -36,6 +40,9 @@ struct ActionStateEnablement
     bool show_simulation_output = false;
     bool configure_simulation = false;
     bool run_simulation = false;
+    // chart context tools (FFT for time-domain data, step tool for stepped runs)
+    bool fft = false;
+    bool step_tool = false;
 };
 
 // derive the application state from the input flags

@@ -1,0 +1,257 @@
+import { Palette } from "std-widgets.slint";
+import { ChartsPanel } from "../components/charts_panel.slint";
+import { SchematicPanel } from "../components/schematic_panel.slint";
+import { SimulationOutputPanel } from "../components/simulation_output_panel.slint";
+export { ChartsPanelActions } from "../components/charts_panel.slint";
+
+export global MainWindowActions {
+    callback open-xyce-file();
+    callback save-netlist();
+    callback show-netlist();
+    callback show-charts();
+    callback show-simulation-output();
+    callback close-simulation-output();
+    callback copy-simulation-output(start: int, end: int);
+    callback run-simulation();
+    callback stop-simulation();
+    callback configure-simulation();
+    callback configure-plugin();
+    callback netlist-edited();
+    callback exit();
+}
+
+// Hairline group separator — 8 px gap + 1 px line + 8 px gap
+component ToolbarSeparator inherits Rectangle {
+    width: 17px;
+    height: 20px;
+
+    Rectangle {
+        x: (parent.width - 1px) / 2;
+        width: 1px;
+        height: 100%;
+        background: Palette.foreground.transparentize(0.82);
+    }
+}
+
+// Icon-only square button; `text` is reserved for a future tooltip
+component ToolbarButton inherits Rectangle {
+    in property <image> icon;
+    in property <string> text;           // tooltip label (future use)
+    in property <length> icon-size: 20px;
+    in property <bool> enabled: true;
+    in property <bool> accent: false;    // true on the primary action (Run)
+    in property <color> accent-color: #3dd6b5;
+    callback clicked;
+
+    // min-width == max-width gives a fixed 40 px square without locking the
+    // HorizontalLayout's own max-width (unlike an explicit `width:` binding,
+    // which propagates a hard constraint all the way up to the Window).
+    min-width: 40px;
+    max-width: 40px;
+    height: 40px;
+    border-radius: 6px;
+
+    background: !root.enabled
+        ? transparent
+        : ta.pressed
+            ? (root.accent
+                ? root.accent-color.transparentize(0.55)
+                : Palette.foreground.transparentize(0.82))
+            : ta.has-hover
+                ? (root.accent
+                    ? root.accent-color.transparentize(0.72)
+                    : Palette.foreground.transparentize(0.92))
+                : transparent;
+    animate background { duration: 100ms; easing: ease-out; }
+
+    Image {
+        x: (parent.width - root.icon-size) / 2;
+        y: (parent.height - root.icon-size) / 2;
+        width: root.icon-size;
+        height: root.icon-size;
+        source: root.icon;
+        image-fit: contain;
+        // KiCad icons are full-colour opaque PNGs; `colorize` would paint them
+        // as a solid block. Use opacity instead: full opacity when enabled,
+        // dimmed when disabled. The accent tint comes from the background only.
+        opacity: root.enabled ? 1.0 : 0.4;
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// bottom simulation log. the panel lives in
+// ../components/simulation_output_panel.slint: a header row with a title and
+// a close button over a monospaced, virtualized list of log lines. a ListView
+// (instead of a single TextEdit) keeps scrolling fast for long logs and
+// appending a line cheap: only the visible rows are rendered
+
+
+export component MainWindow inherits Window {
+    title: root.window-title;
+    preferred-width: 900px;
+    preferred-height: 360px;
+
+    // runtime window title, driven from the view adapter (dirty marker prefix,
+    // netlist/raw file names); the default shows until a file is opened
+    in property <string> window-title: "KiCad Xyce Plugin - Toolbar Preview";
+
+    // status bar text, driven from the view adapter
+    in property <string> status-text: "";
+
+    // charts panel action availability, forwarded to the ChartsPanel component
+    in property <bool> enable-fft: false;
+    in property <bool> enable-step-tool: false;
+    in property <bool> has-fft-files: false;
+
+    // simulation actions are enabled only when a netlist is loaded (or the app
+    // is connected to KiCad); driven from apply_action_enablement
+    in property <bool> enable-run-simulation: false;
+    in property <bool> enable-configure-simulation: false;
+
+    // a simulation is running: the Run toolbar action is replaced by Stop
+    in property <bool> simulation-running: false;
+
+    // content-view switching actions; also driven from apply_action_enablement
+    in property <bool> enable-show-netlist: false;
+    in property <bool> enable-show-charts: false;
+    in property <bool> enable-show-sim-output: false;
+
+    // file actions; driven from apply_action_enablement
+    in property <bool> enable-open: false;
+    in property <bool> enable-save: false;
+
+    // the charts panel is hidden by default and appears when the charts view
+    // is shown (controlled from the view adapter)
+    in property <bool> charts-visible: false;
+
+    // netlist editor state, driven from the view adapter; the netlist text is
+    // read back from the widget, so the property is also the source of truth
+    // for the presenter when tracking user edits
+    in-out property <string> netlist-text: "";
+    in property <bool> netlist-read-only: false;
+
+    // bottom simulation output panel; shown while a simulation runs (or its log
+    // holds content), the log is a list of lines model-driven from the view
+    in property <bool> simulation-output-visible: false;
+    in property <[string]> simulation-output-log;
+
+    // a modal dialog is open, the window dims and must not accept input; the
+    // slint dialog is a separate native window, so the OS window input block
+    // (per-platform helper) is what actually enforces modality
+    in property <bool> modal-active: false;
+
+    background: root.modal-active ? Palette.background.transparentize(0.35) : Palette.background;
+
+    VerticalLayout {
+        toolbar := Rectangle {
+            background: Palette.background;
+
+            VerticalLayout {
+                HorizontalLayout {
+                    cross-axis-alignment: center;
+                    padding-top: 8px;
+                    padding-bottom: 8px;
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    spacing: 2px;
+
+                    // group 1: file (standalone mode only)
+                    ToolbarButton { text: "Open"; icon: @image-url("../kicad-icons/directory_open_48.png"); enabled: root.enable-open; clicked => { MainWindowActions.open-xyce-file(); } }
+                    ToolbarButton { text: "Save"; icon: @image-url("../kicad-icons/save_48.png");           enabled: root.enable-save;  clicked => { MainWindowActions.save-netlist(); } }
+                    ToolbarSeparator {}
+
+                    // group 2: content views
+                    ToolbarButton { text: "Netlist";    icon: @image-url("../kicad-icons/netlist_48.png");     enabled: root.enable-show-netlist;    clicked => { MainWindowActions.show-netlist(); } }
+                    ToolbarButton { text: "Charts";     icon: @image-url("../kicad-icons/simulator_48.png");   enabled: root.enable-show-charts;     clicked => { MainWindowActions.show-charts(); } }
+                    ToolbarButton { text: "Sim Output"; icon: @image-url("../kicad-icons/sim_command_48.png"); enabled: root.enable-show-sim-output; clicked => { MainWindowActions.show-simulation-output(); } }
+                    ToolbarSeparator {}
+
+                    // group 3: simulation; while a simulation runs the Run
+                    // action is replaced by Stop so the process can be canceled
+                    if !root.simulation-running : ToolbarButton { text: "Run Simulation"; icon: @image-url("../kicad-icons/sim_run_48.png");  enabled: root.enable-run-simulation; accent: true; clicked => { MainWindowActions.run-simulation(); } }
+                    if root.simulation-running : ToolbarButton { text: "Stop Simulation"; icon: @image-url("../kicad-icons/cancel_48.png");  enabled: true; accent: true; accent-color: #e05b4b; clicked => { MainWindowActions.stop-simulation(); } }
+                    ToolbarButton { text: "Configure";      icon: @image-url("../kicad-icons/sim_tune_48.png"); enabled: root.enable-configure-simulation;              clicked => { MainWindowActions.configure-simulation(); } }
+                    ToolbarSeparator {}
+
+                    // group 4: plugin configuration
+                    ToolbarButton { text: "Plugin Settings"; icon: @image-url("../kicad-icons/preference_48.png"); clicked => { MainWindowActions.configure-plugin(); } }
+                    ToolbarSeparator {}
+
+                    // group 5: exit
+                    ToolbarButton { text: "Exit"; icon: @image-url("../kicad-icons/exit_48.png"); clicked => { MainWindowActions.exit(); } }
+
+                    // absorbs remaining space so the HorizontalLayout can grow
+                    // with the window and doesn't impose a hard max-width
+                    Rectangle { horizontal-stretch: 1; }
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: Palette.border;
+                }
+            }
+        }
+
+        // body: the body container owns the exclusive content views, the
+        // schematic panel is shown by default and the charts panel replaces
+        // it once the charts view is shown
+        body := Rectangle {
+            vertical-stretch: 1;
+            background: Palette.alternate-background;
+
+            VerticalLayout {
+                if !root.charts-visible : schematic := SchematicPanel {
+                    vertical-stretch: 1;
+                    text <=> root.netlist-text;
+                    read-only: root.netlist-read-only;
+                    edited => { MainWindowActions.netlist-edited(); }
+                }
+                if root.charts-visible : charts := ChartsPanel {
+                    vertical-stretch: 1;
+                    enable-fft: root.enable-fft;
+                    enable-step-tool: root.enable-step-tool;
+                    has-fft-files: root.has-fft-files;
+                }
+                if root.simulation-output-visible : output := SimulationOutputPanel {
+                    height: 200px;
+                    log-lines: root.simulation-output-log;
+                    close => { MainWindowActions.close-simulation-output(); }
+                    copy-requested(start, end) => {
+                        MainWindowActions.copy-simulation-output(start, end);
+                    }
+                }
+            }
+        }
+
+        // status bar at the bottom of the window
+        statusbar := Rectangle {
+            height: 24px;
+            background: Palette.background;
+
+            VerticalLayout {
+                Rectangle {
+                    height: 1px;
+                    background: Palette.border;
+                }
+
+                HorizontalLayout {
+                    cross-axis-alignment: center;
+
+                    Rectangle { width: 12px; }
+
+                    Text {
+                        text: root.status-text;
+                        font-size: 12px;
+                        color: Palette.foreground;
+                        horizontal-alignment: left;
+                    }
+                }
+            }
+        }
+    }
+}

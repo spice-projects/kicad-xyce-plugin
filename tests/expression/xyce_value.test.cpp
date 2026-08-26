@@ -3,8 +3,8 @@
 #include <memory>
 #include <vector>
 
+#include "core/view.h"
 #include "expression/expression.h"
-#include "expression/view.h"
 #include "expression/xyce_value.h"
 
 // helper: create an Expression<double> with a single step containing the supplied data

@@ -1,5 +1,5 @@
 {
-    "version": 2,
+    "version": 6,
     "configurePresets": [
         {
             "name": "debug",
@@ -40,7 +40,11 @@
                 "kicad-xyce-plugin-tests"
             ],
             "configuration": "Debug",
-            "inheritConfigureEnvironment": true
+            "inheritConfigureEnvironment": true,
+            "environment": {
+                "SLINT_LIVE_PREVIEW": "1",
+                "SLINT_EMIT_DEBUG_INFO": "1"
+            }
         },
         {
             "name": "release",

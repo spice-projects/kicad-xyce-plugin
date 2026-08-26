@@ -46,7 +46,7 @@ jobs:
             build_enabled: true
           - os: windows-latest
             platform: windows-x64
-            build_enabled: true
+            build_enabled: false
           - os: ubuntu-latest
             platform: ubuntu-x64
             build_enabled: false
@@ -70,7 +70,7 @@ jobs:
           bash build/check-format.sh
 
       - name: Setup Ninja
-        if: ${{ matrix.build_enabled && runner.os != 'Windows' }}
+        if: ${{ matrix.build_enabled }}
         shell: bash
         run: pip install ninja
 
@@ -108,12 +108,8 @@ jobs:
       - name: Configure CMake
         if: ${{ matrix.build_enabled }}
         shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            cmake --preset release -DCMAKE_CXX_COMPILER=clang-cl
-          else
-            cmake --preset release
-          fi
+        # the windows clang-cl toolchain is selected inside CMakeLists.txt (cc/cxx env + vcpkg overlay triplet)
+        run: cmake --preset release
 
       - name: Build C++ Target
         if: ${{ matrix.build_enabled }}
@@ -124,7 +120,7 @@ jobs:
         if: ${{ matrix.build_enabled }}
         shell: bash
         # run the test executable directly, not ctest (see AGENTS.md)
-        # the Ui-prefixed suites construct real wxWidgets windows, which crash in
+        # the Ui-prefixed suites construct real native windows, which crash in
         # the non-interactive windows runner session; macOS runs everything
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
@@ -138,9 +134,31 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: kicad-xyce-plugin-${{ matrix.platform }}
-          path: .build-release/kicad-xyce-plugin${{ runner.os == 'Windows' && '.exe' || '' }}
+          # the macos builds ship the shared slint library beside the executable; when the
+          # windows build is re-enabled this needs a .dll entry again
+          path: |
+            .build-release/kicad-xyce-plugin${{ runner.os == 'Windows' && '.exe' || '' }}
+            .build-release/libslint_cpp.dylib
           if-no-files-found: error
           retention-days: 7
+
+  coverage:
+    name: C++ Coverage
+    needs: [check-pr]
+    # coverage runs only on the canonical repo; fork PRs are covered by the
+    # gated pull_request_target workflow (coverage-fork.yml) after approval
+    if: |-
+      !cancelled() &&
+      github.repository == 'spice-projects/kicad-xyce-plugin' &&
+      (github.event_name != 'push' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || needs.check-pr.outputs.has_pr != 'true') &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    # permissions are the ceiling passed down to the reusable workflow's
+    # upload-coverage job (code-quality: write is required by the API upload)
+    permissions:
+      contents: read
+      pull-requests: read
+      code-quality: write
+    uses: ./.github/workflows/coverage.yml
 
   osx-universal:
     name: macOS Universal Binary
@@ -165,12 +183,28 @@ jobs:
           lipo -create -output kicad-xyce-plugin \
             artifacts/arm64/kicad-xyce-plugin \
             artifacts/x64/kicad-xyce-plugin
+          lipo -create -output libslint_cpp.dylib \
+            artifacts/arm64/libslint_cpp.dylib \
+            artifacts/x64/libslint_cpp.dylib
+          # the executable records the build machine's absolute path to the slint library,
+          # which does not exist on user machines; rewrite it to a relocatable @rpath name
+          # resolved beside the executable in the installed package
+          old_path=$(otool -L kicad-xyce-plugin | awk '/libslint_cpp\.dylib/ {print $1}')
+          install_name_tool -change "$old_path" @rpath/libslint_cpp.dylib kicad-xyce-plugin
+          install_name_tool -id @rpath/libslint_cpp.dylib libslint_cpp.dylib
+          install_name_tool -add_rpath @executable_path kicad-xyce-plugin
+          # lipo and install_name_tool drop or invalidate ad-hoc signatures, and arm64
+          # refuses to load mach-o files without a valid one
+          codesign --force --sign - kicad-xyce-plugin
+          codesign --force --sign - libslint_cpp.dylib
 
       - name: Upload Universal artifact
         uses: actions/upload-artifact@v7
         with:
           name: kicad-xyce-plugin-macos-universal
-          path: kicad-xyce-plugin
+          path: |
+            kicad-xyce-plugin
+            libslint_cpp.dylib
           if-no-files-found: error
           retention-days: 7
 
@@ -210,8 +244,8 @@ jobs:
 
       - name: Package macOS Universal
         run: |
-          chmod +x artifacts/macos/kicad-xyce-plugin
-          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' artifacts/macos/kicad-xyce-plugin kicad-xyce-plugin macos
+          chmod +x artifacts/macos/kicad-xyce-plugin artifacts/macos/libslint_cpp.dylib
+          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' artifacts/macos/kicad-xyce-plugin kicad-xyce-plugin macos artifacts/macos/libslint_cpp.dylib
           mv dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.zip \
              packages/kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-universal.zip
 

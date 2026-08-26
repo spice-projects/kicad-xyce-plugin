@@ -1,3 +1,7 @@
+#include <filesystem>
+#include <fstream>
+#include <system_error>
+
 #include <gtest/gtest.h>
 
 #include "config/plugin_config.h"
@@ -64,4 +68,49 @@ TEST(PluginConfigChecks, round_trips_xyce_path) {
     // cleanup: restore the path to empty to avoid test pollution
     PluginConfig empty("");
     empty.save();
+}
+
+TEST(PluginConfigChecks, is_valid_returns_false_for_directory) {
+    // arrange
+    PluginConfig config("/usr/local");
+    // act
+    bool valid = config.is_xyce_executable_valid();
+    // assert
+    ASSERT_FALSE(valid);
+}
+
+TEST(PluginConfigChecks, is_valid_returns_false_for_non_executable_file) {
+    // arrange — a regular file without the executable bit
+    const auto path = std::filesystem::temp_directory_path() / "kicad_xyce_not_executable.bin";
+    {
+        std::ofstream file(path);
+        file << "data";
+    }
+    PluginConfig config(path.string());
+    // act
+    bool valid = config.is_xyce_executable_valid();
+    // assert
+    ASSERT_FALSE(valid);
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
+}
+
+TEST(PluginConfigChecks, is_valid_returns_true_for_executable_file) {
+    // arrange — the running test binary is an executable file
+    PluginConfig config(testing::internal::GetArgvs()[0]);
+    // act
+    bool valid = config.is_xyce_executable_valid();
+    // assert
+    ASSERT_TRUE(valid);
+}
+
+TEST(PluginConfigChecks, set_path_updates_the_configured_value) {
+    // arrange
+    PluginConfig config("");
+    // act
+    config.set_xyce_executable_path("/usr/bin/env");
+    // assert
+    ASSERT_EQ(config.xyce_executable_path(), "/usr/bin/env");
+    ASSERT_TRUE(config.is_xyce_executable_valid());
 }

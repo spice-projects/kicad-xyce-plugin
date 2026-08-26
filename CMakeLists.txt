@@ -1,8 +1,20 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.21)
+
+# on windows, build the app and all vcpkg dependencies with clang-cl (before project(), so both cmake and the vcpkg toolchain pick it up)
+if(WIN32)
+    # cc/cxx is honored both by cmake's compiler detection and, via the custom triplet below, by vcpkg dependency builds
+    set(ENV{CC} clang-cl)
+    set(ENV{CXX} clang-cl)
+    # custom triplet in ./triplets that compiles dependencies with clang-cl instead of msvc
+    set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_SOURCE_DIR}/triplets" CACHE STRING "vcpkg overlay triplets" FORCE)
+    set(VCPKG_TARGET_TRIPLET "x64-windows-clang-cl" CACHE STRING "vcpkg target triplet" FORCE)
+endif()
 
 if(APPLE)
+    # enable objective-c++ language for .mm files
     project(kicad-xyce-plugin LANGUAGES CXX OBJCXX)
 else()
+    # on windows and linux, objective-c++ is not supported, so only enable c++ language
     project(kicad-xyce-plugin LANGUAGES CXX)
 endif()
 
@@ -12,15 +24,6 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # disable compiler specific things
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-# do not use precompiled headers (keeps wx/wxprec.h include blocks active)
-add_compile_definitions(NOPCH)
-
-# on Windows, prevent winsock.h (WinSock 1.1) from being auto-included by
-# windows.h, which conflicts with winsock2.h pulled in by wxWidgets headers
-if(WIN32)
-    add_compile_definitions(WIN32_LEAN_AND_MEAN)
-endif()
 
 # generate compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -38,28 +41,66 @@ endif()
 
 option(BUILD_TESTS "Build tests" ON)
 
-set(wxBUILD_SAMPLES OFF)
-set(wxBUILD_SHARED OFF)
-
 find_package(imgui CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
-find_package(wxwidgets CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(nng CONFIG REQUIRED)
 find_package(protobuf CONFIG REQUIRED)
 
+if(APPLE)
+    # slint style
+    set(SLINT_STYLE "cupertino" CACHE STRING "Slint widget style" FORCE)
+elseif (WIN32)
+    # slint style
+    set(SLINT_STYLE "fluent" CACHE STRING "Slint widget style" FORCE)
+elseif (LINUX)
+    # slint style
+    set(SLINT_STYLE "cupertino" CACHE STRING "Slint widget style" FORCE)
+endif()
+
+# slint renderer
+set(SLINT_FEATURE_RENDERER_SKIA ON CACHE BOOL "Include Skia renderer" FORCE)
+
+# check debug build type
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    # slint live-preview: debug builds can load/reload .slint files from disk at runtime
+    set(SLINT_FEATURE_LIVE_PREVIEW ON CACHE BOOL "Enable Slint live-preview" FORCE)
+    # slint mcp server: debug builds can be inspected/driven by AI agents over HTTP
+    set(SLINT_FEATURE_MCP ON CACHE BOOL "Enable Slint embedded MCP server" FORCE)
+else()
+    # slint live-preview: release/profile builds keep the ahead-of-time compiled designs
+    set(SLINT_FEATURE_LIVE_PREVIEW OFF CACHE BOOL "Enable Slint live-preview" FORCE)
+    # slint mcp server: disabled in release/profile builds for security reasons (no HTTP server listening on a port)
+    set(SLINT_FEATURE_MCP OFF CACHE BOOL "Enable Slint embedded MCP server" FORCE)
+endif()
+
+# slint
+include(FetchContent)
+FetchContent_Declare(Slint GIT_REPOSITORY https://github.com/slint-ui/slint.git GIT_TAG release/1 SOURCE_SUBDIR api/cpp)
+FetchContent_MakeAvailable(Slint)
+
+# slint's generated internal headers trigger -Wgnu-anonymous-struct and -Wextra-semi
+# under our warning set; collect slint's interface include directories here and expose
+# them as system directories on the core library below, so warnings from slint headers
+# are suppressed for the core library and every consumer of it.
+# slint_target_sources additionally adds the build dir itself as a plain include
+# directory for the generated widget headers (main_window.h, ...); those are generated
+# code too, so treat them as system headers as well (e.g. the unused private
+# 'live_preview' field emitted when live-preview is enabled)
+set(SLINT_SYSTEM_INCLUDE_DIRS)
+get_target_property(SLINT_INTERFACE_INCLUDES Slint INTERFACE_INCLUDE_DIRECTORIES)
+foreach(include_dir IN LISTS SLINT_INTERFACE_INCLUDES)
+    # keep build-interface paths only; install-interface paths never apply to this build
+    if(include_dir MATCHES "^\\$<BUILD_INTERFACE:(.+)>$")
+        list(APPEND SLINT_SYSTEM_INCLUDE_DIRS "${CMAKE_MATCH_1}")
+    endif()
+endforeach()
+list(APPEND SLINT_SYSTEM_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}")
+
 # generate C++ code from the vendored KiCad API protos
 set(KICAD_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/kicad/proto")
 set(KICAD_PROTO_OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/kicad-proto")
-protobuf_generate(
-    PROTOS
-        "${KICAD_PROTO_DIR}/common/envelope.proto"
-        "${KICAD_PROTO_DIR}/common/commands/base_commands.proto"
-        "${KICAD_PROTO_DIR}/common/types/base_types.proto"
-    IMPORT_DIRS "${KICAD_PROTO_DIR}"
-    PROTOC_OUT_DIR "${KICAD_PROTO_OUT_DIR}"
-    OUT_VAR KICAD_PROTO_GENERATED_SOURCES
-)
+protobuf_generate(PROTOS "${KICAD_PROTO_DIR}/common/envelope.proto" "${KICAD_PROTO_DIR}/common/commands/base_commands.proto" "${KICAD_PROTO_DIR}/common/types/base_types.proto" IMPORT_DIRS "${KICAD_PROTO_DIR}" PROTOC_OUT_DIR "${KICAD_PROTO_OUT_DIR}" OUT_VAR KICAD_PROTO_GENERATED_SOURCES)
 
 # gather cpp sources (all platforms)
 file(GLOB_RECURSE CPP_SOURCES "src/*.cpp")
@@ -81,7 +122,7 @@ elseif (WIN32)
     # combine remaining cpp sources with .mm sources
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 elseif (LINUX)
-    # opengl is required for the wxGLCanvas backend on linux
+    # opengl is required on linux
     find_package(OpenGL REQUIRED)
     # gather linux sources
     file(GLOB_RECURSE PLATFORM_SOURCES "src/*.linux.c++")
@@ -89,11 +130,8 @@ elseif (LINUX)
     set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 endif()
 
-# The executable only needs to own the wxApp entry point (src/main.cpp); all
-# other sources are shared with the test runner. Compile them into a single
-# static library so each file is compiled exactly once, then link both the
-# executable and the tests against it.
-list(REMOVE_ITEM SOURCE_FILES "src/main.cpp")
+# remove platform-specific main() sources from the shared library, they are compiled into the executable only
+list(REMOVE_ITEM SOURCE_FILES "src/main.osx.mm" "src/main.win32.c++" "src/main.linux.c++")
 
 # compile the generated proto sources into a library shared by the app and tests
 add_library(kicad-proto STATIC ${KICAD_PROTO_GENERATED_SOURCES})
@@ -116,6 +154,8 @@ add_library(kicad-xyce-core STATIC ${SOURCE_FILES})
 target_include_directories(kicad-xyce-core PUBLIC "src")
 # link the core library with the vendored pocketfft library
 target_include_directories(kicad-xyce-core PRIVATE ${POCKETFFT_INCLUDE_DIRS})
+# expose slint's headers as system directories (see note above the slint fetch)
+target_include_directories(kicad-xyce-core SYSTEM PUBLIC ${SLINT_SYSTEM_INCLUDE_DIRS})
 
 # clang-cl treats -Wall as MSVC's /Wall (enable every warning), so only apply
 # the standard warning set to GNU-style frontends (g++, clang++)
@@ -124,27 +164,60 @@ if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 endif()
 
 # third-party dependencies, PUBLIC so both the executable and the tests transitively link the same set of libraries
-target_link_libraries(kicad-xyce-core PUBLIC wx::core wx::base wx::stc imgui::imgui implot::implot spdlog::spdlog nng::nng protobuf::libprotobuf kicad-proto)
+target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng kicad-proto)
 
 if(APPLE)
-    # link AppKit for NSApp dock icon and other cocoa apis
-    target_link_libraries(kicad-xyce-core PUBLIC "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController")
+    # link AppKit for NSApp dock icon and other cocoa apis, OpenGL for CGL (via Winit), Carbon for TIS/LMGetKbdType (via Winit)
+    target_link_libraries(kicad-xyce-core PUBLIC "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController" "-framework UniformTypeIdentifiers" "-framework QuartzCore" "-framework OpenGL" "-framework Carbon")
     # suppress duplicate library warnings on macOS, which are emitted when linking against the same framework multiple times (e.g. AppKit and Metal)
     target_link_options(kicad-xyce-core PUBLIC "-Wl,-no_warn_duplicate_libraries")
 elseif(WIN32)
     # link windows graphics and system libraries required by the ui backend
     target_link_libraries(kicad-xyce-core PUBLIC d3d11 d3dcompiler dxgi gdi32 user32 shell32 ole32 oleaut32 uuid comdlg32 advapi32 version ws2_32 wininet oleacc uxtheme)
 elseif(LINUX)
-    target_link_libraries(kicad-xyce-core PUBLIC wx::gl OpenGL::GL)
+    target_link_libraries(kicad-xyce-core PUBLIC OpenGL::GL)
 endif()
 
-# the application executable owns only the wxApp entry point
-add_executable(kicad-xyce-plugin src/main.cpp)
-target_link_libraries(kicad-xyce-plugin PRIVATE kicad-xyce-core)
+# slint: embed images/fonts referenced with @image-url() into the binary
+set_property(TARGET kicad-xyce-core PROPERTY SLINT_EMBED_RESOURCES embed-files)
 
-if(WIN32)
+# only slint files in the widgets directory are compiled into the library
+file(GLOB_RECURSE SLINT_WIDGET_SOURCES "src/ui/widgets/*.slint")
+foreach(widget_source IN LISTS SLINT_WIDGET_SOURCES)
+    # use the .slint file name (without extension) as the namespace for the generated C++ code
+    get_filename_component(widget_namespace ${widget_source} NAME_WE)
+    # generate C++ code from the .slint file and add it to the core library
+    slint_target_sources(kicad-xyce-core ${widget_source} NAMESPACE ${widget_namespace})
+    # silence all warnings for this fully generated code
+    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp" PROPERTIES COMPILE_OPTIONS "-w")
+endforeach()
+
+if(APPLE)
+    # # resources
+    # set(APP_RESOURCES plugin-icon-64x64.png)
+    # # create bundle
+    # add_executable(kicad-xyce-plugin MACOSX_BUNDLE src/main.osx.mm ${APP_RESOURCES})
+    # # boundle properties
+    # set_target_properties(kicad-xyce-plugin PROPERTIES 
+    #     MACOSX_BUNDLE_BUNDLE_NAME "KiCad Xyce Plugin" 
+    #     MACOSX_BUNDLE_GUI_IDENTIFIER "com.github.spice-projects.kicad-xyce-plugin"
+    #     RESOURCE "${APP_RESOURCES}"
+    #     MACOSX_BUNDLE_ICON_FILE "plugin-icon-64x64.png"
+    # )
+    # declare application
+    add_executable(kicad-xyce-plugin src/main.osx.mm)
+elseif(WIN32)
+    # declare application
+    add_executable(kicad-xyce-plugin src/main.win32.c++)
+    # mark it as win32 executable
     set_target_properties(kicad-xyce-plugin PROPERTIES WIN32_EXECUTABLE TRUE)
+elseif(LINUX)
+    # declare application
+    add_executable(kicad-xyce-plugin src/main.linux.c++)
 endif()
+
+# link with the core library defined above
+target_link_libraries(kicad-xyce-plugin PRIVATE kicad-xyce-core)
 
 # profile build type, activate with `cmake --preset debug -DCMAKE_BUILD_TYPE=Profile` && `cmake --build --preset debug`
 set(CMAKE_CXX_FLAGS_PROFILE "-O2 -fprofile-instr-generate -fcoverage-mapping")

@@ -1,80 +1,198 @@
-#include <cstdlib>
+#include <cctype>
 #include <filesystem>
+#include <fstream>
+#include <optional>
+#include <sstream>
 #include <string>
+#include <string_view>
+#include <system_error>
+#include <utility>
+#include <vector>
 
-#include <wx/wxprec.h>
-
-#ifndef WX_PRECOMP
-#include <wx/config.h>
-#include <wx/dir.h>
-#include <wx/filefn.h>
-#include <wx/log.h>
-#include <wx/utils.h>
+#if !defined(_WIN32)
+#include <unistd.h>
 #endif
 
 #include <spdlog/spdlog.h>
 
+#include "../core/util.h"
 #include "plugin_config.h"
 
 namespace
 {
-    // config key under which the Xyce executable path is stored
-    constexpr const char* CONFIG_PATH = "/PluginConfig/XyceExecutablePath";
+    // escape a string value for JSON serialization
+    std::string json_escape(std::string_view str) {
+        // allocate output buffer
+        std::string result;
+        // reserve space to avoid frequent reallocations
+        result.reserve(str.size() + 16);
+        // escape special JSON characters
+        for (char c : str) {
+            if (c == '\\') {
+                result += "\\\\";
+            }
+            else if (c == '"') {
+                result += "\\\"";
+            }
+            else if (c == '\n') {
+                result += "\\n";
+            }
+            else if (c == '\r') {
+                result += "\\r";
+            }
+            else if (c == '\t') {
+                result += "\\t";
+            }
+            else {
+                result += c;
+            }
+        }
+        return result;
+    }
+
+    // parse a JSON string value starting at an opening quote position
+    std::optional<std::string> parse_json_string(std::string_view content, size_t quote_pos) {
+        // verify the start character is an opening quote
+        if (quote_pos >= content.size() || content[quote_pos] != '"')
+            return std::nullopt;
+        // output parsed string
+        std::string result;
+        // escape state tracker
+        bool escaping = false;
+        // iterate characters following the opening quote
+        for (size_t i = quote_pos + 1; i < content.size(); ++i) {
+            char c = content[i];
+            if (escaping) {
+                if (c == '"') {
+                    result += '"';
+                }
+                else if (c == '\\') {
+                    result += '\\';
+                }
+                else if (c == 'n') {
+                    result += '\n';
+                }
+                else if (c == 'r') {
+                    result += '\r';
+                }
+                else if (c == 't') {
+                    result += '\t';
+                }
+                else {
+                    result += c;
+                }
+                escaping = false;
+            }
+            else if (c == '\\') {
+                escaping = true;
+            }
+            else if (c == '"') {
+                // reached matching unescaped closing quote
+                return result;
+            }
+            else {
+                result += c;
+            }
+        }
+        return std::nullopt;
+    }
+
+    // extract the Xyce executable path from serialized JSON content
+    std::optional<std::string> extract_xyce_path(std::string_view content) {
+        // search for "xyce_executable_path" key
+        constexpr std::string_view key = "\"xyce_executable_path\"";
+        size_t key_pos = content.find(key);
+        if (key_pos == std::string_view::npos) {
+            // also check legacy key name "XyceExecutablePath"
+            constexpr std::string_view legacy_key = "\"XyceExecutablePath\"";
+            key_pos = content.find(legacy_key);
+            if (key_pos == std::string_view::npos)
+                return std::nullopt;
+            key_pos += legacy_key.size();
+        }
+        else {
+            key_pos += key.size();
+        }
+        // find the colon after the key
+        const size_t colon_pos = content.find(':', key_pos);
+        if (colon_pos == std::string_view::npos)
+            return std::nullopt;
+        // find the opening quote of the value
+        const size_t value_start = content.find('"', colon_pos + 1);
+        if (value_start == std::string_view::npos)
+            return std::nullopt;
+        // parse the string value from JSON
+        return parse_json_string(content, value_start);
+    }
+
+    // resolve the cross-platform path to the plugin configuration file
+    std::filesystem::path get_config_file_path() {
+#if defined(_WIN32)
+        // check APPDATA environment variable on Windows
+        if (const auto appdata = get_environment_variable("APPDATA"); appdata.has_value() && !appdata->empty())
+            return std::filesystem::path(*appdata) / "kicad-xyce-plugin" / "config.json";
+        // check USERPROFILE environment variable as fallback on Windows
+        if (const auto userprofile = get_environment_variable("USERPROFILE"); userprofile.has_value() && !userprofile->empty())
+            return std::filesystem::path(*userprofile) / "AppData" / "Roaming" / "kicad-xyce-plugin" / "config.json";
+#elif defined(__APPLE__)
+        // check XDG_CONFIG_HOME first if explicitly set
+        if (const auto xdg = get_environment_variable("XDG_CONFIG_HOME"); xdg.has_value() && !xdg->empty())
+            return std::filesystem::path(*xdg) / "kicad-xyce-plugin" / "config.json";
+        // use standard macOS Preferences directory
+        if (const auto home = get_environment_variable("HOME"); home.has_value() && !home->empty())
+            return std::filesystem::path(*home) / "Library" / "Preferences" / "kicad-xyce-plugin" / "config.json";
+#else
+        // check XDG_CONFIG_HOME on POSIX/Linux
+        if (const auto xdg = get_environment_variable("XDG_CONFIG_HOME"); xdg.has_value() && !xdg->empty())
+            return std::filesystem::path(*xdg) / "kicad-xyce-plugin" / "config.json";
+        // fallback to ~/.config on POSIX/Linux
+        if (const auto home = get_environment_variable("HOME"); home.has_value() && !home->empty())
+            return std::filesystem::path(*home) / ".config" / "kicad-xyce-plugin" / "config.json";
+#endif
+        // fallback to current working directory
+        return std::filesystem::path{"config.json"};
+    }
 
     // iterate PATH entries looking for a file named "Xyce" (or "Xyce.exe" on Windows)
     std::string search_path_for_xyce() {
-#ifdef __WXMSW__
-        // PATH environment variable value
-        wxString path_env;
-        if (!wxGetEnv("PATH", &path_env))
+        // query the PATH environment variable
+        const auto path_env = get_environment_variable("PATH");
+        if (!path_env.has_value() || path_env->empty())
             return {};
-        // convert to std::string for easier manipulation, and use Windows path separator
-        std::string path_str = path_env.ToStdString();
-        std::string separator = ";";
+#if defined(_WIN32)
+        // Windows uses semicolon as path separator
+        constexpr char separator = ';';
 #else
-        // PATH environment variable value
-        wxString path_env;
-        if (!wxGetEnv("PATH", &path_env))
-            return {};
-        // convert to std::string for easier manipulation, and use POSIX path separator
-        std::string path_str = path_env.ToStdString();
-        std::string separator = ":";
+        // POSIX uses colon as path separator
+        constexpr char separator = ':';
 #endif
-        // start index
-        size_t start = 0;
+        // split PATH entries by separator
+        const auto directories = split_by(*path_env, separator);
         // iterate over each directory in PATH
-        while (start < path_str.size()) {
-            // find the next separator
-            size_t end = path_str.find(separator, start);
-            // extract the directory path
-            std::string dir_path = path_str.substr(start, end - start);
-            if (!dir_path.empty()) {
-                // eror code
-                std::error_code ec;
-                // iterate over the directory entries
-                for (auto& entry : std::filesystem::directory_iterator(dir_path, ec)) {
-                    // file name (without directory path)
-                    std::string filename = entry.path().filename().string();
-#ifdef __WXMSW__
-                    // check for "Xyce" filename (append ".exe" on Windows)
-                    if (filename == "Xyce.exe" || filename == "Xyce.EXE") {
+        for (const auto dir_view : directories) {
+            if (dir_view.empty())
+                continue;
+            const std::filesystem::path dir_path(dir_view);
+            std::error_code ec;
+#if defined(_WIN32)
+            // check for Xyce.exe on Windows
+            const auto candidate_exe = dir_path / "Xyce.exe";
+            if (std::filesystem::is_regular_file(candidate_exe, ec))
+                return candidate_exe.string();
+            ec.clear();
+            // check for Xyce on Windows
+            const auto candidate = dir_path / "Xyce";
+            if (std::filesystem::is_regular_file(candidate, ec))
+                return candidate.string();
 #else
-                    // check for "Xyce" filename
-                    if (filename == "Xyce") {
-#endif
-                        // check if the file is executable
-                        if (wxIsExecutable(entry.path().string())) {
-                            // exit
-                            return entry.path().string();
-                        }
-                    }
-                }
+            // check for Xyce on POSIX
+            const auto candidate = dir_path / "Xyce";
+            if (std::filesystem::is_regular_file(candidate, ec)) {
+                // check if the file is executable
+                if (::access(candidate.c_str(), X_OK) == 0)
+                    return candidate.string();
             }
-            // if no separator was found, we are done
-            if (end == std::string::npos)
-                break;
-            // move to the next directory in PATH
-            start = end + separator.size();
+#endif
         }
         return {};
     }
@@ -84,19 +202,25 @@ PluginConfig::PluginConfig(std::string xyce_executable_path) :
     m_xyce_executable_path(std::move(xyce_executable_path)) {}
 
 PluginConfig PluginConfig::load() {
-    // open application-level wxConfig store
-    wxConfig config("kicad-xyce-plugin", "Spice Projects");
-    // read the stored Xyce executable path from wxConfig
-    wxString stored_path;
-    bool found = config.Read(CONFIG_PATH, &stored_path);
-    // return stored path when available, otherwise fall back to discovery
-    if (found && !stored_path.IsEmpty()) {
-        // log information
-        spdlog::debug("Loaded Xyce executable path from config: {}", stored_path.ToStdString());
-        // return the stored path
-        return PluginConfig(stored_path.ToStdString());
+    // resolve configuration file path
+    const auto config_path = get_config_file_path();
+    std::error_code ec;
+    // read configuration from disk if the file exists
+    if (std::filesystem::is_regular_file(config_path, ec)) {
+        std::ifstream file(config_path);
+        if (file.is_open()) {
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            const auto stored_path = extract_xyce_path(buffer.str());
+            if (stored_path.has_value() && !stored_path->empty()) {
+                // log information
+                spdlog::debug("Loaded Xyce executable path from config: {}", *stored_path);
+                // return the stored path
+                return PluginConfig(*stored_path);
+            }
+        }
     }
-    // discover the Xyce executable path when not found in wxConfig
+    // discover the Xyce executable path when not found in config
     auto discovered = discover_xyce_executable();
     if (!discovered.empty()) {
         // log information
@@ -113,19 +237,29 @@ PluginConfig PluginConfig::load() {
 PluginConfig PluginConfig::default_config() { return PluginConfig(discover_xyce_executable()); }
 
 void PluginConfig::save() const {
-    // persist the current executable path to wxConfig
-    wxConfig config("kicad-xyce-plugin", "Spice Projects");
-    // write the path to the config
-    if (config.Write(CONFIG_PATH, wxString(m_xyce_executable_path))) {
-        // log information
-        spdlog::debug("Saved Xyce executable path to config: {}", m_xyce_executable_path);
-        // flush the config to ensure it is written to disk
-        config.Flush();
-        // exit
+    // resolve configuration file path
+    const auto config_path = get_config_file_path();
+    std::error_code ec;
+    // ensure the parent directory exists
+    std::filesystem::create_directories(config_path.parent_path(), ec);
+    if (ec) {
+        // log warning
+        spdlog::warn("Failed to create config directory: {}", ec.message());
         return;
     }
+    // open the config file for writing
+    std::ofstream file(config_path);
+    if (!file.is_open()) {
+        // log warning
+        spdlog::warn("Failed to save Xyce executable path to config");
+        return;
+    }
+    // serialize configuration as JSON
+    file << "{\n";
+    file << "    \"xyce_executable_path\": \"" << json_escape(m_xyce_executable_path) << "\"\n";
+    file << "}\n";
     // log information
-    spdlog::warn("Failed to save Xyce executable path to config");
+    spdlog::debug("Saved Xyce executable path to config: {}", m_xyce_executable_path);
 }
 
 bool PluginConfig::is_xyce_executable_valid() const {
@@ -134,12 +268,17 @@ bool PluginConfig::is_xyce_executable_valid() const {
         return false;
     // check if the path exists and is a regular file
     std::error_code ec;
-    auto fs_status = std::filesystem::status(m_xyce_executable_path, ec);
+    const auto fs_status = std::filesystem::status(m_xyce_executable_path, ec);
     // reject paths that do not reference an existing regular file
     if (ec || !std::filesystem::is_regular_file(fs_status))
         return false;
-    // require executable permission
-    return wxIsExecutable(m_xyce_executable_path);
+#if defined(_WIN32)
+    // on Windows, a regular file that exists is valid
+    return true;
+#else
+    // require executable permission on POSIX
+    return ::access(m_xyce_executable_path.c_str(), X_OK) == 0;
+#endif
 }
 
 std::string PluginConfig::discover_xyce_executable() {
@@ -152,60 +291,50 @@ std::string PluginConfig::discover_xyce_executable() {
         return found;
     }
     // fall back to well-known binary-installer directories
-#ifdef __WXMSW__
+#if defined(_WIN32)
     // check "C:\Program Files" for XyceNF_* directories (binary installer)
-    wxString base = "C:\\Program Files";
-    wxDir dir(base);
-    // check if the directory was opened successfully
-    if (dir.IsOpened()) {
-        // iterate over subdirectories matching the pattern "XyceNF_*"
-        wxString subdir;
-        bool cont = dir.GetFirst(&subdir, "XyceNF_*", wxDIR_DIRS);
-        // iterate all matching directories keeping the last (highest-versioned) one
-        wxString best;
-        while (cont) {
-            best = subdir;
-            cont = dir.GetNext(&subdir);
-        }
-        // check if we found a matching directory
-        if (!best.IsEmpty()) {
-            // construct the candidate path to the Xyce executable
-            wxString candidate = base + "\\" + best + "\\bin\\Xyce.exe";
-            if (wxFileExists(candidate)) {
-                // log information
-                spdlog::debug("Found Xyce in install directory: {}", candidate.ToStdString());
-                // exit
-                return candidate.ToStdString();
-            }
-        }
-    }
+    const std::filesystem::path base = "C:\\Program Files";
+    const std::string prefix = "XyceNF_";
+    const std::string exe_rel = "bin\\Xyce.exe";
 #else
     // check /usr/local for XyceNF_* directories (binary installer)
-    wxDir dir("/usr/local");
-    if (dir.IsOpened()) {
-        // iterate over subdirectories matching the pattern "XyceNF_*"
-        wxString subdir;
-        bool cont = dir.GetFirst(&subdir, "XyceNF_*", wxDIR_DIRS);
-        // iterate all matching directories keeping the last (highest-versioned) one
-        wxString best;
-        while (cont) {
-            best = subdir;
-            cont = dir.GetNext(&subdir);
+    const std::filesystem::path base = "/usr/local";
+    const std::string prefix = "XyceNF_";
+    const std::string exe_rel = "bin/Xyce";
+#endif
+    std::error_code ec;
+    if (std::filesystem::exists(base, ec) && std::filesystem::is_directory(base, ec)) {
+        std::string best;
+        // iterate over subdirectories matching the prefix
+        for (const auto& entry : std::filesystem::directory_iterator(base, ec)) {
+            if (ec)
+                break;
+            if (entry.is_directory(ec)) {
+                const std::string name = entry.path().filename().string();
+                if (name.starts_with(prefix)) {
+                    // keep the highest-versioned directory name
+                    if (best.empty() || name > best)
+                        best = name;
+                }
+            }
         }
-        // check if we found a matching directory
-        if (!best.IsEmpty()) {
-            // construct the candidate path to the Xyce executable
-            wxString candidate = "/usr/local/" + best + "/bin/Xyce";
-            // check if the candidate path exists and is a file
-            if (wxFileExists(candidate)) {
-                // log information
-                spdlog::debug("Found Xyce in install directory: {}", candidate.ToStdString());
-                // exit
-                return candidate.ToStdString();
+        // check if a matching directory was found
+        if (!best.empty()) {
+            const auto candidate = base / best / exe_rel;
+            ec.clear();
+            if (std::filesystem::is_regular_file(candidate, ec)) {
+#if !defined(_WIN32)
+                if (::access(candidate.c_str(), X_OK) == 0) {
+                    spdlog::debug("Found Xyce in install directory: {}", candidate.string());
+                    return candidate.string();
+                }
+#else
+                spdlog::debug("Found Xyce in install directory: {}", candidate.string());
+                return candidate.string();
+#endif
             }
         }
     }
-#endif
     // log information
     spdlog::warn("Xyce executable not found via discovery");
     // exit with empty string

@@ -8,9 +8,9 @@
 #include <nng/protocol/reqrep0/req.h>
 #include <spdlog/spdlog.h>
 
+#include "../core/util.h"
 #include "common/commands/base_commands.pb.h"
 #include "kicad_connection.h"
-#include "util.h"
 
 namespace
 {

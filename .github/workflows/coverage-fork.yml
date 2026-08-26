@@ -1,0 +1,49 @@
+name: Fork PR Coverage
+
+# Fork PRs cannot upload coverage from the regular pull_request workflow
+# (the fork's GITHUB_TOKEN is forced read-only and actions/upload-code-coverage
+# does not support forks). pull_request_target runs in the base repo context,
+# so it gets a full-permission token; because it executes untrusted fork code,
+# the 'approve' job targets the 'fork-pr-coverage' environment, which requires
+# maintainer approval before the coverage build starts. Same-repo PRs are
+# handled by default.yaml and are excluded here to avoid duplicate builds.
+
+on:
+  pull_request_target:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  approve:
+    name: Gate Fork Coverage
+    if: |-
+      !cancelled() &&
+      github.repository == 'spice-projects/kicad-xyce-plugin' &&
+      github.event.pull_request.head.repo.full_name != null &&
+      github.event.pull_request.head.repo.full_name != github.repository
+    # environment approval gate pauses this job until a required reviewer of
+    # 'fork-pr-coverage' approves the run (Settings -> Environments)
+    environment: fork-pr-coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approved
+        run: echo "Maintainer approved coverage build for ${{ github.event.pull_request.head.sha }}"
+
+  coverage:
+    name: C++ Coverage
+    needs: [approve]
+    if: ${{ !cancelled() && needs.approve.result == 'success' }}
+    # permissions are the ceiling passed down to the reusable workflow's
+    # upload-coverage job (code-quality: write is required by the API upload)
+    permissions:
+      contents: read
+      pull-requests: read
+      code-quality: write
+    uses: ./.github/workflows/coverage.yml
+    with:
+      # check out the fork's head commit (not the merge ref) so coverage line
+      # numbers map to the PR diff and the API attaches data to the head SHA
+      checkout_ref: ${{ github.event.pull_request.head.sha }}

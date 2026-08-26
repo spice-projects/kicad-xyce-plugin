@@ -38,6 +38,7 @@ vcpkg-manifest-install.log
 
 # Clangd / editor index cache
 .clangd/
+.cache/
 
 # IDE and editor files
 .vscode/*
@@ -48,14 +49,6 @@ vcpkg-manifest-install.log
 .DS_Store
 *.swp
 *~
-
-# KiCad / Xyce generated output
-*.raw
-*.fft*
-
-# Xyce text/log outputs
-*.y0
-*.print_*
 
 # ImageMagick-style temporary/backup files
 *~.orig
@@ -86,3 +79,6 @@ dist/
 
 # KiCad vendored icon trees that are copied in, not authored here
 /kicad-icons
+
+# AI related files
+.agents

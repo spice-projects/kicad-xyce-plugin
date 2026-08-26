@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.21)
 
 project(kicad-xyce-plugin-tests LANGUAGES CXX)
 
@@ -20,7 +20,7 @@ add_executable(kicad-xyce-plugin-tests ${TEST_FILES})
 # depend on the generated proto sources before building
 add_dependencies(kicad-xyce-plugin-tests kicad-proto)
 
-# link the core library (which brings the app headers, defines, and the wxWidgets/imgui/implot/spdlog/nng/protobuf/platform dependencies), plus gtest
+# link the core library (which brings the app headers, defines, and the slint/imgui/implot/spdlog/nng/protobuf/platform dependencies), plus gtest
 target_link_libraries(kicad-xyce-plugin-tests PRIVATE kicad-xyce-core GTest::gtest_main)
 
 # enable more warnings in tests for better clang-cl treats -Wall as MSVC's /Wall (enable every warning), so only apply the standard warning set to GNU-style frontends (clang++, g++)
@@ -31,5 +31,5 @@ endif()
 # auto-discover Gtests as Ctests
 include(CTest)
 include(GoogleTest)
-gtest_discover_tests(kicad-xyce-plugin-tests)
+gtest_discover_tests(kicad-xyce-plugin-tests DISCOVERY_TIMEOUT 60)
 # add_test(NAME AllGoogleTests COMMAND kicad-xyce-plugin-tests)

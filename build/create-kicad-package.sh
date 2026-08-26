@@ -8,10 +8,18 @@ EXECUTABLE=${2:-.build-debug/kicad-xyce-plugin}
 ENTRYPOINT_NAME=${3:-kicad-xyce-plugin}
 # platform, allowed values: macos, linux, windows
 PLATFORM=${4:-macos}
+# path to the shared library shipped beside the executable, macos only, defaults to none
+SHARED_LIBRARY=${5:-}
 
 # fail early when the executable is missing
 if [ ! -f "$EXECUTABLE" ]; then
     echo "error: executable not found at $EXECUTABLE" >&2
+    exit 1
+fi
+
+# fail early when the shared library is expected but missing
+if [ -n "$SHARED_LIBRARY" ] && [ ! -f "$SHARED_LIBRARY" ]; then
+    echo "error: shared library not found at $SHARED_LIBRARY" >&2
     exit 1
 fi
 
@@ -39,6 +47,11 @@ cp src/plugin-icon-24x24.png "$temp_dir"/plugins/
 
 # copy the compiled executable under the entrypoint name
 cp "$EXECUTABLE" "$temp_dir"/plugins/"$ENTRYPOINT_NAME"
+
+# copy the shared library beside the executable so it resolves through @executable_path
+if [ -n "$SHARED_LIBRARY" ]; then
+    cp "$SHARED_LIBRARY" "$temp_dir"/plugins/
+fi
 
 # distribution file
 output_zip="$(pwd)/dist/kicad-xyce-plugin-$PROJECT_VERSION.zip"

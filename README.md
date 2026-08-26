@@ -13,7 +13,7 @@ KiCad plugin that integrates the Xyce circuit simulator into the KiCad UI, so yo
 - Native KiCad plugin action to launch the simulator UI
 - Simulation command dialog supporting Transient, AC, DC, Harmonic Balance, Noise, Operating Point, and Linear analyses
 - Xyce process runner with streamed stdout and stderr handling
-- Interactive wxWidgets desktop UI backed by an ImGui plotting surface (ImPlot) with charts and expression plotting
+- Interactive Slint desktop UI backed by an ImGui plotting surface (ImPlot) with charts and expression plotting
 - FFT calculations for transient analysis and STEP visualization
 - Persistent plugin configuration for the Xyce executable path
 - IPC integration with KiCad via NNG and the vendored KiCad protobuf API
@@ -22,15 +22,18 @@ KiCad plugin that integrates the Xyce circuit simulator into the KiCad UI, so yo
 
 - `src/`: main source directory containing the plugin logic and files
   - `src/main.cpp`: application entry point
-  - `src/app.cpp` / `src/app.h`: wxWidgets application lifecycle
+  - `src/app/`: application lifecycle (singleton, platform initialization)
+  - `src/core/`: shared utilities (`util`, `view`, `step_information`)
   - `src/plugin.json`: KiCad Plugin and Content Manager (PCM) executable-plugin metadata
   - `src/kicad/`: KiCad IPC connection (NNG), session handling, and netlist source
   - `src/netlist/`: Xyce netlist generation
-  - `src/simulation_parameters/`: simulation parameter models
+  - `src/simulation/`: simulation parameter models
   - `src/expression/`: expression parsing/evaluation
-  - `src/fft/`: FFT computation for spectral analysis
+  - `src/dsp/`: FFT computation for spectral analysis
+  - `src/io/`: Xyce output/raw/FFT file readers
+  - `src/charts/`: chart data model and decimation algorithms
   - `src/config/`: plugin configuration
-  - `src/ui/`: desktop UI (wxWidgets shell with ImGui/ImPlot charts, dialogs, charts panel)
+  - `src/ui/`: Slint desktop UI (flat layout: views/presenters, dialog wrappers, platform backends, ImGui/ImPlot charts renderer)
 - `netlists/`: sample/test netlists
 - `tests/`: C++ unit tests (GoogleTest)
 - `xyce-docs/`: vendor-provided Xyce documentation PDFs
@@ -111,4 +114,4 @@ This repository also bundles third-party Xyce documentation PDFs in xyce-docs. S
 
 When redistributing this project, include the project LICENSE file and all third-party license and notice files listed above.
 
-Dependencies (wxWidgets, ImGui, ImPlot, spdlog, protobuf, NNG, pocketfft, GoogleTest) are third-party components distributed under their own licenses. See THIRD_PARTY_NOTICES.txt for attribution and redistribution notes.
+Dependencies (Slint, ImGui, ImPlot, spdlog, protobuf, NNG, pocketfft, GoogleTest) are third-party components distributed under their own licenses. See THIRD_PARTY_NOTICES.txt for attribution and redistribution notes.

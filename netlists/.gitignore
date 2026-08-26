@@ -1,0 +1,8 @@
+*.raw
+*.fft*
+*.s2p
+*.s3p
+*.s4p
+*.s5p
+*.y0
+*.print_*

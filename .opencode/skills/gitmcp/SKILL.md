@@ -12,7 +12,7 @@ You are an expert at using `gitmcp`, exposed globally by the Docker Desktop MCP 
 
 ## When to use me
 
-- The user asks how to use an external library's API, class, or build system (e.g. XyCE, KiCad, wxWidgets, Boost).
+- The user asks how to use an external library's API, class, or build system (e.g. XyCE, KiCad, Slint, Boost).
 - The user asks a question about a specific public GitHub repo, its docs, or its source code.
 - The user references a library by name only and you need to resolve it to an owner/repo.
 - You are unsure about an upstream API and should verify instead of guessing.
