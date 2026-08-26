@@ -112,6 +112,37 @@ TEST(TransientSimulationParametersChecks, parses_four_parameters) {
     ASSERT_EQ(result->four_parameters[0].output_variables[0], "V(OUT)");
 }
 
+TEST(TransientSimulationParametersChecks, parses_sensitivity_companion_directive) {
+    // arrange
+    const std::vector<std::string> directives = {".TRAN 1u 1m", ".SENS objfunc={V(OUT)} param=R1:R", ".OPTIONS SENSITIVITY direct=0 adjoint=1"};
+    // act
+    const auto result = TransientSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_TRUE(result->sensitivity.has_value());
+    ASSERT_EQ(result->sensitivity->objective_mode, "objfunc");
+    ASSERT_EQ(result->sensitivity->objective_values.size(), 1);
+    ASSERT_EQ(result->sensitivity->objective_values[0], "V(OUT)");
+    ASSERT_EQ(result->sensitivity->parameter_list.size(), 1);
+    ASSERT_EQ(result->sensitivity->parameter_list[0], "R1:R");
+    ASSERT_FALSE(result->sensitivity->direct);
+    ASSERT_TRUE(result->sensitivity->adjoint);
+}
+
+TEST(TransientSimulationParametersChecks, sensitivity_round_trip) {
+    // arrange
+    const std::vector<std::string> directives = {".TRAN 1u 1m", ".SENS objfunc={V(OUT)} param=R1:R", ".OPTIONS SENSITIVITY direct=0 adjoint=1"};
+    // act
+    const auto result = TransientSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    const auto serialized = result->to_xyce_directives(NetlistTopology{});
+    ASSERT_EQ(serialized.size(), 3);
+    ASSERT_EQ(serialized[0], ".TRAN 1u 1m");
+    ASSERT_EQ(serialized[1], ".SENS objfunc={V(OUT)} param=R1:R");
+    ASSERT_EQ(serialized[2], ".OPTIONS SENSITIVITY direct=0 adjoint=1");
+}
+
 TEST(TransientSimulationParametersChecks, no_tran_directive_returns_none) {
     // arrange
     const std::vector<std::string> directives = {".DC VIN 0 5 0.1"};
