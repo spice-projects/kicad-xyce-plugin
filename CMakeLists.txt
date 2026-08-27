@@ -41,11 +41,6 @@ endif()
 
 option(BUILD_TESTS "Build tests" ON)
 
-# throwaway spike target proving vcpkg skia links beside slint's vendored skia
-# and raster pixels reach a slint image unswapped (skia-imgui-implot.md phase 0);
-# not built by default, not part of the app or the tests
-option(BUILD_SKIA_SPIKE "Build the tools/spike-skia scratch target" OFF)
-
 find_package(imgui CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
@@ -234,8 +229,4 @@ set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-fprofile-instr-generate")
 if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
-endif()
-
-if (BUILD_SKIA_SPIKE)
-    add_subdirectory(tools/spike-skia)
 endif()
