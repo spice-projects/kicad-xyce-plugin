@@ -32,6 +32,8 @@ ImGuiSkiaRenderer::ImGuiSkiaRenderer() {
     io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures | ImGuiBackendFlags_RendererHasVtxOffset;
     // register this renderer instance on context io
     io.BackendRendererUserData = this;
+    // set backend renderer name for diagnostics
+    io.BackendRendererName = "imgui_impl_skia";
     // default to rgba32 for atlas and textures
     io.Fonts->TexDesiredFormat = ImTextureFormat_RGBA32;
     // disable antialiasing on fallback paint
@@ -57,6 +59,8 @@ ImGuiSkiaRenderer::~ImGuiSkiaRenderer() {
         // invalidate texture id
         texture->SetTexID(ImTextureID_Invalid);
     }
+    // clear backend renderer name on context io
+    ImGui::GetIO().BackendRendererName = nullptr;
     // unregister this renderer from context io
     ImGui::GetIO().BackendRendererUserData = nullptr;
     // restore the previously active context after teardown
