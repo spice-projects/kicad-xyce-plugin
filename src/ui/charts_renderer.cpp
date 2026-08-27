@@ -217,13 +217,10 @@ void ChartsRenderer::set_viewport(float width, float height, double scale) {
     // ignore no-op updates fired by unrelated relayouts
     if (m_viewport_width == width && m_viewport_height == height && m_scale == scale)
         return;
-    // store the geometry driving surface allocation and decimation targets
+    // store the geometry driving surface allocation
     m_viewport_width = width;
     m_viewport_height = height;
     m_scale = scale;
-    m_logical_width = static_cast<uint32_t>(width);
-    // recompute the decimation target for the new panel width
-    update_decimation_target();
     // schedule a frame so the next tick picks up the new geometry
     refresh_charts(1);
 }
@@ -233,7 +230,6 @@ void ChartsRenderer::reset_viewport() {
     m_viewport_width = 0.0f;
     m_viewport_height = 0.0f;
     m_scale = 0.0;
-    m_logical_width = 0;
     // cancel any pending frame so a stale surface does not publish after hiding
     m_render_chart_frames = 0;
 }
@@ -258,15 +254,8 @@ void ChartsRenderer::render_panel() {
                 auto name = std::format("Chart {}", i);
                 // create child with given height, use the whole area in the horizontal
                 if (ImGui::BeginChild(name.c_str(), ImVec2(0, height), true)) {
-                    // check current chart is selected
-                    if (i == m_selected_chart_index) {
-                        // render chart
-                        m_charts[i]->render(m_zoom_selection);
-                    }
-                    else {
-                        // render chart
-                        m_charts[i]->render({-1, -1, -1, -1});
-                    }
+                    // render chart
+                    m_charts[i]->render();
                     // close
                     ImGui::EndChild();
                 }
@@ -347,8 +336,6 @@ void ChartsRenderer::on_idle() {
 }
 
 void ChartsRenderer::update(ExpressionManager& expression_manager, const StepInformation& step_information, const AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
-    // recompute the decimation target from the current panel size and display scale
-    update_decimation_target();
     // update fields
     m_expression_manager = &expression_manager;
     m_step_information = &step_information;
@@ -398,7 +385,7 @@ void ChartsRenderer::update(ExpressionManager& expression_manager, const StepInf
 
 Chart* ChartsRenderer::add_chart() {
     // create chart and append it to vector
-    m_charts.push_back(std::make_unique<Chart>(m_expression_manager, m_step_information, m_abscissa_scale, m_decimate_target));
+    m_charts.push_back(std::make_unique<Chart>(m_expression_manager, m_step_information, m_abscissa_scale, k_decimate_target));
     // chart
     auto& chart = m_charts[m_charts.size() - 1];
     // plot series (will do nothing, but will set the correct abscissa for the zoom window)
@@ -414,31 +401,6 @@ void ChartsRenderer::delete_all_charts() {
     m_charts.clear();
     // refresh
     refresh_charts();
-}
-
-size_t ChartsRenderer::compute_decimation_target() const {
-    // floor to keep the decimation algorithm meaningful on very small windows
-    constexpr size_t min_target = 500;
-    // fallback when no usable size or scale is available (headless / early startup)
-    constexpr size_t fallback_target = 9600;
-    // panel width in logical pixels and the per-window display scale factor
-    if (m_logical_width > 0 && m_scale > 0.0)
-        return (std::max)(min_target, static_cast<size_t>(std::lround(static_cast<double>(m_logical_width) * m_scale)));
-    // conservative fallback
-    return fallback_target;
-}
-
-void ChartsRenderer::update_decimation_target() {
-    // recompute the target for the current panel size and display scale
-    const size_t target = compute_decimation_target();
-    // check the target changed
-    if (target == m_decimate_target)
-        return;
-    // store it
-    m_decimate_target = target;
-    // propagate it to existing charts so future decimations use the new target
-    for (const auto& chart : m_charts)
-        chart->set_decimate_target(target);
 }
 
 void ChartsRenderer::refresh_charts(int frames) { m_render_chart_frames = frames; }
@@ -633,8 +595,6 @@ void ChartsRenderer::zoom_drag_moved(float x, float y) {
     const float clamped_y = std::clamp(y, y_min, y_max);
     // update zoom selection box
     m_zoom_selection = {x1, y1, clamped_x, clamped_y};
-    // refresh charts to render the selection rectangle
-    refresh_charts();
 }
 
 void ChartsRenderer::zoom_drag_ended() {

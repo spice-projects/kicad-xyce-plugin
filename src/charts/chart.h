@@ -53,7 +53,7 @@ public:
 
     std::vector<AnyExpression*> selected_expressions();
 
-    void render(const std::tuple<float, float, float, float>&);
+    void render();
 
     void plot_series(const std::set<AnyExpression*>& expressions);
 

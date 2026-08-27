@@ -227,7 +227,7 @@ std::vector<AnyExpression*> Chart::selected_expressions() {
     return result;
 }
 
-void Chart::render(const std::tuple<float, float, float, float>& selection) {
+void Chart::render() {
     // initialize plot, full area
     if (ImPlot::BeginPlot("My First Plot", ImVec2(-1, -1), PLOT_FLAGS)) {
         // x axis
@@ -302,13 +302,6 @@ void Chart::render(const std::tuple<float, float, float, float>& selection) {
                 // draw the line chart, use data() directly since the data is contiguous in memory
                 ImPlot::PlotLine(name.c_str(), x.data(), y.data(), static_cast<int>(x.size()), spec);
             }
-        }
-        // current rectangle (zoom selection)
-        if (const auto [x1, y1, x2, y2] = selection; x1 >= 0 && y1 >= 0 && x2 >= 0 && y2 >= 0) {
-            // get the draw list
-            ImDrawList* draw_list = ImGui::GetWindowDrawList();
-            // draw rect
-            draw_list->AddRect(ImVec2(x1, y1), ImVec2(x2, y2), IM_COL32(255, 0, 0, 255), 0.0, 2.0);
         }
         // plot position and size
         ImVec2 plot_position = ImPlot::GetPlotPos();

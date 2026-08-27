@@ -156,10 +156,6 @@ private:
 
     void update_delta_time();
 
-    [[nodiscard]] size_t compute_decimation_target() const;
-
-    void update_decimation_target();
-
     void on_idle();
 
     void publish_hover();
@@ -213,9 +209,7 @@ private:
 
     AbscissaScale m_abscissa_scale = AbscissaScale::LINEAR;
 
-    size_t m_decimate_target = -1;
-
-    uint32_t m_logical_width = 0;
+    static constexpr size_t k_decimate_target = 4000;
 
     std::vector<std::unique_ptr<Chart>> m_charts;
 
