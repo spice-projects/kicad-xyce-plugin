@@ -19,24 +19,6 @@
 
 namespace
 {
-    // default series color palette
-    const std::vector SERIES_COLOR_PALETTE = {
-        ImVec4(247.0f / 255.0f, 127.0f / 255.0f, 0.0f / 255.0f, 1.0f), // #f77f00
-        ImVec4(58.0f / 255.0f, 134.0f / 255.0f, 1.0f, 1.0f), // #3a86ff
-        ImVec4(1.0f, 221.0f / 255.0f, 0.0f / 255.0f, 1.0f), // #ffdd00
-        ImVec4(155.0f / 255.0f, 93.0f / 255.0f, 229.0f / 255.0f, 1.0f), // #9b5de5
-        ImVec4(0.0f / 255.0f, 180.0f / 255.0f, 216.0f / 255.0f, 1.0f), // #00b4d8
-        ImVec4(1.0f, 143.0f / 255.0f, 163.0f / 255.0f, 1.0f), // #ff8fa3
-        ImVec4(128.0f / 255.0f, 1.0f, 114.0f / 255.0f, 1.0f), // #80ff72
-        ImVec4(224.0f / 255.0f, 64.0f / 255.0f, 251.0f / 255.0f, 1.0f), // #e040fb
-        ImVec4(1.0f, 67.0f / 255.0f, 101.0f / 255.0f, 1.0f), // #ff4365
-        ImVec4(0.0f / 255.0f, 245.0f / 255.0f, 212.0f / 255.0f, 1.0f), // #00f5d4
-        ImVec4(244.0f / 255.0f, 162.0f / 255.0f, 97.0f / 255.0f, 1.0f), // #f4a261
-        ImVec4(138.0f / 255.0f, 201.0f / 255.0f, 38.0f / 255.0f, 1.0f), // #8ac926
-        ImVec4(76.0f / 255.0f, 201.0f / 255.0f, 240.0f / 255.0f, 1.0f), // #4cc9f0
-        ImVec4(187.0f / 255.0f, 222.0f / 255.0f, 251.0f / 255.0f, 1.0f), // #bbdefb
-    };
-
     constexpr ImPlotFlags PLOT_FLAGS = (ImPlotFlags_CanvasOnly ^ ImPlotFlags_NoLegend) | ImPlotFlags_NoInputs | ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect;
 
     // ImPlot forward transform for base-2 logarithmic axes (mirrors ImPlot's Log10 transform clamping)
@@ -228,6 +210,8 @@ std::vector<AnyExpression*> Chart::selected_expressions() {
 }
 
 void Chart::render() {
+    // push matching slint colormap
+    ImPlot::PushColormap("SlintCupertino");
     // initialize plot, full area
     if (ImPlot::BeginPlot("My First Plot", ImVec2(-1, -1), PLOT_FLAGS)) {
         // x axis
@@ -311,6 +295,8 @@ void Chart::render() {
         // finalize the plot block
         ImPlot::EndPlot();
     }
+    // pop colormap
+    ImPlot::PopColormap();
 }
 
 void Chart::plot_series(const std::set<AnyExpression*>& expressions) {
@@ -505,6 +491,7 @@ std::tuple<bool, View<double>, View<double>, double, double> Chart::plot_step(Ex
 void Chart::clear() {
     // clear internal structures
     m_series.clear();
+    m_next_color_index = 0;
     // release axes
     for (auto& current : m_axes) {
         // set it as not in use

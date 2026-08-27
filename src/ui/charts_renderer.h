@@ -64,6 +64,9 @@ public:
     // logical panel size plus device scale; the surface follows physical pixels
     void set_viewport(float width, float height, double scale);
 
+    // adapt the color palette to light/dark theme changes
+    void set_dark_mode(bool dark_mode);
+
     // clear the viewport so no frames are published until a valid size arrives
     void reset_viewport();
 
@@ -234,4 +237,6 @@ private:
     HoverCallback m_hover_callback;
 
     ImVec4 m_background_color;
+
+    bool m_dark_mode = false;
 };

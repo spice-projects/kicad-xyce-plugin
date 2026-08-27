@@ -22,53 +22,85 @@ namespace
 {
     // imgui/implot palette matching the slint cupertino widgets, ported from
     // the retired metal overlay so both render paths look identical
-    void apply_slint_style() {
-        // light theme colors
-        const ImVec4 text = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
-        const ImVec4 muted = ImVec4(0.40f, 0.40f, 0.40f, 1.00f);
-        const ImVec4 background = ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
-        const ImVec4 panel = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-        const ImVec4 border = ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
-        const ImVec4 accent = ImVec4(0.20f, 0.45f, 0.90f, 1.00f);
+    void apply_slint_style(bool is_dark) {
+        // macOS Cupertino Theme Palette
+        const ImVec4 text = is_dark ? ImVec4(0.92f, 0.92f, 0.94f, 1.00f) : ImVec4(0.12f, 0.12f, 0.14f, 1.00f);
+        const ImVec4 muted = is_dark ? ImVec4(0.60f, 0.60f, 0.64f, 1.00f) : ImVec4(0.55f, 0.55f, 0.58f, 1.00f);
+        const ImVec4 background = is_dark ? ImVec4(0.12f, 0.12f, 0.12f, 1.00f) : ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
+        const ImVec4 panel = is_dark ? ImVec4(0.17f, 0.17f, 0.18f, 1.00f) : ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+        const ImVec4 border = is_dark ? ImVec4(0.28f, 0.28f, 0.30f, 1.00f) : ImVec4(0.82f, 0.82f, 0.84f, 1.00f);
+        const ImVec4 grid = is_dark ? ImVec4(0.22f, 0.22f, 0.24f, 1.00f) : ImVec4(0.91f, 0.91f, 0.93f, 1.00f);
+        const ImVec4 transparent = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        const ImVec4 accent = is_dark ? ImVec4(0.04f, 0.52f, 1.00f, 1.00f) : ImVec4(0.00f, 0.48f, 1.00f, 1.00f);
+        // imgui style
+        ImGuiStyle& style = ImGui::GetStyle();
+        style.WindowPadding = ImVec2(0.0f, 0.0f);
+        style.FramePadding = ImVec2(6.0f, 4.0f);
+        style.ItemSpacing = ImVec2(8.0f, 6.0f);
+        style.WindowRounding = 8.0f;
+        style.ChildRounding = 8.0f;
+        style.FrameRounding = 6.0f;
+        style.PopupRounding = 6.0f;
         // imgui colors
-        ImVec4* colors = ImGui::GetStyle().Colors;
+        ImVec4* colors = style.Colors;
         colors[ImGuiCol_Text] = text;
         colors[ImGuiCol_TextDisabled] = muted;
         colors[ImGuiCol_WindowBg] = background;
-        colors[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_ChildBg] = transparent;
         colors[ImGuiCol_PopupBg] = panel;
         colors[ImGuiCol_Border] = border;
-        colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_BorderShadow] = transparent;
         colors[ImGuiCol_FrameBg] = panel;
-        colors[ImGuiCol_FrameBgHovered] = ImVec4(0.85f, 0.90f, 0.98f, 1.00f);
-        colors[ImGuiCol_FrameBgActive] = ImVec4(0.75f, 0.82f, 0.95f, 1.00f);
+        colors[ImGuiCol_FrameBgHovered] = is_dark ? ImVec4(0.25f, 0.25f, 0.28f, 1.00f) : ImVec4(0.85f, 0.90f, 0.98f, 1.00f);
+        colors[ImGuiCol_FrameBgActive] = is_dark ? ImVec4(0.30f, 0.30f, 0.35f, 1.00f) : ImVec4(0.75f, 0.82f, 0.95f, 1.00f);
         colors[ImGuiCol_TitleBg] = panel;
         colors[ImGuiCol_TitleBgActive] = panel;
-        colors[ImGuiCol_Button] = ImVec4(0.88f, 0.90f, 0.94f, 1.00f);
-        colors[ImGuiCol_ButtonHovered] = ImVec4(0.78f, 0.84f, 0.95f, 1.00f);
+        colors[ImGuiCol_Button] = is_dark ? ImVec4(0.22f, 0.22f, 0.24f, 1.00f) : ImVec4(0.88f, 0.90f, 0.94f, 1.00f);
+        colors[ImGuiCol_ButtonHovered] = is_dark ? ImVec4(0.28f, 0.28f, 0.32f, 1.00f) : ImVec4(0.78f, 0.84f, 0.95f, 1.00f);
         colors[ImGuiCol_ButtonActive] = accent;
-        colors[ImGuiCol_Header] = ImVec4(0.85f, 0.90f, 0.98f, 1.00f);
-        colors[ImGuiCol_HeaderHovered] = ImVec4(0.75f, 0.82f, 0.95f, 1.00f);
+        colors[ImGuiCol_Header] = is_dark ? ImVec4(0.22f, 0.22f, 0.26f, 1.00f) : ImVec4(0.85f, 0.90f, 0.98f, 1.00f);
+        colors[ImGuiCol_HeaderHovered] = is_dark ? ImVec4(0.28f, 0.28f, 0.32f, 1.00f) : ImVec4(0.75f, 0.82f, 0.95f, 1.00f);
         colors[ImGuiCol_HeaderActive] = accent;
         colors[ImGuiCol_PlotLines] = accent;
         colors[ImGuiCol_PlotHistogram] = accent;
-        colors[ImGuiCol_TextSelectedBg] = ImVec4(0.75f, 0.82f, 0.95f, 1.00f);
-        colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.35f);
+        colors[ImGuiCol_TextSelectedBg] = is_dark ? ImVec4(0.04f, 0.52f, 1.00f, 0.40f) : ImVec4(0.75f, 0.82f, 0.95f, 1.00f);
+        colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
+        // implot style
+        ImPlotStyle& plot_style = ImPlot::GetStyle();
+        plot_style.PlotBorderSize = 1.0f;
+        plot_style.MinorAlpha = 0.35f;
+        plot_style.MajorGridSize = ImVec2(1.0f, 1.0f);
+        plot_style.MinorGridSize = ImVec2(0.5f, 0.5f);
+        plot_style.MajorTickLen = ImVec2(4.0f, 4.0f);
+        plot_style.MinorTickLen = ImVec2(2.0f, 2.0f);
+        plot_style.MajorTickSize = ImVec2(1.0f, 1.0f);
+        plot_style.MinorTickSize = ImVec2(1.0f, 1.0f);
+        plot_style.PlotPadding = ImVec2(10.0f, 10.0f);
+        plot_style.LabelPadding = ImVec2(6.0f, 6.0f);
+        plot_style.LegendPadding = ImVec2(8.0f, 6.0f);
+        plot_style.LegendInnerPadding = ImVec2(8.0f, 4.0f);
+        plot_style.LegendSpacing = ImVec2(12.0f, 4.0f);
         // implot colors
-        ImVec4* plot_colors = ImPlot::GetStyle().Colors;
-        plot_colors[ImPlotCol_FrameBg] = background;
+        ImVec4* plot_colors = plot_style.Colors;
+        plot_colors[ImPlotCol_FrameBg] = transparent;
         plot_colors[ImPlotCol_PlotBg] = panel;
         plot_colors[ImPlotCol_PlotBorder] = border;
-        plot_colors[ImPlotCol_LegendBg] = panel;
-        plot_colors[ImPlotCol_LegendBorder] = border;
+        plot_colors[ImPlotCol_LegendBg] = transparent;
+        plot_colors[ImPlotCol_LegendBorder] = transparent;
         plot_colors[ImPlotCol_LegendText] = text;
         plot_colors[ImPlotCol_TitleText] = text;
         plot_colors[ImPlotCol_InlayText] = muted;
         plot_colors[ImPlotCol_AxisText] = text;
-        plot_colors[ImPlotCol_AxisGrid] = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+        plot_colors[ImPlotCol_AxisGrid] = grid;
         plot_colors[ImPlotCol_AxisTick] = border;
-        plot_colors[ImPlotCol_Crosshairs] = border;
-        plot_colors[ImPlotCol_Selection] = ImVec4(0.20f, 0.45f, 0.90f, 0.50f);
+        plot_colors[ImPlotCol_AxisBg] = transparent;
+        plot_colors[ImPlotCol_AxisBgHovered] = is_dark ? ImVec4(0.04f, 0.52f, 1.00f, 0.12f) : ImVec4(0.00f, 0.48f, 1.00f, 0.08f);
+        plot_colors[ImPlotCol_AxisBgActive] = is_dark ? ImVec4(0.04f, 0.52f, 1.00f, 0.25f) : ImVec4(0.00f, 0.48f, 1.00f, 0.16f);
+        plot_colors[ImPlotCol_Crosshairs] = is_dark ? ImVec4(0.60f, 0.60f, 0.64f, 0.80f) : ImVec4(0.55f, 0.55f, 0.58f, 0.80f);
+        plot_colors[ImPlotCol_Selection] = is_dark ? ImVec4(0.04f, 0.52f, 1.00f, 0.35f) : ImVec4(0.00f, 0.48f, 1.00f, 0.25f);
+        // add slint colormap if not already registered
+        if (ImPlot::GetColormapIndex("SlintCupertino") == -1)
+            ImPlot::AddColormap("SlintCupertino", SERIES_COLOR_PALETTE.data(), static_cast<int>(SERIES_COLOR_PALETTE.size()), false);
     }
 } // namespace
 
@@ -118,7 +150,7 @@ void ChartsRenderer::initialize_backend() {
     // activate this renderer's isolated contexts for backend initialization
     ChartsContextScope context_scope(*this);
     // palette shared with the slint cupertino theme
-    apply_slint_style();
+    apply_slint_style(m_dark_mode);
     // imgui configuration
     ImGuiIO& io = ImGui::GetIO();
     // disable ini file noise from the headless stack
@@ -137,7 +169,7 @@ void ChartsRenderer::initialize_backend() {
     style.AntiAliasedLines = true;
     style.AntiAliasedLinesUseTex = true;
     // panel clear color matching the slint alternate background
-    m_background_color = ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
+    m_background_color = m_dark_mode ? ImVec4(0.12f, 0.12f, 0.12f, 1.00f) : ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
     // create the platform-native gpu context; may be null, in which case the cpu raster path is used
     m_direct_context = create_gpu_context();
     // bring up the skia replay backend for this context
@@ -225,6 +257,25 @@ void ChartsRenderer::set_viewport(float width, float height, double scale) {
     refresh_charts(1);
 }
 
+void ChartsRenderer::set_dark_mode(bool dark_mode) {
+    // ignore no-op updates fired by unrelated relayouts
+    if (m_dark_mode == dark_mode)
+        return;
+    // store the new mode
+    m_dark_mode = dark_mode;
+    // check panel has been initialized
+    if (m_initialized) {
+        // activate this renderer's isolated contexts for style update
+        ChartsContextScope context_scope(*this);
+        // apply style
+        apply_slint_style(m_dark_mode);
+        // update the background color to match the new mode
+        m_background_color = m_dark_mode ? ImVec4(0.12f, 0.12f, 0.12f, 1.00f) : ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
+    }
+    // force refresh in charts
+    refresh_charts(1);
+}
+
 void ChartsRenderer::reset_viewport() {
     // zero the stored geometry so render() short-circuits on the next idle tick
     m_viewport_width = 0.0f;
@@ -241,7 +292,7 @@ void ChartsRenderer::render_panel() {
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(m_viewport_width, m_viewport_height), ImGuiCond_Always);
     // panel window covering the whole viewport without decoration
-    if (ImGui::Begin("Charts Panel", nullptr, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs)) {
+    if (ImGui::Begin("Charts Panel", nullptr, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground)) {
         // check we have charts to render
         if (!m_charts.empty()) {
             // available area
@@ -253,7 +304,7 @@ void ChartsRenderer::render_panel() {
                 // area name
                 auto name = std::format("Chart {}", i);
                 // create child with given height, use the whole area in the horizontal
-                if (ImGui::BeginChild(name.c_str(), ImVec2(0, height), true)) {
+                if (ImGui::BeginChild(name.c_str(), ImVec2(0, height), false, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration)) {
                     // render chart
                     m_charts[i]->render();
                     // close

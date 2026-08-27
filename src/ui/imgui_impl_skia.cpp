@@ -34,8 +34,8 @@ ImGuiSkiaRenderer::ImGuiSkiaRenderer() {
     io.BackendRendererUserData = this;
     // set backend renderer name for diagnostics
     io.BackendRendererName = "imgui_impl_skia";
-    // default to rgba32 for atlas and textures
-    io.Fonts->TexDesiredFormat = ImTextureFormat_RGBA32;
+    // default to alpha8 for atlas font texture
+    io.Fonts->TexDesiredFormat = ImTextureFormat_Alpha8;
     // disable antialiasing on fallback paint
     m_fallback_paint.setAntiAlias(false);
     // fallback color is opaque white
@@ -87,23 +87,60 @@ void ImGuiSkiaRenderer::upload_texture(ImTextureData& texture) {
         const auto* src = static_cast<const uint8_t*>(texture.GetPixels());
         // allocate rgba32 destination buffer
         std::vector<uint32_t> rgba(static_cast<size_t>(count));
-        // expand alpha8 to rgba32 white with alpha so shader modulation preserves vertex rgb
+        // expand alpha8 to premultiplied rgba32 white with alpha so shader modulation preserves vertex rgb
         for (int i = 0; i < count; ++i) {
             // read source alpha byte
             const uint32_t a = src[i];
-            // pack opaque white with source alpha
-            rgba[static_cast<size_t>(i)] = (a << 24) | 0x00FFFFFFu;
+            // pack premultiplied white with source alpha (a, a, a, a)
+            rgba[static_cast<size_t>(i)] = (a << 24) | (a << 16) | (a << 8) | a;
         }
         // image info for expanded rgba32 surface
-        const auto info = SkImageInfo::Make(texture.Width, texture.Height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+        const auto info = SkImageInfo::Make(texture.Width, texture.Height, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
         // copy expanded rgba32 pixels into owned raster image
         image = SkImages::RasterFromPixmapCopy(SkPixmap(info, rgba.data(), static_cast<size_t>(texture.Width * 4)));
     }
     else {
-        // describe rgba32 pixel buffer from imgui
-        const auto info = SkImageInfo::Make(texture.Width, texture.Height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-        // copy into an owned image so the atlas buffer can grow independently
-        image = SkImages::RasterFromPixmapCopy(SkPixmap(info, texture.GetPixels(), static_cast<size_t>(texture.GetPitch())));
+        // pixel count of rgba32 buffer
+        const int count = texture.Width * texture.Height;
+        // cast source pointer to 32-bit pixel array
+        const auto* src = static_cast<const uint32_t*>(texture.GetPixels());
+        // allocate rgba32 destination buffer
+        std::vector<uint32_t> rgba(static_cast<size_t>(count));
+        // premultiply rgb by alpha to ensure clean composition without white fringe
+        for (int i = 0; i < count; ++i) {
+            // read source pixel in imgui's rgba32 layout
+            const uint32_t pixel = src[i];
+            // extract alpha channel to check for premultiplication
+            const uint32_t a = (pixel >> IM_COL32_A_SHIFT) & 0xFFu;
+            // check fully opaque
+            if (a == 255) {
+                // extract rgb channels and pack into premultiplied rgba32 (a, b, g, r) for skia
+                const uint32_t r = (pixel >> IM_COL32_R_SHIFT) & 0xFFu;
+                const uint32_t g = (pixel >> IM_COL32_G_SHIFT) & 0xFFu;
+                const uint32_t b = (pixel >> IM_COL32_B_SHIFT) & 0xFFu;
+                // pack into premultiplied rgba32 (a, b, g, r) for skia
+                rgba[static_cast<size_t>(i)] = (0xFFu << 24) | (b << 16) | (g << 8) | r;
+                // next
+                continue;
+            }
+            // check fully transparent
+            if (a == 0) {
+                // pack fully transparent pixel into premultiplied rgba32 (0, 0, 0, 0) for skia
+                rgba[static_cast<size_t>(i)] = 0;
+                // next
+                continue;
+            }
+            // premultiply rgb by alpha with rounding to avoid white fringe on semi-transparent pixels
+            const uint32_t r = (((pixel >> IM_COL32_R_SHIFT) & 0xFFu) * a + 127) / 255;
+            const uint32_t g = (((pixel >> IM_COL32_G_SHIFT) & 0xFFu) * a + 127) / 255;
+            const uint32_t b = (((pixel >> IM_COL32_B_SHIFT) & 0xFFu) * a + 127) / 255;
+            // pack into premultiplied rgba32 (a, b, g, r) for skia
+            rgba[static_cast<size_t>(i)] = (a << 24) | (b << 16) | (g << 8) | r;
+        }
+        // image info for premultiplied rgba32 surface
+        const auto info = SkImageInfo::Make(texture.Width, texture.Height, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+        // copy premultiplied rgba32 pixels into owned raster image
+        image = SkImages::RasterFromPixmapCopy(SkPixmap(info, rgba.data(), static_cast<size_t>(texture.Width * 4)));
     }
     // reuse the payload slot when the texture was uploaded before
     auto* holder = static_cast<SkiaTexture*>(texture.BackendUserData);

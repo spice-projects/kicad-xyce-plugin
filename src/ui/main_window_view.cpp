@@ -436,6 +436,14 @@ void SlintMainWindowView2::ensure_charts_renderer() {
         // publish the rendered frame to the slint image property
         m_window->set_charts_image(image);
     });
+    // initialize theme state
+    m_charts_renderer->set_dark_mode(m_window->get_is_dark());
+    // wire theme change callback
+    m_window->on_theme_changed([this](bool is_dark) {
+        // update the renderer's dark mode state when the slint theme changes
+        if (m_charts_renderer)
+            m_charts_renderer->set_dark_mode(is_dark);
+    });
     // wire hover readout to update the status bar
     m_charts_renderer->set_hover_callback([this](const std::string& text) {
         if (text.empty())

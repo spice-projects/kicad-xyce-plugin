@@ -103,6 +103,13 @@ export component MainWindow inherits Window {
     // status bar text, driven from the view adapter
     in property <string> status-text: "";
 
+    // theme detection
+    in property <bool> is-dark: Palette.color-scheme == ColorScheme.dark;
+    callback theme-changed(bool);
+
+    init => { root.theme-changed(root.is-dark); }
+    changed is-dark => { root.theme-changed(root.is-dark); }
+
     // fires when the charts panel geometry changes, so the host renderer
     // can resize its offscreen surface and recompute limits; forwarded
     // from the ChartsPanel viewport-changed callback
