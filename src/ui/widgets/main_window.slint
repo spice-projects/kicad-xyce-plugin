@@ -103,6 +103,14 @@ export component MainWindow inherits Window {
     // status bar text, driven from the view adapter
     in property <string> status-text: "";
 
+    // fires when the charts panel geometry changes, so the host renderer
+    // can resize its offscreen surface and recompute limits; forwarded
+    // from the ChartsPanel viewport-changed callback
+    callback charts-viewport-changed(width: float, height: float);
+
+    // the rendered chart frame published by the host renderer
+    in property <image> charts-image;
+
     // charts panel action availability, forwarded to the ChartsPanel component
     in property <bool> enable-fft: false;
     in property <bool> enable-step-tool: false;
@@ -216,6 +224,10 @@ export component MainWindow inherits Window {
                     enable-fft: root.enable-fft;
                     enable-step-tool: root.enable-step-tool;
                     has-fft-files: root.has-fft-files;
+                    // forward the rendered chart image from the host renderer
+                    charts-image: root.charts-image;
+                    // report layout changes to the renderer
+                    viewport-changed(width, height) => { root.charts-viewport-changed(width, height); }
                 }
                 if root.simulation-output-visible : output := SimulationOutputPanel {
                     height: 200px;

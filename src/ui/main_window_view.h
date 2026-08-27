@@ -78,11 +78,6 @@ private:
     // copy the buffered log lines [start..end] to the platform clipboard
     void copy_simulation_selection(int start, int end);
 
-    // reposition the charts renderer over the body area, accounting for the
-    // simulation output panel height; the overlay is hidden when the charts
-    // panel is not shown
-    void update_charts_frame();
-
     void show_add_remove_plots_dialog(float chart_position);
 
     // modal dialog lifecycle: dialogs are mutually exclusive (only the main

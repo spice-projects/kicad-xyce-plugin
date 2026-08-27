@@ -1,0 +1,16 @@
+export component SpikeWindow inherits Window {
+    title: "skia spike";
+    min-width: 320px;
+    min-height: 320px;
+
+    // the offscreen-rendered frame handed over from c++
+    in property <image> chart_image;
+
+    Image {
+        source: root.chart_image;
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+    }
+}

@@ -41,11 +41,19 @@ endif()
 
 option(BUILD_TESTS "Build tests" ON)
 
+# throwaway spike target proving vcpkg skia links beside slint's vendored skia
+# and raster pixels reach a slint image unswapped (skia-imgui-implot.md phase 0);
+# not built by default, not part of the app or the tests
+option(BUILD_SKIA_SPIKE "Build the tools/spike-skia scratch target" OFF)
+
 find_package(imgui CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(nng CONFIG REQUIRED)
 find_package(protobuf CONFIG REQUIRED)
+# skia: offscreen chart rendering backend (skia-imgui-implot.md); the vcpkg
+# port exports the unofficial-skia package with headers under the skia/ prefix
+find_package(unofficial-skia CONFIG REQUIRED)
 
 if(APPLE)
     # slint style
@@ -164,7 +172,7 @@ if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 endif()
 
 # third-party dependencies, PUBLIC so both the executable and the tests transitively link the same set of libraries
-target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng kicad-proto)
+target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng kicad-proto unofficial::skia::skia)
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis, OpenGL for CGL (via Winit), Carbon for TIS/LMGetKbdType (via Winit)
@@ -226,4 +234,8 @@ set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-fprofile-instr-generate")
 if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+if (BUILD_SKIA_SPIKE)
+    add_subdirectory(tools/spike-skia)
 endif()

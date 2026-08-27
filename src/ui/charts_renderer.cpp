@@ -8,7 +8,67 @@
 #include <implot.h>
 #include <spdlog/spdlog.h>
 
+#include <core/SkCanvas.h>
+#include <core/SkImageInfo.h>
+#include <core/SkSurface.h>
+
 #include "charts_renderer.h"
+#include "font_data.h"
+#include "imgui_impl_skia.h"
+
+namespace
+{
+    // imgui/implot palette matching the slint cupertino widgets, ported from
+    // the retired metal overlay so both render paths look identical
+    void apply_slint_style() {
+        // light theme colors
+        const ImVec4 text = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+        const ImVec4 muted = ImVec4(0.40f, 0.40f, 0.40f, 1.00f);
+        const ImVec4 background = ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
+        const ImVec4 panel = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+        const ImVec4 border = ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
+        const ImVec4 accent = ImVec4(0.20f, 0.45f, 0.90f, 1.00f);
+        // imgui colors
+        ImVec4* colors = ImGui::GetStyle().Colors;
+        colors[ImGuiCol_Text] = text;
+        colors[ImGuiCol_TextDisabled] = muted;
+        colors[ImGuiCol_WindowBg] = background;
+        colors[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_PopupBg] = panel;
+        colors[ImGuiCol_Border] = border;
+        colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_FrameBg] = panel;
+        colors[ImGuiCol_FrameBgHovered] = ImVec4(0.85f, 0.90f, 0.98f, 1.00f);
+        colors[ImGuiCol_FrameBgActive] = ImVec4(0.75f, 0.82f, 0.95f, 1.00f);
+        colors[ImGuiCol_TitleBg] = panel;
+        colors[ImGuiCol_TitleBgActive] = panel;
+        colors[ImGuiCol_Button] = ImVec4(0.88f, 0.90f, 0.94f, 1.00f);
+        colors[ImGuiCol_ButtonHovered] = ImVec4(0.78f, 0.84f, 0.95f, 1.00f);
+        colors[ImGuiCol_ButtonActive] = accent;
+        colors[ImGuiCol_Header] = ImVec4(0.85f, 0.90f, 0.98f, 1.00f);
+        colors[ImGuiCol_HeaderHovered] = ImVec4(0.75f, 0.82f, 0.95f, 1.00f);
+        colors[ImGuiCol_HeaderActive] = accent;
+        colors[ImGuiCol_PlotLines] = accent;
+        colors[ImGuiCol_PlotHistogram] = accent;
+        colors[ImGuiCol_TextSelectedBg] = ImVec4(0.75f, 0.82f, 0.95f, 1.00f);
+        colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.35f);
+        // implot colors
+        ImVec4* plot_colors = ImPlot::GetStyle().Colors;
+        plot_colors[ImPlotCol_FrameBg] = background;
+        plot_colors[ImPlotCol_PlotBg] = panel;
+        plot_colors[ImPlotCol_PlotBorder] = border;
+        plot_colors[ImPlotCol_LegendBg] = panel;
+        plot_colors[ImPlotCol_LegendBorder] = border;
+        plot_colors[ImPlotCol_LegendText] = text;
+        plot_colors[ImPlotCol_TitleText] = text;
+        plot_colors[ImPlotCol_InlayText] = muted;
+        plot_colors[ImPlotCol_AxisText] = text;
+        plot_colors[ImPlotCol_AxisGrid] = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+        plot_colors[ImPlotCol_AxisTick] = border;
+        plot_colors[ImPlotCol_Crosshairs] = border;
+        plot_colors[ImPlotCol_Selection] = ImVec4(0.20f, 0.45f, 0.90f, 0.50f);
+    }
+} // namespace
 
 ChartsContextScope::ChartsContextScope(const ChartsRenderer& charts_renderer) {
     // preserve the active contexts while this renderer owns backend calls
@@ -25,52 +85,104 @@ ChartsContextScope::~ChartsContextScope() {
     ImGui::SetCurrentContext(static_cast<ImGuiContext*>(m_imgui_context));
 }
 
-ChartsRenderer::~ChartsRenderer() {
-    // teardown the backend and release the isolated contexts
-    terminate();
-    // detach the native view
-    detach();
+ChartsRenderer::ChartsRenderer(PublishFunction publish) :
+    m_publish(std::move(publish)) {
+    // start the render timer immediately; idle ticks without pending frames are cheap
+    m_render_timer.start(slint::TimerMode::Repeated, std::chrono::milliseconds(16), [this]() { on_idle(); });
 }
 
-void ChartsRenderer::initialize_contexts() {
-    // contexts are created exactly once for the renderer lifetime
-    if (m_imgui_context != nullptr)
+ChartsRenderer::~ChartsRenderer() {
+    // stop scheduling frames before anything else is released
+    m_render_timer.stop();
+    // tear down the backend and release the isolated contexts
+    terminate_backend();
+}
+
+void ChartsRenderer::initialize_backend() {
+    // contexts are created exactly once per backend generation
+    if (m_initialized)
         return;
     // preserve the context that was active before this renderer initialized
     auto* previous_imgui_context = ImGui::GetCurrentContext();
     auto* previous_implot_context = ImPlot::GetCurrentContext();
-    // create and retain the ImGui context
+    // create and retain the imgui context
     IMGUI_CHECKVERSION();
     m_imgui_context = ImGui::CreateContext();
-    // create and retain the matching ImPlot context
+    // create and retain the matching implot context
     m_implot_context = ImPlot::CreateContext();
     // restore the prior active contexts
     ImPlot::SetCurrentContext(previous_implot_context);
     ImGui::SetCurrentContext(previous_imgui_context);
+    // activate this renderer's isolated contexts for backend initialization
+    ChartsContextScope context_scope(*this);
+    // palette shared with the slint cupertino theme
+    apply_slint_style();
+    // imgui configuration
+    ImGuiIO& io = ImGui::GetIO();
+    // disable ini file noise from the headless stack
+    io.IniFilename = nullptr;
+    // font base size before the device scale applies
+    constexpr float base_font_size = 14.0f;
+    // keep the embedded font data owned by the generated array
+    ImFontConfig font_cfg{};
+    font_cfg.FontDataOwnedByAtlas = false;
+    // add the embedded font scaled for the current display scale
+    io.Fonts->AddFontFromMemoryTTF(const_cast<void*>(static_cast<const void*>(Inter_Regular_ttf)), static_cast<int>(Inter_Regular_ttf_len), base_font_size * static_cast<float>(m_scale), &font_cfg);
+    // undo the atlas scaling so logical coordinates stay unchanged
+    io.FontGlobalScale = 1.0f / static_cast<float>(m_scale);
+    // anti-aliased lines through the atlas texture like the overlay used
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.AntiAliasedLines = true;
+    style.AntiAliasedLinesUseTex = true;
+    // panel clear color matching the slint alternate background
+    m_background_color = ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
+    // bring up the skia replay backend for this context
+    m_skia_renderer = std::make_unique<ImGuiSkiaRenderer>();
+    // remember the scale fonts were baked for
+    m_font_scale = m_scale;
+    m_initialized = true;
 }
 
-void ChartsRenderer::terminate_contexts() {
-    // contexts have already been released
-    if (m_imgui_context == nullptr)
+void ChartsRenderer::terminate_backend() {
+    // nothing to release when the backend never came up
+    if (!m_initialized)
         return;
-    // preserve the active contexts while releasing this renderer's contexts
+    // preserve the active contexts while releasing this renderer's backend
     auto* previous_imgui_context = ImGui::GetCurrentContext();
     auto* previous_implot_context = ImPlot::GetCurrentContext();
-    // retain the context addresses while clearing the members below
+    // retain this renderer's context addresses before releasing them
     auto* imgui_context = static_cast<ImGuiContext*>(m_imgui_context);
     auto* implot_context = static_cast<ImPlotContext*>(m_implot_context);
-    // activate this renderer's isolated contexts
+    // activate this renderer's isolated contexts for renderer teardown
     ImGui::SetCurrentContext(imgui_context);
     ImPlot::SetCurrentContext(implot_context);
-    // destroy the plot context before its ImGui dependency
+    // release the skia replay backend while its context is active
+    m_skia_renderer.reset();
+    // destroy the plot context before its imgui dependency
     ImPlot::DestroyContext(implot_context);
     m_implot_context = nullptr;
-    // destroy the ImGui context
+    // destroy the imgui context
     ImGui::DestroyContext(imgui_context);
     m_imgui_context = nullptr;
     // never restore a context that was released above
     ImPlot::SetCurrentContext(previous_implot_context == implot_context ? nullptr : previous_implot_context);
     ImGui::SetCurrentContext(previous_imgui_context == imgui_context ? nullptr : previous_imgui_context);
+    // next render starts a fresh backend generation
+    m_initialized = false;
+    m_font_scale = 0.0;
+}
+
+void ChartsRenderer::ensure_surface(int width, int height) {
+    // keep the existing surface when the pixel size did not change
+    if (m_surface != nullptr && m_surface_width == width && m_surface_height == height)
+        return;
+    // explicit rgba8888 keeps the readback byte-identical to slint's pixel layout
+    const auto info = SkImageInfo::Make(width, height, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+    // cpu raster target; gpu acceleration stays behind the same interface
+    m_surface = SkSurfaces::Raster(info);
+    // remember the allocation size for the change check above
+    m_surface_width = width;
+    m_surface_height = height;
 }
 
 void ChartsRenderer::update_delta_time() {
@@ -85,45 +197,158 @@ void ChartsRenderer::update_delta_time() {
     m_last_frame_time = current_time;
 }
 
-void ChartsRenderer::render() {
-    // render the charts panel UI within the native frame
-    render_frame([this]() -> void {
-        // remove padding around the panel
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        // panel
-        if (ImGui::Begin("Charts Panel", nullptr, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs)) {
-            // check we have charts to render
-            if (!m_charts.empty()) {
-                // available area
-                const ImVec2 total_space = ImGui::GetContentRegionAvail();
-                // chart height
-                const float height = total_space.y / static_cast<float>(m_charts.size());
-                // render charts within the native frame
-                for (size_t i = 0; i < m_charts.size(); ++i) {
-                    // area name
-                    auto name = std::format("Chart {}", i);
-                    // create child with given height, use the whole area in the horizontal
-                    if (ImGui::BeginChild(name.c_str(), ImVec2(0, height), true)) {
-                        // check current chart is selected
-                        if (i == m_selected_chart_index) {
-                            // render chart
-                            m_charts[i]->render(m_zoom_selection);
-                        }
-                        else {
-                            // render chart
-                            m_charts[i]->render({-1, -1, -1, -1});
-                        }
-                        // close
-                        ImGui::EndChild();
+void ChartsRenderer::set_viewport(float width, float height, double scale) {
+    // reject degenerate viewports; the panel publishes nothing while hidden or collapsed
+    if (width <= 0.0f || height <= 0.0f || scale <= 0.0)
+        return;
+    // ignore no-op updates fired by unrelated relayouts
+    if (m_viewport_width == width && m_viewport_height == height && m_scale == scale)
+        return;
+    // store the geometry driving surface allocation and decimation targets
+    m_viewport_width = width;
+    m_viewport_height = height;
+    m_scale = scale;
+    m_logical_width = static_cast<uint32_t>(width);
+    // recompute the decimation target for the new panel width
+    update_decimation_target();
+    // schedule a frame so the next tick picks up the new geometry
+    refresh_charts(1);
+}
+
+void ChartsRenderer::render_panel() {
+    // remove padding around the panel
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    // anchor the panel window at the origin and fill the full viewport
+    ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(m_viewport_width, m_viewport_height), ImGuiCond_Always);
+    // panel window covering the whole viewport without decoration
+    if (ImGui::Begin("Charts Panel", nullptr, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs)) {
+        // check we have charts to render
+        if (!m_charts.empty()) {
+            // available area
+            const ImVec2 total_space = ImGui::GetContentRegionAvail();
+            // chart height
+            const float height = total_space.y / static_cast<float>(m_charts.size());
+            // render charts within the native frame
+            for (size_t i = 0; i < m_charts.size(); ++i) {
+                // area name
+                auto name = std::format("Chart {}", i);
+                // create child with given height, use the whole area in the horizontal
+                if (ImGui::BeginChild(name.c_str(), ImVec2(0, height), true)) {
+                    // check current chart is selected
+                    if (i == m_selected_chart_index) {
+                        // render chart
+                        m_charts[i]->render(m_zoom_selection);
                     }
+                    else {
+                        // render chart
+                        m_charts[i]->render({-1, -1, -1, -1});
+                    }
+                    // close
+                    ImGui::EndChild();
                 }
             }
-            // close
-            ImGui::End();
         }
-        // pop style var
-        ImGui::PopStyleVar();
-    });
+        else {
+            // placeholder plot until real simulation data provides charts
+            ensure_demo_series();
+            // available area
+            const ImVec2 total_space = ImGui::GetContentRegionAvail();
+            // demo plot filling the whole panel
+            if (ImPlot::BeginPlot("##DemoSeries", total_space, ImPlotFlags_None)) {
+                // axis labels match the simulation vocabulary
+                ImPlot::SetupAxes("t", "V", ImPlotAxisFlags_None, ImPlotAxisFlags_None);
+                // fixed axis ranges keep the demo stable across frames
+                ImPlot::SetupAxesLimits(0.0, static_cast<double>(m_demo_series.size()), -1.2, 1.2, ImPlotCond_Always);
+                // single accent line through the synthetic series
+                ImPlot::PlotLine("demo", m_demo_series.data(), static_cast<int>(m_demo_series.size()));
+                // close
+                ImPlot::EndPlot();
+            }
+        }
+        // close
+        ImGui::End();
+    }
+    // pop style var
+    ImGui::PopStyleVar();
+}
+
+void ChartsRenderer::ensure_demo_series() {
+    // generate once and reuse across frames
+    if (!m_demo_series.empty())
+        return;
+    // two composite periods over 2048 samples give a recognizable waveform
+    m_demo_series.resize(2048);
+    for (size_t i = 0; i < m_demo_series.size(); ++i) {
+        const double x = static_cast<double>(i);
+        // damped-looking composite of two sines for visual variety
+        m_demo_series[i] = static_cast<float>(std::sin(x * 0.02) * 0.7 + std::sin(x * 0.11) * 0.3);
+    }
+}
+
+void ChartsRenderer::render() {
+    // nothing to publish without a sink, a viewport or a usable scale
+    if (!m_publish || m_viewport_width <= 0.0f || m_viewport_height <= 0.0f || m_scale <= 0.0)
+        return;
+    // physical pixel size of the offscreen target
+    const int width = static_cast<int>(std::lround(m_viewport_width * m_scale));
+    const int height = static_cast<int>(std::lround(m_viewport_height * m_scale));
+    // guard against rounding down to nothing at tiny sizes
+    if (width <= 0 || height <= 0)
+        return;
+    // bring the backend up on first use and rebuild it when the scale changed the fonts
+    if (!m_initialized || m_font_scale != m_scale) {
+        // drop the previous generation completely when rebuilding
+        if (m_initialized)
+            terminate_backend();
+        initialize_backend();
+    }
+    // allocate the raster target for the current pixel size
+    ensure_surface(width, height);
+    // degenerate surfaces must not enter imgui; plotting into zero-size viewports breaks later frames
+    if (m_surface == nullptr)
+        return;
+    // activate this renderer's isolated contexts for the complete frame
+    ChartsContextScope context_scope(*this);
+    // update the per-renderer frame duration
+    update_delta_time();
+    // imgui io configuration in logical coordinates with a framebuffer scale
+    ImGuiIO& io = ImGui::GetIO();
+    io.DisplaySize = ImVec2(m_viewport_width, m_viewport_height);
+    io.DisplayFramebufferScale = ImVec2(static_cast<float>(m_scale), static_cast<float>(m_scale));
+    // notify the skia backend that a new frame begins
+    m_skia_renderer->new_frame();
+    // clear the offscreen canvas to the panel background color before imgui
+    // writes its draw commands; without this the initial surface memory is
+    // undefined and readback can return zero pixels
+    m_surface->getCanvas()->clear(SkColorSetARGB(static_cast<int>(m_background_color.w * 255), static_cast<int>(m_background_color.x * 255), static_cast<int>(m_background_color.y * 255), static_cast<int>(m_background_color.z * 255)));
+    // start the imgui frame
+    ImGui::NewFrame();
+    // compose the panel content
+    render_panel();
+    // finish the imgui frame
+    ImGui::Render();
+    // replay the draw data onto the offscreen canvas at device scale
+    m_skia_renderer->render_draw_data(ImGui::GetDrawData(), m_surface->getCanvas(), static_cast<float>(m_scale));
+    // fresh buffer every frame because slint may still hold the previous one
+    slint::SharedPixelBuffer<slint::Rgba8Pixel> buffer(width, height);
+    // explicit rgba8888 readback keeps the bytes identical to slint's pixel layout
+    const auto readback_info = SkImageInfo::Make(width, height, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+    // bail out without publishing when the readback fails
+    if (!m_surface->readPixels(readback_info, buffer.begin(), width * static_cast<int>(sizeof(slint::Rgba8Pixel)), 0, 0))
+        return;
+    // hand the finished frame to the slint layer
+    m_publish(slint::Image(buffer));
+}
+
+void ChartsRenderer::on_idle() {
+    // check flag is set
+    if (m_render_chart_frames > 0) {
+        // decrease counter
+        m_render_chart_frames--;
+        // render charts panel
+        render();
+    }
 }
 
 void ChartsRenderer::update(ExpressionManager& expression_manager, const StepInformation& step_information, const AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
@@ -202,8 +427,8 @@ size_t ChartsRenderer::compute_decimation_target() const {
     // fallback when no usable size or scale is available (headless / early startup)
     constexpr size_t fallback_target = 9600;
     // panel width in logical pixels and the per-window display scale factor
-    if (m_logical_width > 0 && m_backing_scale > 0.0)
-        return (std::max)(min_target, static_cast<size_t>(std::lround(static_cast<double>(m_logical_width) * m_backing_scale)));
+    if (m_logical_width > 0 && m_scale > 0.0)
+        return (std::max)(min_target, static_cast<size_t>(std::lround(static_cast<double>(m_logical_width) * m_scale)));
     // conservative fallback
     return fallback_target;
 }
@@ -267,7 +492,7 @@ void ChartsRenderer::set_chart_selected_steps(size_t chart_index, const std::set
     // guard against an invalid chart index
     if (chart_index >= m_charts.size())
         return;
-    // apply the step selection to the chart
+    // apply the given step selection to the chart
     m_charts[chart_index]->set_selected_steps(steps);
     // refresh to show the updated selection
     refresh_charts();
@@ -296,16 +521,6 @@ size_t ChartsRenderer::position_to_index(float position) const {
     const float clamped = std::clamp(position, 0.0f, 1.0f);
     const size_t index = static_cast<size_t>(clamped * static_cast<float>(m_charts.size()));
     return (std::min)(index, m_charts.size() - 1);
-}
-
-void ChartsRenderer::on_idle() {
-    // check flag is set
-    if (m_render_chart_frames > 0) {
-        // decrease counter
-        m_render_chart_frames--;
-        // render charts panel
-        render();
-    }
 }
 
 void ChartsRenderer::zoom_to_fit(float chart_position) {
@@ -350,7 +565,7 @@ void ChartsRenderer::zoom_abscissa_extent(float chart_position) {
     const size_t chart_index = position_to_index(chart_position);
     // log information
     spdlog::debug("User requested zoom abscissa extent on chart at position {} (index {})", chart_position, chart_index);
-    // loop charts
+    // loop all charts
     for (const auto& chart : m_charts) {
         // reset zoom window
         chart->reset_zoom_window(true, false);

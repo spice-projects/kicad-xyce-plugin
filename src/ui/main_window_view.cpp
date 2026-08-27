@@ -107,10 +107,6 @@ void SlintMainWindowView2::set_event_handler(MainWindowViewDefEvents& handler) {
 void SlintMainWindowView2::show() {
     // show the slint main window
     m_window->show();
-    // the native content view may not exist yet on the very first show, so a
-    // charts renderer created right after show() fails to attach; retry once the
-    // native view exists so a window spawned with a raw file renders its charts
-    slint::Timer::single_shot(std::chrono::milliseconds(50), [this] { update_charts_frame(); });
 }
 
 slint::Window& SlintMainWindowView2::window() {
@@ -155,8 +151,6 @@ void SlintMainWindowView2::apply_action_enablement(const ActionStateEnablement& 
 void SlintMainWindowView2::show_netlist_view() {
     // reveal the netlist panel and hide the charts panel
     m_window->set_charts_visible(false);
-    // reposition the renderer so it no longer covers the netlist editor
-    update_charts_frame();
 }
 
 void SlintMainWindowView2::show_charts_view() {
@@ -164,10 +158,21 @@ void SlintMainWindowView2::show_charts_view() {
     m_window->set_charts_visible(true);
     // create the charts renderer the first time the charts panel is shown
     ensure_charts_renderer();
-    // reposition the overlay over the now-visible charts panel and render a
-    // frame; without this the overlay stays at the last frame (e.g. zero-sized
-    // when the renderer was created while the charts view was hidden)
-    update_charts_frame();
+    // slint's `changed` handler does not fire on initial component instantiation,
+    // so probe the panel geometry here; a deferred tick lets the layout flush and
+    // the viewport-changed callback take over for all subsequent relayouts
+    slint::Timer::single_shot(std::chrono::milliseconds(50), [this] {
+        if (m_charts_renderer && m_window->get_charts_visible()) {
+            const auto size = m_window->window().size();
+            const auto scale = m_window->window().scale_factor();
+            const float panel_width = static_cast<float>(size.width / scale);
+            float panel_height = static_cast<float>((size.height - 59.0f - 25.0f) / scale);
+            if (m_window->get_simulation_output_visible())
+                panel_height -= 200.0f / scale;
+            spdlog::info("initial viewport probe: {}x{} scale={}", panel_width, panel_height, scale);
+            m_charts_renderer->set_viewport(panel_width, panel_height, scale);
+        }
+    });
 }
 
 void SlintMainWindowView2::set_netlist_editor_content(const std::string& content) {
@@ -197,15 +202,11 @@ bool SlintMainWindowView2::charts_shown() const {
 void SlintMainWindowView2::show_simulation_output_panel() {
     // reveal the simulation output panel in the body
     m_window->set_simulation_output_visible(true);
-    // reposition the charts renderer above the output panel
-    update_charts_frame();
 }
 
 void SlintMainWindowView2::hide_simulation_output_panel() {
     // hide the simulation output panel from the body
     m_window->set_simulation_output_visible(false);
-    // reposition the charts renderer over the released space
-    update_charts_frame();
 }
 
 // replace tab characters with spaces at fixed 8-column stops so the log columns
@@ -440,9 +441,12 @@ void SlintMainWindowView2::ensure_charts_renderer() {
     // the renderer already exists
     if (m_charts_renderer)
         return;
-    // create the renderer on the first charts panel show; update_charts_frame
-    // attaches it to the native content view and initializes the backend
-    m_charts_renderer = std::make_unique<ChartsRenderer>();
+    // create the renderer on the first charts panel show
+    m_charts_renderer = std::make_unique<ChartsRenderer>([this](slint::Image image) {
+        // publish the rendered frame to the slint image property
+        m_window->set_charts_image(image);
+        spdlog::info("set_charts_image called, image size: {}x{}", image.size().width, image.size().height);
+    });
     // wire hover readout to update the status bar
     m_charts_renderer->set_hover_callback([this](const std::string& text) {
         if (text.empty())
@@ -450,45 +454,14 @@ void SlintMainWindowView2::ensure_charts_renderer() {
         else
             m_window->set_status_text(slint::SharedString(text));
     });
-    update_charts_frame();
-}
-
-void SlintMainWindowView2::update_charts_frame() {
-    // the renderer is created lazily on the first charts panel show
-    if (m_charts_renderer == nullptr)
-        return;
-    // attach and initialize the renderer the first time the native content view
-    // exists; when the renderer was created right after the window was shown the
-    // native view may not exist yet, so the attach is deferred until this frame
-    // recompute runs again (e.g. from the show() single-shot timer)
-    if (!m_charts_renderer->attached()) {
-        m_charts_renderer->attach(m_window->window());
-        m_charts_renderer->initialize();
-    }
-    // position the renderer in physical pixels below the toolbar
-    const auto size = m_window->window().size();
-    const auto scale = m_window->window().scale_factor();
-    // the content area starts below the 59px toolbar
-    const uint32_t toolbar_px = static_cast<uint32_t>(59 * scale);
-    uint32_t y = toolbar_px;
-    uint32_t height = size.height > toolbar_px ? size.height - toolbar_px : 0;
-    // reserve the status bar (24px + 1px divider) at the bottom of the window
-    const uint32_t statusbar_px = static_cast<uint32_t>(25 * scale);
-    height = height > statusbar_px ? height - statusbar_px : 0;
-    // reserve the simulation output panel height when it is visible; the panel
-    // is docked at the bottom of the body (below the charts/netlist area), so
-    // only the overlay height shrinks, its top stays below the toolbar
-    if (m_window->get_simulation_output_visible()) {
-        const uint32_t output_px = static_cast<uint32_t>(200 * scale);
-        height = height > output_px ? height - output_px : 0;
-    }
-    // hide the overlay when the charts panel is not shown
-    const bool charts_shown = m_window->get_charts_visible();
-    m_charts_renderer->set_frame(0, y, charts_shown ? size.width : 0, charts_shown ? height : 0, scale);
-    // render the repositioned frame; when the panel is hidden the overlay is
-    // sized to zero and render_frame skips the degenerate frame
-    if (charts_shown)
-        m_charts_renderer->render();
+    // bind the viewport-changed callback from slint to the renderer's set_viewport
+    m_window->on_charts_viewport_changed([this](float width, float height) {
+        if (m_charts_renderer) {
+            const auto scale = m_window->window().scale_factor();
+            spdlog::info("viewport-changed callback: {}x{} scale={}", width, height, scale);
+            m_charts_renderer->set_viewport(width, height, scale);
+        }
+    });
 }
 
 bool SlintMainWindowView2::begin_modal_dialog() {

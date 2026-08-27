@@ -31,6 +31,10 @@
       "version>=": "1.0"
     },
     {
+      "name": "skia",
+      "version>=": "148"
+    },
+    {
       "name": "spdlog",
       "version>=": "1.17.0#1"
     },

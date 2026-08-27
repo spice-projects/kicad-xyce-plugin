@@ -37,6 +37,12 @@ export component ChartsPanel inherits Rectangle {
     // the tools block only appears when at least one of its actions applies
     private property <bool> show-tools: root.enable-fft || root.enable-step-tool;
 
+    // the rendered offscreen chart image published by the host renderer
+    in property <image> charts-image;
+
+    // fires with the panel size whenever the geometry changes, so the host
+    // keeps the offscreen surface and decimation limits in sync
+    callback viewport-changed(width: float, height: float);
     // compute chart position as a relative Y float [0..1] from a length
     function compute_chart_position(y: length) -> float {
         if root.height <= 0px { return 0.0; }
@@ -106,6 +112,13 @@ export component ChartsPanel inherits Rectangle {
         // pointer movement for status bar readouts.
         Rectangle {
             background: Palette.alternate-background;
+
+            // display the offscreen-rendered chart frame
+            Image {
+                source: root.charts-image;
+                width: 100%;
+                height: 100%;
+            }
 
             ta := TouchArea {
                 mouse-cursor: crosshair;
