@@ -314,30 +314,17 @@ void ChartsRenderer::render() {
     m_skia_renderer->new_frame();
     // clear the offscreen canvas to the panel background color before imgui writes its draw commands
     m_surface->getCanvas()->clear(SkColorSetARGB(static_cast<int>(m_background_color.w * 255), static_cast<int>(m_background_color.x * 255), static_cast<int>(m_background_color.y * 255), static_cast<int>(m_background_color.z * 255)));
-
-    // --- timing: frame composition ---
-    const auto t0 = std::chrono::steady_clock::now();
-
     // start the imgui frame
     ImGui::NewFrame();
     // compose the panel content
     render_panel();
     // finish the imgui frame
     ImGui::Render();
-
-    const auto t1 = std::chrono::steady_clock::now();
-
-    // --- timing: skia replay ---
     // replay the draw data onto the offscreen canvas at device scale
     m_skia_renderer->render_draw_data(ImGui::GetDrawData(), m_surface->getCanvas(), static_cast<float>(m_scale));
-
-    const auto t2 = std::chrono::steady_clock::now();
-
     // flush gpu work so pixels are available for cpu readback
     if (m_direct_context)
         m_direct_context->flushAndSubmit(m_surface.get());
-
-    // --- timing: readback + publish ---
     // fresh buffer every frame because slint may still hold the previous one
     slint::SharedPixelBuffer<slint::Rgba8Pixel> buffer(width, height);
     // explicit rgba8888 readback keeps the bytes identical to slint's pixel layout
@@ -347,21 +334,6 @@ void ChartsRenderer::render() {
         return;
     // hand the finished frame to the slint layer
     m_publish(slint::Image(buffer));
-
-    const auto t3 = std::chrono::steady_clock::now();
-
-    // per-frame timing in microseconds
-    const auto imgui_us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
-    const auto replay_us = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-    const auto flush_us = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count();
-    const auto imgui_replay_us = imgui_us + replay_us;
-    const auto total_us = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t0).count();
-    // surface color type and rendering mode for perf logging
-    const auto surface_ct = m_surface ? static_cast<int>(m_surface->imageInfo().colorType()) : -1;
-    const char* mode = m_direct_context ? "gpu" : "cpu";
-    spdlog::debug("[perf] render {}x{} {} ct={}"
-                  " imgui+replay={}us flush+rbk={}us total={}us",
-                  width, height, mode, surface_ct, imgui_replay_us, flush_us, total_us);
 }
 
 void ChartsRenderer::on_idle() {
