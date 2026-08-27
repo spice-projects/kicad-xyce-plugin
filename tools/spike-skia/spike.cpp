@@ -22,7 +22,7 @@
 // 3. logs window().scale_factor() after 2.5s and quits so the spike stays scriptable
 int main() {
     // explicit rgba8888 target, never n32 which is bgra on apple platforms
-    const auto info = SkImageInfo::Make(256, 256, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+    const auto info = SkImageInfo::Make(256, 256, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
     auto surface = SkSurfaces::Raster(info);
     // abort early when the raster backend is unavailable
     if (surface == nullptr) {

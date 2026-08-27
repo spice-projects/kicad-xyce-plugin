@@ -95,13 +95,13 @@ void ImGuiSkiaRenderer::upload_texture(ImTextureData& texture) {
             rgba[static_cast<size_t>(i)] = (a << 24) | 0x00FFFFFFu;
         }
         // image info for expanded rgba32 surface
-        const auto info = SkImageInfo::Make(texture.Width, texture.Height, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+        const auto info = SkImageInfo::Make(texture.Width, texture.Height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
         // copy expanded rgba32 pixels into owned raster image
         image = SkImages::RasterFromPixmapCopy(SkPixmap(info, rgba.data(), static_cast<size_t>(texture.Width * 4)));
     }
     else {
         // describe rgba32 pixel buffer from imgui
-        const auto info = SkImageInfo::Make(texture.Width, texture.Height, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+        const auto info = SkImageInfo::Make(texture.Width, texture.Height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
         // copy into an owned image so the atlas buffer can grow independently
         image = SkImages::RasterFromPixmapCopy(SkPixmap(info, texture.GetPixels(), static_cast<size_t>(texture.GetPitch())));
     }

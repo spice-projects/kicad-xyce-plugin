@@ -158,6 +158,8 @@ void ChartsRenderer::terminate_backend() {
     ImPlot::SetCurrentContext(implot_context);
     // release the skia replay backend while its context is active
     m_skia_renderer.reset();
+    // release the offscreen surface
+    m_surface.reset();
     // destroy the plot context before its imgui dependency
     ImPlot::DestroyContext(implot_context);
     m_implot_context = nullptr;
@@ -176,8 +178,7 @@ void ChartsRenderer::ensure_surface(int width, int height) {
     // keep the existing surface when the pixel size did not change
     if (m_surface != nullptr && m_surface_width == width && m_surface_height == height)
         return;
-    // explicit rgba8888 keeps the readback byte-identical to slint's pixel layout
-    const auto info = SkImageInfo::Make(width, height, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+    const auto info = SkImageInfo::Make(width, height, kN32_SkColorType, kPremul_SkAlphaType);
     // cpu raster target; gpu acceleration stays behind the same interface
     m_surface = SkSurfaces::Raster(info);
     // remember the allocation size for the change check above
@@ -301,14 +302,26 @@ void ChartsRenderer::render() {
     m_skia_renderer->new_frame();
     // clear the offscreen canvas to the panel background color before imgui writes its draw commands
     m_surface->getCanvas()->clear(SkColorSetARGB(static_cast<int>(m_background_color.w * 255), static_cast<int>(m_background_color.x * 255), static_cast<int>(m_background_color.y * 255), static_cast<int>(m_background_color.z * 255)));
+
+    // --- timing: frame composition ---
+    const auto t0 = std::chrono::steady_clock::now();
+
     // start the imgui frame
     ImGui::NewFrame();
     // compose the panel content
     render_panel();
     // finish the imgui frame
     ImGui::Render();
+
+    const auto t1 = std::chrono::steady_clock::now();
+
+    // --- timing: skia replay ---
     // replay the draw data onto the offscreen canvas at device scale
     m_skia_renderer->render_draw_data(ImGui::GetDrawData(), m_surface->getCanvas(), static_cast<float>(m_scale));
+
+    const auto t2 = std::chrono::steady_clock::now();
+
+    // --- timing: readback + publish ---
     // fresh buffer every frame because slint may still hold the previous one
     slint::SharedPixelBuffer<slint::Rgba8Pixel> buffer(width, height);
     // explicit rgba8888 readback keeps the bytes identical to slint's pixel layout
@@ -318,6 +331,19 @@ void ChartsRenderer::render() {
         return;
     // hand the finished frame to the slint layer
     m_publish(slint::Image(buffer));
+
+    const auto t3 = std::chrono::steady_clock::now();
+
+    // per-frame timing in microseconds
+    const auto imgui_us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    const auto replay_us = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+    const auto readback_us = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count();
+    const auto total_us = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t0).count();
+    const auto surface_ct = m_surface ? static_cast<int>(m_surface->imageInfo().colorType()) : -1;
+    // per-frame timing; surface_ct: 4=kRGBA_8888 5=kBGRA_8888
+    spdlog::debug("[perf] render {}x{} ct={}"
+                  " imgui={}us replay={}us rbk={}us total={}us",
+                  width, height, surface_ct, imgui_us, replay_us, readback_us, total_us);
 }
 
 void ChartsRenderer::on_idle() {
