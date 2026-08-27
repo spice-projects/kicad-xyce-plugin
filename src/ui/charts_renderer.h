@@ -150,9 +150,6 @@ private:
     // compose the charts panel window content inside an active imgui frame
     void render_panel();
 
-    // feed the placeholder demo series until real simulation data arrives
-    void ensure_demo_series();
-
     void update_delta_time();
 
     [[nodiscard]] size_t compute_decimation_target() const;

@@ -376,9 +376,8 @@ void SlintMainWindowView2::show_add_remove_plots_dialog(float chart_position) {
     // the dialog needs the charts renderer, which is created on first charts show
     ensure_charts_renderer();
     // create the dialog view wrapper on first use
-    if (!m_add_plot_dialog) {
+    if (!m_add_plot_dialog)
         m_add_plot_dialog = std::make_unique<add_plot_dialog_view::AddPlotDialogView>(*m_charts_renderer);
-    }
     // show the dialog for the chart at the given position
     m_add_plot_dialog->show_for_chart(chart_position, [this] { end_modal_dialog(); });
     // remember the dialog window for unblocking when it closes

@@ -249,41 +249,11 @@ void ChartsRenderer::render_panel() {
                 }
             }
         }
-        else {
-            // placeholder plot until real simulation data provides charts
-            ensure_demo_series();
-            // available area
-            const ImVec2 total_space = ImGui::GetContentRegionAvail();
-            // demo plot filling the whole panel
-            if (ImPlot::BeginPlot("##DemoSeries", total_space, ImPlotFlags_None)) {
-                // axis labels match the simulation vocabulary
-                ImPlot::SetupAxes("t", "V", ImPlotAxisFlags_None, ImPlotAxisFlags_None);
-                // fixed axis ranges keep the demo stable across frames
-                ImPlot::SetupAxesLimits(0.0, static_cast<double>(m_demo_series.size()), -1.2, 1.2, ImPlotCond_Always);
-                // single accent line through the synthetic series
-                ImPlot::PlotLine("demo", m_demo_series.data(), static_cast<int>(m_demo_series.size()));
-                // close
-                ImPlot::EndPlot();
-            }
-        }
         // close
         ImGui::End();
     }
     // pop style var
     ImGui::PopStyleVar();
-}
-
-void ChartsRenderer::ensure_demo_series() {
-    // generate once and reuse across frames
-    if (!m_demo_series.empty())
-        return;
-    // two composite periods over 2048 samples give a recognizable waveform
-    m_demo_series.resize(2048);
-    for (size_t i = 0; i < m_demo_series.size(); ++i) {
-        const double x = static_cast<double>(i);
-        // damped-looking composite of two sines for visual variety
-        m_demo_series[i] = static_cast<float>(std::sin(x * 0.02) * 0.7 + std::sin(x * 0.11) * 0.3);
-    }
 }
 
 void ChartsRenderer::render() {
@@ -301,6 +271,7 @@ void ChartsRenderer::render() {
         // drop the previous generation completely when rebuilding
         if (m_initialized)
             terminate_backend();
+        // initialize the backend and create isolated contexts for this renderer
         initialize_backend();
     }
     // allocate the raster target for the current pixel size
@@ -318,9 +289,7 @@ void ChartsRenderer::render() {
     io.DisplayFramebufferScale = ImVec2(static_cast<float>(m_scale), static_cast<float>(m_scale));
     // notify the skia backend that a new frame begins
     m_skia_renderer->new_frame();
-    // clear the offscreen canvas to the panel background color before imgui
-    // writes its draw commands; without this the initial surface memory is
-    // undefined and readback can return zero pixels
+    // clear the offscreen canvas to the panel background color before imgui writes its draw commands
     m_surface->getCanvas()->clear(SkColorSetARGB(static_cast<int>(m_background_color.w * 255), static_cast<int>(m_background_color.x * 255), static_cast<int>(m_background_color.y * 255), static_cast<int>(m_background_color.z * 255)));
     // start the imgui frame
     ImGui::NewFrame();
