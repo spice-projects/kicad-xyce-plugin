@@ -31,7 +31,8 @@ ImGuiSkiaRenderer::ImGuiSkiaRenderer() {
     io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures | ImGuiBackendFlags_RendererHasVtxOffset;
     // register this renderer so a second attachment to the same context fails fast
     io.BackendRendererUserData = this;
-    io.Fonts->TexDesiredFormat = ImTextureFormat_Alpha8;
+    // default to rgba32 for atlas and textures
+    io.Fonts->TexDesiredFormat = ImTextureFormat_RGBA32;
     m_fallback_paint.setAntiAlias(false);
     m_fallback_paint.setColor(SK_ColorWHITE);
 }
@@ -61,12 +62,26 @@ void ImGuiSkiaRenderer::new_frame() {
 
 void ImGuiSkiaRenderer::upload_texture(ImTextureData& texture) {
     const SkSamplingOptions sampling(SkFilterMode::kLinear);
-    const auto color_type = texture.Format == ImTextureFormat_Alpha8 ? kAlpha_8_SkColorType : kRGBA_8888_SkColorType;
-    const auto alpha_type = texture.Format == ImTextureFormat_Alpha8 ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
+    sk_sp<SkImage> image;
     // describe the pixel block handed over by imgui
-    const auto info = SkImageInfo::Make(texture.Width, texture.Height, color_type, alpha_type);
-    // copy into an owned image so the atlas buffer can grow independently
-    auto image = SkImages::RasterFromPixmapCopy(SkPixmap(info, texture.GetPixels(), static_cast<size_t>(texture.GetPitch())));
+    if (texture.Format == ImTextureFormat_Alpha8) {
+        // expand alpha8 to rgba32 white with alpha so shader modulation preserves vertex rgb
+        const int count = texture.Width * texture.Height;
+        const auto* src = static_cast<const uint8_t*>(texture.GetPixels());
+        std::vector<uint32_t> rgba(static_cast<size_t>(count));
+        for (int i = 0; i < count; ++i) {
+            const uint32_t a = src[i];
+            rgba[static_cast<size_t>(i)] = (a << 24) | 0x00FFFFFFu;
+        }
+        const auto info = SkImageInfo::Make(texture.Width, texture.Height, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+        image = SkImages::RasterFromPixmapCopy(SkPixmap(info, rgba.data(), static_cast<size_t>(texture.Width * 4)));
+    }
+    else {
+        // describe rgba32 pixel buffer from imgui
+        const auto info = SkImageInfo::Make(texture.Width, texture.Height, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+        // copy into an owned image so the atlas buffer can grow independently
+        image = SkImages::RasterFromPixmapCopy(SkPixmap(info, texture.GetPixels(), static_cast<size_t>(texture.GetPitch())));
+    }
     // reuse the payload slot when the texture was uploaded before
     auto* holder = static_cast<SkiaTexture*>(texture.BackendUserData);
     if (holder == nullptr) {
@@ -76,11 +91,13 @@ void ImGuiSkiaRenderer::upload_texture(ImTextureData& texture) {
     }
     // swap in the refreshed image
     holder->image = std::move(image);
+    // map normalized [0, 1] uv coordinates to pixel coordinates in the image shader
+    const SkMatrix local_matrix = SkMatrix::Scale(1.0f / static_cast<float>(texture.Width), 1.0f / static_cast<float>(texture.Height));
     // rebuild the baked paint around the new image shader
     holder->paint.reset();
     holder->paint.setAntiAlias(false);
     holder->paint.setColor(SK_ColorWHITE);
-    holder->paint.setShader(holder->image->makeShader(sampling));
+    holder->paint.setShader(holder->image->makeShader(SkTileMode::kClamp, SkTileMode::kClamp, sampling, local_matrix));
     // report completion back to imgui
     texture.SetStatus(ImTextureStatus_OK);
 }
@@ -158,6 +175,9 @@ void ImGuiSkiaRenderer::render_draw_data(ImDrawData* draw_data, SkCanvas* canvas
                 cmd.UserCallback(cmd_list, &cmd);
                 continue;
             }
+            // skip empty commands
+            if (cmd.ElemCount == 0)
+                continue;
             // find the highest index referenced by this command slice
             unsigned int max_referenced_index = 0;
             for (unsigned int i = 0; i < cmd.ElemCount; ++i)
@@ -171,8 +191,8 @@ void ImGuiSkiaRenderer::render_draw_data(ImDrawData* draw_data, SkCanvas* canvas
             // scope the clip rect of this command
             const SkAutoCanvasRestore restore(canvas, true);
             canvas->clipRect(SkRect::MakeLTRB(cmd.ClipRect.x, cmd.ClipRect.y, cmd.ClipRect.z, cmd.ClipRect.w));
-            // explicit src-over composes the straight-alpha colors correctly
-            canvas->drawVertices(vertices, SkBlendMode::kSrcOver, paint);
+            // modulate combines the texture shader color with the vertex colors
+            canvas->drawVertices(vertices, SkBlendMode::kModulate, paint);
         }
     }
     // drop the scale and translation applied above
