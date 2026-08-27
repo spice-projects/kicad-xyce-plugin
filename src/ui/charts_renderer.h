@@ -63,6 +63,9 @@ public:
     // logical panel size plus device scale; the surface follows physical pixels
     void set_viewport(float width, float height, double scale);
 
+    // clear the viewport so no frames are published until a valid size arrives
+    void reset_viewport();
+
     // data path, wired on file load
     void update(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots);
 

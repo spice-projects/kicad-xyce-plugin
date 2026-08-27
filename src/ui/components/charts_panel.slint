@@ -41,8 +41,22 @@ export component ChartsPanel inherits Rectangle {
     in property <image> charts-image;
 
     // fires with the panel size whenever the geometry changes, so the host
-    // keeps the offscreen surface and decimation limits in sync
+    // renderer can resize its offscreen surface and recompute limits
     callback viewport-changed(width: float, height: float);
+
+    // fire the initial viewport notification when this component is first
+    // instantiated; `changed` handlers do not fire on initial value assignment
+    init => {
+        root.viewport-changed(root.width / 1px, root.height / 1px);
+    }
+    // fire again whenever the panel is resized
+    changed width => {
+        root.viewport-changed(root.width / 1px, root.height / 1px);
+    }
+    changed height => {
+        root.viewport-changed(root.width / 1px, root.height / 1px);
+    }
+
     // compute chart position as a relative Y float [0..1] from a length
     function compute_chart_position(y: length) -> float {
         if root.height <= 0px { return 0.0; }

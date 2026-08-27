@@ -215,6 +215,16 @@ void ChartsRenderer::set_viewport(float width, float height, double scale) {
     refresh_charts(1);
 }
 
+void ChartsRenderer::reset_viewport() {
+    // zero the stored geometry so render() short-circuits on the next idle tick
+    m_viewport_width = 0.0f;
+    m_viewport_height = 0.0f;
+    m_scale = 0.0;
+    m_logical_width = 0;
+    // cancel any pending frame so a stale surface does not publish after hiding
+    m_render_chart_frames = 0;
+}
+
 void ChartsRenderer::render_panel() {
     // remove padding around the panel
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));

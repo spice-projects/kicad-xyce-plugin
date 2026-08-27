@@ -151,28 +151,19 @@ void SlintMainWindowView2::apply_action_enablement(const ActionStateEnablement& 
 void SlintMainWindowView2::show_netlist_view() {
     // reveal the netlist panel and hide the charts panel
     m_window->set_charts_visible(false);
+    // stop publishing stale frames when the panel is hidden
+    if (m_charts_renderer)
+        m_charts_renderer->reset_viewport();
 }
 
 void SlintMainWindowView2::show_charts_view() {
-    // reveal the charts panel in the content area
-    m_window->set_charts_visible(true);
-    // create the charts renderer the first time the charts panel is shown
+    // create the charts renderer the first time the charts panel is shown;
+    // this must happen before set_charts_visible so the viewport-changed
+    // callback is wired when the panel's init handler fires
     ensure_charts_renderer();
-    // slint's `changed` handler does not fire on initial component instantiation,
-    // so probe the panel geometry here; a deferred tick lets the layout flush and
-    // the viewport-changed callback take over for all subsequent relayouts
-    slint::Timer::single_shot(std::chrono::milliseconds(50), [this] {
-        if (m_charts_renderer && m_window->get_charts_visible()) {
-            const auto size = m_window->window().size();
-            const auto scale = m_window->window().scale_factor();
-            const float panel_width = static_cast<float>(size.width / scale);
-            float panel_height = static_cast<float>((size.height - 59.0f - 25.0f) / scale);
-            if (m_window->get_simulation_output_visible())
-                panel_height -= 200.0f / scale;
-            spdlog::info("initial viewport probe: {}x{} scale={}", panel_width, panel_height, scale);
-            m_charts_renderer->set_viewport(panel_width, panel_height, scale);
-        }
-    });
+    // reveal the charts panel in the content area; the init handler inside
+    // charts_panel.slint fires viewport-changed with the initial geometry
+    m_window->set_charts_visible(true);
 }
 
 void SlintMainWindowView2::set_netlist_editor_content(const std::string& content) {
@@ -444,7 +435,6 @@ void SlintMainWindowView2::ensure_charts_renderer() {
     m_charts_renderer = std::make_unique<ChartsRenderer>([this](slint::Image image) {
         // publish the rendered frame to the slint image property
         m_window->set_charts_image(image);
-        spdlog::info("set_charts_image called, image size: {}x{}", image.size().width, image.size().height);
     });
     // wire hover readout to update the status bar
     m_charts_renderer->set_hover_callback([this](const std::string& text) {
@@ -457,7 +447,6 @@ void SlintMainWindowView2::ensure_charts_renderer() {
     m_window->on_charts_viewport_changed([this](float width, float height) {
         if (m_charts_renderer) {
             const auto scale = m_window->window().scale_factor();
-            spdlog::info("viewport-changed callback: {}x{} scale={}", width, height, scale);
             m_charts_renderer->set_viewport(width, height, scale);
         }
     });

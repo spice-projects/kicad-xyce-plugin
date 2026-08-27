@@ -63,15 +63,15 @@ The UI is built with Slint and lives under `src/ui`:
 
 ### Charts renderer
 
-- `ChartsRenderer` is platform-neutral and owns isolated ImGui/ImPlot contexts; the per-platform backend (`charts_renderer.osx.mm`, ...) owns the native view/layer/font and frame encoding. The overlay must be pointer-transparent (macOS: `hitTest:` returns `nil`) so events reach Slint.
+- `ChartsRenderer` is platform-neutral and owns isolated ImGui/ImPlot contexts; it renders offscreen through a Skia raster surface and publishes each frame as a `slint::Image` via an injected publish function. No per-platform backends exist.
 - Always use `ChartsContextScope` (RAII) around host ImGui/ImPlot calls — never assume a global context.
-- Drive the redraw loop with a `slint::Timer` (16 ms) via `on_idle()`; position the overlay below the 59px toolbar with `set_frame(x, y, w, h, scale)`.
+- Drive the redraw loop with a `slint::Timer` (16 ms) via `on_idle()`; layout/resize events schedule frames through `refresh_charts(n)` + timer, never synchronous renders.
 - Slint passes chart interaction positions as `float [0..1]`; translate to a chart index with `ChartsRenderer::position_to_index()` before acting.
+- Call `set_visible(bool)` when the charts panel is shown/hidden to pause/resume rendering.
 
 ### Lifecycle
 
 - `App::run()` owns the event loop: build the view + presenter, wire them, `show()`, then `slint::run_event_loop()`.
-- Known slint bug: opening the charts context menu and then quitting causes a use-after-free (see `slint-bug.md`); the workaround intentionally leaks the view/presenter on exit. Keep it until the upstream fix is vendored.
 
 ## Architecture
 

@@ -72,3 +72,49 @@ TEST(ChartsRendererTest, chart_count_starts_at_zero) {
     ChartsRenderer renderer([](slint::Image) {});
     EXPECT_EQ(renderer.chart_count(), 0);
 }
+
+TEST(ChartsRendererTest, hidden_panel_does_not_publish) {
+    // arrange: capture any published images
+    slint::Image captured_image;
+    bool image_published = false;
+
+    ChartsRenderer renderer([&captured_image, &image_published](slint::Image image) {
+        captured_image = std::move(image);
+        image_published = true;
+    });
+
+    // act: set a visible viewport, then render
+    renderer.set_viewport(200.0f, 150.0f, 1.0);
+    renderer.render();
+    ASSERT_TRUE(image_published);
+
+    // act: reset the viewport and render again
+    image_published = false;
+    renderer.reset_viewport();
+    renderer.render();
+
+    // assert: no image published with a cleared viewport
+    EXPECT_FALSE(image_published);
+}
+
+TEST(ChartsRendererTest, renders_after_viewport_set_then_frames_scheduled) {
+    // arrange: capture published images, simulating the show_charts_view flow
+    // where ensure_charts_renderer runs before set_charts_visible(true)
+    slint::Image captured_image;
+    bool image_published = false;
+
+    ChartsRenderer renderer([&captured_image, &image_published](slint::Image image) {
+        captured_image = std::move(image);
+        image_published = true;
+    });
+
+    // act: set viewport first (as the slint init handler would fire it),
+    // then render
+    renderer.set_viewport(400.0f, 300.0f, 1.0);
+    renderer.render();
+
+    // assert: a frame was published with correct dimensions
+    ASSERT_TRUE(image_published);
+    EXPECT_EQ(captured_image.size().width, 400);
+    EXPECT_EQ(captured_image.size().height, 300);
+}
