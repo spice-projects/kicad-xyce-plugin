@@ -474,3 +474,8 @@ void SlintMainWindowView2::end_modal_dialog() {
     // clear the modal state
     m_modal_dialog_open = false;
 }
+
+void SlintMainWindowView2::release_gpu_resources() {
+    // destroy the gpu context before the window is leaked at exit
+    m_charts_renderer.reset();
+}

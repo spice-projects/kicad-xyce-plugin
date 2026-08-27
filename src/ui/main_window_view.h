@@ -68,6 +68,9 @@ public:
     void cancel_simulation_process() override;
     void spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) override;
 
+    // release the gpu context before the view is intentionally leaked at exit
+    void release_gpu_resources();
+
 private:
     // open file action (file dialog)
     void handle_open();

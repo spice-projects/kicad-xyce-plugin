@@ -11,6 +11,8 @@
 #include <core/SkCanvas.h>
 #include <core/SkImageInfo.h>
 #include <core/SkSurface.h>
+#include <gpu/ganesh/GrDirectContext.h>
+#include <gpu/ganesh/SkSurfaceGanesh.h>
 
 #include "charts_renderer.h"
 #include "font_data.h"
@@ -136,6 +138,8 @@ void ChartsRenderer::initialize_backend() {
     style.AntiAliasedLinesUseTex = true;
     // panel clear color matching the slint alternate background
     m_background_color = ImVec4(0.93f, 0.93f, 0.93f, 1.00f);
+    // create the platform-native gpu context; may be null, in which case the cpu raster path is used
+    m_direct_context = create_gpu_context();
     // bring up the skia replay backend for this context
     m_skia_renderer = std::make_unique<ImGuiSkiaRenderer>();
     // remember the scale fonts were baked for
@@ -158,8 +162,15 @@ void ChartsRenderer::terminate_backend() {
     ImPlot::SetCurrentContext(implot_context);
     // release the skia replay backend while its context is active
     m_skia_renderer.reset();
-    // release the offscreen surface
+    // release the offscreen surface; must happen before the gpu context
     m_surface.reset();
+    // check we are using a gpu context
+    if (m_direct_context) {
+        // abandon the gpu context so no pending resources trigger
+        m_direct_context->abandonContext();
+        // release the gpu context; must happen after the surface is released
+        m_direct_context.reset();
+    }
     // destroy the plot context before its imgui dependency
     ImPlot::DestroyContext(implot_context);
     m_implot_context = nullptr;
@@ -178,10 +189,11 @@ void ChartsRenderer::ensure_surface(int width, int height) {
     // keep the existing surface when the pixel size did not change
     if (m_surface != nullptr && m_surface_width == width && m_surface_height == height)
         return;
+    // create a new surface for the current pixel size, discard the previous one
     const auto info = SkImageInfo::Make(width, height, kN32_SkColorType, kPremul_SkAlphaType);
-    // cpu raster target; gpu acceleration stays behind the same interface
-    m_surface = SkSurfaces::Raster(info);
-    // remember the allocation size for the change check above
+    // create surface, prefer gpu render target when available, otherwise fall back to cpu raster
+    m_surface = m_direct_context ? SkSurfaces::RenderTarget(m_direct_context.get(), skgpu::Budgeted::kNo, info) : SkSurfaces::Raster(info);
+    // store the pixel size for future no-op checks
     m_surface_width = width;
     m_surface_height = height;
 }
@@ -321,6 +333,10 @@ void ChartsRenderer::render() {
 
     const auto t2 = std::chrono::steady_clock::now();
 
+    // flush gpu work so pixels are available for cpu readback
+    if (m_direct_context)
+        m_direct_context->flushAndSubmit(m_surface.get());
+
     // --- timing: readback + publish ---
     // fresh buffer every frame because slint may still hold the previous one
     slint::SharedPixelBuffer<slint::Rgba8Pixel> buffer(width, height);
@@ -337,13 +353,15 @@ void ChartsRenderer::render() {
     // per-frame timing in microseconds
     const auto imgui_us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
     const auto replay_us = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-    const auto readback_us = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count();
+    const auto flush_us = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count();
+    const auto imgui_replay_us = imgui_us + replay_us;
     const auto total_us = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t0).count();
+    // surface color type and rendering mode for perf logging
     const auto surface_ct = m_surface ? static_cast<int>(m_surface->imageInfo().colorType()) : -1;
-    // per-frame timing; surface_ct: 4=kRGBA_8888 5=kBGRA_8888
-    spdlog::debug("[perf] render {}x{} ct={}"
-                  " imgui={}us replay={}us rbk={}us total={}us",
-                  width, height, surface_ct, imgui_us, replay_us, readback_us, total_us);
+    const char* mode = m_direct_context ? "gpu" : "cpu";
+    spdlog::debug("[perf] render {}x{} {} ct={}"
+                  " imgui+replay={}us flush+rbk={}us total={}us",
+                  width, height, mode, surface_ct, imgui_replay_us, flush_us, total_us);
 }
 
 void ChartsRenderer::on_idle() {

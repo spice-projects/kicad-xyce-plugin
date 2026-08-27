@@ -19,6 +19,7 @@ class SkSurface;
 class ImGuiSkiaRenderer;
 class ExpressionManager;
 class StepInformation;
+class GrDirectContext;
 
 // scope guard that activates a ChartsRenderer's isolated ImGui/ImPlot
 // contexts for the duration of a scope
@@ -163,6 +164,8 @@ private:
 
     void publish_hover();
 
+    sk_sp<GrDirectContext> create_gpu_context();
+
     // publish sink for rendered frames
     PublishFunction m_publish;
 
@@ -175,6 +178,9 @@ private:
 
     // offscreen target surface in physical pixels
     sk_sp<SkSurface> m_surface;
+
+    // platform-native gpu backend context, or nullptr for cpu raster
+    sk_sp<GrDirectContext> m_direct_context;
 
     // surface dimensions the current allocation was built for
     int m_surface_width = 0;

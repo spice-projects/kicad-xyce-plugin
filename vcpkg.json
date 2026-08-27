@@ -4,27 +4,7 @@
   "dependencies": [
     {
       "name": "imgui",
-      "version>=": "1.92.8#1",
-      "platform": "osx",
-      "features": [
-        "metal-binding"
-      ]
-    },
-    {
-      "name": "imgui",
-      "version>=": "1.92.8#1",
-      "platform": "windows",
-      "features": [
-        "dx11-binding"
-      ]
-    },
-    {
-      "name": "imgui",
-      "version>=": "1.92.8#1",
-      "platform": "linux",
-      "features": [
-        "opengl3-binding"
-      ]
+      "version>=": "1.92.8#1"
     },
     {
       "name": "implot",
@@ -33,6 +13,30 @@
     {
       "name": "skia",
       "version>=": "148"
+    },
+    {
+      "name": "skia",
+      "version>=": "148",
+      "platform": "osx",
+      "features": [
+        "metal"
+      ]
+    },
+    {
+      "name": "skia",
+      "version>=": "148",
+      "platform": "windows",
+      "features": [
+        "direct3d"
+      ]
+    },
+    {
+      "name": "skia",
+      "version>=": "148",
+      "platform": "linux",
+      "features": [
+        "vulkan"
+      ]
     },
     {
       "name": "spdlog",
