@@ -1,13 +1,11 @@
 #include <cstdint>
 #include <vector>
 
-#include <gtest/gtest.h>
-
-#include <imgui.h>
-
 #include <core/SkCanvas.h>
 #include <core/SkImageInfo.h>
 #include <core/SkSurface.h>
+#include <gtest/gtest.h>
+#include <imgui.h>
 
 #include "ui/font_data.h"
 #include "ui/imgui_impl_skia.h"
@@ -183,6 +181,47 @@ TEST(ImGuiSkiaRendererTest, renders_alpha8_glyph_mask_as_white) {
         EXPECT_EQ(pixels[best_index + 1], 255);
         EXPECT_EQ(pixels[best_index + 2], 255);
         EXPECT_EQ(pixels[(60 * 64 + 60) * 4 + 3], 0);
+    }
+    ImGui::DestroyContext();
+}
+
+TEST(ImGuiSkiaRendererTest, renders_colored_text_preserving_color) {
+    // arrange
+    ImGui::CreateContext();
+    ImGui::GetIO().DisplaySize = ImVec2(64.0f, 64.0f);
+    ImGui::GetIO().DeltaTime = 1.0f / 60.0f;
+    ImFontConfig font_config{};
+    font_config.FontDataOwnedByAtlas = false;
+    ImGui::GetIO().Fonts->AddFontFromMemoryTTF(const_cast<void*>(static_cast<const void*>(Inter_Regular_ttf)), static_cast<int>(Inter_Regular_ttf_len), 24.0f, &font_config);
+    const auto info = SkImageInfo::Make(64, 64, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+    auto surface = SkSurfaces::Raster(info);
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    {
+        ImGuiSkiaRenderer renderer;
+        // act
+        ImGui::NewFrame();
+        ImGui::GetForegroundDrawList()->AddText(ImVec2(4, 20), IM_COL32(0, 255, 0, 255), "X");
+        ImGui::Render();
+        renderer.render_draw_data(ImGui::GetDrawData(), surface->getCanvas(), 1.0f);
+        std::vector<uint8_t> pixels(64 * 64 * 4);
+        ASSERT_TRUE(surface->readPixels(info, pixels.data(), 64 * 4, 0, 0));
+        int best_index = -1;
+        uint8_t best_green = 0;
+        for (int y = 16; y < 52; ++y) {
+            for (int x = 2; x < 44; ++x) {
+                const uint8_t green = pixels[(y * 64 + x) * 4 + 1];
+                if (green > best_green) {
+                    best_green = green;
+                    best_index = (y * 64 + x) * 4;
+                }
+            }
+        }
+        // assert
+        ASSERT_GT(best_green, 200);
+        EXPECT_EQ(pixels[best_index + 0], 0);
+        EXPECT_GT(pixels[best_index + 1], 200);
+        EXPECT_EQ(pixels[best_index + 2], 0);
+        EXPECT_GT(pixels[best_index + 3], 200);
     }
     ImGui::DestroyContext();
 }

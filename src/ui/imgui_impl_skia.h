@@ -2,17 +2,15 @@
 
 #include <vector>
 
-#include <imgui.h>
-
 #include <core/SkCanvas.h>
 #include <core/SkPaint.h>
+#include <imgui.h>
 
-// replays dear imgui draw data into a skia canvas on behalf of one imgui context;
-// blending contract: straight-alpha colors with explicit src-over, never kModulate
+// replays dear imgui draw data onto a skia canvas for an attached imgui context
 class ImGuiSkiaRenderer
 {
 public:
-    // attach to the active imgui context and request an alpha8 font atlas
+    // attach to the active imgui context and configure multi-texture backend
     ImGuiSkiaRenderer();
 
     // the renderer owns per-texture payloads and never shares them
@@ -24,34 +22,34 @@ public:
     // detach from the context and release every texture payload still attached
     ~ImGuiSkiaRenderer();
 
-    // per-frame hook kept for parity with official backends; textures pump at render time
+    // per-frame hook kept for parity with official backends
     void new_frame();
 
-    // replay one frame; canvas_scale maps logical draw coordinates onto physical canvas pixels
+    // replay one frame onto the physical canvas with the given device scale
     void render_draw_data(ImDrawData* draw_data, SkCanvas* canvas, float canvas_scale);
 
 private:
-    // build or refresh the skia image backing one imgui texture
+    // upload or refresh the skia image and baked shader for one texture
     void upload_texture(ImTextureData& texture);
 
-    // honor create/update/destroy requests for every texture pending on the draw data
+    // honor create update destroy requests for textures attached to the draw data
     void pump_textures(ImDrawData& draw_data);
 
-    // resolve the paint of one command; falls back to untextured white for unknown ids
+    // resolve the baked paint for a command falling back to untextured white
     [[nodiscard]] const SkPaint& paint_for_command(const ImDrawCmd& cmd) const;
 
-    // context this renderer attached to, reactivated for a safe teardown
+    // context this renderer attached to during initialization
     ImGuiContext* m_context = nullptr;
 
-    // de-interleaved positions of the draw list being replayed, indexed by vertex position
+    // de-interleaved vertex positions of the active draw list
     std::vector<SkPoint> m_staging_positions;
 
-    // de-interleaved texture coordinates of the draw list being replayed
+    // de-interleaved texture coordinates of the active draw list
     std::vector<SkPoint> m_staging_tex_coords;
 
-    // channel-reordered colors of the draw list being replayed
+    // channel-reordered vertex colors of the active draw list
     std::vector<SkColor> m_staging_colors;
 
-    // paint for commands referencing an unknown texture id
+    // fallback paint used for untextured geometry or invalid texture ids
     SkPaint m_fallback_paint;
 };
