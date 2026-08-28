@@ -94,13 +94,6 @@ namespace simulation_parameters_dialog_view
         // empty model for analyses without a print-type combo (index 0 is unused)
         static constexpr std::array<const char*, 0> NO_PRINT_TYPES = {};
 
-        // HB TAHB combo values;
-        // index 0 is the "(None)" entry
-        static constexpr std::array<int, 7> TAHB_VALUES = {-1, 0, 1, 2, 5, 10, 20};
-
-        // HB SELECTHARMS combo values; index 0 is the "(None)" entry
-        static constexpr std::array<const char*, 7> SELECTHARMS_VALUES = {"", "ALL", "1", "2", "3", "5", "10"};
-
         // .SAVE LEVEL combo values; index 0 is the "(default)" entry
         static constexpr std::array<const char*, 3> SAVE_LEVEL_VALUES = {"", "ALL", "NONE"};
 
@@ -820,24 +813,12 @@ namespace simulation_parameters_dialog_view
             return join(parts, ",");
         }
 
-        // resolve a TAHB value to its combo index; "(None)" when unset or unknown
-        [[nodiscard]] int tahb_index_for(const std::optional<int>& tahb) {
-            for (size_t i = 1; i < TAHB_VALUES.size(); ++i) {
-                if (tahb.has_value() && TAHB_VALUES[i] == *tahb)
-                    return static_cast<int>(i);
-            }
-            return 0;
-        }
-
-        // resolve a SELECTHARMS value to its combo index; "(None)" when unset
-        [[nodiscard]] int selectharms_index_for(const std::optional<std::string>& selectharms) { return selectharms.has_value() ? choice_index_for(SELECTHARMS_VALUES, *selectharms) : 0; }
-
         // push the saved HB parameters into the dialog root's hb-* fields
         void apply_hb_parameters(const DialogHandle& dialog, const HbSimulationParameters& params) {
             dialog->set_hb_frequencies(slint::SharedString(join(params.frequencies, " ")));
             dialog->set_hb_harmonics(slint::SharedString(format_harmonics(params.harmonics)));
-            dialog->set_hb_tahb_index(tahb_index_for(params.tahb));
-            dialog->set_hb_selectharms_index(selectharms_index_for(params.selectharms));
+            dialog->set_hb_tahb(slint::SharedString(params.tahb.has_value() ? std::to_string(*params.tahb) : ""));
+            dialog->set_hb_selectharms(slint::SharedString(params.selectharms.value_or("")));
             dialog->set_hb_startup_periods(slint::SharedString(params.startup_periods.has_value() ? std::to_string(*params.startup_periods) : ""));
             dialog->set_hb_nonlin_options(slint::SharedString(format_options_text(params.nonlin_options)));
             dialog->set_hb_linsol_options(slint::SharedString(format_options_text(params.linsol_options)));
@@ -870,15 +851,14 @@ namespace simulation_parameters_dialog_view
                 if (const auto value = parse_int(part))
                     harmonics.push_back(*value);
             }
-            // TAHB / SELECTHARMS combo values; index 0 is "(None)"
+            // TAHB / SELECTHARMS from free-form text fields
             std::optional<int> tahb;
-            const int tahb_index = std::clamp(dialog->get_hb_tahb_index(), 0, static_cast<int>(TAHB_VALUES.size()) - 1);
-            if (tahb_index > 0)
-                tahb = TAHB_VALUES[static_cast<size_t>(tahb_index)];
+            if (const auto value = parse_int(dialog->get_hb_tahb()))
+                tahb = value;
+            const std::string selectharms_text = trim(std::string(dialog->get_hb_selectharms()));
             std::optional<std::string> selectharms;
-            const int selectharms_index = std::clamp(dialog->get_hb_selectharms_index(), 0, static_cast<int>(SELECTHARMS_VALUES.size()) - 1);
-            if (selectharms_index > 0)
-                selectharms = SELECTHARMS_VALUES[static_cast<size_t>(selectharms_index)];
+            if (!selectharms_text.empty())
+                selectharms = selectharms_text;
             // optional startup periods
             std::optional<int> startup_periods;
             if (const auto value = parse_int(dialog->get_hb_startup_periods()))

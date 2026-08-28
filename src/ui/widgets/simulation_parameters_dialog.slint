@@ -190,8 +190,8 @@ export component SimulationParametersDialog inherits Dialog {
     // state is not directly addressable from C++ in this Slint version).
     in-out property <string> hb-frequencies: "";
     in-out property <string> hb-harmonics: "";
-    in-out property <int> hb-tahb-index: 0;
-    in-out property <int> hb-selectharms-index: 0;
+    in-out property <string> hb-tahb: "";
+    in-out property <string> hb-selectharms: "";
     in-out property <string> hb-startup-periods: "";
     in-out property <string> hb-nonlin-options: "";
     in-out property <string> hb-linsol-options: "";
@@ -498,8 +498,8 @@ export component SimulationParametersDialog inherits Dialog {
                                 // addressable from C++)
                                 frequencies <=> root.hb-frequencies;
                                 harmonics <=> root.hb-harmonics;
-                                tahb-index <=> root.hb-tahb-index;
-                                selectharms-index <=> root.hb-selectharms-index;
+                                tahb <=> root.hb-tahb;
+                                selectharms <=> root.hb-selectharms;
                                 startup-periods <=> root.hb-startup-periods;
                                 nonlin-options <=> root.hb-nonlin-options;
                                 linsol-options <=> root.hb-linsol-options;

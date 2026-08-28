@@ -5,10 +5,8 @@ export component HbParametersPanel inherits Rectangle {
     // --- frequency configuration ---
     in-out property <string> frequencies: "";
     in-out property <string> harmonics: "";
-    // 0 = (None), 1 = 0 (off), 2 = 1 (auto), 3 = 2, 4 = 5, 5 = 10, 6 = 20
-    in-out property <int> tahb-index: 0;
-    // 0 = (None), 1 = ALL, 2 = 1, 3 = 2, 4 = 3, 5 = 5, 6 = 10
-    in-out property <int> selectharms-index: 0;
+    in-out property <string> tahb: "";
+    in-out property <string> selectharms: "";
     in-out property <string> startup-periods: "";
 
     // --- solver options ---
@@ -247,10 +245,10 @@ export component HbParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
-                    ComboBox {
+                     LineEdit {
                         height: 28px;
-                        model: ["(None)", "0 (off)", "1 (auto)", "2", "5", "10", "20"];
-                        current-index <=> root.tahb-index;
+                        placeholder-text: "e.g. 0 1 2 5 10 20";
+                        text <=> root.tahb;
                     }
                 }
 
@@ -266,10 +264,10 @@ export component HbParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
-                    ComboBox {
+                     LineEdit {
                         height: 28px;
-                        model: ["(None)", "ALL", "1", "2", "3", "5", "10"];
-                        current-index <=> root.selectharms-index;
+                        placeholder-text: "e.g. ALL 1 2 3 5 10";
+                        text <=> root.selectharms;
                     }
                 }
 
