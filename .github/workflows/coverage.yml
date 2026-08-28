@@ -20,6 +20,12 @@ jobs:
     runs-on: macos-15
     env:
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
+      # Force Apple's clang/clang++ instead of Homebrew LLVM which may use
+      # ld64.lld — avoids LLVM bug #216154 on arm64.
+      CC: /usr/bin/clang
+      CXX: /usr/bin/clang++
+      CLANGCC: /usr/bin/clang
+      CLANGCXX: /usr/bin/clang++
     steps:
       - name: Checkout repository
         # persist-credentials: false keeps the job token out of .git/config;

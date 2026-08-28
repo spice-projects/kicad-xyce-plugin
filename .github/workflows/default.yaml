@@ -41,7 +41,7 @@ jobs:
           - os: macos-15
             platform: macos-arm64
             build_enabled: true
-          - os: macos-15-x64
+          - os: macos-15-intel
             platform: macos-x64
             build_enabled: true
           - os: windows-latest
@@ -53,6 +53,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
+      # Force Apple's clang/clang++ (from Xcode CLT) instead of Homebrew LLVM
+      # which may default to ld64.lld — this avoids LLVM bug #216154 where lld-macho
+      # emits spurious __unwind_info entries with encoding 0 that break C++
+      # exception unwinding when a Rust static library is linked on arm64.
+      CC: /usr/bin/clang
+      CXX: /usr/bin/clang++
+      CLANGCC: /usr/bin/clang
+      CLANGCXX: /usr/bin/clang++
     steps:
       - name: Checkout repository
         if: ${{ matrix.build_enabled }}
