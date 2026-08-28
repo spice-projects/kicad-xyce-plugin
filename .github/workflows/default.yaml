@@ -38,10 +38,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          - os: macos-15
             platform: macos-arm64
             build_enabled: true
-          - os: macos-26-intel
+          - os: macos-15-x64
             platform: macos-x64
             build_enabled: true
           - os: windows-latest
@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Run clang-format check
-        if: ${{ matrix.build_enabled && matrix.os == 'macos-latest' }}
+        if: ${{ matrix.build_enabled && matrix.os == 'macos-15' }}
         shell: bash
         env:
           HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
@@ -95,9 +95,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
-          key: vcpkg-${{ runner.os }}-${{ matrix.platform }}-build-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-${{ matrix.os }}-${{ matrix.platform }}-build-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
-            vcpkg-${{ runner.os }}-${{ matrix.platform }}-build-
+            vcpkg-${{ matrix.os }}-${{ matrix.platform }}-build-
 
       - name: Setup vcpkg
         if: ${{ matrix.build_enabled }}
@@ -164,7 +164,7 @@ jobs:
     name: macOS Universal Binary
     needs: [build-and-test]
     if: ${{ always() && !cancelled() && !failure() && startsWith(github.ref, 'refs/tags/v') && needs.build-and-test.result == 'success' }}
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - name: Download arm64 artifact
         uses: actions/download-artifact@v8

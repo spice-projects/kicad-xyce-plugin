@@ -17,7 +17,7 @@ on:
 jobs:
   coverage:
     name: C++ Coverage
-    runs-on: macos-latest
+    runs-on: macos-15
     env:
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
     steps:
@@ -37,9 +37,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
-          key: vcpkg-${{ runner.os }}-macos-arm64-profile-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-macOS-macos-15-arm64-profile-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
-            vcpkg-${{ runner.os }}-macos-arm64-
+            vcpkg-macOS-macos-15-arm64-
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
