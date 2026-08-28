@@ -95,9 +95,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
-          key: vcpkg-${{ runner.os }}-${{ matrix.platform }}-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-${{ runner.os }}-${{ matrix.platform }}-build-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
-            vcpkg-${{ runner.os }}-${{ matrix.platform }}-
+            vcpkg-${{ runner.os }}-${{ matrix.platform }}-build-
 
       - name: Setup vcpkg
         if: ${{ matrix.build_enabled }}

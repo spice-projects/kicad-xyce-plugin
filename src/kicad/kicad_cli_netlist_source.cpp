@@ -107,8 +107,8 @@ namespace
         ::close(out_pipe[1]);
         ::close(err_pipe[1]);
         // read stdout and stderr in parallel threads to avoid pipe deadlocks
-        std::thread thread_out([&] { stdout_text = read_all_fd(out_pipe[0]); });
-        std::thread thread_err([&] { stderr_text = read_all_fd(err_pipe[0]); });
+        std::thread thread_out([&stdout_text, &out_pipe] { stdout_text = read_all_fd(out_pipe[0]); });
+        std::thread thread_err([&stderr_text, &err_pipe] { stderr_text = read_all_fd(err_pipe[0]); });
         thread_out.join();
         thread_err.join();
         ::close(out_pipe[0]);
@@ -185,8 +185,8 @@ namespace
         CloseHandle(out_write);
         CloseHandle(err_write);
         // read stdout and stderr in parallel threads to avoid pipe deadlocks
-        std::thread thread_out([&] { stdout_text = read_all_handle(out_read); });
-        std::thread thread_err([&] { stderr_text = read_all_handle(err_read); });
+        std::thread thread_out([&stdout_text] { stdout_text = read_all_handle(out_read); });
+        std::thread thread_err([&stderr_text] { stderr_text = read_all_handle(err_read); });
         thread_out.join();
         thread_err.join();
         CloseHandle(out_read);

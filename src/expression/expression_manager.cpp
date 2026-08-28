@@ -117,7 +117,7 @@ std::string ExpressionManager::infer_unit(const std::string& expression) {
         unit_context.reserve(m_expressions.size());
         // loop expressions, append unit to context
         for (const auto& any_expr : m_expressions)
-            std::visit([&](auto&& expr) { unit_context[to_lower(expr.name())] = expr.unit(); }, any_expr);
+            std::visit([&unit_context](auto&& expr) { unit_context[to_lower(expr.name())] = expr.unit(); }, any_expr);
         // use unit inference implementation
         return ::infer_unit(*ast, unit_context);
     }

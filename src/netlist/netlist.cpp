@@ -290,7 +290,7 @@ std::pair<std::string, NetlistTopology> parse_netlist(std::string_view text) {
                 continue;
             }
             // check if the directive is a recognized simulation directive
-            if (std::find_if(SIMULATION_DIRECTIVES.begin(), SIMULATION_DIRECTIVES.end(), [&](std::string_view d) { return first_upper == d; }) != SIMULATION_DIRECTIVES.end()) {
+            if (std::find_if(SIMULATION_DIRECTIVES.begin(), SIMULATION_DIRECTIVES.end(), [&first_upper](std::string_view d) { return first_upper == d; }) != SIMULATION_DIRECTIVES.end()) {
                 // store as a managed directive
                 directives.push_back(stripped);
                 // next

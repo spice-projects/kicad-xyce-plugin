@@ -441,7 +441,7 @@ TEST(XyceLanguageEvaluator, loader_resolves_then_caches) {
     // arrange
     std::unordered_map<std::string, XyceValue> expressions;
     int load_calls = 0;
-    auto loader = [&](const std::string& key) -> std::optional<XyceValue> {
+    auto loader = [&load_calls](const std::string& key) -> std::optional<XyceValue> {
         ++load_calls;
         if (key == "x")
             return expression_value(7.0);
@@ -477,7 +477,7 @@ TEST(XyceLanguageEvaluator, loader_nullopt_unknown_probe) {
 TEST(XyceLanguageEvaluator, loader_lazy_loads_probe_values) {
     // arrange
     std::unordered_map<std::string, XyceValue> expressions;
-    auto loader = [&](const std::string& key) -> std::optional<XyceValue> {
+    auto loader = [](const std::string& key) -> std::optional<XyceValue> {
         if (key == "v(out)")
             return expression_value(3.3);
         return std::nullopt;
