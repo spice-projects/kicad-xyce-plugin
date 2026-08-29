@@ -11,6 +11,13 @@ if(WIN32)
 endif()
 
 if(APPLE)
+    # use overlay triplets (in ./triplets) that build skia as a dynamic library;
+    # skia's static archive corrupts the __unwind_info tables of the binaries
+    # linked against it, breaking C++ exception unwinding on arm64 (LLVM bug #216154 class)
+    set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_SOURCE_DIR}/triplets" CACHE STRING "vcpkg overlay triplets" FORCE)
+endif()
+
+if(APPLE)
     # enable objective-c++ language for .mm files
     project(kicad-xyce-plugin LANGUAGES CXX OBJCXX)
 else()
@@ -194,6 +201,12 @@ foreach(widget_source IN LISTS SLINT_WIDGET_SOURCES)
     # silence all warnings for this fully generated code
     set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp" PROPERTIES COMPILE_OPTIONS "-w")
 endforeach()
+
+if(APPLE)
+    # skia is a dynamic vcpkg library: point the runtime loader at the vcpkg
+    # install dir so the executables find the skia dylibs when run from the build tree
+    set(CMAKE_BUILD_RPATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+endif()
 
 if(APPLE)
     # # resources
