@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "kicad-xyce-plugin (lldb)",
+            "name": "kicad-xyce-plugin",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
@@ -37,32 +37,12 @@
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            // "envFile": "${workspaceFolder}/.env",
+            "envFile": "${workspaceFolder}/.env",
             "externalConsole": false,
             "MIMode": "lldb"
         },
         {
-            "name": "kicad-xyce-plugin (profile)",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/.build-profile/kicad-xyce-plugin",
-            "windows": {
-                "program": "${workspaceFolder}/.build-profile/kicad-xyce-plugin.exe"
-            },
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [
-                {
-                    "name": "LLVM_PROFILE_FILE",
-                    "value": "${workspaceFolder}/.plugin.profraw"
-                }
-            ],
-            "externalConsole": false,
-            "MIMode": "lldb"
-        },
-        {
-            "name": "kicad-xyce-plugin-tests (lldb)",
+            "name": "kicad-xyce-plugin-tests",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/.build-debug/tests/kicad-xyce-plugin-tests",
@@ -78,17 +58,6 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"
-        },
-        {
-            "name": "kicad-xyce-plugin (Windows)",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin.exe",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false
         }
     ]
 }

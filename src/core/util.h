@@ -7,6 +7,8 @@
 
 std::optional<std::string> get_environment_variable(const std::string& name);
 
+std::string trim(std::string_view view);
+
 std::string to_upper(std::string_view);
 
 std::string to_lower(std::string_view);

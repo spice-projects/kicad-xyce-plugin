@@ -41,6 +41,17 @@ std::optional<std::string> get_environment_variable(const std::string& name) {
 }
 #endif
 
+std::string trim(std::string_view view) {
+    // result
+    std::string result{view};
+    // erase leading whitespace
+    result.erase(result.begin(), std::ranges::find_if(result, [](const unsigned char ch) { return !std::isspace(ch); }));
+    // erase trailing whitespace
+    result.erase(std::find_if(result.rbegin(), result.rend(), [](const unsigned char ch) { return !std::isspace(ch); }).base(), result.end());
+    // return converted string
+    return result;
+}
+
 std::string to_upper(std::string_view view) {
     // result
     std::string result{view};

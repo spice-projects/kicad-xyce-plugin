@@ -35,6 +35,7 @@ vcpkg-manifest-install.log
 *.profraw
 *.gcda
 *.gcno
+*.gcov
 
 # Clangd / editor index cache
 .clangd/

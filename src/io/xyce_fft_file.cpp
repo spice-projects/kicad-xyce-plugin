@@ -3,7 +3,6 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
-#include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <map>
@@ -17,6 +16,7 @@
 #include <spdlog/spdlog.h>
 
 #include "../core/step_information.h"
+#include "../core/util.h"
 #include "../expression/expression.h"
 #include "../expression/expression_manager.h"
 #include "mapped_file.h"
@@ -80,20 +80,11 @@ namespace
         }
     };
 
-    void trim(std::string& s) {
-        // erase leading whitespace
-        s.erase(s.begin(), std::ranges::find_if(s, [](const unsigned char ch) { return !std::isspace(ch); }));
-        // erase trailing whitespace
-        s.erase(std::find_if(s.rbegin(), s.rend(), [](const unsigned char ch) { return !std::isspace(ch); }).base(), s.end());
-    }
-
     std::string strip(const std::string& s) {
         // trimmed copy
         std::string result = s;
         // trim the copy
-        trim(result);
-        // return the trimmed copy
-        return result;
+        return trim(result);
     }
 
     std::vector<std::string> get_tokens(const std::string& line) {
@@ -312,7 +303,7 @@ namespace
                 if (!is_valid_utf8(line))
                     return false;
                 // trim whitespace
-                trim(line);
+                line = trim(line);
                 // log the line
                 spdlog::debug(">> {}", line);
                 // check we are in the data point section
@@ -356,7 +347,8 @@ namespace
                         // capture the signal name
                         signal_name = match[1].str();
                         // trim whitespace
-                        trim(signal_name);
+                        signal_name = trim(signal_name);
+                        // update flag
                         found_signal = true;
                         // reset the metadata for the new block
                         metadata = std::make_shared<std::unordered_map<std::string, std::string>>();

@@ -15,6 +15,7 @@
 #include <spdlog/spdlog.h>
 
 #include "../core/step_information.h"
+#include "../core/util.h"
 #include "../expression/expression.h"
 #include "mapped_file.h"
 #include "xyce_output_file.h"
@@ -32,13 +33,6 @@ namespace
         size_t num_points = 0;
         std::vector<std::tuple<int, std::string, VariableType, std::variant<std::monostate, View<double>, View<std::complex<double>>>>> variables;
     };
-
-    void trim(std::string& s) {
-        // erase leading whitespace
-        s.erase(s.begin(), std::ranges::find_if(s, [](const unsigned char ch) { return !std::isspace(ch); }));
-        // erase trailing whitespace
-        s.erase(std::find_if(s.rbegin(), s.rend(), [](const unsigned char ch) { return !std::isspace(ch); }).base(), s.end());
-    }
 
     std::vector<std::string> split(const std::string& line) {
         // split by tab characters
@@ -87,7 +81,7 @@ namespace
             // extract line
             std::string line(data + pos, newline - pos);
             // trim whitespace
-            trim(line);
+            line = trim(line);
             // log information
             spdlog::debug(">> {}", line);
             // advance position
@@ -134,9 +128,9 @@ namespace
                 // extract value
                 std::string value = line.substr(colon + 1);
                 // trim key
-                trim(key);
+                key = trim(key);
                 // trim value
-                trim(value);
+                value = trim(value);
                 // insert to map
                 headers[key] = value;
             }
@@ -241,7 +235,8 @@ namespace
             // advance position
             pos = newline + 1;
             // trim line
-            trim(line);
+            line = trim(line);
+            // check empty
             if (line.empty()) {
                 // skip empty
                 continue;
