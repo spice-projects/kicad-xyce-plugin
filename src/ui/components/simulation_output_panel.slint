@@ -170,12 +170,13 @@ export component SimulationOutputPanel inherits Rectangle {
                         : transparent;
                 animate background { duration: 100ms; easing: ease-out; }
 
-                Text {
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    text: "\u{2715}";
-                    font-size: 12px;
-                    color: Palette.foreground;
+                Image {
+                    x: (parent.width - 12px) / 2;
+                    y: (parent.height - 12px) / 2;
+                    width: 12px;
+                    height: 12px;
+                    source: @image-url("../kicad-icons/cancel_24.png");
+                    image-fit: contain;
                 }
 
                 tb := TouchArea {
