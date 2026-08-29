@@ -320,17 +320,14 @@ std::optional<PluginConfig> SlintMainWindowView2::show_plugin_config_dialog(cons
         return std::nullopt;
     // create the dialog view wrapper on first use
     if (!m_plugin_config_dialog)
-        m_plugin_config_dialog = std::make_unique<plugin_config_dialog_view::PluginConfigDialogView>();
-    // show the dialog seeded with the current configuration; the slint dialog is
-    // non-modal, so the accepted configuration is delivered asynchronously through
-    // MainWindowViewDefEvents::on_plugin_config_dialog_result, and the modal state
-    // (kept in this view) is released through the on_closed callback on both accept
-    // and cancel
+        m_plugin_config_dialog = std::make_unique<plugin_config_dialog_view::PluginConfigDialogView>(m_window);
+    // show the inline panel seeded with the current configuration; the panel is
+    // rendered inside the main window (no separate OS window), so modality is
+    // enforced by the guard_modal gate and the panel's dimmed backdrop — no
+    // modal_manager input blocking is needed. the accepted configuration is
+    // delivered asynchronously through MainWindowViewDefEvents, and the modal
+    // state (kept in this view) is released through the on_closed callback
     m_plugin_config_dialog->show(current, *m_event_handler, [this] { end_modal_dialog(); });
-    // remember the dialog window for unblocking when it closes
-    m_modal_dialog_window = &m_plugin_config_dialog->window();
-    // block input to the native main window while the dialog is shown
-    modal_manager::set_input_blocked(window(), *m_modal_dialog_window, true);
     // nothing to return, the accepted configuration is delivered asynchronously
     // through MainWindowViewDefEvents::on_plugin_config_dialog_result
     return std::nullopt;
@@ -475,8 +472,11 @@ void SlintMainWindowView2::end_modal_dialog() {
     // no modal state to release
     if (!m_modal_dialog_open)
         return;
-    // restore the main window input
-    modal_manager::set_input_blocked(window(), *m_modal_dialog_window, false);
+    // unblocking input only applies to dialogs that own a separate OS window
+    // via modal_manager; inline panels (rendered inside the main window) have
+    // no such window, so m_modal_dialog_window is nullptr and the call is skipped
+    if (m_modal_dialog_window != nullptr)
+        modal_manager::set_input_blocked(window(), *m_modal_dialog_window, false);
     // restore the main window appearance
     m_window->set_modal_active(false);
     // clear the modal state

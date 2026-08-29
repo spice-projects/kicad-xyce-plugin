@@ -1,8 +1,11 @@
+// plugin configuration panel rendered inline as a modal overlay within the main
+// window, avoiding a separate OS window (which Slint dialogs create by default).
+// a dimmed backdrop absorbs pointer events so the underlying content is
+// inaccessible, and a centered card holds the form — together they emulate
+// modality without the modal_manager native-window hacks.
 import { Button, LineEdit, Palette, StandardButton } from "std-widgets.slint";
 
-export component PluginConfigDialog inherits Dialog {
-
-    title: "Plugin Configuration";
+export component PluginConfigPanel inherits Rectangle {
 
     in-out property <string> xyce-path: "";
     in property <bool> show-error: false;
@@ -14,27 +17,36 @@ export component PluginConfigDialog inherits Dialog {
     callback browse-clicked;
     callback path-edited(string);
 
-    preferred-width: 540px;
-    preferred-height: 200px;
+    // full-size dimmed backdrop: covers the parent area, dims the content
+    // underneath, and absorbs every pointer event so the panel feels modal
+    background: Palette.background.transparentize(0.65);
 
-    forward-focus: focus-scope;
+    // centered card holding the form content
+    FocusScope {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 540px;
+        height: 200px;
 
-    focus-scope := FocusScope {
+        // grab focus on init so Escape is captured without a parent click
+        init => { self.focus(); }
 
         key-pressed(event) => {
-            // dismiss the dialog on escape, but don't propagate the event to the parent
+            // dismiss on escape, do not propagate to the parent
             if event.text == Key.Escape {
                 root.dismissed();
                 accept
-            } 
-            else {
+            } else {
                 reject
             }
         }
 
         Rectangle {
+            x: 0;
+            y: 0;
+            width: 100%;
+            height: 100%;
             background: Palette.background;
-            vertical-stretch: 1;
 
             VerticalLayout {
                 padding: 14px;
@@ -81,10 +93,14 @@ export component PluginConfigDialog inherits Dialog {
                         color: #cc0000;
                     }
                 }
+
+                HorizontalLayout {
+                    spacing: 10px;
+                    Rectangle { horizontal-stretch: 1; }
+                    StandardButton { kind: cancel; clicked => { root.dismissed(); } }
+                    StandardButton { kind: ok; primary: true; clicked => { root.accepted(); } }
+                }
             }
         }
     }
-
-    StandardButton { kind: cancel; clicked => { root.dismissed(); } }
-    StandardButton { kind: ok; primary: true; clicked => { root.accepted(); } }
 }

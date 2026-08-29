@@ -1,9 +1,8 @@
-#include <optional>
 #include <string>
 
 #include <slint.h>
 
-#include <plugin_config_dialog.h>
+#include <main_window.h>
 
 #include "../config/plugin_config.h"
 #include "file_dialog.h"
@@ -21,22 +20,23 @@ namespace plugin_config_dialog_view
 
     struct PluginConfigDialogView::Impl
     {
-        // the slint dialog window, created lazily on the first use
-        slint::ComponentHandle<plugin_config_dialog::PluginConfigDialog> dialog;
+        // the main window handle; the panel is an inline child of the window,
+        // so all interaction goes through the window's properties and callbacks
+        slint::ComponentHandle<main_window::MainWindow> window;
 
         // presenter notified with the accepted configuration
         MainWindowViewDefEvents* handler = nullptr;
 
-        // notified on both accept and cancel, after the dialog window is hidden;
+        // notified on both accept and cancel, after the panel is hidden;
         // the caller releases the modal state from here
         std::function<void()> on_closed;
 
-        Impl() :
-            dialog(plugin_config_dialog::PluginConfigDialog::create()) {
-            // wire callbacks
-            dialog->on_browse_clicked([this] { browse(); });
-            dialog->on_accepted([this] { accept(); });
-            dialog->on_dismissed([this] { dismiss(); });
+        Impl(slint::ComponentHandle<main_window::MainWindow> w) :
+            window(w) {
+            // wire the forwarded callbacks from the inline panel to this view
+            window->on_plugin_config_browse_clicked([this] { browse(); });
+            window->on_plugin_config_accepted([this] { accept(); });
+            window->on_plugin_config_dismissed([this] { dismiss(); });
         }
 
         void browse() {
@@ -45,14 +45,14 @@ namespace plugin_config_dialog_view
             if (!path.has_value())
                 return;
             // push the selected path into the field
-            dialog->set_xyce_path(slint::SharedString(path->string()));
+            window->set_plugin_config_xyce_path(slint::SharedString(path->string()));
             // clear any previous validation message after a new selection
-            dialog->set_show_error(false);
+            window->set_plugin_config_show_error(false);
         }
 
         void accept() {
             // read the path and trim surrounding whitespace
-            const std::string raw = std::string(dialog->get_xyce_path());
+            const std::string raw = std::string(window->get_plugin_config_xyce_path());
             // check non-empty path
             if (const auto first = raw.find_first_not_of(" \t\r\n"); first != std::string::npos) {
                 // trim
@@ -61,15 +61,15 @@ namespace plugin_config_dialog_view
                 // reject path values that are not executable files
                 if (!config.is_xyce_executable_valid()) {
                     // show error message
-                    dialog->set_error_message(slint::SharedString(INVALID_ERROR));
-                    dialog->set_show_error(true);
+                    window->set_plugin_config_error_message(slint::SharedString(INVALID_ERROR));
+                    window->set_plugin_config_show_error(true);
                     // exit
                     return;
                 }
                 // persist the validated configuration
                 config.save();
-                // close the dialog before delivering the result
-                dialog->hide();
+                // hide the panel before delivering the result
+                window->set_plugin_config_visible(false);
                 // release the modal state held by the caller
                 if (on_closed)
                     on_closed();
@@ -80,39 +80,34 @@ namespace plugin_config_dialog_view
                 return;
             }
             // require a non-empty path so the plugin can launch Xyce
-            dialog->set_error_message(slint::SharedString(REQUIRED_ERROR));
-            dialog->set_show_error(true);
+            window->set_plugin_config_error_message(slint::SharedString(REQUIRED_ERROR));
+            window->set_plugin_config_show_error(true);
         }
 
         void dismiss() {
-            // hide the dialog and drop the pending state
-            dialog->hide();
+            // hide the panel and drop the pending state
+            window->set_plugin_config_visible(false);
             // release the modal state held by the caller
             if (on_closed)
                 on_closed();
         }
     };
 
-    PluginConfigDialogView::PluginConfigDialogView() :
-        m_impl(std::make_unique<Impl>()) {}
+    PluginConfigDialogView::PluginConfigDialogView(slint::ComponentHandle<main_window::MainWindow> main_window) :
+        m_impl(std::make_unique<Impl>(main_window)) {}
 
     PluginConfigDialogView::~PluginConfigDialogView() = default;
 
-    slint::Window& PluginConfigDialogView::window() {
-        // expose the dialog window (dialog must be shown first)
-        return m_impl->dialog->window();
-    }
-
     void PluginConfigDialogView::show(const PluginConfig& current, MainWindowViewDefEvents& handler, const std::function<void()>& on_closed) {
-        // remember the result destination for the dialog lifetime
+        // remember the result destination for the panel lifetime
         m_impl->handler = &handler;
         // remember the close notification for this show
         m_impl->on_closed = on_closed;
         // seed the path field with the current configuration
-        m_impl->dialog->set_xyce_path(slint::SharedString(current.xyce_executable_path()));
+        m_impl->window->set_plugin_config_xyce_path(slint::SharedString(current.xyce_executable_path()));
         // clear any previous validation feedback
-        m_impl->dialog->set_show_error(false);
-        // show the dialog window
-        m_impl->dialog->show();
+        m_impl->window->set_plugin_config_show_error(false);
+        // show the inline panel
+        m_impl->window->set_plugin_config_visible(true);
     }
 } // namespace plugin_config_dialog_view

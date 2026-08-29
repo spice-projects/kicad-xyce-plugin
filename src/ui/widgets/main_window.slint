@@ -1,5 +1,6 @@
 import { Palette } from "std-widgets.slint";
 import { ChartsPanel } from "../components/charts_panel.slint";
+import { PluginConfigPanel } from "../components/plugin_config_panel.slint";
 import { SchematicPanel } from "../components/schematic_panel.slint";
 import { SimulationOutputPanel } from "../components/simulation_output_panel.slint";
 export { ChartsPanelActions } from "../components/charts_panel.slint";
@@ -160,9 +161,32 @@ export component MainWindow inherits Window {
     // (per-platform helper) is what actually enforces modality
     in property <bool> modal-active: false;
 
+    // plugin configuration panel rendered inline as a modal overlay (no
+    // separate OS window); driven from the view adapter
+    in property <bool> plugin-config-visible: false;
+    in-out property <string> plugin-config-xyce-path: "";
+    in property <bool> plugin-config-show-error: false;
+    in property <string> plugin-config-error-message: "";
+    in property <bool> plugin-config-browse-enabled: true;
+
+    // forwarded from the inline plugin config panel to the view adapter
+    callback plugin-config-accepted();
+    callback plugin-config-dismissed();
+    callback plugin-config-browse-clicked();
+    callback plugin-config-path-edited(string);
+
     background: root.modal-active ? Palette.background.transparentize(0.35) : Palette.background;
 
-    VerticalLayout {
+    // a plain Rectangle wraps the layout and the overlay so the panel can be
+    // absolutely positioned on top of the main content without the layout
+    // manager fighting over the overlay's coordinates (a Window whose first
+    // child is a layout would otherwise try to manage every child)
+    Rectangle {
+        VerticalLayout {
+            x: 0;
+            y: 0;
+            width: 100%;
+            height: 100%;
         toolbar := Rectangle {
             background: Palette.background;
 
@@ -272,5 +296,27 @@ export component MainWindow inherits Window {
                 }
             }
         }
+    }
+
+    // plugin configuration panel rendered as an inline modal overlay: a
+    // dimmed backdrop covers the whole window and a centered card holds the
+    // form. because it is a child of the Window (not a separate Dialog) there
+    // is no second OS window and no modal_manager input blocking is needed;
+    // the guard_modal gate and the backdrop's pointer absorption enforce
+    // modality within the single window.
+    if root.plugin-config-visible : plugin-config := PluginConfigPanel {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        xyce-path <=> root.plugin-config-xyce-path;
+        show-error: root.plugin-config-show-error;
+        error-message: root.plugin-config-error-message;
+        browse-enabled: root.plugin-config-browse-enabled;
+        accepted => { root.plugin-config-accepted(); }
+        dismissed => { root.plugin-config-dismissed(); }
+        browse-clicked => { root.plugin-config-browse-clicked(); }
+        path-edited(text) => { root.plugin-config-path-edited(text); }
+    }
     }
 }
