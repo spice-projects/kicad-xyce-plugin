@@ -6,7 +6,11 @@
 // TouchArea absorbs pointer events so clicks on the backdrop don't reach the
 // content underneath. the centered card holds the expression selector form.
 import { Button, LineEdit, Palette, StandardButton } from "std-widgets.slint";
-import { ExpressionItem, ExpressionGrid, Legend } from "../components/expression_selector.slint";
+import {
+    ExpressionItem,
+    ExpressionGrid,
+    Legend,
+} from "../components/expression_selector.slint";
 
 export component AddPlotPanel inherits FocusScope {
     in property <[ExpressionItem]> expressions: [];
@@ -94,7 +98,9 @@ export component AddPlotPanel inherits FocusScope {
                         vertical-alignment: center;
                     }
 
-                    Rectangle { horizontal-stretch: 1; }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                    }
 
                     // close button (X) — mirrors the plugin config panel's
                     // close button styling and dismisses the panel
@@ -106,9 +112,12 @@ export component AddPlotPanel inherits FocusScope {
                         background: cb.pressed
                             ? Palette.foreground.transparentize(0.82)
                             : cb.has-hover
-                                ? Palette.foreground.transparentize(0.92)
-                                : transparent;
-                        animate background { duration: 100ms; easing: ease-out; }
+                            ? Palette.foreground.transparentize(0.92)
+                            : transparent;
+                        animate background {
+                            duration: 100ms;
+                            easing: ease-out;
+                        }
 
                         // cancel icon from the KiCad icon set; the unicode
                         // ✕ (U+2715) used in other panels does not render in
@@ -208,9 +217,20 @@ export component AddPlotPanel inherits FocusScope {
             // action buttons: Cancel dismisses, OK accepts
             HorizontalLayout {
                 spacing: 10px;
-                Rectangle { horizontal-stretch: 1; }
-                StandardButton { kind: cancel; clicked => { root.dismissed(); } }
-                StandardButton { kind: ok; primary: true; clicked => { root.accepted(); } }
+                Rectangle {
+                    horizontal-stretch: 1;
+                }
+
+                StandardButton {
+                    kind: cancel;
+                    clicked => { root.dismissed(); }
+                }
+
+                StandardButton {
+                    kind: ok;
+                    primary: true;
+                    clicked => { root.accepted(); }
+                }
             }
         }
     }

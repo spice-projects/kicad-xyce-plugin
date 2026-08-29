@@ -94,7 +94,9 @@ export component PluginConfigPanel inherits FocusScope {
                         vertical-alignment: center;
                     }
 
-                    Rectangle { horizontal-stretch: 1; }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                    }
 
                     // close button (X) — mirrors the simulation output
                     // panel's close button styling and dismisses the panel
@@ -106,9 +108,12 @@ export component PluginConfigPanel inherits FocusScope {
                         background: cb.pressed
                             ? Palette.foreground.transparentize(0.82)
                             : cb.has-hover
-                                ? Palette.foreground.transparentize(0.92)
-                                : transparent;
-                        animate background { duration: 100ms; easing: ease-out; }
+                            ? Palette.foreground.transparentize(0.92)
+                            : transparent;
+                        animate background {
+                            duration: 100ms;
+                            easing: ease-out;
+                        }
 
                         // cancel icon from the KiCad icon set; the unicode
                         // ✕ (U+2715) used in other panels does not render in
@@ -167,7 +172,7 @@ export component PluginConfigPanel inherits FocusScope {
             }
 
             // validation error message, shown when the path is missing or invalid
-            if root.show-error : HorizontalLayout {
+            if root.show-error: HorizontalLayout {
                 Text {
                     text: root.error-message;
                     font-size: 12px;
@@ -178,9 +183,20 @@ export component PluginConfigPanel inherits FocusScope {
             // action buttons: Cancel dismisses, OK accepts
             HorizontalLayout {
                 spacing: 10px;
-                Rectangle { horizontal-stretch: 1; }
-                StandardButton { kind: cancel; clicked => { root.dismissed(); } }
-                StandardButton { kind: ok; primary: true; clicked => { root.accepted(); } }
+                Rectangle {
+                    horizontal-stretch: 1;
+                }
+
+                StandardButton {
+                    kind: cancel;
+                    clicked => { root.dismissed(); }
+                }
+
+                StandardButton {
+                    kind: ok;
+                    primary: true;
+                    clicked => { root.accepted(); }
+                }
             }
         }
     }

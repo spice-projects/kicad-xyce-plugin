@@ -29,9 +29,10 @@ Before editing:
 After editing:
 1. Build the project
 2. Fix compiler warnings/errors
-3. Run the linter check on all changed files: `bash build/check-format.sh`
-4. Summarize changed files
-5. Do not execute unit tests unless explicitly asked
+3. Run the linter check on all changed C++ files: `bash build/check-format.sh`
+4. Format any changed `.slint` files in-place: `slint-lsp format -i <path/to/file.slint>`
+5. Summarize changed files
+6. Do not execute unit tests unless explicitly asked
 
 ## UI (Slint)
 
