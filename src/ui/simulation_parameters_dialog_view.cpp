@@ -11,7 +11,7 @@
 
 #include <slint.h>
 
-#include <simulation_parameters_dialog.h>
+#include <main_window.h>
 
 #include "../core/util.h"
 #include "../simulation/ac_simulation_parameters.h"
@@ -105,7 +105,7 @@ namespace simulation_parameters_dialog_view
         // ordered FET lead current wildcards
         static const std::vector<std::string> FET_WILDCARDS = {"IB(*)", "ID(*)", "IG(*)", "IS(*)"};
 
-        using DialogHandle = slint::ComponentHandle<simulation_parameters_dialog::SimulationParametersDialog>;
+        using WindowHandle = slint::ComponentHandle<main_window::MainWindow>;
 
         // resolve a model value to its combo index (case-insensitive); falls
         // back to the first entry when not found
@@ -457,7 +457,7 @@ namespace simulation_parameters_dialog_view
         }
 
         // push the saved operating point parameters into the dialog root's op-* fields
-        void apply_op_parameters(const DialogHandle& dialog, const OpSimulationParameters& params) {
+        void apply_op_parameters(const WindowHandle& dialog, const OpSimulationParameters& params) {
             // print section (no print-type combo; the type is always DC)
             apply_print_section(params.print_parameters, true, true, true, false, NO_PRINT_TYPES,
                                 PrintSetters{
@@ -484,7 +484,7 @@ namespace simulation_parameters_dialog_view
         }
 
         // read the operating point parameters from the dialog root's op-* fields
-        [[nodiscard]] OpSimulationParameters build_op_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] OpSimulationParameters build_op_parameters(const WindowHandle& dialog) {
             // print parameters (the print type is always DC for an OP analysis)
             auto print_params = build_print_section(true, true, true, false, "DC", NO_PRINT_TYPES,
                                                     PrintGetters{
@@ -515,7 +515,7 @@ namespace simulation_parameters_dialog_view
         [[nodiscard]] OpSimulationParameters default_op_parameters() { return OpSimulationParameters(false, false, false, {}, "", "", false, "", "", {}, {}, std::nullopt); }
 
         // push the saved AC analysis parameters into the dialog root's ac-* fields
-        void apply_ac_parameters(const DialogHandle& dialog, const AcSimulationParameters& params) {
+        void apply_ac_parameters(const WindowHandle& dialog, const AcSimulationParameters& params) {
             // sweep configuration
             dialog->set_ac_sweep_mode_index(sweep_mode_index_for(params.sweep_mode));
             dialog->set_ac_points(slint::SharedString(params.points));
@@ -542,7 +542,7 @@ namespace simulation_parameters_dialog_view
         }
 
         // read the AC analysis parameters from the dialog root's ac-* fields
-        [[nodiscard]] AcSimulationParameters build_ac_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] AcSimulationParameters build_ac_parameters(const WindowHandle& dialog) {
             const int sweep_mode_index = dialog->get_ac_sweep_mode_index();
             const std::string sweep_mode = SWEEP_MODE_VALUES[static_cast<size_t>(sweep_mode_index)];
             // the sweep range fields only apply to LIN/DEC/OCT sweeps
@@ -578,7 +578,7 @@ namespace simulation_parameters_dialog_view
         // --- transient analysis panel ---
 
         // push the saved transient parameters into the dialog root's tran-* fields
-        void apply_transient_parameters(const DialogHandle& dialog, const TransientSimulationParameters& params) {
+        void apply_transient_parameters(const WindowHandle& dialog, const TransientSimulationParameters& params) {
             dialog->set_tran_initial_step(slint::SharedString(params.initial_step_value));
             dialog->set_tran_final_time(slint::SharedString(params.final_time_value));
             dialog->set_tran_start_time(slint::SharedString(params.start_time_value));
@@ -606,7 +606,7 @@ namespace simulation_parameters_dialog_view
         }
 
         // read the transient parameters from the dialog root's tran-* fields
-        [[nodiscard]] TransientSimulationParameters build_transient_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] TransientSimulationParameters build_transient_parameters(const WindowHandle& dialog) {
             // resolve the OP keyword from the combo; index 0 is "(None)"
             std::string op_keyword;
             const int op_index = dialog->get_tran_op_keyword_index();
@@ -641,7 +641,7 @@ namespace simulation_parameters_dialog_view
         // --- DC analysis panel ---
 
         // push the saved DC parameters into the dialog root's dc-* fields
-        void apply_dc_parameters(const DialogHandle& dialog, const DCSimulationParameters& params) {
+        void apply_dc_parameters(const WindowHandle& dialog, const DCSimulationParameters& params) {
             dialog->set_dc_sweep_mode_index(choice_index_for(DC_SWEEP_MODE_VALUES, params.sweep_mode));
             dialog->set_dc_primary_variable(slint::SharedString(params.primary_variable));
             dialog->set_dc_start(slint::SharedString(params.start));
@@ -674,7 +674,7 @@ namespace simulation_parameters_dialog_view
         }
 
         // read the DC parameters from the dialog root's dc-* fields
-        [[nodiscard]] DCSimulationParameters build_dc_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] DCSimulationParameters build_dc_parameters(const WindowHandle& dialog) {
             const int sweep_mode_index = std::clamp(dialog->get_dc_sweep_mode_index(), 0, static_cast<int>(DC_SWEEP_MODE_VALUES.size()) - 1);
             const std::string sweep_mode = DC_SWEEP_MODE_VALUES[static_cast<size_t>(sweep_mode_index)];
             const std::string primary_variable = std::string(dialog->get_dc_primary_variable());
@@ -743,7 +743,7 @@ namespace simulation_parameters_dialog_view
         // --- noise analysis panel ---
 
         // push the saved noise parameters into the dialog root's noise-* fields
-        void apply_noise_parameters(const DialogHandle& dialog, const NoiseSimulationParameters& params) {
+        void apply_noise_parameters(const WindowHandle& dialog, const NoiseSimulationParameters& params) {
             dialog->set_noise_output_node(slint::SharedString(params.output_node));
             dialog->set_noise_ref_node(slint::SharedString(params.ref_node));
             dialog->set_noise_source_name(slint::SharedString(params.source_name));
@@ -771,7 +771,7 @@ namespace simulation_parameters_dialog_view
         }
 
         // read the noise parameters from the dialog root's noise-* fields
-        [[nodiscard]] NoiseSimulationParameters build_noise_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] NoiseSimulationParameters build_noise_parameters(const WindowHandle& dialog) {
             const int sweep_type_index = std::clamp(dialog->get_noise_sweep_type_index(), 0, static_cast<int>(SWEEP_MODE_VALUES.size()) - 1);
             const std::string sweep_type = SWEEP_MODE_VALUES[static_cast<size_t>(sweep_type_index)];
             // the frequency range fields only apply to LIN/DEC/OCT sweeps
@@ -814,7 +814,7 @@ namespace simulation_parameters_dialog_view
         }
 
         // push the saved HB parameters into the dialog root's hb-* fields
-        void apply_hb_parameters(const DialogHandle& dialog, const HbSimulationParameters& params) {
+        void apply_hb_parameters(const WindowHandle& dialog, const HbSimulationParameters& params) {
             dialog->set_hb_frequencies(slint::SharedString(join(params.frequencies, " ")));
             dialog->set_hb_harmonics(slint::SharedString(format_harmonics(params.harmonics)));
             dialog->set_hb_tahb(slint::SharedString(params.tahb.has_value() ? std::to_string(*params.tahb) : ""));
@@ -840,7 +840,7 @@ namespace simulation_parameters_dialog_view
         }
 
         // read the HB parameters from the dialog root's hb-* fields
-        [[nodiscard]] HbSimulationParameters build_hb_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] HbSimulationParameters build_hb_parameters(const WindowHandle& dialog) {
             // frequencies as owning tokens so they outlive the property getter
             const std::vector<std::string> frequencies = tokenize_owned(dialog->get_hb_frequencies());
             // harmonics text materialized first since split_by borrows views
@@ -890,7 +890,7 @@ namespace simulation_parameters_dialog_view
         // --- linear analysis panel ---
 
         // push the saved LIN parameters into the dialog root's lin-* fields
-        void apply_lin_parameters(const DialogHandle& dialog, const LinSimulationParameters& params) {
+        void apply_lin_parameters(const WindowHandle& dialog, const LinSimulationParameters& params) {
             dialog->set_lin_sparcalc(params.sparcalc);
             dialog->set_lin_format_index(choice_index_for(LIN_FORMAT_CHOICES, params.format));
             dialog->set_lin_lintype_index(choice_index_for(LIN_LINTYPE_CHOICES, params.lintype));
@@ -921,7 +921,7 @@ namespace simulation_parameters_dialog_view
         }
 
         // read the LIN parameters from the dialog root's lin-* fields
-        [[nodiscard]] LinSimulationParameters build_lin_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] LinSimulationParameters build_lin_parameters(const WindowHandle& dialog) {
             const int format_index = std::clamp(dialog->get_lin_format_index(), 0, static_cast<int>(LIN_FORMAT_CHOICES.size()) - 1);
             const int lintype_index = std::clamp(dialog->get_lin_lintype_index(), 0, static_cast<int>(LIN_LINTYPE_CHOICES.size()) - 1);
             const int dataformat_index = std::clamp(dialog->get_lin_dataformat_index(), 0, static_cast<int>(LIN_DATAFORMAT_CHOICES.size()) - 1);
@@ -957,75 +957,76 @@ namespace simulation_parameters_dialog_view
 
     struct SimulationParametersDialogView::Impl
     {
-        // the slint dialog window, created lazily on the first use
-        slint::ComponentHandle<simulation_parameters_dialog::SimulationParametersDialog> dialog;
+        // the main window handle; the panel is an inline child of the window,
+        // so all interaction goes through the window's properties and callbacks
+        WindowHandle window;
 
         // presenter notified with the accepted configuration
         MainWindowViewDefEvents* handler = nullptr;
 
-        // notified on both accept and cancel, after the dialog window is hidden;
+        // notified on both accept and cancel, after the panel is hidden;
         // the caller releases the modal state from here
         std::function<void()> on_closed;
 
         // configuration seeded on show
         SimulationConfig m_config;
 
-        Impl() :
-            dialog(simulation_parameters_dialog::SimulationParametersDialog::create()), m_config(SimulationConfig::from_xyce_directives({})) {
-            // wire callbacks
-            dialog->on_accepted([this] { accept(); });
-            dialog->on_dismissed([this] { dismiss(); });
+        Impl(WindowHandle w) :
+            window(w), m_config(SimulationConfig::from_xyce_directives({})) {
+            // wire the forwarded callbacks from the inline panel to this view
+            window->on_simulation_parameters_accepted([this] { accept(); });
+            window->on_simulation_parameters_dismissed([this] { dismiss(); });
         }
 
         void accept() {
             // read the tab selected by the user
-            const int selected_tab = dialog->get_selected_tab();
+            const int selected_tab = window->get_simulation_parameters_selected_tab();
             // update the analysis type from the selected tab
             m_config.analysis_type = ANALYSIS_TYPES[static_cast<size_t>(selected_tab)];
             // read the operating point panel back into the analysis variant
             if (selected_tab == PAGE_OP) {
-                m_config.analysis = build_op_parameters(dialog);
-                m_config.replace_ground = dialog->get_op_replace_ground();
+                m_config.analysis = build_op_parameters(window);
+                m_config.replace_ground = window->get_op_replace_ground();
             }
             // read the AC analysis panel back into the analysis variant
             else if (selected_tab == PAGE_AC) {
-                m_config.analysis = build_ac_parameters(dialog);
-                m_config.replace_ground = dialog->get_ac_replace_ground();
+                m_config.analysis = build_ac_parameters(window);
+                m_config.replace_ground = window->get_ac_replace_ground();
             }
             // read the transient analysis panel back into the analysis variant
             else if (selected_tab == PAGE_TRAN) {
-                m_config.analysis = build_transient_parameters(dialog);
-                m_config.replace_ground = dialog->get_tran_replace_ground();
+                m_config.analysis = build_transient_parameters(window);
+                m_config.replace_ground = window->get_tran_replace_ground();
             }
             // read the DC analysis panel back into the analysis variant;
-            // reject an invalid DC sweep without closing the dialog
+            // reject an invalid DC sweep without closing the panel
             else if (selected_tab == PAGE_DC) {
-                auto dc = build_dc_parameters(dialog);
+                auto dc = build_dc_parameters(window);
                 if (const auto error = dc.validate()) {
-                    dialog->set_error_message(slint::SharedString(*error));
-                    dialog->set_show_error(true);
+                    window->set_simulation_parameters_error_message(slint::SharedString(*error));
+                    window->set_simulation_parameters_show_error(true);
                     return;
                 }
                 m_config.analysis = std::move(dc);
-                m_config.replace_ground = dialog->get_dc_replace_ground();
+                m_config.replace_ground = window->get_dc_replace_ground();
             }
             // read the noise analysis panel back into the analysis variant
             else if (selected_tab == PAGE_NOISE) {
-                m_config.analysis = build_noise_parameters(dialog);
-                m_config.replace_ground = dialog->get_noise_replace_ground();
+                m_config.analysis = build_noise_parameters(window);
+                m_config.replace_ground = window->get_noise_replace_ground();
             }
             // read the harmonic balance panel back into the analysis variant
             else if (selected_tab == PAGE_HB) {
-                m_config.analysis = build_hb_parameters(dialog);
-                m_config.replace_ground = dialog->get_hb_replace_ground();
+                m_config.analysis = build_hb_parameters(window);
+                m_config.replace_ground = window->get_hb_replace_ground();
             }
             // read the linear analysis panel back into the analysis variant
             else if (selected_tab == PAGE_LIN) {
-                m_config.analysis = build_lin_parameters(dialog);
-                m_config.replace_ground = dialog->get_lin_replace_ground();
+                m_config.analysis = build_lin_parameters(window);
+                m_config.replace_ground = window->get_lin_replace_ground();
             }
-            // hide the dialog before delivering the result
-            dialog->hide();
+            // hide the panel before delivering the result
+            window->set_simulation_parameters_visible(false);
             // release the modal state held by the caller
             if (on_closed)
                 on_closed();
@@ -1035,92 +1036,87 @@ namespace simulation_parameters_dialog_view
         }
 
         void dismiss() {
-            // hide the dialog and drop the pending state
-            dialog->hide();
+            // hide the panel and drop the pending state
+            window->set_simulation_parameters_visible(false);
             // release the modal state held by the caller
             if (on_closed)
                 on_closed();
         }
     };
 
-    SimulationParametersDialogView::SimulationParametersDialogView() :
-        m_impl(std::make_unique<Impl>()) {}
+    SimulationParametersDialogView::SimulationParametersDialogView(slint::ComponentHandle<main_window::MainWindow> main_window) :
+        m_impl(std::make_unique<Impl>(main_window)) {}
 
     SimulationParametersDialogView::~SimulationParametersDialogView() = default;
 
-    slint::Window& SimulationParametersDialogView::window() {
-        // expose the dialog window (dialog must be shown first)
-        return m_impl->dialog->window();
-    }
-
     void SimulationParametersDialogView::show(const SimulationConfig& current, MainWindowViewDefEvents& handler, const std::function<void()>& on_closed) {
-        // remember the result destination for the dialog lifetime
+        // remember the result destination for the panel lifetime
         m_impl->handler = &handler;
         // remember the close notification for this show
         m_impl->on_closed = on_closed;
-        // seed the dialog with the current configuration
+        // seed the panel with the current configuration
         m_impl->m_config = current;
         // select the tab matching the analysis type
-        m_impl->dialog->set_selected_tab(tab_index_for(current.analysis_type));
+        m_impl->window->set_simulation_parameters_selected_tab(tab_index_for(current.analysis_type));
         // sync the operating point panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* op = std::get_if<OpSimulationParameters>(&current.analysis))
-            apply_op_parameters(m_impl->dialog, *op);
+            apply_op_parameters(m_impl->window, *op);
         else
-            apply_op_parameters(m_impl->dialog, default_op_parameters());
+            apply_op_parameters(m_impl->window, default_op_parameters());
         // mirror the replace-ground toggle onto the OP panel state
-        m_impl->dialog->set_op_replace_ground(current.replace_ground);
+        m_impl->window->set_op_replace_ground(current.replace_ground);
         // sync the AC analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* ac = std::get_if<AcSimulationParameters>(&current.analysis))
-            apply_ac_parameters(m_impl->dialog, *ac);
+            apply_ac_parameters(m_impl->window, *ac);
         else
-            apply_ac_parameters(m_impl->dialog, default_ac_parameters());
+            apply_ac_parameters(m_impl->window, default_ac_parameters());
         // mirror the replace-ground toggle onto the AC panel state
-        m_impl->dialog->set_ac_replace_ground(current.replace_ground);
+        m_impl->window->set_ac_replace_ground(current.replace_ground);
         // sync the transient analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* tran = std::get_if<TransientSimulationParameters>(&current.analysis))
-            apply_transient_parameters(m_impl->dialog, *tran);
+            apply_transient_parameters(m_impl->window, *tran);
         else
-            apply_transient_parameters(m_impl->dialog, default_transient_parameters());
+            apply_transient_parameters(m_impl->window, default_transient_parameters());
         // mirror the replace-ground toggle onto the TRAN panel state
-        m_impl->dialog->set_tran_replace_ground(current.replace_ground);
+        m_impl->window->set_tran_replace_ground(current.replace_ground);
         // sync the DC analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* dc = std::get_if<DCSimulationParameters>(&current.analysis))
-            apply_dc_parameters(m_impl->dialog, *dc);
+            apply_dc_parameters(m_impl->window, *dc);
         else
-            apply_dc_parameters(m_impl->dialog, default_dc_parameters());
+            apply_dc_parameters(m_impl->window, default_dc_parameters());
         // mirror the replace-ground toggle onto the DC panel state
-        m_impl->dialog->set_dc_replace_ground(current.replace_ground);
+        m_impl->window->set_dc_replace_ground(current.replace_ground);
         // sync the noise analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* noise = std::get_if<NoiseSimulationParameters>(&current.analysis))
-            apply_noise_parameters(m_impl->dialog, *noise);
+            apply_noise_parameters(m_impl->window, *noise);
         else
-            apply_noise_parameters(m_impl->dialog, default_noise_parameters());
+            apply_noise_parameters(m_impl->window, default_noise_parameters());
         // mirror the replace-ground toggle onto the noise panel state
-        m_impl->dialog->set_noise_replace_ground(current.replace_ground);
+        m_impl->window->set_noise_replace_ground(current.replace_ground);
         // sync the harmonic balance panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* hb = std::get_if<HbSimulationParameters>(&current.analysis))
-            apply_hb_parameters(m_impl->dialog, *hb);
+            apply_hb_parameters(m_impl->window, *hb);
         else
-            apply_hb_parameters(m_impl->dialog, default_hb_parameters());
+            apply_hb_parameters(m_impl->window, default_hb_parameters());
         // mirror the replace-ground toggle onto the HB panel state
-        m_impl->dialog->set_hb_replace_ground(current.replace_ground);
+        m_impl->window->set_hb_replace_ground(current.replace_ground);
         // sync the linear analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* lin = std::get_if<LinSimulationParameters>(&current.analysis))
-            apply_lin_parameters(m_impl->dialog, *lin);
+            apply_lin_parameters(m_impl->window, *lin);
         else
-            apply_lin_parameters(m_impl->dialog, default_lin_parameters());
+            apply_lin_parameters(m_impl->window, default_lin_parameters());
         // mirror the replace-ground toggle onto the LIN panel state
-        m_impl->dialog->set_lin_replace_ground(current.replace_ground);
+        m_impl->window->set_lin_replace_ground(current.replace_ground);
         // clear any previous validation feedback
-        m_impl->dialog->set_show_error(false);
-        // show the dialog window
-        m_impl->dialog->show();
+        m_impl->window->set_simulation_parameters_show_error(false);
+        // show the inline panel
+        m_impl->window->set_simulation_parameters_visible(true);
     }
 } // namespace simulation_parameters_dialog_view

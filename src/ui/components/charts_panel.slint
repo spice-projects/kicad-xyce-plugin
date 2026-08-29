@@ -74,24 +74,30 @@ export component ChartsPanel inherits Rectangle {
                 title: "Zoom to Fit";
                 activated => { ChartsPanelActions.zoom-to-fit(root.compute_chart_position(root.context-menu-y)); }
             }
+
             MenuItem {
                 title: "Autorange";
                 activated => { ChartsPanelActions.autorange(root.compute_chart_position(root.context-menu-y)); }
             }
+
             MenuItem {
                 title: "Zoom Abscissa Extent";
                 activated => { ChartsPanelActions.zoom-abscissa-extent(root.compute_chart_position(root.context-menu-y)); }
             }
-            MenuSeparator {}
+
+            MenuSeparator { }
+
             MenuItem {
                 title: "Add/Remove Plots";
                 activated => { ChartsPanelActions.add-remove-plots(root.compute_chart_position(root.context-menu-y)); }
             }
+
             MenuItem {
                 title: "Delete All Plots";
                 activated => { ChartsPanelActions.delete-all-plots(root.compute_chart_position(root.context-menu-y)); }
             }
-            if root.show-tools: MenuSeparator {}
+
+            if root.show-tools: MenuSeparator { }
             if root.enable-fft: MenuItem {
                 title: "Calculate FFT on selected plots";
                 activated => { ChartsPanelActions.calculate-fft(root.compute_chart_position(root.context-menu-y)); }
@@ -104,16 +110,20 @@ export component ChartsPanel inherits Rectangle {
                 title: "Step Tool...";
                 activated => { ChartsPanelActions.step-tool(root.compute_chart_position(root.context-menu-y)); }
             }
-            MenuSeparator {}
+            MenuSeparator { }
+
             MenuItem {
                 title: "Add Chart";
                 activated => { ChartsPanelActions.add-chart(root.compute_chart_position(root.context-menu-y)); }
             }
+
             MenuItem {
                 title: "Delete Chart";
                 activated => { ChartsPanelActions.delete-chart(root.compute_chart_position(root.context-menu-y)); }
             }
-            MenuSeparator {}
+
+            MenuSeparator { }
+
             MenuItem {
                 title: "New Window";
                 activated => { ChartsPanelActions.new-window(root.compute_chart_position(root.context-menu-y)); }

@@ -294,17 +294,15 @@ std::optional<SimulationConfig> SlintMainWindowView::show_simulation_parameters_
         return std::nullopt;
     // create the dialog view wrapper on first use
     if (!m_simulation_parameters_dialog)
-        m_simulation_parameters_dialog = std::make_unique<simulation_parameters_dialog_view::SimulationParametersDialogView>();
-    // show the dialog seeded with the current configuration; the slint dialog is
-    // non-modal, so the accepted configuration is delivered asynchronously through
-    // MainWindowViewDefEvents::on_simulation_parameters_dialog_result, and the modal
-    // state (kept in this view) is released through the on_closed callback on both
-    // accept and cancel
+        m_simulation_parameters_dialog = std::make_unique<simulation_parameters_dialog_view::SimulationParametersDialogView>(m_window);
+    // show the inline panel seeded with the current configuration; the panel is
+    // rendered inside the main window (no separate OS window), so modality is
+    // enforced by the guard_modal gate and the panel's dimmed backdrop — no
+    // modal_manager input blocking is needed. the accepted configuration is
+    // delivered asynchronously through MainWindowViewDefEvents, and the modal
+    // state (kept in this view) is released through the on_closed callback
+    // on both accept and cancel
     m_simulation_parameters_dialog->show(current, *m_event_handler, [this] { end_modal_dialog(); });
-    // remember the dialog window for unblocking when it closes
-    m_modal_dialog_window = &m_simulation_parameters_dialog->window();
-    // block input to the native main window while the dialog is shown
-    modal_manager::set_input_blocked(window(), *m_modal_dialog_window, true);
     // nothing to return, the accepted configuration is delivered asynchronously
     // through MainWindowViewDefEvents::on_simulation_parameters_dialog_result
     return std::nullopt;
@@ -379,16 +377,13 @@ void SlintMainWindowView::show_fft_dialog(size_t chart_index) {
     ensure_charts_renderer();
     // create the dialog view wrapper on first use
     if (!m_fft_dialog)
-        m_fft_dialog = std::make_unique<fft_dialog_view::FftDialogView>(*m_charts_renderer);
-    // show the dialog for the chart at the given index; the accepted expressions
-    // and FFT parameters are delivered asynchronously through
+        m_fft_dialog = std::make_unique<fft_dialog_view::FftDialogView>(m_window, *m_charts_renderer);
+    // show the inline panel for the chart at the given index; the accepted
+    // expressions and FFT parameters are delivered asynchronously through
     // on_fft_dialog_result, and the modal state is released through the on_closed
-    // callback on both accept and cancel
+    // callback on both accept and cancel; the panel is rendered inside the main
+    // window (no separate OS window), so no modal_manager input blocking is needed
     m_fft_dialog->show_for_chart(chart_index, *m_event_handler, [this] { end_modal_dialog(); });
-    // remember the dialog window for unblocking when it closes
-    m_modal_dialog_window = &m_fft_dialog->window();
-    // block input to the native main window while the dialog is shown
-    modal_manager::set_input_blocked(window(), *m_modal_dialog_window, true);
 }
 
 void SlintMainWindowView::show_step_tool_dialog(size_t chart_index) {
@@ -399,16 +394,13 @@ void SlintMainWindowView::show_step_tool_dialog(size_t chart_index) {
     ensure_charts_renderer();
     // create the dialog view wrapper on first use
     if (!m_step_tool_dialog)
-        m_step_tool_dialog = std::make_unique<step_tool_dialog_view::StepToolDialogView>(*m_charts_renderer);
-    // show the dialog for the chart at the given index; the accepted step
-    // selection is applied back to the chart through the renderer, and the
-    // modal state is released through the on_closed callback on both accept
-    // and cancel
+        m_step_tool_dialog = std::make_unique<step_tool_dialog_view::StepToolDialogView>(m_window, *m_charts_renderer);
+    // show the inline panel for the chart at the given index; the accepted
+    // step selection is applied back to the chart through the renderer, and the
+    // modal state is released through the on_closed callback on both accept and
+    // cancel; the panel is rendered inside the main window (no separate OS
+    // window), so no modal_manager input blocking is needed
     m_step_tool_dialog->show_for_chart(chart_index, [this] { end_modal_dialog(); });
-    // remember the dialog window for unblocking when it closes
-    m_modal_dialog_window = &m_step_tool_dialog->window();
-    // block input to the native main window while the dialog is shown
-    modal_manager::set_input_blocked(window(), *m_modal_dialog_window, true);
 }
 
 void SlintMainWindowView::handle_open() {

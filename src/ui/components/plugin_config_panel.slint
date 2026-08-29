@@ -1,203 +1,55 @@
-// inline modal panel rendered as an overlay within the main window, avoiding a
-// separate OS window (which slint dialogs create by default). the FocusScope
-// root captures keyboard focus via init => self.focus(), and its key-pressed
-// handler accepts all events so Escape and other keys never reach the
-// underlying netlist editor. a child Rectangle provides the dimmed visual
-// backdrop and a TouchArea absorbs pointer events so clicks on the backdrop
-// don't reach the content underneath. the centered card holds the form.
-import { Button, LineEdit, Palette, StandardButton } from "std-widgets.slint";
+// inline plugin configuration panel rendered as a modal overlay within the
+// main window. inherits the common modal panel chrome (title bar, close
+// button, dimmed backdrop, OK/Cancel footer) from ModalPanel; only the
+// form content and panel-specific properties/callbacks are defined here.
+import { Button, LineEdit, Palette } from "std-widgets.slint";
+import { ModalPanel } from "../components/modal_panel.slint";
 
-export component PluginConfigPanel inherits FocusScope {
+export component PluginConfigPanel inherits ModalPanel {
+
+    title: "Plugin Configuration";
+    card-width: 540px;
+    card-height: 216px;
 
     in-out property <string> xyce-path: "";
-    in property <bool> show-error: false;
-    in property <string> error-message: "";
     in property <bool> browse-enabled: true;
 
-    callback accepted;
-    callback dismissed;
     callback browse-clicked;
     callback path-edited(string);
 
-    // grab focus on creation so Escape and other keys are captured before
-    // they can reach the underlying netlist editor's text edit widget; making
-    // the FocusScope the root component ensures the focus request is
-    // processed at the top level of the panel's element tree, overriding
-    // whatever element held focus inside the window beforehand
-    init => { self.focus(); }
+    // form row: Xyce path label, read-only field, and browse button
+    HorizontalLayout {
+        spacing: 10px;
 
-    // intercept key events at the root level; accept all keys so they do
-    // not propagate to the underlying netlist editor — non-Escape keys are
-    // consumed here only when no focusable child inside the card (LineEdit,
-    // Button) has focus; when a child has focus those keys are delivered
-    // to it first and only unhandled ones (e.g. Escape) reach this handler
-    key-pressed(event) => {
-        if event.text == Key.Escape {
-            root.dismissed();
+        Text {
+            text: "Xyce path:";
+            font-size: 13px;
+            font-weight: 600;
+            color: Palette.foreground;
+            horizontal-alignment: left;
+            vertical-alignment: center;
+            min-width: 80px;
+            overflow: TextOverflow.elide;
         }
-        accept
-    }
 
-    // dimmed backdrop: a child Rectangle provides the visual overlay and a
-    // TouchArea absorbs pointer events so clicks don't reach the underlying
-    // netlist editor or charts panel
-    Rectangle {
-        x: 0;
-        y: 0;
-        width: 100%;
-        height: 100%;
-        background: Palette.background.transparentize(0.65);
+        LineEdit {
+            horizontal-stretch: 1;
+            height: 28px;
+            text <=> root.xyce-path;
+            read-only: true;
+            enabled: root.browse-enabled;
+            edited => { root.path-edited(self.text); }
+            accepted => { root.path-edited(self.text); }
+        }
 
-        TouchArea {
-            x: 0;
-            y: 0;
-            width: 100%;
-            height: 100%;
+        Button {
+            text: "Browse...";
+            clicked => { root.browse-clicked(); }
         }
     }
 
-    // centered card with window-like styling: solid background, border,
-    // rounded corners, and a drop-shadow that gives the card an elevated
-    // appearance on top of the dimmed backdrop
+    // spacer — pushes the error row and action buttons to the bottom
     Rectangle {
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-        width: 540px;
-        height: 216px;
-        background: Palette.background;
-        border-color: Palette.border;
-        border-width: 1px;
-        border-radius: 8px;
-        drop-shadow-color: #00000040;
-        drop-shadow-offset-y: 6px;
-        drop-shadow-blur: 16px;
-
-        VerticalLayout {
-            padding: 14px;
-            spacing: 10px;
-
-            // title bar: a slightly subdued stripe at the top with the
-            // dialog title on the left and a close (X) button on the right
-            Rectangle {
-                height: 32px;
-                background: Palette.background.transparentize(0.92);
-
-                HorizontalLayout {
-                    padding-left: 4px;
-                    padding-right: 4px;
-
-                    Text {
-                        text: "Plugin Configuration";
-                        font-size: 13px;
-                        font-weight: 600;
-                        color: Palette.foreground;
-                        vertical-alignment: center;
-                    }
-
-                    Rectangle {
-                        horizontal-stretch: 1;
-                    }
-
-                    // close button (X) — mirrors the simulation output
-                    // panel's close button styling and dismisses the panel
-                    close := Rectangle {
-                        min-width: 24px;
-                        max-width: 24px;
-                        height: 24px;
-                        border-radius: 4px;
-                        background: cb.pressed
-                            ? Palette.foreground.transparentize(0.82)
-                            : cb.has-hover
-                            ? Palette.foreground.transparentize(0.92)
-                            : transparent;
-                        animate background {
-                            duration: 100ms;
-                            easing: ease-out;
-                        }
-
-                        // cancel icon from the KiCad icon set; the unicode
-                        // ✕ (U+2715) used in other panels does not render in
-                        // the default font
-                        Image {
-                            x: (parent.width - 12px) / 2;
-                            y: (parent.height - 12px) / 2;
-                            width: 12px;
-                            height: 12px;
-                            source: @image-url("../kicad-icons/cancel_24.png");
-                            image-fit: contain;
-                        }
-
-                        cb := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.dismissed(); }
-                        }
-                    }
-                }
-            }
-
-            // form row: Xyce path label, read-only field, and browse button
-            HorizontalLayout {
-                spacing: 10px;
-
-                Text {
-                    text: "Xyce path:";
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: Palette.foreground;
-                    horizontal-alignment: left;
-                    vertical-alignment: center;
-                    min-width: 80px;
-                    overflow: TextOverflow.elide;
-                }
-
-                LineEdit {
-                    horizontal-stretch: 1;
-                    height: 28px;
-                    text <=> root.xyce-path;
-                    read-only: true;
-                    enabled: root.browse-enabled;
-                    edited => { root.path-edited(self.text); }
-                    accepted => { root.path-edited(self.text); }
-                }
-
-                Button {
-                    text: "Browse...";
-                    clicked => { root.browse-clicked(); }
-                }
-            }
-
-            // spacer — pushes the error row and action buttons to the bottom
-            Rectangle {
-                vertical-stretch: 1;
-            }
-
-            // validation error message, shown when the path is missing or invalid
-            if root.show-error: HorizontalLayout {
-                Text {
-                    text: root.error-message;
-                    font-size: 12px;
-                    color: #cc0000;
-                }
-            }
-
-            // action buttons: Cancel dismisses, OK accepts
-            HorizontalLayout {
-                spacing: 10px;
-                Rectangle {
-                    horizontal-stretch: 1;
-                }
-
-                StandardButton {
-                    kind: cancel;
-                    clicked => { root.dismissed(); }
-                }
-
-                StandardButton {
-                    kind: ok;
-                    primary: true;
-                    clicked => { root.accepted(); }
-                }
-            }
-        }
+        vertical-stretch: 1;
     }
 }
