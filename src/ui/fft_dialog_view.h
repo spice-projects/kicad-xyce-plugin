@@ -5,37 +5,38 @@
 
 #include <slint.h>
 
+#include <main_window.h>
+
+#include "../dsp/fft.h"
+#include "../expression/expression.h"
 #include "charts_renderer.h"
 #include "main_window_view_def.h"
 
 namespace fft_dialog_view
 {
-    // owns the slint FFT setup dialog window; shown on demand for a chart and
-    // delivers the accepted expressions and FFT parameters to the presenter,
-    // which runs the transform and spawns a result window. The dialog must be
-    // kept alive for the lifetime of the viewer, so it lives in its own
-    // translation unit (the generated dialog header defines a SharedGlobals
-    // type that conflicts with the main window header in the same compilation
-    // unit).
+    // owns the inline FFT setup panel rendered within the main window (replacing
+    // the separate slint Dialog window). The panel is an inline child of the
+    // MainWindow, so all interaction goes through the window's properties and
+    // callbacks — no separate OS window and no modal_manager input blocking is
+    // needed. The view must be kept alive for the lifetime of the presenter, so
+    // it lives in its own translation unit (the generated main_window header
+    // defines a SharedGlobals type that conflicts with the other dialog headers
+    // in the same compilation unit).
     class FftDialogView
     {
     public:
-        explicit FftDialogView(ChartsRenderer& renderer);
+        explicit FftDialogView(slint::ComponentHandle<main_window::MainWindow> main_window, ChartsRenderer& renderer);
 
         FftDialogView(const FftDialogView&) = delete;
         FftDialogView& operator=(const FftDialogView&) = delete;
 
         ~FftDialogView();
 
-        // the underlying slint window of the dialog; the dialog must be shown
-        // before accessing it
-        slint::Window& window();
-
-        // shows the dialog for the chart at the given index, pre-selecting the
+        // shows the panel for the chart at the given index, pre-selecting the
         // chart's plotted expressions. The on_closed callback is invoked on
-        // both accept and cancel, after the dialog window is hidden, so the
-        // caller can release the modal state; on accept the selected expressions
-        // and FFT parameters are delivered through the event handler.
+        // both accept and cancel, after the panel is hidden, so the caller can
+        // release the modal state; on accept the selected expressions and FFT
+        // parameters are delivered through the event handler.
         void show_for_chart(size_t chart_index, MainWindowViewDefEvents& handler, const std::function<void()>& on_closed);
 
     private:

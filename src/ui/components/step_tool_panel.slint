@@ -1,4 +1,9 @@
-import { CheckBox, Palette, ScrollView, StandardButton } from "std-widgets.slint";
+// inline step tool panel rendered as a modal overlay within the main window.
+// inherits the common modal panel chrome (title bar, close button, dimmed
+// backdrop, OK/Cancel footer) from ModalPanel; only the step selection grid and
+// bulk-selection helpers are defined here.
+import { CheckBox, Palette, ScrollView } from "std-widgets.slint";
+import { ModalPanel } from "../components/modal_panel.slint";
 
 // one parameter combination offered by the step tool: step index, the
 // parameter values, and selection
@@ -60,7 +65,6 @@ component StepRow inherits Rectangle {
     background: touch.has-hover ? Palette.alternate-background
         : root.alternate ? Palette.alternate-background.transparentize(0.55) : transparent;
 
-    // declared first so the checkbox and cells stay on top of it
     touch := TouchArea {
         clicked => {
             root.toggled();
@@ -130,106 +134,80 @@ component LinkButton inherits Rectangle {
     }
 }
 
-// step tool dialog: checkbox grid of parameter combinations. The selection is
-// applied back to the chart on accept.
-export component StepToolDialog inherits Dialog {
+export component StepToolPanel inherits ModalPanel {
     title: "Step Tool";
+    card-width: 620px;
+    card-height: 600px;
 
     in-out property <[StepItem]> steps: [];
     in property <[string]> keys: [];
     in property <string> selection-count: "";
 
-    callback accepted;
-    callback dismissed;
-    callback select-all;
-    callback clear-all;
-    callback invert-selection;
+    callback select-all();
+    callback clear-all();
+    callback invert-selection();
     callback step-toggled(int);
 
-    preferred-width: 620px;
-    // adapt to the content: chrome (~200px for title, toolbar, header, footer)
-    // plus one row per step, capped so huge step lists scroll instead of growing
-    preferred-height: min(root.grid-height + 200px, 640px);
+    Text {
+        text: "Step Tool";
+        font-size: 16px;
+        font-weight: 700;
+        color: Palette.foreground;
+    }
 
-    // height of the scrollable step grid: header row + one row per step
-    private property <length> grid-height: 30px + root.steps.length * 32px + 8px;
+    Text {
+        text: "Select one or more parameter combinations to keep active for this chart";
+        font-size: 12px;
+        color: Palette.foreground.transparentize(0.15);
+    }
+
+    StepHeader {
+        keys: root.keys;
+    }
 
     Rectangle {
-        background: Palette.background;
+        height: 1px;
+        background: Palette.border;
+    }
 
+    ScrollView {
+        vertical-stretch: 1;
+        horizontal-scrollbar-policy: ScrollBarPolicy.as-needed;
         VerticalLayout {
-            padding: 14px;
-            spacing: 7px;
-
-            Text {
-                text: "Step Tool";
-                font-size: 16px;
-                font-weight: 700;
-                color: Palette.foreground;
-            }
-
-            Text {
-                text: "Select one or more parameter combinations to keep active for this chart";
-                font-size: 12px;
-                color: Palette.foreground.transparentize(0.15);
-            }
-
-            StepHeader {
+            for step[index] in root.steps: StepRow {
+                step-item: step;
                 keys: root.keys;
-            }
-
-            Rectangle {
-                height: 1px;
-                background: Palette.border;
-            }
-
-            ScrollView {
-                vertical-stretch: 1;
-                horizontal-scrollbar-policy: ScrollBarPolicy.as-needed;
-                viewport-height: root.grid-height;
-                VerticalLayout {
-                    for step[index] in root.steps: StepRow {
-                        step-item: step;
-                        keys: root.keys;
-                        alternate: index.mod(2) == 1;
-                        toggled => { root.step-toggled(index); }
-                    }
-                }
-            }
-
-            // bulk-selection helpers trail the list so they stay reachable
-            // without competing with the column headers
-            HorizontalLayout {
-                spacing: 8px;
-
-                LinkButton {
-                    label: "Select All";
-                    clicked => { root.select-all(); }
-                }
-
-                LinkButton {
-                    label: "Clear All";
-                    clicked => { root.clear-all(); }
-                }
-
-                LinkButton {
-                    label: "Invert";
-                    clicked => { root.invert-selection(); }
-                }
-
-                // status, not an action: trail to the far edge of the row
-                Text {
-                    text: root.selection-count;
-                    font-size: 12px;
-                    color: Palette.foreground;
-                    vertical-alignment: center;
-                    horizontal-stretch: 1;
-                    horizontal-alignment: right;
-                }
+                alternate: index.mod(2) == 1;
+                toggled => { root.step-toggled(index); }
             }
         }
     }
 
-    StandardButton { kind: cancel; clicked => { root.dismissed(); } }
-    StandardButton { kind: ok; primary: true; clicked => { root.accepted(); } }
+    HorizontalLayout {
+        spacing: 8px;
+
+        LinkButton {
+            label: "Select All";
+            clicked => { root.select-all(); }
+        }
+
+        LinkButton {
+            label: "Clear All";
+            clicked => { root.clear-all(); }
+        }
+
+        LinkButton {
+            label: "Invert";
+            clicked => { root.invert-selection(); }
+        }
+
+        Text {
+            text: root.selection-count;
+            font-size: 12px;
+            color: Palette.foreground;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            horizontal-alignment: right;
+        }
+    }
 }

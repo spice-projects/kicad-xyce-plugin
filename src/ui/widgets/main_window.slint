@@ -1,8 +1,18 @@
 import { Palette } from "std-widgets.slint";
+import { AddPlotPanel } from "../components/add_plot_panel.slint";
 import { ChartsPanel } from "../components/charts_panel.slint";
+import { ExpressionItem } from "../components/expression_selector.slint";
+import { FftPanel } from "../components/fft_panel.slint";
+import { PluginConfigPanel } from "../components/plugin_config_panel.slint";
 import { SchematicPanel } from "../components/schematic_panel.slint";
-import { SimulationOutputPanel } from "../components/simulation_output_panel.slint";
-export { ChartsPanelActions } from "../components/charts_panel.slint";
+import { StepItem, StepToolPanel } from "../components/step_tool_panel.slint";
+import {
+    SimulationOutputPanel,
+} from "../components/simulation_output_panel.slint";
+import {
+    SimulationParametersPanel,
+} from "../components/simulation_parameters_panel.slint";
+export { ChartsPanelActions }from "../components/charts_panel.slint";
 
 export global MainWindowActions {
     callback open-xyce-file();
@@ -54,15 +64,18 @@ component ToolbarButton inherits Rectangle {
     background: !root.enabled
         ? transparent
         : ta.pressed
-            ? (root.accent
-                ? root.accent-color.transparentize(0.55)
-                : Palette.foreground.transparentize(0.82))
-            : ta.has-hover
-                ? (root.accent
-                    ? root.accent-color.transparentize(0.72)
-                    : Palette.foreground.transparentize(0.92))
-                : transparent;
-    animate background { duration: 100ms; easing: ease-out; }
+        ? (root.accent
+        ? root.accent-color.transparentize(0.55)
+        : Palette.foreground.transparentize(0.82))
+        : ta.has-hover
+        ? (root.accent
+        ? root.accent-color.transparentize(0.72)
+        : Palette.foreground.transparentize(0.92))
+        : transparent;
+    animate background {
+        duration: 100ms;
+        easing: ease-out;
+    }
 
     Image {
         x: (parent.width - root.icon-size) / 2;
@@ -95,6 +108,16 @@ export component MainWindow inherits Window {
     title: root.window-title;
     preferred-width: 900px;
     preferred-height: 360px;
+
+    // enforce a minimum window size that accommodates the largest inline
+    // overlay panel (SimulationParametersPanel card is 820x600,
+    // AddPlotPanel card is 600x560) plus window chrome (toolbar ~56px,
+    // statusbar ~24px = ~80px) so the dialog appears on top of the window
+    // rather than filling it edge-to-edge. the other inline overlays
+    // (PluginConfigPanel 540x216) are smaller and thus always fit within
+    // this minimum
+    min-width: 820px;
+    min-height: 680px;
 
     // runtime window title, driven from the view adapter (dirty marker prefix,
     // netlist/raw file names); the default shows until a file is opened
@@ -160,117 +183,664 @@ export component MainWindow inherits Window {
     // (per-platform helper) is what actually enforces modality
     in property <bool> modal-active: false;
 
+    // plugin configuration panel rendered inline as a modal overlay (no
+    // separate OS window); driven from the view adapter
+    in property <bool> plugin-config-visible: false;
+    in-out property <string> plugin-config-xyce-path: "";
+    in property <bool> plugin-config-show-error: false;
+    in property <string> plugin-config-error-message: "";
+    in property <bool> plugin-config-browse-enabled: true;
+
+    // forwarded from the inline plugin config panel to the view adapter
+    callback plugin-config-accepted();
+    callback plugin-config-dismissed();
+    callback plugin-config-browse-clicked();
+    callback plugin-config-path-edited(string);
+
+    // add plot expression panel rendered inline as a modal overlay (no separate
+    // OS window); driven from the view adapter
+    in property <bool> add-plot-visible: false;
+    in property <[ExpressionItem]> add-plot-expressions: [];
+    in-out property <string> add-plot-filter-text: "";
+    in-out property <string> add-plot-custom-text: "";
+    in property <bool> add-plot-allow-custom-expressions: true;
+    in property <bool> add-plot-show-error: false;
+
+    // forwarded from the inline add plot panel to the view adapter
+    callback add-plot-accepted();
+    callback add-plot-dismissed();
+    callback add-plot-expression-clicked(int);
+    callback add-plot-expression-right-clicked(int);
+    callback add-plot-filter-changed(string);
+    callback add-plot-custom-add();
+
+    // simulation parameters panel rendered inline as a modal overlay (no
+    // separate OS window); driven from the view adapter
+    in property <bool> simulation-parameters-visible: false;
+
+    // forwarded from the inline simulation parameters panel to the view adapter
+    callback simulation-parameters-accepted();
+    callback simulation-parameters-dismissed();
+
+    // analysis tab selected in the tabbed parameter panel
+    in-out property <int> simulation-parameters-selected-tab: 0;
+    in property <bool> simulation-parameters-show-error: false;
+    in property <string> simulation-parameters-error-message: "";
+
+    // FFT setup panel rendered inline as a modal overlay (no separate OS
+    // window); driven from the view adapter
+    in property <bool> fft-panel-visible: false;
+    in-out property <int> fft-range-mode: 0;
+    in-out property <string> fft-custom-from: "";
+    in-out property <string> fft-custom-to: "";
+    in-out property <int> fft-window-index: 2;
+    in-out property <int> fft-format-index: 0;
+    in-out property <int> fft-output-index: 0;
+    in-out property <bool> fft-keep-dc: true;
+    in-out property <int> fft-np-index: 2;
+    in-out property <string> fft-custom-np: "";
+    in property <[ExpressionItem]> fft-expressions: [];
+    in-out property <string> fft-filter-text: "";
+    in property <bool> fft-show-error: false;
+    in property <string> fft-error-message: "";
+
+    // forwarded from the inline FFT panel to the view adapter
+    callback fft-accepted();
+    callback fft-dismissed();
+    callback fft-expression-clicked(int);
+    callback fft-filter-changed(string);
+
+    // step tool panel rendered inline as a modal overlay (no separate OS
+    // window); driven from the view adapter
+    in property <bool> step-tool-panel-visible: false;
+    in property <[StepItem]> step-tool-steps: [];
+    in property <[string]> step-tool-keys: [];
+    in property <string> step-tool-selection-count: "";
+
+    // forwarded from the inline step tool panel to the view adapter
+    callback step-tool-accepted();
+    callback step-tool-dismissed();
+    callback step-tool-select-all();
+    callback step-tool-clear-all();
+    callback step-tool-invert-selection();
+    callback step-tool-step-toggled(int);
+
+    in-out property <bool> op-print-enabled: false;
+    in-out property <bool> op-print-all-nodes: false;
+    in-out property <bool> op-print-all-currents: false;
+    in-out property <bool> op-print-power: false;
+    in-out property <bool> op-print-bjt-leads: false;
+    in-out property <bool> op-print-fet-leads: false;
+    in-out property <string> op-print-specific-variables: "";
+    in-out property <int> op-print-format-index: 0;
+    in-out property <string> op-print-output-file: "";
+    in-out property <string> op-print-extra-options: "";
+    in-out property <bool> op-save-enabled: false;
+    in-out property <int> op-save-type-index: 0;
+    in-out property <string> op-save-file: "";
+    in-out property <int> op-save-level-index: 0;
+    in-out property <string> op-nodeset: "";
+    in-out property <string> op-initial-conditions: "";
+    in-out property <bool> op-replace-ground: true;
+
+    in-out property <int> ac-sweep-mode-index: 0;
+    in-out property <string> ac-points: "";
+    in-out property <string> ac-start: "";
+    in-out property <string> ac-end: "";
+    in-out property <string> ac-data-table: "";
+    in-out property <string> ac-measure: "";
+    in-out property <bool> ac-print-enabled: false;
+    in-out property <int> ac-print-type-index: 0;
+    in-out property <bool> ac-print-all-nodes: false;
+    in-out property <bool> ac-print-all-currents: false;
+    in-out property <bool> ac-print-bjt-leads: false;
+    in-out property <bool> ac-print-fet-leads: false;
+    in-out property <string> ac-print-specific-variables: "";
+    in-out property <int> ac-print-format-index: 0;
+    in-out property <string> ac-print-output-file: "";
+    in-out property <string> ac-print-extra-options: "";
+    in-out property <bool> ac-replace-ground: true;
+
+    in-out property <string> tran-initial-step: "";
+    in-out property <string> tran-final-time: "";
+    in-out property <string> tran-start-time: "";
+    in-out property <string> tran-step-ceiling: "";
+    in-out property <int> tran-op-keyword-index: 0;
+    in-out property <string> tran-schedule: "";
+    in-out property <string> tran-fft: "";
+    in-out property <string> tran-four: "";
+    in-out property <string> tran-measure: "";
+    in-out property <bool> tran-print-enabled: false;
+    in-out property <int> tran-print-type-index: 0;
+    in-out property <bool> tran-print-all-nodes: false;
+    in-out property <bool> tran-print-all-currents: false;
+    in-out property <bool> tran-print-power: false;
+    in-out property <bool> tran-print-bjt-leads: false;
+    in-out property <bool> tran-print-fet-leads: false;
+    in-out property <string> tran-print-specific-variables: "";
+    in-out property <int> tran-print-format-index: 0;
+    in-out property <string> tran-print-output-file: "";
+    in-out property <string> tran-print-extra-options: "";
+    in-out property <bool> tran-replace-ground: true;
+
+    in-out property <int> dc-sweep-mode-index: 0;
+    in-out property <string> dc-primary-variable: "";
+    in-out property <string> dc-start: "";
+    in-out property <string> dc-stop: "";
+    in-out property <string> dc-step: "";
+    in-out property <string> dc-points: "";
+    in-out property <string> dc-list-values: "";
+    in-out property <string> dc-data-table: "";
+    in-out property <string> dc-secondary-variable: "";
+    in-out property <string> dc-secondary-start: "";
+    in-out property <string> dc-secondary-stop: "";
+    in-out property <string> dc-secondary-step: "";
+    in-out property <string> dc-secondary-points: "";
+    in-out property <string> dc-measure: "";
+    in-out property <bool> dc-print-enabled: false;
+    in-out property <int> dc-print-type-index: 0;
+    in-out property <bool> dc-print-all-nodes: false;
+    in-out property <bool> dc-print-all-currents: false;
+    in-out property <bool> dc-print-power: false;
+    in-out property <bool> dc-print-bjt-leads: false;
+    in-out property <bool> dc-print-fet-leads: false;
+    in-out property <string> dc-print-specific-variables: "";
+    in-out property <int> dc-print-format-index: 0;
+    in-out property <string> dc-print-output-file: "";
+    in-out property <string> dc-print-extra-options: "";
+    in-out property <bool> dc-replace-ground: true;
+
+    in-out property <string> noise-output-node: "";
+    in-out property <string> noise-ref-node: "";
+    in-out property <string> noise-source-name: "";
+    in-out property <string> noise-start-freq: "";
+    in-out property <string> noise-end-freq: "";
+    in-out property <string> noise-num-points: "";
+    in-out property <int> noise-sweep-type-index: 0;
+    in-out property <string> noise-data-table: "";
+    in-out property <string> noise-device-noise: "";
+    in-out property <bool> noise-print-enabled: false;
+    in-out property <int> noise-print-type-index: 0;
+    in-out property <bool> noise-print-all-nodes: false;
+    in-out property <bool> noise-print-all-currents: false;
+    in-out property <bool> noise-print-bjt-leads: false;
+    in-out property <bool> noise-print-fet-leads: false;
+    in-out property <string> noise-print-specific-variables: "";
+    in-out property <int> noise-print-format-index: 0;
+    in-out property <string> noise-print-output-file: "";
+    in-out property <string> noise-print-extra-options: "";
+    in-out property <bool> noise-replace-ground: true;
+
+    in-out property <string> hb-frequencies: "";
+    in-out property <string> hb-harmonics: "";
+    in-out property <string> hb-tahb: "";
+    in-out property <string> hb-selectharms: "";
+    in-out property <string> hb-startup-periods: "";
+    in-out property <string> hb-nonlin-options: "";
+    in-out property <string> hb-linsol-options: "";
+    in-out property <bool> hb-print-enabled: false;
+    in-out property <int> hb-print-type-index: 0;
+    in-out property <bool> hb-print-all-nodes: false;
+    in-out property <bool> hb-print-all-currents: false;
+    in-out property <string> hb-print-specific-variables: "";
+    in-out property <int> hb-print-format-index: 0;
+    in-out property <string> hb-print-output-file: "";
+    in-out property <string> hb-print-extra-options: "";
+    in-out property <bool> hb-replace-ground: true;
+
+    in-out property <bool> lin-sparcalc: false;
+    in-out property <int> lin-format-index: 0;
+    in-out property <int> lin-lintype-index: 0;
+    in-out property <int> lin-dataformat-index: 0;
+    in-out property <string> lin-file: "";
+    in-out property <string> lin-output-width: "";
+    in-out property <string> lin-precision: "";
+    in-out property <int> lin-sweep-mode-index: 0;
+    in-out property <string> lin-points: "";
+    in-out property <string> lin-start: "";
+    in-out property <string> lin-end: "";
+    in-out property <string> lin-data-table: "";
+    in-out property <bool> lin-print-enabled: false;
+    in-out property <int> lin-print-type-index: 0;
+    in-out property <bool> lin-print-all-nodes: false;
+    in-out property <bool> lin-print-all-currents: false;
+    in-out property <bool> lin-print-power: false;
+    in-out property <bool> lin-print-bjt-leads: false;
+    in-out property <bool> lin-print-fet-leads: false;
+    in-out property <string> lin-print-specific-variables: "";
+    in-out property <int> lin-print-format-index: 0;
+    in-out property <string> lin-print-output-file: "";
+    in-out property <string> lin-print-extra-options: "";
+    in-out property <bool> lin-replace-ground: true;
+
     background: root.modal-active ? Palette.background.transparentize(0.35) : Palette.background;
 
-    VerticalLayout {
-        toolbar := Rectangle {
-            background: Palette.background;
+    // a plain Rectangle wraps the layout and the overlay so the panel can be
+    // absolutely positioned on top of the main content without the layout
+    // manager fighting over the overlay's coordinates (a Window whose first
+    // child is a layout would otherwise try to manage every child)
+    Rectangle {
+        VerticalLayout {
+            x: 0;
+            y: 0;
+            width: 100%;
+            height: 100%;
+            toolbar := Rectangle {
+                background: Palette.background;
 
-            VerticalLayout {
-                HorizontalLayout {
-                    cross-axis-alignment: center;
-                    padding-top: 8px;
-                    padding-bottom: 8px;
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    spacing: 2px;
+                VerticalLayout {
+                    HorizontalLayout {
+                        cross-axis-alignment: center;
+                        padding-top: 8px;
+                        padding-bottom: 8px;
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 2px;
 
-                    // group 1: file (standalone mode only)
-                    ToolbarButton { text: "Open"; icon: @image-url("../kicad-icons/directory_open_48.png"); enabled: root.enable-open; clicked => { MainWindowActions.open-xyce-file(); } }
-                    ToolbarButton { text: "Save"; icon: @image-url("../kicad-icons/save_48.png");           enabled: root.enable-save;  clicked => { MainWindowActions.save-netlist(); } }
-                    ToolbarSeparator {}
+                        // group 1: file (standalone mode only)
+                    ToolbarButton {
+                            text: "Open";
+                            icon: @image-url("../kicad-icons/directory_open_48.png");
+                            enabled: root.enable-open;
+                            clicked => { MainWindowActions.open-xyce-file(); }
+                        }
 
-                    // group 2: content views
-                    ToolbarButton { text: "Netlist";    icon: @image-url("../kicad-icons/netlist_48.png");     enabled: root.enable-show-netlist;    clicked => { MainWindowActions.show-netlist(); } }
-                    ToolbarButton { text: "Charts";     icon: @image-url("../kicad-icons/simulator_48.png");   enabled: root.enable-show-charts;     clicked => { MainWindowActions.show-charts(); } }
-                    ToolbarButton { text: "Sim Output"; icon: @image-url("../kicad-icons/sim_command_48.png"); enabled: root.enable-show-sim-output; clicked => { MainWindowActions.show-simulation-output(); } }
-                    ToolbarSeparator {}
+                        ToolbarButton {
+                            text: "Save";
+                            icon: @image-url("../kicad-icons/save_48.png");
+                            enabled: root.enable-save;
+                            clicked => { MainWindowActions.save-netlist(); }
+                        }
 
-                    // group 3: simulation; while a simulation runs the Run
+                        ToolbarSeparator { }
+
+                        // group 2: content views
+                    ToolbarButton {
+                            text: "Netlist";
+                            icon: @image-url("../kicad-icons/netlist_48.png");
+                            enabled: root.enable-show-netlist;
+                            clicked => { MainWindowActions.show-netlist(); }
+                        }
+
+                        ToolbarButton {
+                            text: "Charts";
+                            icon: @image-url("../kicad-icons/simulator_48.png");
+                            enabled: root.enable-show-charts;
+                            clicked => { MainWindowActions.show-charts(); }
+                        }
+
+                        ToolbarButton {
+                            text: "Sim Output";
+                            icon: @image-url("../kicad-icons/sim_command_48.png");
+                            enabled: root.enable-show-sim-output;
+                            clicked => { MainWindowActions.show-simulation-output(); }
+                        }
+
+                        ToolbarSeparator { }
+
+                        // group 3: simulation; while a simulation runs the Run
                     // action is replaced by Stop so the process can be canceled
-                    if !root.simulation-running : ToolbarButton { text: "Run Simulation"; icon: @image-url("../kicad-icons/sim_run_48.png");  enabled: root.enable-run-simulation; accent: true; clicked => { MainWindowActions.run-simulation(); } }
-                    if root.simulation-running : ToolbarButton { text: "Stop Simulation"; icon: @image-url("../kicad-icons/cancel_48.png");  enabled: true; accent: true; accent-color: #e05b4b; clicked => { MainWindowActions.stop-simulation(); } }
-                    ToolbarButton { text: "Configure";      icon: @image-url("../kicad-icons/sim_tune_48.png"); enabled: root.enable-configure-simulation;              clicked => { MainWindowActions.configure-simulation(); } }
-                    ToolbarSeparator {}
+                    if !root.simulation-running: ToolbarButton {
+                            text: "Run Simulation";
+                            icon: @image-url("../kicad-icons/sim_run_48.png");
+                            enabled: root.enable-run-simulation;
+                            accent: true;
+                            clicked => { MainWindowActions.run-simulation(); }
+                        }
+                        if root.simulation-running: ToolbarButton {
+                            text: "Stop Simulation";
+                            icon: @image-url("../kicad-icons/cancel_48.png");
+                            enabled: true;
+                            accent: true;
+                            accent-color: #e05b4b;
+                            clicked => { MainWindowActions.stop-simulation(); }
+                        }
+                        ToolbarButton {
+                            text: "Configure";
+                            icon: @image-url("../kicad-icons/sim_tune_48.png");
+                            enabled: root.enable-configure-simulation;
+                            clicked => { MainWindowActions.configure-simulation(); }
+                        }
 
-                    // group 4: plugin configuration
-                    ToolbarButton { text: "Plugin Settings"; icon: @image-url("../kicad-icons/preference_48.png"); clicked => { MainWindowActions.configure-plugin(); } }
-                    ToolbarSeparator {}
+                        ToolbarSeparator { }
 
-                    // group 5: exit
-                    ToolbarButton { text: "Exit"; icon: @image-url("../kicad-icons/exit_48.png"); clicked => { MainWindowActions.exit(); } }
+                        // group 4: plugin configuration
+                    ToolbarButton {
+                            text: "Plugin Settings";
+                            icon: @image-url("../kicad-icons/preference_48.png");
+                            clicked => { MainWindowActions.configure-plugin(); }
+                        }
 
-                    // absorbs remaining space so the HorizontalLayout can grow
+                        ToolbarSeparator { }
+
+                        // group 5: exit
+                    ToolbarButton {
+                            text: "Exit";
+                            icon: @image-url("../kicad-icons/exit_48.png");
+                            clicked => { MainWindowActions.exit(); }
+                        }
+
+                        // absorbs remaining space so the HorizontalLayout can grow
                     // with the window and doesn't impose a hard max-width
-                    Rectangle { horizontal-stretch: 1; }
-                }
+                    Rectangle {
+                            horizontal-stretch: 1;
+                        }
+                    }
 
-                Rectangle {
-                    height: 1px;
-                    background: Palette.border;
+                    Rectangle {
+                        height: 1px;
+                        background: Palette.border;
+                    }
                 }
             }
-        }
 
-        // body: the body container owns the exclusive content views, the
+            // body: the body container owns the exclusive content views, the
         // schematic panel is shown by default and the charts panel replaces
         // it once the charts view is shown
         body := Rectangle {
-            vertical-stretch: 1;
-            background: Palette.alternate-background;
+                vertical-stretch: 1;
+                background: Palette.alternate-background;
 
-            VerticalLayout {
-                if !root.charts-visible : schematic := SchematicPanel {
-                    vertical-stretch: 1;
-                    text <=> root.netlist-text;
-                    read-only: root.netlist-read-only;
-                    edited => { MainWindowActions.netlist-edited(); }
-                }
-                if root.charts-visible : charts := ChartsPanel {
-                    vertical-stretch: 1;
-                    enable-fft: root.enable-fft;
-                    enable-step-tool: root.enable-step-tool;
-                    has-fft-files: root.has-fft-files;
+                VerticalLayout {
+                    if !root.charts-visible: schematic := SchematicPanel {
+                        vertical-stretch: 1;
+                        text <=> root.netlist-text;
+                        read-only: root.netlist-read-only;
+                        edited => { MainWindowActions.netlist-edited(); }
+                    }
+                    if root.charts-visible: charts := ChartsPanel {
+                        vertical-stretch: 1;
+                        enable-fft: root.enable-fft;
+                        enable-step-tool: root.enable-step-tool;
+                        has-fft-files: root.has-fft-files;
                     // forward the rendered chart image from the host renderer
                     charts-image: root.charts-image;
                     // report layout changes to the renderer
                     viewport-changed(width, height) => { root.charts-viewport-changed(width, height); }
-                }
-                if root.simulation-output-visible : output := SimulationOutputPanel {
-                    height: 200px;
-                    log-lines: root.simulation-output-log;
-                    close => { MainWindowActions.close-simulation-output(); }
-                    copy-requested(start, end) => {
-                        MainWindowActions.copy-simulation-output(start, end);
+                    }
+                    if root.simulation-output-visible: output := SimulationOutputPanel {
+                        height: 200px;
+                        log-lines: root.simulation-output-log;
+                        close => { MainWindowActions.close-simulation-output(); }
+                        copy-requested(start, end) => {
+                            MainWindowActions.copy-simulation-output(start, end);
+                        }
                     }
                 }
             }
-        }
 
-        // status bar at the bottom of the window
+            // status bar at the bottom of the window
         statusbar := Rectangle {
-            height: 24px;
-            background: Palette.background;
+                height: 24px;
+                background: Palette.background;
 
-            VerticalLayout {
-                Rectangle {
-                    height: 1px;
-                    background: Palette.border;
-                }
+                VerticalLayout {
+                    Rectangle {
+                        height: 1px;
+                        background: Palette.border;
+                    }
 
-                HorizontalLayout {
-                    cross-axis-alignment: center;
+                    HorizontalLayout {
+                        cross-axis-alignment: center;
 
-                    Rectangle { width: 12px; }
+                        Rectangle {
+                            width: 12px;
+                        }
 
-                    Text {
-                        text: root.status-text;
-                        font-size: 12px;
-                        color: Palette.foreground;
-                        horizontal-alignment: left;
+                        Text {
+                            text: root.status-text;
+                            font-size: 12px;
+                            color: Palette.foreground;
+                            horizontal-alignment: left;
+                        }
                     }
                 }
             }
         }
+
+        // plugin configuration panel rendered as an inline modal overlay: a
+    // dimmed backdrop covers the whole window and a centered card holds the
+    // form. because it is a child of the Window (not a separate Dialog) there
+    // is no second OS window and no modal_manager input blocking is needed;
+    // the guard_modal gate and the backdrop's pointer absorption enforce
+    // modality within the single window.
+    if root.plugin-config-visible: plugin-config := PluginConfigPanel {
+            x: 0;
+            y: 0;
+            width: 100%;
+            height: 100%;
+            xyce-path <=> root.plugin-config-xyce-path;
+            show-error: root.plugin-config-show-error;
+            error-message: root.plugin-config-error-message;
+            browse-enabled: root.plugin-config-browse-enabled;
+            accepted => { root.plugin-config-accepted(); }
+            dismissed => { root.plugin-config-dismissed(); }
+            browse-clicked => { root.plugin-config-browse-clicked(); }
+            path-edited(text) => { root.plugin-config-path-edited(text); }
+        }
+
+        // add plot expression panel rendered as an inline modal overlay: a dimmed
+    // backdrop covers the whole window and a centered card holds the expression
+    // selector. because it is a child of the Window (not a separate Dialog) there
+    // is no second OS window and no modal_manager input blocking is needed;
+    // the guard_modal gate and the backdrop's pointer absorption enforce
+    // modality within the single window.
+    if root.add-plot-visible: AddPlotPanel {
+            x: 0;
+            y: 0;
+            width: 100%;
+            height: 100%;
+            expressions: root.add-plot-expressions;
+            filter-text <=> root.add-plot-filter-text;
+            custom-text <=> root.add-plot-custom-text;
+            allow-custom-expressions: root.add-plot-allow-custom-expressions;
+            show-error: root.add-plot-show-error;
+            error-message: "Invalid expression";
+            accepted => { root.add-plot-accepted(); }
+            dismissed => { root.add-plot-dismissed(); }
+            expression-clicked(index) => { root.add-plot-expression-clicked(index); }
+            expression-right-clicked(index) => { root.add-plot-expression-right-clicked(index); }
+            filter-changed(query) => { root.add-plot-filter-changed(query); }
+            custom-add => { root.add-plot-custom-add(); }
+        }
+
+        if root.simulation-parameters-visible: SimulationParametersPanel {
+            x: 0;
+            y: 0;
+            width: 100%;
+            height: 100%;
+            selected-tab <=> root.simulation-parameters-selected-tab;
+            show-error: root.simulation-parameters-show-error;
+            error-message: root.simulation-parameters-error-message;
+            accepted => { root.simulation-parameters-accepted(); }
+            dismissed => { root.simulation-parameters-dismissed(); }
+            op-print-enabled <=> root.op-print-enabled;
+            op-print-all-nodes <=> root.op-print-all-nodes;
+            op-print-all-currents <=> root.op-print-all-currents;
+            op-print-power <=> root.op-print-power;
+            op-print-bjt-leads <=> root.op-print-bjt-leads;
+            op-print-fet-leads <=> root.op-print-fet-leads;
+            op-print-specific-variables <=> root.op-print-specific-variables;
+            op-print-format-index <=> root.op-print-format-index;
+            op-print-output-file <=> root.op-print-output-file;
+            op-print-extra-options <=> root.op-print-extra-options;
+            op-save-enabled <=> root.op-save-enabled;
+            op-save-type-index <=> root.op-save-type-index;
+            op-save-file <=> root.op-save-file;
+            op-save-level-index <=> root.op-save-level-index;
+            op-nodeset <=> root.op-nodeset;
+            op-initial-conditions <=> root.op-initial-conditions;
+            op-replace-ground <=> root.op-replace-ground;
+            ac-sweep-mode-index <=> root.ac-sweep-mode-index;
+            ac-points <=> root.ac-points;
+            ac-start <=> root.ac-start;
+            ac-end <=> root.ac-end;
+            ac-data-table <=> root.ac-data-table;
+            ac-measure <=> root.ac-measure;
+            ac-print-enabled <=> root.ac-print-enabled;
+            ac-print-type-index <=> root.ac-print-type-index;
+            ac-print-all-nodes <=> root.ac-print-all-nodes;
+            ac-print-all-currents <=> root.ac-print-all-currents;
+            ac-print-bjt-leads <=> root.ac-print-bjt-leads;
+            ac-print-fet-leads <=> root.ac-print-fet-leads;
+            ac-print-specific-variables <=> root.ac-print-specific-variables;
+            ac-print-format-index <=> root.ac-print-format-index;
+            ac-print-output-file <=> root.ac-print-output-file;
+            ac-print-extra-options <=> root.ac-print-extra-options;
+            ac-replace-ground <=> root.ac-replace-ground;
+            tran-initial-step <=> root.tran-initial-step;
+            tran-final-time <=> root.tran-final-time;
+            tran-start-time <=> root.tran-start-time;
+            tran-step-ceiling <=> root.tran-step-ceiling;
+            tran-op-keyword-index <=> root.tran-op-keyword-index;
+            tran-schedule <=> root.tran-schedule;
+            tran-fft <=> root.tran-fft;
+            tran-four <=> root.tran-four;
+            tran-measure <=> root.tran-measure;
+            tran-print-enabled <=> root.tran-print-enabled;
+            tran-print-type-index <=> root.tran-print-type-index;
+            tran-print-all-nodes <=> root.tran-print-all-nodes;
+            tran-print-all-currents <=> root.tran-print-all-currents;
+            tran-print-power <=> root.tran-print-power;
+            tran-print-bjt-leads <=> root.tran-print-bjt-leads;
+            tran-print-fet-leads <=> root.tran-print-fet-leads;
+            tran-print-specific-variables <=> root.tran-print-specific-variables;
+            tran-print-format-index <=> root.tran-print-format-index;
+            tran-print-output-file <=> root.tran-print-output-file;
+            tran-print-extra-options <=> root.tran-print-extra-options;
+            tran-replace-ground <=> root.tran-replace-ground;
+            dc-sweep-mode-index <=> root.dc-sweep-mode-index;
+            dc-primary-variable <=> root.dc-primary-variable;
+            dc-start <=> root.dc-start;
+            dc-stop <=> root.dc-stop;
+            dc-step <=> root.dc-step;
+            dc-points <=> root.dc-points;
+            dc-list-values <=> root.dc-list-values;
+            dc-data-table <=> root.dc-data-table;
+            dc-secondary-variable <=> root.dc-secondary-variable;
+            dc-secondary-start <=> root.dc-secondary-start;
+            dc-secondary-stop <=> root.dc-secondary-stop;
+            dc-secondary-step <=> root.dc-secondary-step;
+            dc-secondary-points <=> root.dc-secondary-points;
+            dc-measure <=> root.dc-measure;
+            dc-print-enabled <=> root.dc-print-enabled;
+            dc-print-type-index <=> root.dc-print-type-index;
+            dc-print-all-nodes <=> root.dc-print-all-nodes;
+            dc-print-all-currents <=> root.dc-print-all-currents;
+            dc-print-power <=> root.dc-print-power;
+            dc-print-bjt-leads <=> root.dc-print-bjt-leads;
+            dc-print-fet-leads <=> root.dc-print-fet-leads;
+            dc-print-specific-variables <=> root.dc-print-specific-variables;
+            dc-print-format-index <=> root.dc-print-format-index;
+            dc-print-output-file <=> root.dc-print-output-file;
+            dc-print-extra-options <=> root.dc-print-extra-options;
+            dc-replace-ground <=> root.dc-replace-ground;
+            noise-output-node <=> root.noise-output-node;
+            noise-ref-node <=> root.noise-ref-node;
+            noise-source-name <=> root.noise-source-name;
+            noise-start-freq <=> root.noise-start-freq;
+            noise-end-freq <=> root.noise-end-freq;
+            noise-num-points <=> root.noise-num-points;
+            noise-sweep-type-index <=> root.noise-sweep-type-index;
+            noise-data-table <=> root.noise-data-table;
+            noise-device-noise <=> root.noise-device-noise;
+            noise-print-enabled <=> root.noise-print-enabled;
+            noise-print-type-index <=> root.noise-print-type-index;
+            noise-print-all-nodes <=> root.noise-print-all-nodes;
+            noise-print-all-currents <=> root.noise-print-all-currents;
+            noise-print-bjt-leads <=> root.noise-print-bjt-leads;
+            noise-print-fet-leads <=> root.noise-print-fet-leads;
+            noise-print-specific-variables <=> root.noise-print-specific-variables;
+            noise-print-format-index <=> root.noise-print-format-index;
+            noise-print-output-file <=> root.noise-print-output-file;
+            noise-print-extra-options <=> root.noise-print-extra-options;
+            noise-replace-ground <=> root.noise-replace-ground;
+            hb-frequencies <=> root.hb-frequencies;
+            hb-harmonics <=> root.hb-harmonics;
+            hb-tahb <=> root.hb-tahb;
+            hb-selectharms <=> root.hb-selectharms;
+            hb-startup-periods <=> root.hb-startup-periods;
+            hb-nonlin-options <=> root.hb-nonlin-options;
+            hb-linsol-options <=> root.hb-linsol-options;
+            hb-print-enabled <=> root.hb-print-enabled;
+            hb-print-type-index <=> root.hb-print-type-index;
+            hb-print-all-nodes <=> root.hb-print-all-nodes;
+            hb-print-all-currents <=> root.hb-print-all-currents;
+            hb-print-specific-variables <=> root.hb-print-specific-variables;
+            hb-print-format-index <=> root.hb-print-format-index;
+            hb-print-output-file <=> root.hb-print-output-file;
+            hb-print-extra-options <=> root.hb-print-extra-options;
+            hb-replace-ground <=> root.hb-replace-ground;
+            lin-sparcalc <=> root.lin-sparcalc;
+            lin-format-index <=> root.lin-format-index;
+            lin-lintype-index <=> root.lin-lintype-index;
+            lin-dataformat-index <=> root.lin-dataformat-index;
+            lin-file <=> root.lin-file;
+            lin-output-width <=> root.lin-output-width;
+            lin-precision <=> root.lin-precision;
+            lin-sweep-mode-index <=> root.lin-sweep-mode-index;
+            lin-points <=> root.lin-points;
+            lin-start <=> root.lin-start;
+            lin-end <=> root.lin-end;
+            lin-data-table <=> root.lin-data-table;
+            lin-print-enabled <=> root.lin-print-enabled;
+            lin-print-type-index <=> root.lin-print-type-index;
+            lin-print-all-nodes <=> root.lin-print-all-nodes;
+            lin-print-all-currents <=> root.lin-print-all-currents;
+            lin-print-power <=> root.lin-print-power;
+            lin-print-bjt-leads <=> root.lin-print-bjt-leads;
+            lin-print-fet-leads <=> root.lin-print-fet-leads;
+            lin-print-specific-variables <=> root.lin-print-specific-variables;
+            lin-print-format-index <=> root.lin-print-format-index;
+            lin-print-output-file <=> root.lin-print-output-file;
+            lin-print-extra-options <=> root.lin-print-extra-options;
+            lin-replace-ground <=> root.lin-replace-ground;
+        }
+    }
+
+    // FFT setup panel rendered as an inline modal overlay (no separate OS
+        // window); modality is enforced by the guard_modal gate and the panel's
+        // dimmed backdrop
+        if root.fft-panel-visible: FftPanel {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        range-mode <=> root.fft-range-mode;
+        custom-from <=> root.fft-custom-from;
+        custom-to <=> root.fft-custom-to;
+        window-index <=> root.fft-window-index;
+        format-index <=> root.fft-format-index;
+        output-index <=> root.fft-output-index;
+        keep-dc <=> root.fft-keep-dc;
+        np-index <=> root.fft-np-index;
+        custom-np <=> root.fft-custom-np;
+        expressions: root.fft-expressions;
+        filter-text <=> root.fft-filter-text;
+        show-error: root.fft-show-error;
+        error-message: root.fft-error-message;
+        accepted => { root.fft-accepted(); }
+        dismissed => { root.fft-dismissed(); }
+        expression-clicked(index) => { root.fft-expression-clicked(index); }
+        filter-changed(query) => { root.fft-filter-changed(query); }
+    }
+
+    // step tool panel rendered as an inline modal overlay (no separate OS
+        // window); modality is enforced by the guard_modal gate and the panel's
+        // dimmed backdrop
+        if root.step-tool-panel-visible: StepToolPanel {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        steps: root.step-tool-steps;
+        keys: root.step-tool-keys;
+        selection-count: root.step-tool-selection-count;
+        accepted => { root.step-tool-accepted(); }
+        dismissed => { root.step-tool-dismissed(); }
+        select-all => { root.step-tool-select-all(); }
+        clear-all => { root.step-tool-clear-all(); }
+        invert-selection => { root.step-tool-invert-selection(); }
+        step-toggled(index) => { root.step-tool-step-toggled(index); }
     }
 }

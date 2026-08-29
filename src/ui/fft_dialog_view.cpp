@@ -7,7 +7,7 @@
 
 #include <slint.h>
 
-#include <fft_dialog.h>
+#include <main_window.h>
 
 #include "../core/util.h"
 #include "../dsp/fft.h"
@@ -18,7 +18,7 @@ namespace fft_dialog_view
 {
     namespace
     {
-        // preset np options exposed by the dialog, defaulting to the xyce default of 1024
+        // preset np options exposed by the panel, defaulting to the xyce default of 1024
         const std::vector<size_t> NP_OPTIONS = {256, 512, 1024, 2048, 4096, 8192, 16384};
 
         // index of the "Custom..." entry in the np combo box
@@ -45,26 +45,27 @@ namespace fft_dialog_view
 
     struct FftDialogView::Impl
     {
+        // the main window handle; the panel is an inline child of the window,
+        // so all interaction goes through the window's properties and callbacks
+        slint::ComponentHandle<main_window::MainWindow> window;
+
         // renderer used to look up expressions and the abscissa range
         ChartsRenderer& renderer;
-
-        // the slint dialog window, created lazily on the first use
-        slint::ComponentHandle<fft_dialog::FftDialog> dialog;
 
         // presenter that receives the accepted expressions and parameters
         MainWindowViewDefEvents* handler = nullptr;
 
-        // notified on both accept and cancel, after the dialog window is hidden;
+        // notified on both accept and cancel, after the panel is hidden;
         // the caller releases the modal state from here
         std::function<void()> on_closed;
 
-        // expression model shown in the dialog grid; the dialog uses the indices
+        // expression model shown in the panel grid; the panel uses the indices
         // of this model in the expression-clicked callback
-        std::shared_ptr<slint::VectorModel<fft_dialog::ExpressionItem>> expressions;
+        std::shared_ptr<slint::VectorModel<main_window::ExpressionItem>> expressions;
 
-        // eligible expressions known to the dialog with their selection state;
+        // eligible expressions known to the panel with their selection state;
         // only real, non-time-domain expressions are eligible
-        std::vector<fft_dialog::ExpressionItem> m_all_items;
+        std::vector<main_window::ExpressionItem> m_all_items;
 
         // indices into m_all_items that pass the current filter
         std::vector<size_t> m_filtered_indices;
@@ -76,18 +77,21 @@ namespace fft_dialog_view
         double m_min_abscissa_value = 0.0;
         double m_max_abscissa_value = 1.0;
 
-        Impl(ChartsRenderer& renderer) :
-            renderer(renderer), dialog(fft_dialog::FftDialog::create()) {
-            expressions = std::make_shared<slint::VectorModel<fft_dialog::ExpressionItem>>();
-            dialog->set_expressions(expressions);
+        // active filter text, reapplied when the item list changes
+        std::string m_filter_query;
+
+        Impl(slint::ComponentHandle<main_window::MainWindow> w, ChartsRenderer& r) :
+            window(w), renderer(r) {
+            expressions = std::make_shared<slint::VectorModel<main_window::ExpressionItem>>();
+            window->set_fft_expressions(expressions);
             connect_callbacks();
         }
 
         void connect_callbacks() {
-            dialog->on_filter_changed([this](slint::SharedString query) { apply_filter(query); });
-            dialog->on_expression_clicked([this](int index) { toggle_expression(index); });
-            dialog->on_accepted([this] { accept(); });
-            dialog->on_dismissed([this] { dismiss(); });
+            window->on_fft_filter_changed([this](slint::SharedString query) { apply_filter(query); });
+            window->on_fft_expression_clicked([this](int index) { toggle_expression(index); });
+            window->on_fft_accepted([this] { accept(); });
+            window->on_fft_dismissed([this] { dismiss(); });
         }
 
         void populate() {
@@ -104,7 +108,7 @@ namespace fft_dialog_view
                 // skip time-domain expressions (unit "s")
                 if (std::get<Expression<double>>(*expression).unit() == "s")
                     continue;
-                m_all_items.push_back(fft_dialog::ExpressionItem{to_shared_string(expression_name(*expression)), to_shared_string(expression_type(*expression)), false});
+                m_all_items.push_back(main_window::ExpressionItem{to_shared_string(expression_name(*expression)), to_shared_string(expression_type(*expression)), false});
             }
             // check the chart's current selection
             const auto selected = renderer.chart_selected_expressions(chart_index);
@@ -114,9 +118,9 @@ namespace fft_dialog_view
             }
             // reset the filter and error state
             m_filter_query.clear();
-            dialog->set_filter_text(slint::SharedString(""));
-            dialog->set_show_error(false);
-            dialog->set_error_message(slint::SharedString(""));
+            window->set_fft_filter_text(slint::SharedString(""));
+            window->set_fft_show_error(false);
+            window->set_fft_error_message(slint::SharedString(""));
             // rebuild the grid with the empty filter
             update_filtered();
         }
@@ -160,10 +164,10 @@ namespace fft_dialog_view
             expressions->set_row_data(static_cast<size_t>(index), m_all_items[real_index]);
         }
 
-        // show a validation error inline and keep the dialog open
+        // show a validation error inline and keep the panel open
         void set_error(const char* message) {
-            dialog->set_show_error(true);
-            dialog->set_error_message(slint::SharedString(message));
+            window->set_fft_show_error(true);
+            window->set_fft_error_message(slint::SharedString(message));
         }
 
         // selected expressions mapped back to the expression manager pointers
@@ -171,7 +175,7 @@ namespace fft_dialog_view
             std::vector<AnyExpression*> selected;
             for (AnyExpression* expression : renderer.all_expressions()) {
                 const auto name = expression_name(*expression);
-                const auto it = std::find_if(m_all_items.begin(), m_all_items.end(), [&name](const fft_dialog::ExpressionItem& item) { return item.selected && std::string(item.name) == name; });
+                const auto it = std::find_if(m_all_items.begin(), m_all_items.end(), [&name](const main_window::ExpressionItem& item) { return item.selected && std::string(item.name) == name; });
                 if (it != m_all_items.end())
                     selected.push_back(expression);
             }
@@ -179,19 +183,19 @@ namespace fft_dialog_view
         }
 
         void accept() {
-            // build the FFT parameters from the dialog state; validation
-            // failures keep the dialog open with an inline error
+            // build the FFT parameters from the panel state; validation
+            // failures keep the panel open with an inline error
             fft::FftParameters params;
             // resolve the data range
-            switch (dialog->get_range_mode()) {
+            switch (window->get_fft_range_mode()) {
             case 0: // all
             case 1: // current zoom (no zoom support in the slint renderer yet, use the full range)
                 params.start = m_min_abscissa_value;
                 params.stop = m_max_abscissa_value;
                 break;
             case 2: { // custom
-                const std::string from_str = std::string(dialog->get_custom_from());
-                const std::string to_str = std::string(dialog->get_custom_to());
+                const std::string from_str = std::string(window->get_fft_custom_from());
+                const std::string to_str = std::string(window->get_fft_custom_to());
                 try {
                     params.start = std::stod(from_str);
                     params.stop = std::stod(to_str);
@@ -213,7 +217,7 @@ namespace fft_dialog_view
                 break;
             }
             // resolve the window function selection
-            switch (dialog->get_window_index()) {
+            switch (window->get_fft_window_index()) {
             case 0:
                 params.window = fft::WindowFunction::RECTANGULAR;
                 break;
@@ -231,7 +235,7 @@ namespace fft_dialog_view
                 break;
             }
             // resolve the output type selection
-            switch (dialog->get_output_index()) {
+            switch (window->get_fft_output_index()) {
             case 0:
                 params.output = fft::FftOutput::MAGNITUDE;
                 break;
@@ -246,7 +250,7 @@ namespace fft_dialog_view
                 break;
             }
             // resolve the format selection
-            switch (dialog->get_format_index()) {
+            switch (window->get_fft_format_index()) {
             case 0:
                 params.format = fft::FftFormat::NORM;
                 break;
@@ -258,11 +262,11 @@ namespace fft_dialog_view
                 break;
             }
             // read the keep-dc value
-            params.keep_dc = dialog->get_keep_dc();
+            params.keep_dc = window->get_fft_keep_dc();
             // handle the custom np input
-            if (dialog->get_np_index() == static_cast<int>(CUSTOM_NP_INDEX)) {
+            if (window->get_fft_np_index() == static_cast<int>(CUSTOM_NP_INDEX)) {
                 // validate the custom np input
-                const std::string np_str = std::string(dialog->get_custom_np());
+                const std::string np_str = std::string(window->get_fft_custom_np());
                 if (np_str.empty()) {
                     set_error("Please enter a custom number of FFT points.");
                     return;
@@ -281,16 +285,16 @@ namespace fft_dialog_view
                 }
                 // canonicalize to the nearest power of two and show the resolved value
                 params.np = resolve_np(params.np);
-                dialog->set_custom_np(slint::SharedString(std::to_string(params.np)));
+                window->set_fft_custom_np(slint::SharedString(std::to_string(params.np)));
             }
             else {
                 // use the preset np value
-                params.np = NP_OPTIONS[static_cast<size_t>(dialog->get_np_index())];
+                params.np = NP_OPTIONS[static_cast<size_t>(window->get_fft_np_index())];
             }
-            // gather the selected expressions before hiding the dialog
+            // gather the selected expressions before hiding the panel
             std::vector<AnyExpression*> selected = selected_expressions();
-            // hide the dialog before delivering the result
-            dialog->hide();
+            // hide the panel before delivering the result
+            window->set_fft_panel_visible(false);
             // release the modal state held by the caller
             if (on_closed)
                 on_closed();
@@ -300,26 +304,18 @@ namespace fft_dialog_view
         }
 
         void dismiss() {
-            // hide the dialog and drop the pending state
-            dialog->hide();
+            // hide the panel and drop the pending state
+            window->set_fft_panel_visible(false);
             // release the modal state held by the caller
             if (on_closed)
                 on_closed();
         }
-
-        // active filter text, reapplied when the item list changes
-        std::string m_filter_query;
     };
 
-    FftDialogView::FftDialogView(ChartsRenderer& renderer) :
-        m_impl(std::make_unique<Impl>(renderer)) {}
+    FftDialogView::FftDialogView(slint::ComponentHandle<main_window::MainWindow> main_window, ChartsRenderer& renderer) :
+        m_impl(std::make_unique<Impl>(main_window, renderer)) {}
 
     FftDialogView::~FftDialogView() = default;
-
-    slint::Window& FftDialogView::window() {
-        // expose the dialog window (dialog must be shown first)
-        return m_impl->dialog->window();
-    }
 
     void FftDialogView::show_for_chart(size_t chart_index, MainWindowViewDefEvents& handler, const std::function<void()>& on_closed) {
         // remember the result delivery and close notification for this show
@@ -329,7 +325,7 @@ namespace fft_dialog_view
         m_impl->chart_index = chart_index;
         // rebuild the expression list for the current state
         m_impl->populate();
-        // show the dialog window
-        m_impl->dialog->show();
+        // show the inline panel
+        m_impl->window->set_fft_panel_visible(true);
     }
 } // namespace fft_dialog_view

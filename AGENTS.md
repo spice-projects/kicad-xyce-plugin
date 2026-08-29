@@ -16,6 +16,7 @@
 - Unit Tests, avoid running unit tests using `ctest`. Execute unit tests by executing the process: `./.build-debug/tests/kicad-xyce-plugin-tests`
 - Unit tests must be self-contained: no helper functions, no test utilities, no external fixtures
 - Dependencies: `vcpkg`
+- Debug builds enable the embedded Slint MCP server. Launch the app with `SLINT_MCP_PORT=8080 ./build/kicad-xyce-plugin` to expose an HTTP/MCP endpoint for AI-assisted UI inspection (browse the `.slint` component tree, read/write properties, invoke callbacks).
 
 ## Workflow
 
@@ -28,9 +29,10 @@ Before editing:
 After editing:
 1. Build the project
 2. Fix compiler warnings/errors
-3. Run the linter check on all changed files: `bash build/check-format.sh`
-4. Summarize changed files
-5. Do not execute unit tests unless explicitly asked
+3. Run the linter check on all changed C++ files: `bash build/check-format.sh`
+4. Format any changed `.slint` files in-place: `slint-lsp format -i <path/to/file.slint>`
+5. Summarize changed files
+6. Do not execute unit tests unless explicitly asked
 
 ## UI (Slint)
 
