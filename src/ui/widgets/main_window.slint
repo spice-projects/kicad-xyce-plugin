@@ -3,6 +3,8 @@ import { ChartsPanel } from "../components/charts_panel.slint";
 import { PluginConfigPanel } from "../components/plugin_config_panel.slint";
 import { SchematicPanel } from "../components/schematic_panel.slint";
 import { SimulationOutputPanel } from "../components/simulation_output_panel.slint";
+import { AddPlotPanel } from "../components/add_plot_panel.slint";
+import { ExpressionItem } from "../components/expression_selector.slint";
 export { ChartsPanelActions } from "../components/charts_panel.slint";
 
 export global MainWindowActions {
@@ -97,6 +99,15 @@ export component MainWindow inherits Window {
     preferred-width: 900px;
     preferred-height: 360px;
 
+    // enforce a minimum window size that accommodates the largest inline
+    // overlay panel (AddPlotPanel card is 600x560) plus window chrome (toolbar
+    // ~56px, statusbar ~24px = 80px) so the dialog appears on top of the window
+    // rather than filling it edge-to-edge. the other inline overlay
+    // (PluginConfigPanel) is smaller (540x216) and thus always fits within this
+    // minimum
+    min-width: 680px;
+    min-height: 640px;
+
     // runtime window title, driven from the view adapter (dirty marker prefix,
     // netlist/raw file names); the default shows until a file is opened
     in property <string> window-title: "KiCad Xyce Plugin - Toolbar Preview";
@@ -174,6 +185,23 @@ export component MainWindow inherits Window {
     callback plugin-config-dismissed();
     callback plugin-config-browse-clicked();
     callback plugin-config-path-edited(string);
+
+    // add plot expression panel rendered inline as a modal overlay (no separate
+    // OS window); driven from the view adapter
+    in property <bool> add-plot-visible: false;
+    in property <[ExpressionItem]> add-plot-expressions: [];
+    in-out property <string> add-plot-filter-text: "";
+    in-out property <string> add-plot-custom-text: "";
+    in property <bool> add-plot-allow-custom-expressions: true;
+    in property <bool> add-plot-show-error: false;
+
+    // forwarded from the inline add plot panel to the view adapter
+    callback add-plot-accepted();
+    callback add-plot-dismissed();
+    callback add-plot-expression-clicked(int);
+    callback add-plot-expression-right-clicked(int);
+    callback add-plot-filter-changed(string);
+    callback add-plot-custom-add();
 
     background: root.modal-active ? Palette.background.transparentize(0.35) : Palette.background;
 
@@ -317,6 +345,30 @@ export component MainWindow inherits Window {
         dismissed => { root.plugin-config-dismissed(); }
         browse-clicked => { root.plugin-config-browse-clicked(); }
         path-edited(text) => { root.plugin-config-path-edited(text); }
+    }
+
+    // add plot expression panel rendered as an inline modal overlay: a dimmed
+    // backdrop covers the whole window and a centered card holds the expression
+    // selector. because it is a child of the Window (not a separate Dialog) there
+    // is no second OS window and no modal_manager input blocking is needed;
+    // the guard_modal gate and the backdrop's pointer absorption enforce
+    // modality within the single window.
+    if root.add-plot-visible : AddPlotPanel {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        expressions: root.add-plot-expressions;
+        filter-text <=> root.add-plot-filter-text;
+        custom-text <=> root.add-plot-custom-text;
+        allow-custom-expressions: root.add-plot-allow-custom-expressions;
+        show-error: root.add-plot-show-error;
+        accepted => { root.add-plot-accepted(); }
+        dismissed => { root.add-plot-dismissed(); }
+        expression-clicked(index) => { root.add-plot-expression-clicked(index); }
+        expression-right-clicked(index) => { root.add-plot-expression-right-clicked(index); }
+        filter-changed(query) => { root.add-plot-filter-changed(query); }
+        custom-add => { root.add-plot-custom-add(); }
     }
     }
 }

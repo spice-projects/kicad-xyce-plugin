@@ -9,7 +9,7 @@ class NetlistSource;
 class XyceOutputFile;
 
 // forward-declared window pair owned by the app window registry
-class SlintMainWindowView2;
+class SlintMainWindowView;
 class SlintMainWindowPresenter2;
 
 // application singleton managing the lifecycle, shared kicad session, and event loop
@@ -56,7 +56,7 @@ private:
     // lifetime
     struct WindowInstance
     {
-        std::unique_ptr<SlintMainWindowView2> view;
+        std::unique_ptr<SlintMainWindowView> view;
         std::unique_ptr<SlintMainWindowPresenter2> presenter;
     };
 

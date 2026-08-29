@@ -22,15 +22,15 @@
 #include "simulation_runner.h"
 #include "step_tool_dialog_view.h"
 
-class SlintMainWindowView2 : public MainWindowViewDef
+class SlintMainWindowView : public MainWindowViewDef
 {
 public:
-    SlintMainWindowView2(std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config);
+    SlintMainWindowView(std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config);
 
-    ~SlintMainWindowView2() override = default;
+    ~SlintMainWindowView() override = default;
 
-    SlintMainWindowView2(const SlintMainWindowView2&) = delete;
-    SlintMainWindowView2& operator=(const SlintMainWindowView2&) = delete;
+    SlintMainWindowView(const SlintMainWindowView&) = delete;
+    SlintMainWindowView& operator=(const SlintMainWindowView&) = delete;
 
     void set_event_handler(MainWindowViewDefEvents& handler) override;
 

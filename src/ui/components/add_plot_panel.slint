@@ -1,0 +1,217 @@
+// inline modal panel rendered as an overlay within the main window for selecting
+// plot expressions (an alternative to the add-remove plots flow). the FocusScope
+// root captures keyboard focus via init => self.focus(), and its key-pressed
+// handler accepts all events so Escape and other keys never reach the underlying
+// charts panel. a child Rectangle provides the dimmed visual backdrop and a
+// TouchArea absorbs pointer events so clicks on the backdrop don't reach the
+// content underneath. the centered card holds the expression selector form.
+import { Button, LineEdit, Palette, StandardButton } from "std-widgets.slint";
+import { ExpressionItem, ExpressionGrid, Legend } from "../components/expression_selector.slint";
+
+export component AddPlotPanel inherits FocusScope {
+    in property <[ExpressionItem]> expressions: [];
+    in property <bool> allow-custom-expressions: true;
+    in property <bool> show-error: false;
+    in property <string> filter-placeholder: "Filter expressions...";
+    in property <string> custom-hint: "e.g. V(net1) / I(R1)";
+    in-out property <string> filter-text: "";
+    in-out property <string> custom-text: "";
+
+    callback accepted;
+    callback dismissed;
+    callback expression-clicked(int);
+    callback expression-right-clicked(int);
+    callback filter-changed(string);
+    callback custom-add;
+
+    // grab focus on creation so Escape and other keys are captured before
+    // they can reach the underlying charts panel; making the FocusScope the
+    // root component ensures the focus request is processed at the top level
+    init => { self.focus(); }
+
+    // intercept key events at the root level; accept all keys so they do
+    // not propagate to the underlying charts panel
+    key-pressed(event) => {
+        if event.text == Key.Escape {
+            root.dismissed();
+        }
+        accept
+    }
+
+    // dimmed backdrop: a child Rectangle provides the visual overlay and a
+    // TouchArea absorbs pointer events so clicks don't reach the underlying
+    // charts panel underneath
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        background: Palette.background.transparentize(0.65);
+
+        TouchArea {
+            x: 0;
+            y: 0;
+            width: 100%;
+            height: 100%;
+        }
+    }
+
+    // centered card with window-like styling: solid background, border,
+    // rounded corners, and a drop-shadow that gives the card an elevated
+    // appearance on top of the dimmed backdrop
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 600px;
+        height: 560px;
+        background: Palette.background;
+        border-color: Palette.border;
+        border-width: 1px;
+        border-radius: 8px;
+        drop-shadow-color: #00000040;
+        drop-shadow-offset-y: 6px;
+        drop-shadow-blur: 16px;
+
+        VerticalLayout {
+            padding: 14px;
+            spacing: 10px;
+
+            // title bar: a slightly subdued stripe at the top with the
+            // dialog title on the left and a close (X) button on the right
+            Rectangle {
+                height: 32px;
+                background: Palette.background.transparentize(0.92);
+
+                HorizontalLayout {
+                    padding-left: 4px;
+                    padding-right: 4px;
+
+                    Text {
+                        text: "Select Plot Expressions";
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: Palette.foreground;
+                        vertical-alignment: center;
+                    }
+
+                    Rectangle { horizontal-stretch: 1; }
+
+                    // close button (X) — mirrors the plugin config panel's
+                    // close button styling and dismisses the panel
+                    close := Rectangle {
+                        min-width: 24px;
+                        max-width: 24px;
+                        height: 24px;
+                        border-radius: 4px;
+                        background: cb.pressed
+                            ? Palette.foreground.transparentize(0.82)
+                            : cb.has-hover
+                                ? Palette.foreground.transparentize(0.92)
+                                : transparent;
+                        animate background { duration: 100ms; easing: ease-out; }
+
+                        // cancel icon from the KiCad icon set; the unicode
+                        // ✕ (U+2715) used in other panels does not render in
+                        // the default font
+                        Image {
+                            x: (parent.width - 12px) / 2;
+                            y: (parent.height - 12px) / 2;
+                            width: 12px;
+                            height: 12px;
+                            source: @image-url("../kicad-icons/cancel_24.png");
+                            image-fit: contain;
+                        }
+
+                        cb := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.dismissed(); }
+                        }
+                    }
+                }
+            }
+
+            // expression selection instruction
+            Text {
+                text: "Select one or more expressions to plot:";
+                font-size: 13px;
+                font-weight: 600;
+                color: Palette.foreground;
+            }
+
+            // filter input — drives the expression grid below via a callback
+            LineEdit {
+                height: 28px;
+                placeholder-text: root.filter-placeholder;
+                text <=> root.filter-text;
+                edited => { root.filter-changed(self.text); }
+            }
+
+            // expression chip grid — model-driven from the renderer
+            ExpressionGrid {
+                vertical-stretch: 1;
+                expressions: root.expressions;
+                expression-clicked(i) => { root.expression-clicked(i); }
+                expression-right-clicked(i) => { root.expression-right-clicked(i); }
+            }
+
+            // validation error message, shown when a custom expression fails
+            // to parse
+            if root.show-error: Text {
+                text: "Invalid expression";
+                font-size: 12px;
+                color: #ff3b30;
+            }
+
+            // optional custom expression entry row
+            if root.allow-custom-expressions: HorizontalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "Expression:";
+                    font-size: 13px;
+                    color: Palette.foreground;
+                    vertical-alignment: center;
+                }
+
+                LineEdit {
+                    placeholder-text: root.custom-hint;
+                    height: 28px;
+                    horizontal-stretch: 1;
+                    text <=> root.custom-text;
+                    accepted => { root.custom-add(); }
+                }
+
+                Button {
+                    text: "Add";
+                    clicked => { root.custom-add(); }
+                }
+            }
+
+            // separator before the legend
+            Rectangle {
+                height: 1px;
+                background: Palette.border;
+            }
+
+            // signal type legend
+            Legend {
+                items: [
+                    { label: "Voltage", color: #5b9bd5 },
+                    { label: "Current", color: #7cb342 },
+                    { label: "Freq", color: #e57373 },
+                    { label: "Time", color: #ba68c8 },
+                    { label: "Power", color: #ffb74d },
+                    { label: "Misc", color: #3a3d4a },
+                ];
+            }
+
+            // action buttons: Cancel dismisses, OK accepts
+            HorizontalLayout {
+                spacing: 10px;
+                Rectangle { horizontal-stretch: 1; }
+                StandardButton { kind: cancel; clicked => { root.dismissed(); } }
+                StandardButton { kind: ok; primary: true; clicked => { root.accepted(); } }
+            }
+        }
+    }
+}
