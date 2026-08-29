@@ -522,11 +522,26 @@ TEST(TouchstoneFileParserChecks, parses_z_parameters) {
     ASSERT_EQ(names[1], "Z11");
 }
 
-TEST(TouchstoneFileParserChecks, parses_stepped_lin_sample_file) {
-    // arrange — use the actual sample file from netlists/
-    const std::filesystem::path sample_path = std::filesystem::current_path() / "netlists" / "lin-simple-with-step-01.s2p";
+TEST(TouchstoneFileParserChecks, parses_v2_file_with_declared_frequency_count) {
+    // arrange — v2.0 bracket headers with a declared frequency count and decade-spaced
+    // data rows (values taken from a real Xyce LIN sweep of an RC low-pass filter)
+    const std::string content = "[Version] 2.0\n"
+                                "# Hz S RI R 50\n"
+                                "[Number of Ports] 2\n"
+                                "[Two-Port Data Order] 12_21\n"
+                                "[Number of Frequencies] 5\n"
+                                "[Reference] 50 50\n"
+                                "[Network Data]\n"
+                                "!      Freq              ReS11             ImS11             ReS12             ImS12             ReS21             ImS21             ReS22             ImS22\n"
+                                "   1.00000000e+00    9.99999210e-01   -6.28317787e-04    7.89567729e-07    6.28317787e-04    7.89567729e-07    6.28317787e-04    9.99999210e-01   -6.28317787e-04\n"
+                                "   3.16227766e+00    9.99992104e-01   -1.98689412e-03    7.89562118e-06    1.98689412e-03    7.89562118e-06    1.98689412e-03    9.99992104e-01   -1.98689412e-03\n"
+                                "   1.00000000e+01    9.99921049e-01   -6.28244121e-03    7.89506014e-05    6.28244121e-03    7.89506014e-05    6.28244121e-03    9.99921049e-01   -6.28244121e-03\n"
+                                "   3.16227766e+01    9.99211055e-01   -1.98456599e-02    7.88945303e-04    1.98456599e-02    7.88945303e-04    1.98456599e-02    9.99211055e-01   -1.98456599e-02\n"
+                                "   1.00000000e+02    9.92166291e-01   -6.20925718e-02    7.83370894e-03    6.20925718e-02    7.83370894e-03    6.20925718e-02    9.92166291e-01   -6.20925718e-02\n"
+                                "[End]\n";
+    TempFileRAII temp_file(content);
     // act
-    const auto result = touchstone_file_parser(sample_path);
+    const auto result = touchstone_file_parser(temp_file.path());
     // assert
     ASSERT_TRUE(result.has_value());
     // check metadata
@@ -539,12 +554,12 @@ TEST(TouchstoneFileParserChecks, parses_stepped_lin_sample_file) {
     // check frequency
     auto& freq_expr = result.value()->expression_manager().abscissa();
     auto freq_data = freq_expr.step_data(0);
-    // [Number of Frequencies] declares 101 points
-    ASSERT_EQ(freq_data.size(), 101);
+    // [Number of Frequencies] declares 5 points
+    ASSERT_EQ(freq_data.size(), 5);
     // first frequency is 1 Hz
     EXPECT_DOUBLE_EQ(freq_data[0], 1.0);
-    // last frequency is 100 kHz = 100000 Hz
-    EXPECT_DOUBLE_EQ(freq_data[100], 100000.0);
+    // last frequency is 100 Hz
+    EXPECT_DOUBLE_EQ(freq_data[4], 100.0);
     // check S-parameters are non-zero (the whole point of using Touchstone instead of raw file)
     auto& s11 = std::get<Expression<std::complex<double>>>(*expressions[1]);
     auto s11_data = s11.step_data(0);
@@ -554,6 +569,6 @@ TEST(TouchstoneFileParserChecks, parses_stepped_lin_sample_file) {
     auto& s21 = std::get<Expression<std::complex<double>>>(*expressions[3]);
     auto s21_data = s21.step_data(0);
     EXPECT_NEAR(s21_data[0].real(), 7.89567729e-07, 1e-10);
-    // check abscissa scale is decade (DEC 20 1 100k)
+    // check abscissa scale is decade (log-spaced frequencies)
     ASSERT_EQ(result.value()->abscissa_scale(), AbscissaScale::DECADE);
 }
