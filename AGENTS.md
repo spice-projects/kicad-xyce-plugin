@@ -40,7 +40,7 @@ The UI is built with Slint and lives under `src/ui`:
 
 - Root widgets (windows/dialogs): `src/ui/widgets/*.slint`
 - Shared components (imported only by roots): `src/ui/components/*.slint`
-- Host C++ (`slint.h`, wiring, platform backends): flat under `src/ui/` (views/presenters, dialog wrappers, `file_dialog.*`, `clipboard.*`, `modal_manager.*`, `charts_renderer.*`)
+- Host C++ (`slint.h`, wiring, platform backends): flat under `src/ui/` (views/presenters, dialog wrappers, `file_dialog.*`, `clipboard.*`, `charts_renderer.*`)
 
 ### Build integration (`CMakeLists.txt`)
 
@@ -60,8 +60,8 @@ The UI is built with Slint and lives under `src/ui`:
 
 ### Dialogs
 
-- Slint `Dialog`s are non-modal, separate native windows. Emulate modality with `modal_manager::set_input_blocked(parent, dialog, blocked)` (per-platform); gate every dialog through the view's `begin_modal_dialog()`/`end_modal_dialog()` and wrap toolbar callbacks in `guard_modal(...)` so they are rejected while a dialog is open.
-- Each dialog wrapper (e.g. `PluginConfigDialogView`) must live in its own translation unit — generated dialog headers define a `SharedGlobals` type that conflicts with the main-window header — and uses a pimpl `Impl`. It exposes `show(...)`, an `on_closed` callback and `window()`; on accept/cancel, hide the dialog, call `on_closed()`, then deliver results through `MainWindowViewDefEvents`.
+- All dialogs are rendered as inline modal overlays within `MainWindow` using the `ModalPanel` base component (no separate OS windows). Modality is enforced by the view's `begin_modal_dialog()`/`end_modal_dialog()` and the panel's dimmed backdrop; toolbar callbacks are wrapped in `guard_modal(...)` so they are rejected while a dialog is open.
+- Each dialog wrapper (e.g. `PluginConfigDialogView`) lives in its own translation unit — the generated `main_window.h` defines a `SharedGlobals` type that conflicts with other generated headers — and uses a pimpl `Impl`. It exposes `show(...)` and an `on_closed` callback; on accept/cancel, hide the panel, call `on_closed()`, then deliver results through `MainWindowViewDefEvents`.
 
 ### Charts renderer
 

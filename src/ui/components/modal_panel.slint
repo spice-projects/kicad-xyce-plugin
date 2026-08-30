@@ -70,9 +70,9 @@ export component ModalPanel inherits FocusScope {
             padding: 0;
             spacing: 0;
 
-            // title bar: a slightly subdued stripe at the top with the
-            // dialog title on the left and a close (X) button on the right
-            Rectangle {
+             // title bar: a slightly subdued stripe at the top with the
+             // dialog title on the left and a close (X) button on the right
+             Rectangle {
                 height: 40px;
                 background: Palette.background.transparentize(0.92);
 
@@ -91,40 +91,43 @@ export component ModalPanel inherits FocusScope {
                     Rectangle {
                         horizontal-stretch: 1;
                     }
+                }
 
-                    // close button (X) — uses the KiCad cancel icon; the
-                    // unicode ✕ (U+2715) used in other panels does not
-                    // render in the default font
-                    close := Rectangle {
-                        min-width: 24px;
-                        max-width: 24px;
-                        height: 24px;
-                        border-radius: 4px;
-                        background: cb.pressed
-                            ? Palette.foreground.transparentize(0.82)
-                            : cb.has-hover
-                            ? Palette.foreground.transparentize(0.92)
-                            : transparent;
-                        animate background {
-                            duration: 100ms;
-                            easing: ease-out;
-                        }
+                // close button (X) — uses the KiCad cancel icon; the
+                // unicode ✕ (U+2715) used in other panels does not
+                // render in the default font. positioned at the right edge
+                // of the title bar, vertically centered
+                close := Rectangle {
+                    x: parent.width - 38px;
+                    y: (parent.height - 24px) / 2;
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 4px;
+                    background: cb.pressed
+                        ? Palette.foreground.transparentize(0.82)
+                        : cb.has-hover
+                        ? Palette.foreground.transparentize(0.92)
+                        : transparent;
+                    animate background {
+                        duration: 100ms;
+                        easing: ease-out;
+                    }
 
-                        Image {
-                            x: (parent.width - 12px) / 2;
-                            y: (parent.height - 12px) / 2;
-                            width: 12px;
-                            height: 12px;
-                            source: @image-url("../kicad-icons/cancel_24.png");
-                            image-fit: contain;
-                        }
+                    Image {
+                        x: (parent.width - 12px) / 2;
+                        y: (parent.height - 12px) / 2;
+                        width: 12px;
+                        height: 12px;
+                        source: @image-url("../kicad-icons/cancel_24.png");
+                        image-fit: contain;
+                    }
 
-                        cb := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.dismissed(); }
-                        }
+                    cb := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.dismissed(); }
                     }
                 }
+            }
             }
 
             Rectangle {
@@ -167,11 +170,13 @@ export component ModalPanel inherits FocusScope {
 
                     StandardButton {
                         kind: cancel;
+                        height: 32px;
                         clicked => { root.dismissed(); }
                     }
 
                     StandardButton {
                         kind: ok;
+                        height: 32px;
                         primary: true;
                         clicked => { root.accepted(); }
                     }

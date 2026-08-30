@@ -13,7 +13,6 @@
 #include "clipboard.h"
 #include "file_dialog.h"
 #include "main_window_view.h"
-#include "modal_manager.h"
 
 SlintMainWindowView::SlintMainWindowView(std::unique_ptr<NetlistSource> /*netlist_source*/, PluginConfig /*plugin_config*/) :
     m_window(main_window::MainWindow::create()), m_simulation_log(std::make_shared<slint::VectorModel<slint::SharedString>>()) {
@@ -461,11 +460,6 @@ void SlintMainWindowView::end_modal_dialog() {
     // no modal state to release
     if (!m_modal_dialog_open)
         return;
-    // unblocking input only applies to dialogs that own a separate OS window
-    // via modal_manager; inline panels (rendered inside the main window) have
-    // no such window, so m_modal_dialog_window is nullptr and the call is skipped
-    if (m_modal_dialog_window != nullptr)
-        modal_manager::set_input_blocked(window(), *m_modal_dialog_window, false);
     // restore the main window appearance
     m_window->set_modal_active(false);
     // clear the modal state

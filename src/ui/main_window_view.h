@@ -16,7 +16,6 @@
 #include "charts_renderer.h"
 #include "fft_dialog_view.h"
 #include "main_window_view_def.h"
-#include "modal_manager.h"
 #include "plugin_config_dialog_view.h"
 #include "simulation_parameters_dialog_view.h"
 #include "simulation_runner.h"
@@ -102,10 +101,6 @@ private:
 
     // track whether a modal dialog is currently open
     bool m_modal_dialog_open = false;
-
-    // the window of the dialog currently open, used to restore the native
-    // parent/dialog relationship when the modal state is released
-    slint::Window* m_modal_dialog_window = nullptr;
 
     slint::ComponentHandle<main_window::MainWindow> m_window;
     MainWindowViewDefEvents* m_event_handler = nullptr;
