@@ -102,11 +102,13 @@ void App::new_window(std::shared_ptr<XyceOutputFile> raw_file) {
     presenter->load_raw_file(std::move(raw_file));
 }
 
-SlintMainWindowPresenter2* App::create_window(std::unique_ptr<NetlistSource> netlist_source, std::shared_ptr<KiCadSession> session) {
+SlintMainWindowPresenter* App::create_window(std::unique_ptr<NetlistSource> netlist_source, std::shared_ptr<KiCadSession> session) {
+    // plugin config
+    auto config = PluginConfig::load();
     // the view needs only a placeholder netlist source; the presenter owns the real source
     auto instance = std::make_unique<WindowInstance>();
-    instance->view = std::make_unique<SlintMainWindowView>(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), PluginConfig::load());
-    instance->presenter = std::make_unique<SlintMainWindowPresenter2>(*instance->view, std::move(netlist_source), PluginConfig::load(), std::move(session));
+    instance->view = std::make_unique<SlintMainWindowView>(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), config);
+    instance->presenter = std::make_unique<SlintMainWindowPresenter>(*instance->view, std::move(netlist_source), config, std::move(session));
     // wire the event handler so the view forwards user interactions to the presenter
     instance->view->set_event_handler(*instance->presenter);
     // keep the window alive while the event loop runs

@@ -207,11 +207,15 @@ PluginConfig PluginConfig::load() {
     std::error_code ec;
     // read configuration from disk if the file exists
     if (std::filesystem::is_regular_file(config_path, ec)) {
+        // open the config file for reading
         std::ifstream file(config_path);
         if (file.is_open()) {
+            // read the entire file into a string buffer
             std::stringstream buffer;
             buffer << file.rdbuf();
+            // attempt to extract the Xyce executable path from the JSON content
             const auto stored_path = extract_xyce_path(buffer.str());
+            // return the stored path if it is valid and non-empty
             if (stored_path.has_value() && !stored_path->empty()) {
                 // log information
                 spdlog::debug("Loaded Xyce executable path from config: {}", *stored_path);

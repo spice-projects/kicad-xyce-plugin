@@ -154,12 +154,13 @@ export component ModalPanel inherits FocusScope {
                 background: Palette.border;
             }
 
-            // footer: Cancel and OK action buttons
             Rectangle {
                 height: 42px;
                 background: Palette.background.transparentize(0.96);
 
                 HorizontalLayout {
+                    y: (parent.height - 28px) / 2;
+                    height: 28px;
                     padding-left: 14px;
                     padding-right: 14px;
 
@@ -169,13 +170,15 @@ export component ModalPanel inherits FocusScope {
 
                     StandardButton {
                         kind: cancel;
-                        height: 32px;
                         clicked => { root.dismissed(); }
+                    }
+
+                    Rectangle {
+                        width: 8px;
                     }
 
                     StandardButton {
                         kind: ok;
-                        height: 32px;
                         primary: true;
                         clicked => { root.accepted(); }
                     }

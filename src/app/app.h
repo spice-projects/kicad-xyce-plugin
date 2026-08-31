@@ -10,7 +10,7 @@ class XyceOutputFile;
 
 // forward-declared window pair owned by the app window registry
 class SlintMainWindowView;
-class SlintMainWindowPresenter2;
+class SlintMainWindowPresenter;
 
 // application singleton managing the lifecycle, shared kicad session, and event loop
 class App
@@ -49,7 +49,7 @@ private:
     // create a view/presenter pair for a window, wire them together, keep the
     // window alive in the registry, and show it; returns the presenter so the
     // caller can seed the window content (main window netlist or raw file)
-    [[nodiscard]] SlintMainWindowPresenter2* create_window(std::unique_ptr<NetlistSource> netlist_source, std::shared_ptr<KiCadSession> session);
+    [[nodiscard]] SlintMainWindowPresenter* create_window(std::unique_ptr<NetlistSource> netlist_source, std::shared_ptr<KiCadSession> session);
 
     // a spawned window pair: the view owns the slint component and the
     // presenter owns the business logic; both must stay alive for the window
@@ -57,7 +57,7 @@ private:
     struct WindowInstance
     {
         std::unique_ptr<SlintMainWindowView> view;
-        std::unique_ptr<SlintMainWindowPresenter2> presenter;
+        std::unique_ptr<SlintMainWindowPresenter> presenter;
     };
 
     std::shared_ptr<KiCadSession> m_kicad_session;

@@ -80,13 +80,6 @@ namespace
         }
     };
 
-    std::string strip(const std::string& s) {
-        // trimmed copy
-        std::string result = s;
-        // trim the copy
-        return trim(result);
-    }
-
     std::vector<std::string> get_tokens(const std::string& line) {
         // initialize tokens
         std::vector<std::string> tokens;
@@ -248,6 +241,7 @@ namespace
         if (std::filesystem::is_regular_file(filepath) && std::filesystem::file_size(filepath, ec) == 0) {
             // empty files contain no signals
             spdlog::warn("Xyce FFT file is empty: {}", filepath.string());
+            // exit
             return true;
         }
         // create the mapped file
@@ -304,8 +298,6 @@ namespace
                     return false;
                 // trim whitespace
                 line = trim(line);
-                // log the line
-                spdlog::debug(">> {}", line);
                 // check we are in the data point section
                 if (expected_index > 0) {
                     // check the end of the data points (empty line)
@@ -321,6 +313,7 @@ namespace
                     if (columns.size() != 4) {
                         // log the error
                         spdlog::error("invalid Xyce FFT file: unexpected number of columns ({}) in data point line '{}'", columns.size(), line);
+                        // exit
                         return false;
                     }
                     // parse the data point index
@@ -329,6 +322,7 @@ namespace
                     if (index != expected_index) {
                         // log the error
                         spdlog::error("invalid Xyce FFT file: unexpected data point index {} (expected {}) in '{}'", index, expected_index, filepath.string());
+                        // exit
                         return false;
                     }
                     // append the data points
@@ -340,6 +334,8 @@ namespace
                     // next line
                     continue;
                 }
+                // log the line
+                spdlog::debug(">> {}", line);
                 // check the signal header line
                 if (!found_signal) {
                     std::smatch match;
@@ -400,6 +396,7 @@ namespace
                     if (!(found_signal && found_window && found_harmonic && found_dc)) {
                         // log the error
                         spdlog::error("invalid Xyce FFT file: missing header lines before data points in '{}'", filepath.string());
+                        // exit
                         return false;
                     }
                     // reset the header flags
@@ -427,41 +424,43 @@ namespace
                     auto& signal_steps = entry_it->second.signals[signal_name];
                     // append the current step data
                     signal_steps.push_back(FftStep{metadata, dc_magnitude, dc_phase, magnitude_list, phase_list});
+                    // log the line
+                    spdlog::debug(">> ...");
                     // next line
                     continue;
                 }
                 // check the thd line
                 if (line.starts_with("THD")) {
                     // append the metadata value
-                    (*metadata)["THD"] = strip(line.substr(5));
+                    (*metadata)["THD"] = trim(line.substr(5));
                     // next line
                     continue;
                 }
                 // check the sndr line
                 if (line.starts_with("SNDR")) {
                     // append the metadata value
-                    (*metadata)["SNDR"] = strip(line.substr(6));
+                    (*metadata)["SNDR"] = trim(line.substr(6));
                     // next line
                     continue;
                 }
                 // check the enob line
                 if (line.starts_with("ENOB")) {
                     // append the metadata value
-                    (*metadata)["ENOB"] = strip(line.substr(6));
+                    (*metadata)["ENOB"] = trim(line.substr(6));
                     // next line
                     continue;
                 }
                 // check the snr line
                 if (line.starts_with("SNR")) {
                     // append the metadata value
-                    (*metadata)["SNR"] = strip(line.substr(5));
+                    (*metadata)["SNR"] = trim(line.substr(5));
                     // next line
                     continue;
                 }
                 // check the sfdr line
                 if (line.starts_with("SFDR")) {
                     // append the metadata value
-                    (*metadata)["SFDR"] = strip(line.substr(6));
+                    (*metadata)["SFDR"] = trim(line.substr(6));
                     // next line
                     continue;
                 }
@@ -473,6 +472,7 @@ namespace
         catch (const std::exception&) {
             // log the error
             spdlog::error("Error processing Xyce FFT file: {}", filepath.string());
+            // exit
             return false;
         }
         // parse successful

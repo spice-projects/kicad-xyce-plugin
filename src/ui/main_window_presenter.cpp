@@ -18,15 +18,15 @@
 #include "main_window_state.h"
 #include "simulation_runner.h"
 
-SlintMainWindowPresenter2::SlintMainWindowPresenter2(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config, std::shared_ptr<KiCadSession> kicad_session) :
+SlintMainWindowPresenter::SlintMainWindowPresenter(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config, std::shared_ptr<KiCadSession> kicad_session) :
     m_view(view), m_kicad_session(std::move(kicad_session)), m_netlist_source(std::move(netlist_source)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(std::move(plugin_config)) {
     // initialize the toolbar action states before the window is shown
     refresh_action_states();
 }
 
-SlintMainWindowPresenter2::~SlintMainWindowPresenter2() = default;
+SlintMainWindowPresenter::~SlintMainWindowPresenter() = default;
 
-void SlintMainWindowPresenter2::on_open_xyce_file(const std::filesystem::path& path) {
+void SlintMainWindowPresenter::on_open_xyce_file(const std::filesystem::path& path) {
     // analyze the file extension
     const auto extension = path.extension().string();
     // netlist file extension
@@ -60,7 +60,7 @@ void SlintMainWindowPresenter2::on_open_xyce_file(const std::filesystem::path& p
     }
 }
 
-void SlintMainWindowPresenter2::on_save_netlist() {
+void SlintMainWindowPresenter::on_save_netlist() {
     // save content in the netlist source
     m_netlist_source->save_netlist();
     // reset the dirty flag and refresh states when it changed
@@ -68,35 +68,35 @@ void SlintMainWindowPresenter2::on_save_netlist() {
         refresh_action_states();
 }
 
-void SlintMainWindowPresenter2::on_show_netlist() {
+void SlintMainWindowPresenter::on_show_netlist() {
     // switch to the netlist view
     m_view.show_netlist_view();
     // refresh state
     refresh_action_states();
 }
 
-void SlintMainWindowPresenter2::on_show_charts() {
+void SlintMainWindowPresenter::on_show_charts() {
     // switch to the charts view
     m_view.show_charts_view();
     // refresh state
     refresh_action_states();
 }
 
-void SlintMainWindowPresenter2::on_show_simulation_output() {
+void SlintMainWindowPresenter::on_show_simulation_output() {
     // show the simulation output panel
     m_view.show_simulation_output_panel();
     // refresh state
     refresh_action_states();
 }
 
-void SlintMainWindowPresenter2::on_close_simulation_output() {
+void SlintMainWindowPresenter::on_close_simulation_output() {
     // hide the simulation output panel
     m_view.hide_simulation_output_panel();
     // refresh toolbar/menu states
     refresh_action_states();
 }
 
-void SlintMainWindowPresenter2::on_run_simulation() {
+void SlintMainWindowPresenter::on_run_simulation() {
     // validate the plugin configuration before launching
     if (!m_plugin_config.is_xyce_executable_valid()) {
         // update the statusbar with an error
@@ -138,12 +138,12 @@ void SlintMainWindowPresenter2::on_run_simulation() {
     launch_simulation();
 }
 
-void SlintMainWindowPresenter2::on_cancel_simulation() {
+void SlintMainWindowPresenter::on_cancel_simulation() {
     // request the view to cancel the running simulation process
     m_view.cancel_simulation_process();
 }
 
-void SlintMainWindowPresenter2::launch_simulation() {
+void SlintMainWindowPresenter::launch_simulation() {
     // build the directives from the config with topology expansion
     const auto directives = m_simulation_config.to_xyce_directives(m_pending_topology);
     // merge the directives into the sanitized netlist before .END
@@ -181,7 +181,7 @@ void SlintMainWindowPresenter2::launch_simulation() {
     m_view.set_status_text("Simulation started...");
 }
 
-void SlintMainWindowPresenter2::on_configure_simulation() {
+void SlintMainWindowPresenter::on_configure_simulation() {
     // load the netlist content
     const auto [reloaded, content] = m_netlist_source->load_netlist();
     // check content was reloaded
@@ -202,20 +202,20 @@ void SlintMainWindowPresenter2::on_configure_simulation() {
     static_cast<void>(m_view.show_simulation_parameters_dialog(m_simulation_config));
 }
 
-void SlintMainWindowPresenter2::on_configure_plugin() {
+void SlintMainWindowPresenter::on_configure_plugin() {
     // the view owns the config dialog; it seeds it with the current config and
     // reports the accepted result back through on_plugin_config_dialog_result
     static_cast<void>(m_view.show_plugin_config_dialog(m_plugin_config));
 }
 
-void SlintMainWindowPresenter2::on_plugin_config_dialog_result(const PluginConfig& config) {
+void SlintMainWindowPresenter::on_plugin_config_dialog_result(const PluginConfig& config) {
     // log the update before applying
     spdlog::info("Plugin configuration updated: Xyce path = {}", m_plugin_config.xyce_executable_path());
     // store the updated plugin configuration
     m_plugin_config = config;
 }
 
-void SlintMainWindowPresenter2::on_simulation_parameters_dialog_result(const SimulationConfig& config) {
+void SlintMainWindowPresenter::on_simulation_parameters_dialog_result(const SimulationConfig& config) {
     // store the updated simulation configuration
     m_simulation_config = config;
     // resume a pending simulation run when the dialog was opened from run
@@ -234,7 +234,7 @@ void SlintMainWindowPresenter2::on_simulation_parameters_dialog_result(const Sim
         refresh_action_states();
 }
 
-void SlintMainWindowPresenter2::on_fft_dialog_result(std::vector<AnyExpression*> selected_expressions, const fft::FftParameters& fft_params) {
+void SlintMainWindowPresenter::on_fft_dialog_result(std::vector<AnyExpression*> selected_expressions, const fft::FftParameters& fft_params) {
     // the transform needs the charts data (expression manager and step
     // information) from the raw file loaded in this window
     if (!m_xyce_raw_file.has_value())
@@ -385,7 +385,7 @@ void SlintMainWindowPresenter2::on_fft_dialog_result(std::vector<AnyExpression*>
     m_view.spawn_raw_file_window(std::move(fft_raw));
 }
 
-void SlintMainWindowPresenter2::on_chart_calculate_fft(size_t chart_index) {
+void SlintMainWindowPresenter::on_chart_calculate_fft(size_t chart_index) {
     // the FFT dialog needs the charts data (expression manager and step
     // information) from the raw file loaded in this window
     if (!m_xyce_raw_file.has_value())
@@ -395,13 +395,13 @@ void SlintMainWindowPresenter2::on_chart_calculate_fft(size_t chart_index) {
     m_view.show_fft_dialog(chart_index);
 }
 
-void SlintMainWindowPresenter2::on_chart_open_xyce_fft_calculation(size_t) {
+void SlintMainWindowPresenter::on_chart_open_xyce_fft_calculation(size_t) {
     // open a new window for each parsed FFT calculation output file
     for (const auto& fft_file : m_fft_files)
         m_view.spawn_raw_file_window(fft_file);
 }
 
-void SlintMainWindowPresenter2::on_chart_step_tool(size_t chart_index) {
+void SlintMainWindowPresenter::on_chart_step_tool(size_t chart_index) {
     // the step tool needs the charts data (step information) from the raw file
     // loaded in this window
     if (!m_xyce_raw_file.has_value())
@@ -411,13 +411,13 @@ void SlintMainWindowPresenter2::on_chart_step_tool(size_t chart_index) {
     m_view.show_step_tool_dialog(chart_index);
 }
 
-void SlintMainWindowPresenter2::on_chart_new_window(size_t) {
+void SlintMainWindowPresenter::on_chart_new_window(size_t) {
     // spawn a new window seeded with the current raw file
     if (m_xyce_raw_file.has_value())
         m_view.spawn_raw_file_window(m_xyce_raw_file.value());
 }
 
-void SlintMainWindowPresenter2::load_raw_file(std::shared_ptr<XyceOutputFile> raw_file) {
+void SlintMainWindowPresenter::load_raw_file(std::shared_ptr<XyceOutputFile> raw_file) {
     // store the already-parsed raw file; the parsed FFT calculation files belong
     // to the previous run
     m_fft_files.clear();
@@ -426,7 +426,7 @@ void SlintMainWindowPresenter2::load_raw_file(std::shared_ptr<XyceOutputFile> ra
         show_raw_file_view();
 }
 
-void SlintMainWindowPresenter2::on_simulation_finished(int exit_code, bool was_canceled) {
+void SlintMainWindowPresenter::on_simulation_finished(int exit_code, bool was_canceled) {
     // mark the simulation as no longer running
     m_simulation_running = false;
     // handle canceled simulations
@@ -486,12 +486,12 @@ void SlintMainWindowPresenter2::on_simulation_finished(int exit_code, bool was_c
     refresh_action_states();
 }
 
-void SlintMainWindowPresenter2::on_simulation_stdout(const std::string& line) {
+void SlintMainWindowPresenter::on_simulation_stdout(const std::string& line) {
     // forward the stdout line to the view for display
     m_view.append_simulation_output_line(line);
 }
 
-void SlintMainWindowPresenter2::on_simulation_stderr(const std::string& line) {
+void SlintMainWindowPresenter::on_simulation_stderr(const std::string& line) {
     // log the error line
     spdlog::warn("{}", line);
     // append the error line to the simulation output log so the full Xyce log
@@ -501,7 +501,7 @@ void SlintMainWindowPresenter2::on_simulation_stderr(const std::string& line) {
     m_view.set_status_text("Simulation error: " + line);
 }
 
-void SlintMainWindowPresenter2::on_netlist_editor_modified() {
+void SlintMainWindowPresenter::on_netlist_editor_modified() {
     // track whether the editor still holds content
     m_netlist_has_content = !m_view.netlist_editor_content().empty();
     // mark the editor dirty and refresh states when the flag changed
@@ -509,7 +509,7 @@ void SlintMainWindowPresenter2::on_netlist_editor_modified() {
         refresh_action_states();
 }
 
-void SlintMainWindowPresenter2::on_extract_schematic_netlist() {
+void SlintMainWindowPresenter::on_extract_schematic_netlist() {
     // extract the netlist from the schematic through the session-backed source
     const auto [reloaded, content] = m_netlist_source->load_netlist();
     // ensure the editor content matches the schematic netlist
@@ -522,17 +522,17 @@ void SlintMainWindowPresenter2::on_extract_schematic_netlist() {
     refresh_action_states();
 }
 
-const std::optional<std::shared_ptr<XyceOutputFile>>& SlintMainWindowPresenter2::raw_file() const {
+const std::optional<std::shared_ptr<XyceOutputFile>>& SlintMainWindowPresenter::raw_file() const {
     // return the current raw file reference
     return m_xyce_raw_file;
 }
 
-const std::vector<std::shared_ptr<XyceOutputFile>>& SlintMainWindowPresenter2::fft_files() const {
+const std::vector<std::shared_ptr<XyceOutputFile>>& SlintMainWindowPresenter::fft_files() const {
     // return the parsed FFT calculation output files
     return m_fft_files;
 }
 
-void SlintMainWindowPresenter2::refresh_action_states() {
+void SlintMainWindowPresenter::refresh_action_states() {
     // gather the input flags describing the current window state
     ActionStateInput input;
     input.has_netlist = m_netlist_has_content;
@@ -562,7 +562,7 @@ void SlintMainWindowPresenter2::refresh_action_states() {
     m_view.set_open_fft_calculation_files(m_fft_files);
 }
 
-bool SlintMainWindowPresenter2::update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>> raw_file, bool delete_charts) {
+bool SlintMainWindowPresenter::update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>> raw_file, bool delete_charts) {
     // store the raw file reference
     m_xyce_raw_file = std::move(raw_file);
     // check the file is present
@@ -581,7 +581,7 @@ bool SlintMainWindowPresenter2::update_xyce_raw_file(std::optional<std::shared_p
     return false;
 }
 
-void SlintMainWindowPresenter2::show_raw_file_view() {
+void SlintMainWindowPresenter::show_raw_file_view() {
     // update the window title from the raw file
     set_base_title(m_xyce_raw_file.value()->title());
     // clear the netlist editor content
@@ -594,14 +594,14 @@ void SlintMainWindowPresenter2::show_raw_file_view() {
     refresh_action_states();
 }
 
-void SlintMainWindowPresenter2::set_base_title(const std::string& title) {
+void SlintMainWindowPresenter::set_base_title(const std::string& title) {
     // store the clean base title
     m_base_title = title;
     // reset the dirty marker
     set_netlist_editor_dirty(false);
 }
 
-bool SlintMainWindowPresenter2::set_netlist_editor_dirty(bool flag) {
+bool SlintMainWindowPresenter::set_netlist_editor_dirty(bool flag) {
     // previous dirty state
     const bool previous_dirty_state = m_netlist_editor_dirty;
     // store the dirty state
@@ -612,7 +612,7 @@ bool SlintMainWindowPresenter2::set_netlist_editor_dirty(bool flag) {
     return previous_dirty_state != m_netlist_editor_dirty;
 }
 
-bool SlintMainWindowPresenter2::update_netlist_editor_content(const std::string& content, bool dirty_flag) {
+bool SlintMainWindowPresenter::update_netlist_editor_content(const std::string& content, bool dirty_flag) {
     // set the editor content through the view
     m_view.set_netlist_editor_content(content);
     // track whether the editor holds content

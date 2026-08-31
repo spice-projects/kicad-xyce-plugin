@@ -169,7 +169,7 @@ TEST(SlintMainWindowPresenterChecks, constructor_applies_initial_action_states) 
     // arrange
     RecordingView view;
     // act
-    const SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    const SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // assert — the empty window allows opening files but no editing actions
     EXPECT_TRUE(view.m_last_enablement.open);
     EXPECT_FALSE(view.m_last_enablement.save);
@@ -180,7 +180,7 @@ TEST(SlintMainWindowPresenterChecks, constructor_applies_initial_action_states) 
 TEST(SlintMainWindowPresenterChecks, run_simulation_with_invalid_xyce_path_sets_error_status) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // act
     presenter.on_run_simulation();
     // assert
@@ -191,7 +191,7 @@ TEST(SlintMainWindowPresenterChecks, run_simulation_with_invalid_xyce_path_sets_
 TEST(SlintMainWindowPresenterChecks, run_simulation_with_empty_netlist_never_launches) {
     // arrange — use the test binary as a stand-in valid executable
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
     // act
     presenter.on_run_simulation();
     // assert — nothing can be simulated, so no process starts
@@ -205,7 +205,7 @@ TEST(SlintMainWindowPresenterChecks, run_simulation_with_empty_netlist_never_lau
 TEST(SlintMainWindowPresenterChecks, run_simulation_without_analysis_prompts_for_parameters) {
     // arrange — netlist without any analysis directive leaves the config empty
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
     // act
     presenter.on_run_simulation();
     // assert — the configure dialog was requested instead of launching
@@ -218,7 +218,7 @@ TEST(SlintMainWindowPresenterChecks, run_simulation_with_transient_launches_proc
     RecordingView view;
     const auto working_directory = std::filesystem::temp_directory_path();
     StubNetlistSource* source = new StubNetlistSource("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 1m\n.END\n", working_directory);
-    SlintMainWindowPresenter2 presenter(view, std::unique_ptr<StubNetlistSource>(source), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    SlintMainWindowPresenter presenter(view, std::unique_ptr<StubNetlistSource>(source), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
     // act
     presenter.on_run_simulation();
     // assert — the process was started with the plugin executable and a temp netlist
@@ -239,7 +239,7 @@ TEST(SlintMainWindowPresenterChecks, run_simulation_with_transient_launches_proc
 TEST(SlintMainWindowPresenterChecks, pending_dialog_result_launches_the_simulation) {
     // arrange — no analysis directive so the run flow parks on the dialog
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
     presenter.on_run_simulation();
     ASSERT_FALSE(view.m_started);
     // act — accept a transient configuration through the dialog result
@@ -256,7 +256,7 @@ TEST(SlintMainWindowPresenterChecks, pending_dialog_result_launches_the_simulati
 TEST(SlintMainWindowPresenterChecks, configure_result_updates_netlist_without_launching) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
     presenter.on_configure_simulation();
     ASSERT_FALSE(view.m_started);
     // act — accept a transient configuration from the configure dialog
@@ -270,7 +270,7 @@ TEST(SlintMainWindowPresenterChecks, configure_result_updates_netlist_without_la
 TEST(SlintMainWindowPresenterChecks, cancel_simulation_forwards_to_view) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // act
     presenter.on_cancel_simulation();
     // assert
@@ -280,7 +280,7 @@ TEST(SlintMainWindowPresenterChecks, cancel_simulation_forwards_to_view) {
 TEST(SlintMainWindowPresenterChecks, simulation_finished_canceled_sets_status) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // act
     presenter.on_simulation_finished(0, true);
     // assert
@@ -291,7 +291,7 @@ TEST(SlintMainWindowPresenterChecks, simulation_finished_canceled_sets_status) {
 TEST(SlintMainWindowPresenterChecks, simulation_finished_failure_reports_exit_code) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // act
     presenter.on_simulation_finished(3, false);
     // assert
@@ -302,7 +302,7 @@ TEST(SlintMainWindowPresenterChecks, simulation_finished_failure_reports_exit_co
 TEST(SlintMainWindowPresenterChecks, simulation_finished_success_loads_raw_file) {
     // arrange — launch a transient simulation first so the run paths are known
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 1m\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 1m\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
     presenter.on_run_simulation();
     ASSERT_TRUE(view.m_started);
     // arrange — write an ascii raw file at the expected output location
@@ -343,7 +343,7 @@ TEST(SlintMainWindowPresenterChecks, simulation_finished_success_loads_raw_file)
 TEST(SlintMainWindowPresenterChecks, simulation_stdout_is_appended_to_output) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // act
     presenter.on_simulation_stdout("line one");
     // assert
@@ -354,7 +354,7 @@ TEST(SlintMainWindowPresenterChecks, simulation_stdout_is_appended_to_output) {
 TEST(SlintMainWindowPresenterChecks, simulation_stderr_updates_output_and_status) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // act
     presenter.on_simulation_stderr("boom");
     // assert
@@ -370,7 +370,7 @@ TEST(SlintMainWindowPresenterChecks, simulation_stderr_updates_output_and_status
 TEST(SlintMainWindowPresenterChecks, view_switching_forwards_to_view_and_refreshes_states) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // act
     presenter.on_show_netlist();
     // assert
@@ -413,7 +413,7 @@ TEST(SlintMainWindowPresenterChecks, open_cir_file_loads_editor_content) {
     const auto netlist_path = netlist_dir / "demo.cir";
     write_file(netlist_path, "V1 1 0 5\nR1 1 0 1K\n.END\n");
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", netlist_dir), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", netlist_dir), PluginConfig(""), nullptr);
     // act
     presenter.on_open_xyce_file(netlist_path);
     // assert — the editor is editable, holds the file content and the title tracks the file
@@ -429,7 +429,7 @@ TEST(SlintMainWindowPresenterChecks, open_cir_file_loads_editor_content) {
 TEST(SlintMainWindowPresenterChecks, open_raw_extension_ignores_missing_file) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // act
     presenter.on_open_xyce_file("/nonexistent/presenter_missing.raw");
     // assert — parse failure leaves the window untouched
@@ -444,7 +444,7 @@ TEST(SlintMainWindowPresenterChecks, editor_modified_marks_dirty_and_enables_sav
     const auto netlist_path = netlist_dir / "demo.cir";
     write_file(netlist_path, "V1 1 0 5\nR1 1 0 1K\n.END\n");
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", netlist_dir), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", netlist_dir), PluginConfig(""), nullptr);
     presenter.on_open_xyce_file(netlist_path);
     // act — simulate user edits in the editor
     view.m_editor_content = "V1 1 0 6\nR1 1 0 2K\n.END\n";
@@ -464,7 +464,7 @@ TEST(SlintMainWindowPresenterChecks, save_netlist_clears_dirty_state_and_writes_
     const auto netlist_path = netlist_dir / "demo.cir";
     write_file(netlist_path, "V1 1 0 5\nR1 1 0 1K\n.END\n");
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", netlist_dir), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", netlist_dir), PluginConfig(""), nullptr);
     presenter.on_open_xyce_file(netlist_path);
     view.m_editor_content = "V1 1 0 6\nR1 1 0 2K\n.END\n";
     presenter.on_netlist_editor_modified();
@@ -484,7 +484,7 @@ TEST(SlintMainWindowPresenterChecks, save_netlist_clears_dirty_state_and_writes_
 TEST(SlintMainWindowPresenterChecks, extract_schematic_netlist_loads_readonly_editor) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // act
     presenter.on_extract_schematic_netlist();
     // assert
@@ -501,7 +501,7 @@ TEST(SlintMainWindowPresenterChecks, configure_plugin_requests_dialog_and_stores
     // arrange
     RecordingView view;
     StubNetlistSource* source = new StubNetlistSource("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 1m\n.END\n", std::filesystem::temp_directory_path());
-    SlintMainWindowPresenter2 presenter(view, std::unique_ptr<StubNetlistSource>(source), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::unique_ptr<StubNetlistSource>(source), PluginConfig(""), nullptr);
     // act — request the dialog, the recording view reports no result yet
     presenter.on_configure_plugin();
     // act — deliver an accepted configuration with a valid executable
@@ -539,7 +539,7 @@ namespace
 TEST(SlintMainWindowPresenterChecks, load_raw_file_switches_to_charts_view) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // act
     presenter.load_raw_file(make_raw_file());
     // assert
@@ -553,7 +553,7 @@ TEST(SlintMainWindowPresenterChecks, load_raw_file_switches_to_charts_view) {
 TEST(SlintMainWindowPresenterChecks, chart_actions_are_guarded_without_raw_file) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // act
     presenter.on_chart_calculate_fft(0);
     presenter.on_chart_step_tool(0);
@@ -567,7 +567,7 @@ TEST(SlintMainWindowPresenterChecks, chart_actions_are_guarded_without_raw_file)
 TEST(SlintMainWindowPresenterChecks, chart_actions_delegate_with_loaded_raw_file) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     presenter.load_raw_file(make_raw_file());
     // act
     presenter.on_chart_calculate_fft(2);
@@ -583,7 +583,7 @@ TEST(SlintMainWindowPresenterChecks, chart_actions_delegate_with_loaded_raw_file
 TEST(SlintMainWindowPresenterChecks, fft_dialog_result_guards_without_raw_file) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     // act
     presenter.on_fft_dialog_result({}, fft::FftParameters{});
     // assert — no status update, no spawned window
@@ -594,7 +594,7 @@ TEST(SlintMainWindowPresenterChecks, fft_dialog_result_guards_without_raw_file) 
 TEST(SlintMainWindowPresenterChecks, fft_dialog_result_with_empty_selection_sets_status) {
     // arrange
     RecordingView view;
-    SlintMainWindowPresenter2 presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
     presenter.load_raw_file(make_raw_file());
     // act
     presenter.on_fft_dialog_result({}, fft::FftParameters{});
