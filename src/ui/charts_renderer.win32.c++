@@ -1,15 +1,11 @@
 #define WIN32_LEAN_AND_MEAN
 
-// IID_PPV_ARGS uses __uuidof, a Microsoft extension that triggers -Wlanguage-extension-token
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wlanguage-extension-token"
-
 #include <d3d12.h>
 #include <dxgi1_4.h>
 
+#include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/d3d/GrD3DBackendContext.h>
 #include <gpu/ganesh/d3d/GrD3DDirectContext.h>
-#include <gpu/ganesh/GrDirectContext.h>
 
 #include "charts_renderer.h"
 
@@ -69,5 +65,3 @@ sk_sp<GrDirectContext> ChartsRenderer::create_gpu_context() {
     // create direct context
     return GrDirectContexts::MakeD3D(backend);
 }
-
-#pragma clang diagnostic pop

@@ -27,6 +27,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # generate compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# verify that we are actually using MSVC on Windows
+if(WIN32 AND NOT MSVC)
+    message(FATAL_ERROR "On Windows this project requires MSVC (cl.exe). "
+                        "CMAKE_CXX_COMPILER='${CMAKE_CXX_COMPILER}' Compiler ID='${CMAKE_CXX_COMPILER_ID}'.\n"
+                        "Possible fixes:\n"
+                        "  1. Unset the CC and CXX environment variables (if they point to LLVM/Clang)\n"
+                        "  2. Run CMake from a Visual Studio Developer Command Prompt (x64)\n"
+                        "  3. Delete CMakeCache.txt and reconfigure\n"
+                        "  4. Set the CMAKE_GENERATOR_TOOLSET cache variable to 'host=x64'")
+endif()
+
 if(APPLE)
     # enable objective-c++ language for .mm files
     enable_language(OBJCXX)
