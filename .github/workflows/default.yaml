@@ -46,7 +46,7 @@ jobs:
             build_enabled: true
           - os: windows-latest
             platform: windows-x64
-            build_enabled: false
+            build_enabled: true
           - os: ubuntu-latest
             platform: ubuntu-x64
             build_enabled: false
@@ -89,6 +89,10 @@ jobs:
               printf '%s<<EOF\n%s\nEOF\n' "$key" "$value"
             done >> "$GITHUB_ENV"
           rm -f vcvars_env.cmd
+          # pin the compiler to MSVC so CMake's Ninja generator does not pick up
+          # clang-cl (LLVM) on machines where it is also installed
+          echo "CC=cl" >> "$GITHUB_ENV"
+          echo "CXX=cl" >> "$GITHUB_ENV"
 
       - name: Restore vcpkg binary cache
         if: ${{ matrix.build_enabled }}
@@ -108,7 +112,6 @@ jobs:
       - name: Configure CMake
         if: ${{ matrix.build_enabled }}
         shell: bash
-        # the windows clang-cl toolchain is selected inside CMakeLists.txt (cc/cxx env + vcpkg overlay triplet)
         run: cmake --preset release
 
       - name: Build C++ Target
@@ -150,7 +153,7 @@ jobs:
     if: |-
       !cancelled() &&
       github.repository == 'spice-projects/kicad-xyce-plugin' &&
-      (github.event_name != 'push' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || needs.check-pr.outputs.has_pr != 'true') &&
+      (github.event_name != 'push' || needs.check-pr.outputs.has_pr == 'true') &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
       contents: read
