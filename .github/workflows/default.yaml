@@ -38,10 +38,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-15
+          - os: macos-26
             platform: macos-arm64
             build_enabled: true
-          - os: macos-15-intel
+          - os: macos-26-intel
             platform: macos-x64
             build_enabled: true
           - os: windows-latest
@@ -53,21 +53,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
-      # Force Apple's clang/clang++ (from Xcode CLT) instead of Homebrew LLVM
-      # which may default to ld64.lld — this avoids LLVM bug #216154 where lld-macho
-      # emits spurious __unwind_info entries with encoding 0 that break C++
-      # exception unwinding when a Rust static library is linked on arm64.
-      CC: /usr/bin/clang
-      CXX: /usr/bin/clang++
-      CLANGCC: /usr/bin/clang
-      CLANGCXX: /usr/bin/clang++
     steps:
       - name: Checkout repository
         if: ${{ matrix.build_enabled }}
         uses: actions/checkout@v7
 
       - name: Run clang-format check
-        if: ${{ matrix.build_enabled && matrix.os == 'macos-15' }}
+        if: ${{ matrix.build_enabled && matrix.os == 'macos-26' }}
         shell: bash
         env:
           HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
@@ -103,9 +95,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
-          key: vcpkg-${{ matrix.os }}-${{ matrix.platform }}-build-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-${{ matrix.os }}-build-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
-            vcpkg-${{ matrix.os }}-${{ matrix.platform }}-build-
+            vcpkg-${{ matrix.os }}-build-
 
       - name: Setup vcpkg
         if: ${{ matrix.build_enabled }}
@@ -127,9 +119,6 @@ jobs:
       - name: Run C++ Tests
         if: ${{ matrix.build_enabled }}
         shell: bash
-        # run the test executable directly, not ctest (see AGENTS.md)
-        # the Ui-prefixed suites construct real native windows, which crash in
-        # the non-interactive windows runner session; macOS runs everything
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
             ./.build-release/tests/kicad-xyce-plugin-tests.exe --gtest_filter=-Ui*
@@ -139,8 +128,6 @@ jobs:
 
       - name: Stage shared libraries
         if: ${{ matrix.build_enabled && runner.os == 'macOS' }}
-        # the executables reference the slint and skia dynamic libraries by @rpath;
-        # stage them beside the executable so they can be packaged and shipped
         run: |
           cp .build-release/_deps/slint-build/libslint_cpp.dylib .build-release/
           cp .build-release/vcpkg_installed/*-osx/lib/libskia.dylib .build-release/
@@ -150,8 +137,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: kicad-xyce-plugin-${{ matrix.platform }}
-          # the macos builds ship the shared slint and skia libraries beside the
-          # executable; when the windows build is re-enabled this needs a .dll entry again
           path: |
             .build-release/kicad-xyce-plugin${{ runner.os == 'Windows' && '.exe' || '' }}
             .build-release/libslint_cpp.dylib
@@ -162,15 +147,11 @@ jobs:
   coverage:
     name: C++ Coverage
     needs: [check-pr]
-    # coverage runs only on the canonical repo; fork PRs are covered by the
-    # gated pull_request_target workflow (coverage-fork.yml) after approval
     if: |-
       !cancelled() &&
       github.repository == 'spice-projects/kicad-xyce-plugin' &&
       (github.event_name != 'push' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || needs.check-pr.outputs.has_pr != 'true') &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-    # permissions are the ceiling passed down to the reusable workflow's
-    # upload-coverage job (code-quality: write is required by the API upload)
     permissions:
       contents: read
       pull-requests: read
@@ -181,7 +162,7 @@ jobs:
     name: macOS Universal Binary
     needs: [build-and-test]
     if: ${{ always() && !cancelled() && !failure() && startsWith(github.ref, 'refs/tags/v') && needs.build-and-test.result == 'success' }}
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - name: Download arm64 artifact
         uses: actions/download-artifact@v8

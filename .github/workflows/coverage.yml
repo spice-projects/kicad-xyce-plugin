@@ -17,7 +17,7 @@ on:
 jobs:
   coverage:
     name: C++ Coverage
-    runs-on: macos-15
+    runs-on: macos-26
     env:
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
       # Force Apple's clang/clang++ instead of Homebrew LLVM which may use
@@ -43,9 +43,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
-          key: vcpkg-macOS-macos-15-arm64-profile-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-macos-15-profile-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
-            vcpkg-macOS-macos-15-arm64-
+            vcpkg-macos-15-profile-
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
