@@ -45,9 +45,8 @@ find_package(implot CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(nng CONFIG REQUIRED)
 find_package(protobuf CONFIG REQUIRED)
-# skia: offscreen chart rendering backend (skia-imgui-implot.md); the vcpkg
-# port exports the unofficial-skia package with headers under the skia/ prefix
 find_package(unofficial-skia CONFIG REQUIRED)
+find_package(nfd CONFIG REQUIRED)
 
 if(APPLE)
     # slint style
@@ -133,7 +132,7 @@ elseif (LINUX)
 endif()
 
 # remove platform-specific main() sources from the shared library, they are compiled into the executable only
-list(REMOVE_ITEM SOURCE_FILES "src/main.osx.mm" "src/main.win32.c++" "src/main.linux.c++")
+list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.osx.mm" "${CMAKE_CURRENT_SOURCE_DIR}/src/main.win32.c++" "${CMAKE_CURRENT_SOURCE_DIR}/src/main.linux.c++")
 
 # compile the generated proto sources into a library shared by the app and tests
 add_library(kicad-proto STATIC ${KICAD_PROTO_GENERATED_SOURCES})
@@ -167,7 +166,12 @@ else()
 endif()
 
 # third-party dependencies, PUBLIC so both the executable and the tests transitively link the same set of libraries
-target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng kicad-proto unofficial::skia::skia)
+target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng kicad-proto unofficial::skia::skia nfd::nfd)
+
+if(WIN32)
+    # prevent Windows headers from defining min/max macros that conflict with std::numeric_limits
+    target_compile_definitions(kicad-xyce-core PRIVATE NOMINMAX)
+endif()
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis, OpenGL for CGL (via Winit), Carbon for TIS/LMGetKbdType (via Winit)

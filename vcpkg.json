@@ -53,6 +53,10 @@
     {
       "name": "protobuf",
       "version>=": "6.33.4#2"
+    },
+    {
+      "name": "nativefiledialog-extended",
+      "version>=": "1.3.0"
     }
   ]
 }
