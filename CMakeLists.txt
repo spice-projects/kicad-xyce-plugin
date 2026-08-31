@@ -1,14 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-# on windows, build the app and all vcpkg dependencies with clang-cl (before project(), so both cmake and the vcpkg toolchain pick it up)
-if(WIN32)
-    # cc/cxx is honored both by cmake's compiler detection and, via the custom triplet below, by vcpkg dependency builds
-    set(ENV{CC} clang-cl)
-    set(ENV{CXX} clang-cl)
-    # custom triplet in ./triplets that compiles dependencies with clang-cl instead of msvc
-    set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_SOURCE_DIR}/triplets" CACHE STRING "vcpkg overlay triplets" FORCE)
-    set(VCPKG_TARGET_TRIPLET "x64-windows-clang-cl" CACHE STRING "vcpkg target triplet" FORCE)
-endif()
+# on windows, use the default x64-windows vcpkg triplet (MSVC); no overlay triplets needed
 
 if(APPLE)
     # use overlay triplets (in ./triplets) that build skia as a dynamic library;
@@ -167,9 +159,10 @@ target_include_directories(kicad-xyce-core PRIVATE ${POCKETFFT_INCLUDE_DIRS})
 # expose slint's headers as system directories (see note above the slint fetch)
 target_include_directories(kicad-xyce-core SYSTEM PUBLIC ${SLINT_SYSTEM_INCLUDE_DIRS})
 
-# clang-cl treats -Wall as MSVC's /Wall (enable every warning), so only apply
-# the standard warning set to GNU-style frontends (g++, clang++)
-if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+# msvc uses /W4, gnu-style frontends (g++, clang++) use -Wall -Wextra -Wpedantic
+if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    target_compile_options(kicad-xyce-core PRIVATE /W4)
+else()
     target_compile_options(kicad-xyce-core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
@@ -199,7 +192,11 @@ foreach(widget_source IN LISTS SLINT_WIDGET_SOURCES)
     # generate C++ code from the .slint file and add it to the core library
     slint_target_sources(kicad-xyce-core ${widget_source} NAMESPACE ${widget_namespace})
     # silence all warnings for this fully generated code
-    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp" PROPERTIES COMPILE_OPTIONS "-w")
+    if(MSVC)
+        set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp" PROPERTIES COMPILE_OPTIONS "/W0")
+    else()
+        set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp" PROPERTIES COMPILE_OPTIONS "-w")
+    endif()
 endforeach()
 
 if(APPLE)
