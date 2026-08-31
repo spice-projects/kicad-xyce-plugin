@@ -11,7 +11,6 @@
 #include <vector>
 
 #if defined(_WIN32)
-#define NOMINMAX
 #include <windows.h>
 #else
 #include <sys/types.h>
@@ -185,8 +184,8 @@ namespace
         CloseHandle(out_write);
         CloseHandle(err_write);
         // read stdout and stderr in parallel threads to avoid pipe deadlocks
-        std::thread thread_out([&stdout_text] { stdout_text = read_all_handle(out_read); });
-        std::thread thread_err([&stderr_text] { stderr_text = read_all_handle(err_read); });
+        std::thread thread_out([&stdout_text, &out_read] { stdout_text = read_all_handle(out_read); });
+        std::thread thread_err([&stderr_text, &err_read] { stderr_text = read_all_handle(err_read); });
         thread_out.join();
         thread_err.join();
         CloseHandle(out_read);

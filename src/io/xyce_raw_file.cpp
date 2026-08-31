@@ -463,11 +463,11 @@ namespace
         // compute the octave points per interval
         const long octave_steps = std::lround(std::log10(2.0) / reference_ratio);
         // decade residual, degenerate step counts are ineligible
-        const double decade_residual = decade_steps >= 2 ? std::abs(reference_ratio - 1.0 / static_cast<double>(decade_steps)) : (std::numeric_limits<double>::max)();
+        const double decade_residual = decade_steps >= 2 ? std::abs(reference_ratio - 1.0 / static_cast<double>(decade_steps)) : std::numeric_limits<double>::max();
         // octave residual, degenerate step counts are ineligible
-        const double octave_residual = octave_steps >= 2 ? std::abs(reference_ratio - std::log10(2.0) / static_cast<double>(octave_steps)) : (std::numeric_limits<double>::max)();
+        const double octave_residual = octave_steps >= 2 ? std::abs(reference_ratio - std::log10(2.0) / static_cast<double>(octave_steps)) : std::numeric_limits<double>::max();
         // best candidate residual
-        const double best_residual = (std::min)(decade_residual, octave_residual);
+        const double best_residual = std::min(decade_residual, octave_residual);
         // check the best candidate is close to an integer step count
         if (best_residual > SWEEP_RESIDUAL_TOLERANCE) {
             // neither a decade nor an octave sweep

@@ -528,7 +528,7 @@ size_t ChartsRenderer::position_to_index(float position) const {
     // clamp the position to [0, 1] and compute the corresponding chart index
     const float clamped = std::clamp(position, 0.0f, 1.0f);
     const size_t index = static_cast<size_t>(clamped * static_cast<float>(m_charts.size()));
-    return (std::min)(index, m_charts.size() - 1);
+    return std::min(index, m_charts.size() - 1);
 }
 
 void ChartsRenderer::zoom_to_fit(float chart_position) {
@@ -661,10 +661,10 @@ void ChartsRenderer::zoom_drag_ended() {
         // ensure non-zero plot dimensions
         if (width > 0.0f && height > 0.0f) {
             // compute normalized zoom window ratios [0..1]
-            const double z_x1 = (static_cast<double>((std::min)(x1, x2)) - x_min) / width;
-            const double z_y1 = (static_cast<double>((std::min)(y1, y2)) - y_min) / height;
-            const double z_x2 = (static_cast<double>((std::max)(x1, x2)) - x_min) / width;
-            const double z_y2 = (static_cast<double>((std::max)(y1, y2)) - y_min) / height;
+            const double z_x1 = (static_cast<double>(std::min(x1, x2)) - x_min) / width;
+            const double z_y1 = (static_cast<double>(std::min(y1, y2)) - y_min) / height;
+            const double z_x2 = (static_cast<double>(std::max(x1, x2)) - x_min) / width;
+            const double z_y2 = (static_cast<double>(std::max(y1, y2)) - y_min) / height;
             // loop all charts to apply zoom
             for (size_t i = 0; i < m_charts.size(); ++i) {
                 // chart at index i

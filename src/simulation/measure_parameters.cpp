@@ -42,7 +42,7 @@ static std::vector<std::string> measure_tokenize(const std::string& statement) {
             // append char
             current += ch;
             // decrement depth
-            brace_depth = (std::max)(0, brace_depth - 1);
+            brace_depth = std::max(0, brace_depth - 1);
             // next
             continue;
         }

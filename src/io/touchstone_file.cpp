@@ -6,6 +6,7 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <numbers>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -241,10 +242,10 @@ namespace
             return std::complex<double>(v1, v2);
         case DataFormat::MA:
             // magnitude-angle: polar form, angle in degrees
-            return std::polar(v1, v2 * M_PI / 180.0);
+            return std::polar(v1, v2 * std::numbers::pi / 180.0);
         case DataFormat::DB:
             // decibel-angle: convert dB to linear magnitude, angle in degrees
-            return std::polar(std::pow(10.0, v1 / 20.0), v2 * M_PI / 180.0);
+            return std::polar(std::pow(10.0, v1 / 20.0), v2 * std::numbers::pi / 180.0);
         }
         return std::complex<double>(v1, v2);
     }
@@ -281,11 +282,11 @@ namespace
         // compute the octave points per interval
         const long octave_steps = std::lround(std::log10(2.0) / reference_ratio);
         // decade residual, degenerate step counts are ineligible
-        const double decade_residual = decade_steps >= 2 ? std::abs(reference_ratio - 1.0 / static_cast<double>(decade_steps)) : (std::numeric_limits<double>::max)();
+        const double decade_residual = decade_steps >= 2 ? std::abs(reference_ratio - 1.0 / static_cast<double>(decade_steps)) : std::numeric_limits<double>::max();
         // octave residual, degenerate step counts are ineligible
-        const double octave_residual = octave_steps >= 2 ? std::abs(reference_ratio - std::log10(2.0) / static_cast<double>(octave_steps)) : (std::numeric_limits<double>::max)();
+        const double octave_residual = octave_steps >= 2 ? std::abs(reference_ratio - std::log10(2.0) / static_cast<double>(octave_steps)) : std::numeric_limits<double>::max();
         // best candidate residual
-        const double best_residual = (std::min)(decade_residual, octave_residual);
+        const double best_residual = std::min(decade_residual, octave_residual);
         // check the best candidate is close to an integer step count
         if (best_residual > SWEEP_RESIDUAL_TOLERANCE)
             return AbscissaScale::LINEAR;

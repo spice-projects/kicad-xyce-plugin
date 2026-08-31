@@ -44,12 +44,15 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_file() {
 
     // filter list limited to the two file types relevant to Xyce
     const std::array filters{
-        nfdnfilteritem_t{"Xyce Files", "cir,raw"},
+        nfdu8filteritem_t{"Xyce Files", "cir,raw"},
     };
 
     // open the native dialog with the filter applied
-    NFD::UniquePathN outPath;
-    const auto result = NFD::OpenDialog(outPath, filters.data(), filters.size());
+    nfdu8char_t* outPath = nullptr;
+    nfdopendialogu8args_t args{};
+    args.filterList = filters.data();
+    args.filterCount = filters.size();
+    const auto result = ::NFD_OpenDialogU8_With(&outPath, &args);
     // user canceled or an error occurred
     if (result != NFD_OKAY) {
         // log the error when the dialog failed programmatically
@@ -62,7 +65,8 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_file() {
     }
 
     // convert the native path string to a filesystem path
-    return std::filesystem::path(outPath.get());
+    NFD::UniquePathU8 pathGuard(outPath);
+    return std::filesystem::path(outPath);
 }
 
 std::optional<std::filesystem::path> FileDialog::open_xyce_executable() {
@@ -70,8 +74,9 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_executable() {
     ensure_nfd();
 
     // open the native dialog with no filter so any executable is selectable
-    NFD::UniquePathN outPath;
-    const auto result = NFD::OpenDialog(outPath);
+    nfdu8char_t* outPath = nullptr;
+    const nfdopendialogu8args_t args{};
+    const auto result = ::NFD_OpenDialogU8_With(&outPath, &args);
     // user canceled or an error occurred
     if (result != NFD_OKAY) {
         // log the error when the dialog failed programmatically
@@ -84,5 +89,6 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_executable() {
     }
 
     // convert the native path string to a filesystem path
-    return std::filesystem::path(outPath.get());
+    NFD::UniquePathU8 pathGuard(outPath);
+    return std::filesystem::path(outPath);
 }

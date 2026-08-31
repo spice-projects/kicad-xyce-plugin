@@ -14,7 +14,6 @@
 #include "simulation_runner.h"
 
 #if defined(_WIN32)
-#define NOMINMAX
 #include <windows.h>
 #else
 #include <signal.h>

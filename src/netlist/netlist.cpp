@@ -48,7 +48,7 @@ namespace
         for (const auto& line : raw_lines) {
             // strip leading whitespace from the raw line
             auto lstrip_line = line;
-            lstrip_line.remove_prefix((std::min)(lstrip_line.find_first_not_of(" \t"), lstrip_line.size()));
+            lstrip_line.remove_prefix(std::min(lstrip_line.find_first_not_of(" \t"), lstrip_line.size()));
             // check if this is a continuation line (starts with '+')
             if (!lstrip_line.empty() && lstrip_line[0] == '+') {
                 // only append if there is a preceding line to extend

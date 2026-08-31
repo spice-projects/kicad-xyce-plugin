@@ -280,7 +280,7 @@ void ImGuiSkiaRenderer::render_draw_data(ImDrawData* draw_data, SkCanvas* canvas
             // inspect index range for command
             for (unsigned int i = 0; i < cmd.ElemCount; ++i) {
                 // update maximum referenced vertex index
-                max_referenced_index = (std::max)(max_referenced_index, static_cast<unsigned int>(indices_base[cmd.IdxOffset + i]));
+                max_referenced_index = std::max(max_referenced_index, static_cast<unsigned int>(indices_base[cmd.IdxOffset + i]));
             }
             // tight range [VtxOffset, max+1]: satisfies shared pools and the skvertices 65535 cap
             const unsigned int drawable_vertices = max_referenced_index + 1;

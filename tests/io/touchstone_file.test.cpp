@@ -5,6 +5,7 @@
 #include <fstream>
 #include <gtest/gtest.h>
 #include <iomanip>
+#include <numbers>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -206,16 +207,16 @@ TEST(TouchstoneFileParserChecks, parses_v1_ma_2port) {
     auto& s11 = std::get<Expression<std::complex<double>>>(*expr);
     auto data = s11.step_data(0);
     // 0.5 * cos(-10 deg) = 0.5 * 0.9848 = 0.4924
-    EXPECT_NEAR(data[0].real(), 0.5 * cos(-10.0 * M_PI / 180.0), 1e-9);
+    EXPECT_NEAR(data[0].real(), 0.5 * cos(-10.0 * std::numbers::pi / 180.0), 1e-9);
     // 0.5 * sin(-10 deg) = 0.5 * (-0.1736) = -0.0868
-    EXPECT_NEAR(data[0].imag(), 0.5 * sin(-10.0 * M_PI / 180.0), 1e-9);
+    EXPECT_NEAR(data[0].imag(), 0.5 * sin(-10.0 * std::numbers::pi / 180.0), 1e-9);
     // check S21: 0.8 magnitude at 20 degrees
     auto* s21_expr = expressions[3];
     auto& s21 = std::get<Expression<std::complex<double>>>(*s21_expr);
     auto s21_data = s21.step_data(0);
     // 0.8 * cos(20 deg) = 0.8 * 0.9397 = 0.7518
-    EXPECT_NEAR(s21_data[0].real(), 0.8 * cos(20.0 * M_PI / 180.0), 1e-9);
-    EXPECT_NEAR(s21_data[0].imag(), 0.8 * sin(20.0 * M_PI / 180.0), 1e-9);
+    EXPECT_NEAR(s21_data[0].real(), 0.8 * cos(20.0 * std::numbers::pi / 180.0), 1e-9);
+    EXPECT_NEAR(s21_data[0].imag(), 0.8 * sin(20.0 * std::numbers::pi / 180.0), 1e-9);
     // check metadata for default R=75
     const auto& metadata = result.value()->metadata();
     ASSERT_EQ(metadata.at("reference_impedance"), "75.000000");
@@ -245,15 +246,15 @@ TEST(TouchstoneFileParserChecks, parses_v1_db_2port) {
     // 10^(-6/20) = 0.501187...
     double expected_mag = std::pow(10.0, -6.0 / 20.0);
     // 12_21 order: S11, S21, S12, S22
-    EXPECT_NEAR(data[0].real(), expected_mag * cos(-10.0 * M_PI / 180.0), 1e-9);
-    EXPECT_NEAR(data[0].imag(), expected_mag * sin(-10.0 * M_PI / 180.0), 1e-9);
+    EXPECT_NEAR(data[0].real(), expected_mag * cos(-10.0 * std::numbers::pi / 180.0), 1e-9);
+    EXPECT_NEAR(data[0].imag(), expected_mag * sin(-10.0 * std::numbers::pi / 180.0), 1e-9);
     // check S21: -3 dB at 20 degrees
     auto* s21_expr = expressions[3];
     auto& s21 = std::get<Expression<std::complex<double>>>(*s21_expr);
     auto s21_data = s21.step_data(0);
     double expected_mag21 = std::pow(10.0, -3.0 / 20.0);
-    EXPECT_NEAR(s21_data[0].real(), expected_mag21 * cos(20.0 * M_PI / 180.0), 1e-9);
-    EXPECT_NEAR(s21_data[0].imag(), expected_mag21 * sin(20.0 * M_PI / 180.0), 1e-9);
+    EXPECT_NEAR(s21_data[0].real(), expected_mag21 * cos(20.0 * std::numbers::pi / 180.0), 1e-9);
+    EXPECT_NEAR(s21_data[0].imag(), expected_mag21 * sin(20.0 * std::numbers::pi / 180.0), 1e-9);
 }
 
 TEST(TouchstoneFileParserChecks, parses_v1_ri_2port) {
