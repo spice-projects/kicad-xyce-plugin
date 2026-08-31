@@ -12,10 +12,6 @@
     },
     {
       "name": "skia",
-      "version>=": "148"
-    },
-    {
-      "name": "skia",
       "version>=": "148",
       "platform": "osx",
       "features": [
