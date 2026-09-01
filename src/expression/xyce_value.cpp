@@ -4,6 +4,10 @@
 #include <utility>
 #include <vector>
 
+#ifdef _MSC_VER
+#pragma warning(disable : 4702)
+#endif
+
 #include "xyce_value.h"
 
 XyceValue from_expression(AnyExpression& expression) {

@@ -39,8 +39,10 @@ T scalar_value(const XyceValue& value) {
             else if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
                 return arg->operator[](0).real();
             }
-            // not possible value type
-            throw std::invalid_argument("unsupported type");
+            else {
+                // not possible value type
+                throw std::invalid_argument("unsupported type");
+            }
         }
         // complex scalar
         if constexpr (std::is_same_v<T, std::complex<double>>) {
@@ -59,9 +61,15 @@ T scalar_value(const XyceValue& value) {
             else if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
                 return arg->operator[](0);
             }
+            else {
+                // not possible value type
+                throw std::invalid_argument("unsupported type");
+            }
         }
-        // not possible value type
-        throw std::invalid_argument("unsupported type");
+        else {
+            // not possible value type
+            throw std::invalid_argument("unsupported type");
+        }
     };
     // exit
     return std::visit(l, value);

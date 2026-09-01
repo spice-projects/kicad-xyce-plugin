@@ -102,7 +102,7 @@ private:
     size_t m_decimate_target;
     std::string m_abscissa_name;
     std::string m_abscissa_unit;
-    std::tuple<float, float, float, float> m_plot_rect = {-1, -1, -1, -1};
+    std::tuple<float, float, float, float> m_plot_rect = {-1.0f, -1.0f, -1.0f, -1.0f};
 
     Series m_series;
     std::set<size_t> m_selected_steps = {0};

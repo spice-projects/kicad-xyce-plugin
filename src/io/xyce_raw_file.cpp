@@ -163,7 +163,7 @@ namespace
         // check No variables
         if (headers.contains("No. Variables")) {
             // parse count
-            if (const size_t num_variables = std::stoull(headers.at("No. Variables")); result.variables.size() != num_variables) {
+            if (const size_t num_variables = static_cast<size_t>(std::stoull(headers.at("No. Variables"))); result.variables.size() != num_variables) {
                 // empty result
                 return std::nullopt;
             }
@@ -171,7 +171,7 @@ namespace
         // check points count
         if (headers.contains("No. Points")) {
             // parse count
-            result.num_points = std::stoull(headers.at("No. Points"));
+            result.num_points = static_cast<size_t>(std::stoull(headers.at("No. Points")));
         }
         // return result
         return result;
@@ -251,7 +251,7 @@ namespace
             }
             try {
                 // parse index
-                const size_t index = std::stoull(tokens[0]);
+                const size_t index = static_cast<size_t>(std::stoull(tokens[0]));
                 if (index != expected_index) {
                     // log information
                     spdlog::warn("Invalid Xyce RAW file, expected index {}, got {} => {}", expected_index, index, line);

@@ -7,6 +7,10 @@
 #include <stdexcept>
 #include <string_view>
 
+#ifdef _MSC_VER
+#pragma warning(disable : 4702)
+#endif
+
 #include <spdlog/spdlog.h>
 
 #include "../core/util.h"

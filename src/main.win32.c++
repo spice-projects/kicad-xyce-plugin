@@ -1,3 +1,4 @@
+#include <shellapi.h>
 #include <windows.h>
 
 #include <vector>

@@ -317,7 +317,7 @@ namespace
                         return false;
                     }
                     // parse the data point index
-                    const size_t index = std::stoull(columns[0]);
+                    const size_t index = static_cast<size_t>(std::stoull(columns[0]));
                     // validate the index is sequential
                     if (index != expected_index) {
                         // log the error

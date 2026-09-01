@@ -6,6 +6,10 @@
 #include <type_traits>
 #include <vector>
 
+#ifdef _MSC_VER
+#pragma warning(disable : 4702)
+#endif
+
 #include "../core/view.h"
 #include "xyce_evaluator.h"
 #include "xyce_value.h"

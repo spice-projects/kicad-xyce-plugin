@@ -204,7 +204,7 @@ foreach(widget_source IN LISTS SLINT_WIDGET_SOURCES)
     slint_target_sources(kicad-xyce-core ${widget_source} NAMESPACE ${widget_namespace})
     # silence all warnings for this fully generated code
     if(MSVC)
-        set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp" PROPERTIES COMPILE_OPTIONS "/W0")
+        set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp" PROPERTIES COMPILE_OPTIONS "/w")
     else()
         set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp" PROPERTIES COMPILE_OPTIONS "-w")
     endif()

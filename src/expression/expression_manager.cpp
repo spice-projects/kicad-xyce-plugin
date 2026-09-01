@@ -5,6 +5,10 @@
 #include <optional>
 #include <vector>
 
+#ifdef _MSC_VER
+#pragma warning(disable : 4702)
+#endif
+
 #include "../core/util.h"
 #include "expression_manager.h"
 #include "unit_utils.h"
@@ -77,9 +81,9 @@ AnyExpression* ExpressionManager::evaluate(const std::string& expression, const 
         // reserve space for all expressions
         unit_context.reserve(m_expressions.size());
         // loop expressions
-        for (auto& expression : m_expressions) {
+        for (auto& expr : m_expressions) {
             // append to map
-            std::visit([&unit_context](auto&& expr) { unit_context[to_lower(expr.name())] = expr.unit(); }, expression);
+            std::visit([&unit_context](auto&& e) { unit_context[to_lower(e.name())] = e.unit(); }, expr);
         }
         // infer the unit of the result expression
         auto inferred_unit = ::infer_unit(*ast, unit_context);
