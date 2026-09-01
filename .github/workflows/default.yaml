@@ -89,6 +89,13 @@ jobs:
         with:
           vcpkgJsonGlob: 'vcpkg.json'
 
+      - name: Setup MSVC dev environment
+        if: ${{ matrix.build_enabled && runner.os == 'Windows' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          validate: false
+
       - name: Configure CMake
         if: ${{ matrix.build_enabled }}
         shell: bash

@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # disable compiler specific things
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(gtest CONFIG REQUIRED)
+find_package(GTest CONFIG REQUIRED)
 
 file(GLOB_RECURSE TEST_FILES "./*.cpp")
 
@@ -21,7 +21,7 @@ add_executable(kicad-xyce-plugin-tests ${TEST_FILES})
 add_dependencies(kicad-xyce-plugin-tests kicad-proto)
 
 # link the core library (which brings the app headers, defines, and the slint/imgui/implot/spdlog/nng/protobuf/platform dependencies), plus gtest
-target_link_libraries(kicad-xyce-plugin-tests PRIVATE kicad-xyce-core GTest::gtest_main)
+target_link_libraries(kicad-xyce-plugin-tests PRIVATE kicad-xyce-core GTest::gtest GTest::gtest_main)
 
 # enable more warnings: msvc uses /W4, gnu-style frontends use -Wall -Wextra -Wpedantic
 if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
