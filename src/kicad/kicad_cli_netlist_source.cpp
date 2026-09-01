@@ -161,12 +161,13 @@ namespace
         // detect batch files — CreateProcessW cannot launch them directly without
         // cmd.exe, and the auto-detect path mangles quoting via cmd.exe /S /C.
         const bool is_batch = [&] {
-            if (args.empty()) return false;
+            if (args.empty())
+                return false;
             const auto ext = std::filesystem::path(args[0]).extension().wstring();
             return ext == L".bat" || ext == L".BAT" || ext == L".cmd" || ext == L".CMD";
         }();
         // build quoted command line
-        std::wstring command_app;   // non-empty only for batch files
+        std::wstring command_app;
         std::wstring command_line;
         if (is_batch) {
             wchar_t sysdir[MAX_PATH];
@@ -175,7 +176,8 @@ namespace
             command_line = L"/c ";
             for (const auto& arg : args) {
                 std::wstring wide_arg = std::filesystem::path(arg).wstring();
-                if (command_line.size() > 3)  // beyond "/c "
+                // beyond "/c "
+                if (command_line.size() > 3)
                     command_line += L" ";
                 command_line += L"\"" + wide_arg + L"\"";
             }
