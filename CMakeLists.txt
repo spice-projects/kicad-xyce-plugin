@@ -69,17 +69,27 @@ endif()
 # slint renderer
 set(SLINT_FEATURE_RENDERER_SKIA ON CACHE BOOL "Include Skia renderer" FORCE)
 
+# disable unneeded Slint features to reduce Rust compilation time
+set(SLINT_FEATURE_RENDERER_FEMTOVG OFF CACHE BOOL "Disable FemtoVG renderer (use Skia only)" FORCE)
+set(SLINT_FEATURE_ACCESSIBILITY OFF CACHE BOOL "Disable OS accessibility APIs" FORCE)
+set(SLINT_FEATURE_TESTING OFF CACHE BOOL "Disable Slint testing API" FORCE)
+set(SLINT_FEATURE_SOFTWARE_RENDERER_PATH OFF CACHE BOOL "Disable path rendering in software renderer" FORCE)
+
 # check debug build type
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     # slint live-preview: debug builds can load/reload .slint files from disk at runtime
     set(SLINT_FEATURE_LIVE_PREVIEW ON CACHE BOOL "Enable Slint live-preview" FORCE)
     # slint mcp server: debug builds can be inspected/driven by AI agents over HTTP
     set(SLINT_FEATURE_MCP ON CACHE BOOL "Enable Slint embedded MCP server" FORCE)
+    # interpreter is required for live-preview
+    set(SLINT_FEATURE_INTERPRETER ON CACHE BOOL "Enable Slint interpreter" FORCE)
 else()
     # slint live-preview: release/profile builds keep the ahead-of-time compiled designs
     set(SLINT_FEATURE_LIVE_PREVIEW OFF CACHE BOOL "Enable Slint live-preview" FORCE)
     # slint mcp server: disabled in release/profile builds for security reasons (no HTTP server listening on a port)
     set(SLINT_FEATURE_MCP OFF CACHE BOOL "Enable Slint embedded MCP server" FORCE)
+    # interpreter is not needed when we compile .slint ahead-of-time
+    set(SLINT_FEATURE_INTERPRETER OFF CACHE BOOL "Enable Slint interpreter" FORCE)
 endif()
 
 # slint

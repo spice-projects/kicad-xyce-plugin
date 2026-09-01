@@ -16,6 +16,10 @@
 - Unit Tests, avoid running unit tests using `ctest`. Execute unit tests by executing the process: `./.build-debug/tests/kicad-xyce-plugin-tests`
 - Unit tests must be self-contained: no helper functions, no test utilities, no external fixtures
 - Dependencies: `vcpkg`
+- Build cache:
+  - **vcpkg binary cache** (local): `.vcpkg-cache/` is auto-populated via `VCPKG_BINARY_SOURCES` in CMake presets. Caches Skia/protobuf/nng compilation between clean builds.
+  - **ccache** (local): enabled via `CMAKE_{C,CXX}_COMPILER_LAUNCHER` in CMake presets. Inspect with `ccache --show-stats`; clear with `ccache --clear`.
+  - **CI**: both caches are persisted via `actions/cache@v5` keyed on runner OS + content hash. First CI run builds from source (~hour); subsequent runs restore in seconds.
 - Debug builds enable the embedded Slint MCP server. Launch the app with `SLINT_MCP_PORT=8080 ./build/kicad-xyce-plugin` to expose an HTTP/MCP endpoint for AI-assisted UI inspection (browse the `.slint` component tree, read/write properties, invoke callbacks).
 
 ## Workflow

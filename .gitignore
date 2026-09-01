@@ -83,3 +83,6 @@ dist/
 
 # AI related files
 .agents
+
+# vcpkg binary cache (populated by CMake presets)
+.vcpkg-cache/

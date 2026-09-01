@@ -7,7 +7,10 @@
             "binaryDir": "${sourceDir}/.build-debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "VCPKG_BINARY_SOURCES": "filesystem,${sourceDir}/.vcpkg-cache,readwrite",
+                "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
             }
         },
         {
@@ -16,7 +19,10 @@
             "binaryDir": "${sourceDir}/.build-release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "VCPKG_BINARY_SOURCES": "filesystem,${sourceDir}/.vcpkg-cache,readwrite",
+                "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
             }
         },
         {
@@ -25,7 +31,10 @@
             "binaryDir": "${sourceDir}/.build-profile",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Profile",
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "VCPKG_BINARY_SOURCES": "filesystem,${sourceDir}/.vcpkg-cache,readwrite",
+                "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
             }
         }
     ],

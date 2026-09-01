@@ -89,6 +89,29 @@ jobs:
         with:
           vcpkgJsonGlob: 'vcpkg.json'
 
+      - name: Setup ccache
+        if: ${{ matrix.build_enabled }}
+        shell: bash
+        run: |
+          if ! command -v ccache >/dev/null 2>&1; then
+            if [ "$RUNNER_OS" = "macOS" ]; then
+              brew install ccache
+            elif [ "$RUNNER_OS" = "Linux" ]; then
+              sudo apt-get install -y -qq ccache
+            elif [ "$RUNNER_OS" = "Windows" ]; then
+              choco install ccache
+            fi
+          fi
+
+      - name: Restore ccache
+        if: ${{ matrix.build_enabled }}
+        uses: actions/cache@v5
+        with:
+          path: ~/.ccache
+          key: ccache-${{ matrix.os }}-build-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ matrix.os }}-build-
+
       - name: Setup MSVC dev environment
         if: ${{ matrix.build_enabled && runner.os == 'Windows' }}
         uses: ilammy/msvc-dev-cmd@v1
