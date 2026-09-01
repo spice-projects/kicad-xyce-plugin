@@ -74,26 +74,6 @@ jobs:
         shell: bash
         run: pip install ninja
 
-      - name: Setup MSVC toolchain
-        if: ${{ matrix.build_enabled && runner.os == 'Windows' }}
-        shell: bash
-        env:
-          MSYS_NO_PATHCONV: 1
-        run: |
-          VSWHERE="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
-          VS_PATH="$("$VSWHERE" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath)"
-          echo "Visual Studio installation path: $VS_PATH"
-          printf '@echo off\r\ncall "%s\\VC\\Auxiliary\\Build\\vcvars64.bat" >nul\r\nset\r\n' "$VS_PATH" > vcvars_env.cmd
-          cmd /c vcvars_env.cmd | tr -d '\r' | grep '=' |
-            while IFS='=' read -r key value; do
-              printf '%s<<EOF\n%s\nEOF\n' "$key" "$value"
-            done >> "$GITHUB_ENV"
-          rm -f vcvars_env.cmd
-          # pin the compiler to MSVC so CMake's Ninja generator does not pick up
-          # clang-cl (LLVM) on machines where it is also installed
-          echo "CC=cl" >> "$GITHUB_ENV"
-          echo "CXX=cl" >> "$GITHUB_ENV"
-
       - name: Restore vcpkg binary cache
         if: ${{ matrix.build_enabled }}
         uses: actions/cache@v5

@@ -1,13 +1,9 @@
 cmake_minimum_required(VERSION 3.21)
 
-# on windows, use the default x64-windows vcpkg triplet (MSVC); no overlay triplets needed
-
-if(APPLE)
-    # use overlay triplets (in ./triplets) that build skia as a dynamic library;
-    # skia's static archive corrupts the __unwind_info tables of the binaries
-    # linked against it, breaking C++ exception unwinding on arm64 (LLVM bug #216154 class)
-    set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_SOURCE_DIR}/triplets" CACHE STRING "vcpkg overlay triplets" FORCE)
-endif()
+# use overlay triplets (in ./triplets) on all platforms. the macOS triplets
+# build skia as a dynamic library (its static archive corrupts __unwind_info
+# tables on arm64, breaking C++ exception unwinding);
+set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_SOURCE_DIR}/.triplets" CACHE STRING "vcpkg overlay triplets" FORCE)
 
 if(APPLE)
     # enable objective-c++ language for .mm files
