@@ -1,5 +1,7 @@
-#include <shellapi.h>
+// clang-format off
 #include <windows.h>
+#include <shellapi.h>
+// clang-format on
 
 #include <vector>
 
@@ -16,8 +18,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     int argc = 0;
     // accumulate the converted arguments as owning narrow strings
     std::vector<std::string> args;
-    // CommandLineToArgW splits the command line into wide strings
-    if (LPWSTR* wargv = CommandLineToArgW(GetCommandLineW(), &argc)) {
+    // CommandLineToArgvW splits the command line into wide strings
+    if (LPWSTR* wargv = CommandLineToArgvW(GetCommandLineW(), &argc)) {
         args.reserve(argc);
         for (int i = 0; i < argc; ++i) {
             // measure the utf-8 conversion size for this argument

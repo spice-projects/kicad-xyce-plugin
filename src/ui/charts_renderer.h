@@ -1,7 +1,6 @@
 #pragma once
 
 #include <chrono>
-#include <cstdint>
 #include <functional>
 #include <memory>
 #include <set>
@@ -218,7 +217,7 @@ private:
 
     size_t m_selected_chart_index = 0;
 
-    std::tuple<float, float, float, float> m_zoom_selection = {-1, -1, -1, -1};
+    std::tuple<float, float, float, float> m_zoom_selection = {-1.0f, -1.0f, -1.0f, -1.0f};
 
     // placeholder series shown while no simulation data is loaded
     std::vector<float> m_demo_series;
