@@ -158,13 +158,35 @@ namespace
         }
         SetHandleInformation(out_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
         SetHandleInformation(err_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+        // detect batch files — CreateProcessW cannot launch them directly without
+        // cmd.exe, and the auto-detect path mangles quoting via cmd.exe /S /C.
+        const bool is_batch = [&] {
+            if (args.empty()) return false;
+            const auto ext = std::filesystem::path(args[0]).extension().wstring();
+            return ext == L".bat" || ext == L".BAT" || ext == L".cmd" || ext == L".CMD";
+        }();
         // build quoted command line
+        std::wstring command_app;   // non-empty only for batch files
         std::wstring command_line;
-        for (const auto& arg : args) {
-            std::wstring wide_arg = std::filesystem::path(arg).wstring();
-            if (!command_line.empty())
-                command_line += L" ";
-            command_line += L"\"" + wide_arg + L"\"";
+        if (is_batch) {
+            wchar_t sysdir[MAX_PATH];
+            GetSystemDirectoryW(sysdir, MAX_PATH);
+            command_app = std::wstring(sysdir) + L"\\cmd.exe";
+            command_line = L"/c ";
+            for (const auto& arg : args) {
+                std::wstring wide_arg = std::filesystem::path(arg).wstring();
+                if (command_line.size() > 3)  // beyond "/c "
+                    command_line += L" ";
+                command_line += L"\"" + wide_arg + L"\"";
+            }
+        }
+        else {
+            for (const auto& arg : args) {
+                std::wstring wide_arg = std::filesystem::path(arg).wstring();
+                if (!command_line.empty())
+                    command_line += L" ";
+                command_line += L"\"" + wide_arg + L"\"";
+            }
         }
         STARTUPINFOW si{};
         si.cb = sizeof(si);
@@ -174,7 +196,7 @@ namespace
         si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
         const std::wstring cwd_wide = command_cwd.empty() ? std::wstring() : command_cwd.wstring();
         PROCESS_INFORMATION pi{};
-        if (!CreateProcessW(nullptr, command_line.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, cwd_wide.empty() ? nullptr : cwd_wide.c_str(), &si, &pi)) {
+        if (!CreateProcessW(command_app.empty() ? nullptr : command_app.c_str(), command_line.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, cwd_wide.empty() ? nullptr : cwd_wide.c_str(), &si, &pi)) {
             CloseHandle(out_read);
             CloseHandle(out_write);
             CloseHandle(err_read);

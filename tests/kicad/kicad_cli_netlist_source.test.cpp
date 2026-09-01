@@ -3,6 +3,10 @@
 #include <stdexcept>
 #include <system_error>
 
+#if defined(_WIN32)
+#include <sstream>
+#endif
+
 #include <gtest/gtest.h>
 
 #include "kicad/kicad_cli_netlist_source.h"
@@ -66,12 +70,38 @@ TEST(KicadCliNetlistSourceChecks, resolve_throws_without_schematic) {
 
 namespace
 {
-    // create a fake kicad-cli shell script that writes a spice netlist to the --output path
+    // create a fake kicad-cli script/batch file that writes a spice netlist to the --output path
     std::filesystem::path make_fake_kicad_cli(const std::string& name, const std::string& netlist, int exit_code) {
-        // build a unique script path
+        // build a unique script path — use .bat extension on Windows so CreateProcessW can launch it
+#if defined(_WIN32)
+        const auto path = std::filesystem::temp_directory_path() / (name + ".bat");
+#else
         const auto path = std::filesystem::temp_directory_path() / name;
+#endif
         // write the script body
         std::ofstream script(path, std::ios::out | std::ios::trunc);
+#if defined(_WIN32)
+        script << "@echo off\n";
+        script << "setlocal enabledelayedexpansion\n";
+        script << "set \"out=\"\n";
+        script << "set \"prev=\"\n";
+        script << "for %%a in (%*) do (\n";
+        script << "    if \"!prev!\"==\"--output\" set \"out=%%~a\"\n";
+        script << "    set \"prev=%%~a\"\n";
+        script << ")\n";
+        if (exit_code == 0) {
+            script << "if not \"!out!\"==\"\" (\n";
+            // split the netlist into lines; each echo call produces one line
+            std::istringstream stream(netlist);
+            std::string line;
+            while (std::getline(stream, line)) {
+                if (!line.empty())
+                    script << "    echo " << line << "\n";
+            }
+            script << ") > \"!out!\"\n";
+        }
+        script << "exit /b " << exit_code << "\n";
+#else
         script << "#!/bin/sh\n";
         script << "out=\"\"\n";
         script << "prev=\"\"\n";
@@ -83,10 +113,13 @@ namespace
             script << "printf '%s' '" << netlist << "' > \"$out\"\n";
         }
         script << "exit " << exit_code << "\n";
+#endif
         script.close();
-        // make the script executable
+#if !defined(_WIN32)
+        // make the script executable on POSIX
         std::error_code ec;
         std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add, ec);
+#endif
         // exit
         return path;
     }

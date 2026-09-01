@@ -80,6 +80,9 @@ TEST(PluginConfigChecks, is_valid_returns_false_for_directory) {
 }
 
 TEST(PluginConfigChecks, is_valid_returns_false_for_non_executable_file) {
+#if defined(_WIN32)
+    GTEST_SKIP() << "Windows does not have an executable permission bit; any regular file passes validity";
+#else
     // arrange — a regular file without the executable bit
     const auto path = std::filesystem::temp_directory_path() / "kicad_xyce_not_executable.bin";
     {
@@ -94,6 +97,7 @@ TEST(PluginConfigChecks, is_valid_returns_false_for_non_executable_file) {
     // cleanup
     std::error_code ec;
     std::filesystem::remove(path, ec);
+#endif
 }
 
 TEST(PluginConfigChecks, is_valid_returns_true_for_executable_file) {
@@ -109,8 +113,14 @@ TEST(PluginConfigChecks, set_path_updates_the_configured_value) {
     // arrange
     PluginConfig config("");
     // act
+#if defined(_WIN32)
+    config.set_xyce_executable_path("C:\\Windows\\System32\\cmd.exe");
+    // assert
+    ASSERT_EQ(config.xyce_executable_path(), "C:\\Windows\\System32\\cmd.exe");
+#else
     config.set_xyce_executable_path("/usr/bin/env");
     // assert
     ASSERT_EQ(config.xyce_executable_path(), "/usr/bin/env");
+#endif
     ASSERT_TRUE(config.is_xyce_executable_valid());
 }

@@ -185,7 +185,7 @@ TEST(SimulationConfigOutputPathChecks, raw_path_defaults_to_netlist_plus_raw) {
     const auto path = config.raw_output_file_path("/tmp/work", "/tmp/net.cir");
     // assert
     ASSERT_TRUE(path.has_value());
-    EXPECT_EQ(path->string(), "/tmp/net.cir.raw");
+    EXPECT_EQ(path->generic_string(), "/tmp/net.cir.raw");
 }
 
 TEST(SimulationConfigOutputPathChecks, raw_path_uses_print_file_when_given) {
@@ -195,7 +195,7 @@ TEST(SimulationConfigOutputPathChecks, raw_path_uses_print_file_when_given) {
     const auto path = config.raw_output_file_path("/tmp/work", "/tmp/net.cir");
     // assert
     ASSERT_TRUE(path.has_value());
-    EXPECT_EQ(path->string(), "/tmp/work/out.raw");
+    EXPECT_EQ(path->generic_string(), "/tmp/work/out.raw");
 }
 
 TEST(SimulationConfigOutputPathChecks, raw_path_is_nullopt_for_non_raw_format) {
@@ -236,7 +236,7 @@ TEST(SimulationConfigFftPathChecks, fft_pattern_matches_transient_with_fft_param
     const auto pattern = config.fft_output_file_path_pattern("/tmp/net.cir");
     // assert
     ASSERT_TRUE(pattern.has_value());
-    EXPECT_EQ(pattern->string(), "/tmp/net.cir.fft*");
+    EXPECT_EQ(pattern->generic_string(), "/tmp/net.cir.fft*");
 }
 
 TEST(SimulationConfigFftPathChecks, fft_pattern_is_absent_for_other_analyses) {

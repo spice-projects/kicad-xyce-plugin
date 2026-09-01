@@ -23,6 +23,12 @@ add_dependencies(kicad-xyce-plugin-tests kicad-proto)
 # link the core library (which brings the app headers, defines, and the slint/imgui/implot/spdlog/nng/protobuf/platform dependencies), plus gtest
 target_link_libraries(kicad-xyce-plugin-tests PRIVATE kicad-xyce-core GTest::gtest GTest::gtest_main)
 
+if(WIN32)
+    # Copy runtime DLLs (slint_cpp.dll, vcpkg DLLs) next to the test executable
+    # so ctest and direct execution find them at runtime.
+    add_custom_command(TARGET kicad-xyce-plugin-tests POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:kicad-xyce-plugin-tests> $<TARGET_FILE_DIR:kicad-xyce-plugin-tests> COMMAND_EXPAND_LISTS)
+endif()
+
 # enable more warnings: msvc uses /W4, gnu-style frontends use -Wall -Wextra -Wpedantic
 if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     target_compile_options(kicad-xyce-plugin-tests PRIVATE /W4)
