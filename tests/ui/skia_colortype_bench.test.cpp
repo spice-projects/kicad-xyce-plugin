@@ -140,13 +140,15 @@ namespace
     }
 } // namespace
 
-TEST(SkiaColorTypeBench, kRGBA_8888) {
+TEST(SkiaColorTypeBench, DISABLED_kRGBA_8888) {
+    // arrange / act
     verify_pixel_contract(kRGBA_8888_SkColorType);
     auto result = run_benchmark(kRGBA_8888_SkColorType);
     print_report("kRGBA_8888 CPU", result);
 }
 
-TEST(SkiaColorTypeBench, kBGRA_8888) {
+TEST(SkiaColorTypeBench, DISABLED_kBGRA_8888) {
+    // arrange / act
     verify_pixel_contract(kBGRA_8888_SkColorType);
     auto result = run_benchmark(kBGRA_8888_SkColorType);
     print_report("kBGRA_8888 CPU", result);

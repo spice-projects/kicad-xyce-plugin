@@ -24,14 +24,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         for (int i = 0; i < argc; ++i) {
             // measure the utf-8 conversion size for this argument
             int size = WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, nullptr, 0, nullptr, nullptr);
-            // allocate a buffer for the narrow result
-            std::string arg(size, '\0');
-            // perform the wide-to-narrow conversion into the buffer
-            WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, arg.data(), size, nullptr, nullptr);
-            // drop the trailing null terminator from the measured length
-            arg.resize(size - 1);
-            // store the converted argument
-            args.push_back(std::move(arg));
+            if (size > 0) {
+                // allocate a buffer for the narrow result
+                std::string arg(size, '\0');
+                // perform the wide-to-narrow conversion into the buffer
+                int written = WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, arg.data(), size, nullptr, nullptr);
+                if (written > 0) {
+                    // drop the trailing null terminator from the measured length
+                    arg.resize(written - 1);
+                    // store the converted argument
+                    args.push_back(std::move(arg));
+                }
+            }
         }
         // release the memory allocated by CommandLineToArgW
         LocalFree(wargv);
@@ -47,7 +51,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // create application
     auto& application = App::instance();
     // configure the application (command line parsing, logging, platform setup)
-    application.initialize(argc, argv.data());
+    application.initialize(static_cast<int>(args.size()), argv.data());
     // create the main window and run the application event loop
     return application.run();
 }

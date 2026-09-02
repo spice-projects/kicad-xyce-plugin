@@ -28,12 +28,11 @@ namespace
         }
     };
 
-    // returns a reference to the process-wide NFD guard, ensuring NFD is
-    // initialized on the first call and stays alive until process exit
-    const NFDGuard& ensure_nfd() {
-        // static storage guarantees a single init/quit per process
-        static NFDGuard guard;
-        return guard;
+    // ensures NFD is initialized for the calling thread and stays alive
+    // until thread exit
+    void ensure_nfd() {
+        // thread_local storage guarantees a single init/quit per thread
+        thread_local NFDGuard guard;
     }
 
 } // anonymous namespace
@@ -66,7 +65,7 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_file() {
 
     // convert the native path string to a filesystem path
     NFD::UniquePathU8 pathGuard(outPath);
-    return std::filesystem::path(outPath);
+    return std::filesystem::path(reinterpret_cast<const char8_t*>(outPath));
 }
 
 std::optional<std::filesystem::path> FileDialog::open_xyce_executable() {
@@ -90,5 +89,5 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_executable() {
 
     // convert the native path string to a filesystem path
     NFD::UniquePathU8 pathGuard(outPath);
-    return std::filesystem::path(outPath);
+    return std::filesystem::path(reinterpret_cast<const char8_t*>(outPath));
 }

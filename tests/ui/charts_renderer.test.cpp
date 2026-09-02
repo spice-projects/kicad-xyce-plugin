@@ -44,6 +44,7 @@ TEST(ChartsRendererTest, constructs_and_renders_demo_frame) {
 }
 
 TEST(ChartsRendererTest, viewport_change_triggers_surface_reallocation) {
+    // arrange
     slint::Image captured_image;
     bool image_published = false;
 
@@ -52,14 +53,14 @@ TEST(ChartsRendererTest, viewport_change_triggers_surface_reallocation) {
         image_published = true;
     });
 
-    // initial viewport
+    // act / assert: initial viewport
     renderer.set_viewport(200.0f, 150.0f, 1.0);
     renderer.render();
     ASSERT_TRUE(image_published);
     EXPECT_EQ(captured_image.size().width, 200);
     EXPECT_EQ(captured_image.size().height, 150);
 
-    // change viewport - should reallocate surface
+    // act / assert: change viewport - should reallocate surface
     image_published = false;
     renderer.set_viewport(400.0f, 300.0f, 2.0);
     renderer.render();
@@ -69,6 +70,7 @@ TEST(ChartsRendererTest, viewport_change_triggers_surface_reallocation) {
 }
 
 TEST(ChartsRendererTest, chart_count_starts_at_zero) {
+    // arrange / act / assert
     ChartsRenderer renderer([](slint::Image) {});
     EXPECT_EQ(renderer.chart_count(), 0);
 }

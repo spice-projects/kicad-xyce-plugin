@@ -1,16 +1,17 @@
-// #include <vector>
-
 #include <gpu/ganesh/GrDirectContext.h>
-#include <gpu/ganesh/vk/GrVkDirectContext.h>
-#include <gpu/vk/VulkanBackendContext.h>
 #include <spdlog/spdlog.h>
-#include <vulkan/vulkan.h>
 
 #include "charts_renderer.h"
 
+#if 0
+#include <vector>
+
+#include <gpu/ganesh/vk/GrVkDirectContext.h>
+#include <gpu/vk/VulkanBackendContext.h>
+#include <vulkan/vulkan.h>
+
 struct VulkanCleanup
 {
-
     VkInstance instance = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
 
@@ -23,9 +24,10 @@ struct VulkanCleanup
             vkDestroyInstance(instance, nullptr);
     }
 };
+#endif
 
 sk_sp<GrDirectContext> ChartsRenderer::create_gpu_context() {
-    /*
+#if 0
     // cleanup if early exit
     VulkanCleanup tracker;
     // create the Vulkan Instance
@@ -138,8 +140,8 @@ sk_sp<GrDirectContext> ChartsRenderer::create_gpu_context() {
         tracker.instance = VK_NULL_HANDLE;
         tracker.device = VK_NULL_HANDLE;
     }
-    */
-
-    // return directContext;
+    return directContext;
+#else
     return nullptr;
+#endif
 }

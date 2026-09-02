@@ -18,12 +18,14 @@ namespace
 } // namespace
 
 TEST(ImGuiSkiaRendererTest, renders_solid_triangle_exactly) {
+    // arrange
     ImGui::CreateContext();
     ImGui::GetIO().DisplaySize = ImVec2(64.0f, 64.0f);
     ImGui::GetIO().DeltaTime = 1.0f / 60.0f;
     const auto surface_info = SkImageInfo::Make(64, 64, kN32_SkColorType, kPremul_SkAlphaType);
     auto surface = SkSurfaces::Raster(surface_info);
     surface->getCanvas()->clear(SK_ColorWHITE);
+    // act
     {
         ImGuiSkiaRenderer renderer;
         ImGui::NewFrame();
@@ -32,6 +34,7 @@ TEST(ImGuiSkiaRendererTest, renders_solid_triangle_exactly) {
         renderer.render_draw_data(ImGui::GetDrawData(), surface->getCanvas(), 1.0f);
         std::vector<uint8_t> pixels(64 * 64 * 4);
         ASSERT_TRUE(surface->readPixels(readback_info(64, 64), pixels.data(), 64 * 4, 0, 0));
+        // assert
         EXPECT_EQ(pixels[(40 * 64 + 31) * 4 + 0], 255);
         EXPECT_EQ(pixels[(40 * 64 + 31) * 4 + 1], 0);
         EXPECT_EQ(pixels[(40 * 64 + 31) * 4 + 2], 0);
@@ -45,11 +48,13 @@ TEST(ImGuiSkiaRendererTest, renders_solid_triangle_exactly) {
 }
 
 TEST(ImGuiSkiaRendererTest, composes_half_alpha_over_transparent_as_premultiplied_src_over) {
+    // arrange
     ImGui::CreateContext();
     ImGui::GetIO().DisplaySize = ImVec2(64.0f, 64.0f);
     ImGui::GetIO().DeltaTime = 1.0f / 60.0f;
     const auto surface_info = SkImageInfo::Make(64, 64, kN32_SkColorType, kPremul_SkAlphaType);
     auto surface = SkSurfaces::Raster(surface_info);
+    // act
     {
         ImGuiSkiaRenderer renderer;
         ImGui::NewFrame();
@@ -58,6 +63,7 @@ TEST(ImGuiSkiaRendererTest, composes_half_alpha_over_transparent_as_premultiplie
         renderer.render_draw_data(ImGui::GetDrawData(), surface->getCanvas(), 1.0f);
         std::vector<uint8_t> pixels(64 * 64 * 4);
         ASSERT_TRUE(surface->readPixels(readback_info(64, 64), pixels.data(), 64 * 4, 0, 0));
+        // assert
         EXPECT_EQ(pixels[(32 * 64 + 32) * 4 + 0], 0);
         EXPECT_EQ(pixels[(32 * 64 + 32) * 4 + 1], 0);
         EXPECT_EQ(pixels[(32 * 64 + 32) * 4 + 2], 128);
@@ -69,12 +75,14 @@ TEST(ImGuiSkiaRendererTest, composes_half_alpha_over_transparent_as_premultiplie
 }
 
 TEST(ImGuiSkiaRendererTest, applies_clip_rects_per_command) {
+    // arrange
     ImGui::CreateContext();
     ImGui::GetIO().DisplaySize = ImVec2(64.0f, 64.0f);
     ImGui::GetIO().DeltaTime = 1.0f / 60.0f;
     const auto surface_info = SkImageInfo::Make(64, 64, kN32_SkColorType, kPremul_SkAlphaType);
     auto surface = SkSurfaces::Raster(surface_info);
     surface->getCanvas()->clear(SK_ColorWHITE);
+    // act
     {
         ImGuiSkiaRenderer renderer;
         ImGui::NewFrame();
@@ -89,6 +97,7 @@ TEST(ImGuiSkiaRendererTest, applies_clip_rects_per_command) {
         renderer.render_draw_data(ImGui::GetDrawData(), surface->getCanvas(), 1.0f);
         std::vector<uint8_t> pixels(64 * 64 * 4);
         ASSERT_TRUE(surface->readPixels(readback_info(64, 64), pixels.data(), 64 * 4, 0, 0));
+        // assert
         EXPECT_EQ(pixels[(32 * 64 + 16) * 4 + 0], 255);
         EXPECT_EQ(pixels[(32 * 64 + 16) * 4 + 1], 0);
         EXPECT_EQ(pixels[(32 * 64 + 48) * 4 + 0], 0);
@@ -101,6 +110,7 @@ TEST(ImGuiSkiaRendererTest, applies_clip_rects_per_command) {
 }
 
 TEST(ImGuiSkiaRendererTest, splits_vtx_offset_windows_on_index_overflow) {
+    // arrange
     ImGui::CreateContext();
     ImGui::GetIO().DisplaySize = ImVec2(256.0f, 64.0f);
     ImGui::GetIO().DeltaTime = 1.0f / 60.0f;
@@ -109,6 +119,7 @@ TEST(ImGuiSkiaRendererTest, splits_vtx_offset_windows_on_index_overflow) {
     const auto surface_info = SkImageInfo::Make(width, height, kN32_SkColorType, kPremul_SkAlphaType);
     auto surface = SkSurfaces::Raster(surface_info);
     surface->getCanvas()->clear(SK_ColorWHITE);
+    // act
     {
         ImGuiSkiaRenderer renderer;
         ImGui::NewFrame();
@@ -126,6 +137,7 @@ TEST(ImGuiSkiaRendererTest, splits_vtx_offset_windows_on_index_overflow) {
         renderer.render_draw_data(ImGui::GetDrawData(), surface->getCanvas(), 1.0f);
         std::vector<uint8_t> pixels(static_cast<size_t>(width * height * 4));
         ASSERT_TRUE(surface->readPixels(readback_info(width, height), pixels.data(), width * 4, 0, 0));
+        // assert
         EXPECT_EQ(pixels[(50 * width + 16) * 4 + 0], 255);
         EXPECT_EQ(pixels[(50 * width + 16) * 4 + 1], 0);
         EXPECT_EQ(pixels[(50 * width + width - 16) * 4 + 0], 0);
@@ -136,6 +148,7 @@ TEST(ImGuiSkiaRendererTest, splits_vtx_offset_windows_on_index_overflow) {
 }
 
 TEST(ImGuiSkiaRendererTest, renders_alpha8_glyph_mask_as_white) {
+    // arrange
     ImGui::CreateContext();
     ImGui::GetIO().DisplaySize = ImVec2(64.0f, 64.0f);
     ImGui::GetIO().DeltaTime = 1.0f / 60.0f;
@@ -144,6 +157,7 @@ TEST(ImGuiSkiaRendererTest, renders_alpha8_glyph_mask_as_white) {
     ImGui::GetIO().Fonts->AddFontFromMemoryTTF(const_cast<void*>(static_cast<const void*>(Inter_Regular_ttf)), static_cast<int>(Inter_Regular_ttf_len), 24.0f, &font_config);
     const auto surface_info = SkImageInfo::Make(64, 64, kN32_SkColorType, kPremul_SkAlphaType);
     auto surface = SkSurfaces::Raster(surface_info);
+    // act
     {
         ImGuiSkiaRenderer renderer;
         ImGui::NewFrame();
@@ -152,6 +166,7 @@ TEST(ImGuiSkiaRendererTest, renders_alpha8_glyph_mask_as_white) {
         renderer.render_draw_data(ImGui::GetDrawData(), surface->getCanvas(), 1.0f);
         std::vector<uint8_t> pixels(64 * 64 * 4);
         ASSERT_TRUE(surface->readPixels(readback_info(64, 64), pixels.data(), 64 * 4, 0, 0));
+        // assert
         int best_index = -1;
         uint8_t best_alpha = 0;
         for (int y = 16; y < 52; ++y) {
@@ -173,6 +188,7 @@ TEST(ImGuiSkiaRendererTest, renders_alpha8_glyph_mask_as_white) {
 }
 
 TEST(ImGuiSkiaRendererTest, renders_colored_text_preserving_color) {
+    // arrange
     ImGui::CreateContext();
     ImGui::GetIO().DisplaySize = ImVec2(64.0f, 64.0f);
     ImGui::GetIO().DeltaTime = 1.0f / 60.0f;
@@ -182,6 +198,7 @@ TEST(ImGuiSkiaRendererTest, renders_colored_text_preserving_color) {
     const auto surface_info = SkImageInfo::Make(64, 64, kN32_SkColorType, kPremul_SkAlphaType);
     auto surface = SkSurfaces::Raster(surface_info);
     surface->getCanvas()->clear(SK_ColorBLACK);
+    // act
     {
         ImGuiSkiaRenderer renderer;
         ImGui::NewFrame();
@@ -190,6 +207,7 @@ TEST(ImGuiSkiaRendererTest, renders_colored_text_preserving_color) {
         renderer.render_draw_data(ImGui::GetDrawData(), surface->getCanvas(), 1.0f);
         std::vector<uint8_t> pixels(64 * 64 * 4);
         ASSERT_TRUE(surface->readPixels(readback_info(64, 64), pixels.data(), 64 * 4, 0, 0));
+        // assert
         int best_index = -1;
         uint8_t best_green = 0;
         for (int y = 16; y < 52; ++y) {

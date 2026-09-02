@@ -18,6 +18,7 @@
 // rgba8888 so skia does the swizzle; these tests verify that swizzle
 
 TEST(SkiaRasterRoundtripTest, pixel_values_survive_readback_exactly) {
+    // arrange
     constexpr int width = 4;
     constexpr int height = 1;
     const auto surface_info = SkImageInfo::Make(width, height, kN32_SkColorType, kPremul_SkAlphaType);
@@ -36,9 +37,11 @@ TEST(SkiaRasterRoundtripTest, pixel_values_survive_readback_exactly) {
     SkPaint veil_paint;
     veil_paint.setColor(SkColorSetARGB(128, 255, 255, 255));
     canvas->drawRect(SkRect::MakeLTRB(3.0f, 0.0f, 4.0f, 1.0f), veil_paint);
+    // act
     slint::SharedPixelBuffer<slint::Rgba8Pixel> buffer(width, height);
     const auto readback_info = SkImageInfo::Make(width, height, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
     ASSERT_TRUE(surface->readPixels(readback_info, buffer.begin(), width * static_cast<int>(sizeof(slint::Rgba8Pixel)), 0, 0));
+    // assert
     EXPECT_EQ(buffer.begin()[0], (slint::Rgba8Pixel{255, 0, 0, 255}));
     EXPECT_EQ(buffer.begin()[1], (slint::Rgba8Pixel{0, 255, 0, 255}));
     EXPECT_EQ(buffer.begin()[2], (slint::Rgba8Pixel{0, 0, 255, 255}));
@@ -46,6 +49,7 @@ TEST(SkiaRasterRoundtripTest, pixel_values_survive_readback_exactly) {
 }
 
 TEST(SkiaRasterRoundtripTest, memory_layout_is_rgb_byte_order) {
+    // arrange
     constexpr int width = 4;
     constexpr int height = 1;
     const auto surface_info = SkImageInfo::Make(width, height, kN32_SkColorType, kPremul_SkAlphaType);
@@ -58,10 +62,12 @@ TEST(SkiaRasterRoundtripTest, memory_layout_is_rgb_byte_order) {
     SkPaint green_paint;
     green_paint.setColor(SK_ColorGREEN);
     canvas->drawRect(SkRect::MakeLTRB(1.0f, 0.0f, 2.0f, 1.0f), green_paint);
+    // act
     slint::SharedPixelBuffer<slint::Rgba8Pixel> buffer(width, height);
     const auto readback_info = SkImageInfo::Make(width, height, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
     ASSERT_TRUE(surface->readPixels(readback_info, buffer.begin(), width * static_cast<int>(sizeof(slint::Rgba8Pixel)), 0, 0));
     const auto* bytes = reinterpret_cast<const uint8_t*>(buffer.begin());
+    // assert
     EXPECT_EQ(bytes[0], 255);
     EXPECT_EQ(bytes[1], 0);
     EXPECT_EQ(bytes[2], 0);
@@ -72,17 +78,20 @@ TEST(SkiaRasterRoundtripTest, memory_layout_is_rgb_byte_order) {
     EXPECT_EQ(bytes[7], 255);
 }
 
-TEST(SkiaRasterRoundtripTest, slint_image_shares_the_buffer_without_deep_copy) {
+TEST(SkiaRasterRoundtripTest, slint_image_roundtrip_preserves_pixel_values) {
+    // arrange
     constexpr int width = 4;
     constexpr int height = 1;
     const auto surface_info = SkImageInfo::Make(width, height, kN32_SkColorType, kPremul_SkAlphaType);
     auto surface = SkSurfaces::Raster(surface_info);
     surface->getCanvas()->clear(SK_ColorRED);
+    // act
     slint::SharedPixelBuffer<slint::Rgba8Pixel> buffer(width, height);
     const auto readback_info = SkImageInfo::Make(width, height, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
     ASSERT_TRUE(surface->readPixels(readback_info, buffer.begin(), width * static_cast<int>(sizeof(slint::Rgba8Pixel)), 0, 0));
     const slint::Image image(buffer);
     const auto round_tripped = image.to_rgba8();
+    // assert
     ASSERT_TRUE(round_tripped.has_value());
     ASSERT_EQ(round_tripped->width(), buffer.width());
     ASSERT_EQ(round_tripped->height(), buffer.height());
