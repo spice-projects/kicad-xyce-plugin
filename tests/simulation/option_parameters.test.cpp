@@ -113,6 +113,70 @@ TEST(OptionParametersChecks, parse_non_option_directive) {
     ASSERT_EQ(params.fft.at("FFTOUT"), "1");
 }
 
+TEST(OptionParametersChecks, parse_parser_package_options) {
+    // arrange
+    const std::vector<std::string> directives = {
+        ".OPTIONS PARSER MODEL_BINNING=0 SCALE=2.5",
+    };
+    // act
+    const auto params = OptionParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_EQ(params.parser.size(), 2);
+    ASSERT_EQ(params.parser.at("MODEL_BINNING"), "0");
+    ASSERT_EQ(params.parser.at("SCALE"), "2.5");
+}
+
+TEST(OptionParametersChecks, parse_parser_package_options_case_insensitive) {
+    // arrange
+    const std::vector<std::string> directives = {
+        ".OPTIONS Parser model_binning=TRUE",
+    };
+    // act
+    const auto params = OptionParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_EQ(params.parser.size(), 1);
+    ASSERT_EQ(params.parser.at("MODEL_BINNING"), "TRUE");
+}
+
+TEST(OptionParametersChecks, parse_linsol_ac_options) {
+    // arrange
+    const std::vector<std::string> directives = {
+        ".OPTIONS LINSOL-AC TYPE=KLU",
+    };
+    // act
+    const auto params = OptionParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_EQ(params.linsol_ac.size(), 1);
+    ASSERT_EQ(params.linsol_ac.at("TYPE"), "KLU");
+    // the AC-scoped package must not leak into the generic LINSOL package
+    ASSERT_EQ(params.linsol.size(), 0);
+}
+
+TEST(OptionParametersChecks, parse_loca_options) {
+    // arrange
+    const std::vector<std::string> directives = {
+        ".OPTIONS LOCA Max_Num_Starts=4 Min_Start=0.1",
+    };
+    // act
+    const auto params = OptionParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_EQ(params.loca.size(), 2);
+    ASSERT_EQ(params.loca.at("MAX_NUM_STARTS"), "4");
+    ASSERT_EQ(params.loca.at("MIN_START"), "0.1");
+}
+
+TEST(OptionParametersChecks, parse_dist_strategy_option) {
+    // arrange
+    const std::vector<std::string> directives = {
+        ".OPTIONS DIST STRATEGY=2",
+    };
+    // act
+    const auto params = OptionParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_EQ(params.dist.size(), 1);
+    ASSERT_EQ(params.dist.at("STRATEGY"), "2");
+}
+
 // ========================================================================================
 // to_xyce_directives
 // ========================================================================================
@@ -160,6 +224,59 @@ TEST(OptionParametersChecks, generate_diagnostic_directive) {
     // assert
     ASSERT_EQ(directives.size(), 1);
     ASSERT_EQ(directives[0], ".OPTIONS DIAGNOSTIC DEBUGLEVEL=2");
+}
+
+TEST(OptionParametersChecks, generate_parser_directive) {
+    // arrange
+    const OptionParameters params({}, {}, {}, {}, {}, {}, {{"MODEL_BINNING", "0"}, {"SCALE", "2.5"}});
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 1);
+    ASSERT_EQ(directives[0], ".OPTIONS PARSER MODEL_BINNING=0 SCALE=2.5");
+}
+
+TEST(OptionParametersChecks, generate_linsol_ac_directive) {
+    // arrange
+    const OptionParameters params({}, {}, {}, {}, {}, {}, {}, {{"TYPE", "KLU"}});
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 1);
+    ASSERT_EQ(directives[0], ".OPTIONS LINSOL-AC TYPE=KLU");
+}
+
+TEST(OptionParametersChecks, generate_loca_directive) {
+    // arrange
+    const OptionParameters params({}, {}, {}, {}, {}, {}, {}, {}, {{"MAX_NUM_STARTS", "4"}});
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 1);
+    ASSERT_EQ(directives[0], ".OPTIONS LOCA MAX_NUM_STARTS=4");
+}
+
+TEST(OptionParametersChecks, generate_dist_directive) {
+    // arrange
+    const OptionParameters params({}, {}, {}, {}, {}, {}, {}, {}, {}, {{"STRATEGY", "2"}});
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 1);
+    ASSERT_EQ(directives[0], ".OPTIONS DIST STRATEGY=2");
+}
+
+TEST(OptionParametersChecks, generate_new_packages_in_deterministic_order) {
+    // arrange
+    const OptionParameters params({}, {}, {}, {}, {}, {}, {{"MODEL_BINNING", "0"}}, {{"TYPE", "KLU"}}, {{"MAX_NUM_STARTS", "4"}}, {{"STRATEGY", "1"}});
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 4);
+    ASSERT_EQ(directives[0], ".OPTIONS LINSOL-AC TYPE=KLU");
+    ASSERT_EQ(directives[1], ".OPTIONS PARSER MODEL_BINNING=0");
+    ASSERT_EQ(directives[2], ".OPTIONS LOCA MAX_NUM_STARTS=4");
+    ASSERT_EQ(directives[3], ".OPTIONS DIST STRATEGY=1");
 }
 
 TEST(OptionParametersChecks, generate_empty_directives) {
@@ -219,6 +336,25 @@ TEST(OptionParametersChecks, round_trip_diagnostic_options) {
     ASSERT_EQ(round_trip[0], ".OPTIONS DIAGNOSTIC DEBUGLEVEL=2");
 }
 
+TEST(OptionParametersChecks, round_trip_new_package_options) {
+    // arrange
+    const std::vector<std::string> directives = {
+        ".OPTIONS PARSER MODEL_BINNING=0 SCALE=2.5",
+        ".OPTIONS LINSOL-AC TYPE=KLU",
+        ".OPTIONS LOCA MAX_NUM_STARTS=4 MIN_START=0.1",
+        ".OPTIONS DIST STRATEGY=2",
+    };
+    // act
+    const auto params = OptionParameters::from_xyce_directives(directives);
+    const auto round_trip = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(round_trip.size(), 4);
+    ASSERT_EQ(round_trip[0], ".OPTIONS LINSOL-AC TYPE=KLU");
+    ASSERT_EQ(round_trip[1], ".OPTIONS PARSER MODEL_BINNING=0 SCALE=2.5");
+    ASSERT_EQ(round_trip[2], ".OPTIONS LOCA MAX_NUM_STARTS=4 MIN_START=0.1");
+    ASSERT_EQ(round_trip[3], ".OPTIONS DIST STRATEGY=2");
+}
+
 // ========================================================================================
 // equality
 // ========================================================================================
@@ -243,6 +379,46 @@ TEST(OptionParametersChecks, differing_diagnostic_options_compare_unequal) {
     // arrange
     const OptionParameters a({}, {}, {}, {}, {}, {{"DEBUGLEVEL", "1"}});
     const OptionParameters b({}, {}, {}, {}, {}, {{"DEBUGLEVEL", "2"}});
+    // act / assert
+    ASSERT_FALSE(a == b);
+}
+
+TEST(OptionParametersChecks, equal_instances_with_new_packages_compare_equal) {
+    // arrange
+    const OptionParameters a({}, {}, {}, {}, {}, {}, {{"MODEL_BINNING", "0"}}, {{"TYPE", "KLU"}}, {{"MAX_NUM_STARTS", "4"}}, {{"STRATEGY", "1"}});
+    const OptionParameters b({}, {}, {}, {}, {}, {}, {{"MODEL_BINNING", "0"}}, {{"TYPE", "KLU"}}, {{"MAX_NUM_STARTS", "4"}}, {{"STRATEGY", "1"}});
+    // act / assert
+    ASSERT_TRUE(a == b);
+}
+
+TEST(OptionParametersChecks, differing_parser_options_compare_unequal) {
+    // arrange
+    const OptionParameters a({}, {}, {}, {}, {}, {}, {{"SCALE", "1.0"}});
+    const OptionParameters b({}, {}, {}, {}, {}, {}, {{"SCALE", "2.0"}});
+    // act / assert
+    ASSERT_FALSE(a == b);
+}
+
+TEST(OptionParametersChecks, differing_linsol_ac_options_compare_unequal) {
+    // arrange
+    const OptionParameters a({}, {}, {}, {}, {}, {}, {}, {{"TYPE", "KLU"}});
+    const OptionParameters b({}, {}, {}, {}, {}, {}, {}, {{"TYPE", "AZTECOO"}});
+    // act / assert
+    ASSERT_FALSE(a == b);
+}
+
+TEST(OptionParametersChecks, differing_loca_options_compare_unequal) {
+    // arrange
+    const OptionParameters a({}, {}, {}, {}, {}, {}, {}, {}, {{"MAX_NUM_STARTS", "4"}});
+    const OptionParameters b({}, {}, {}, {}, {}, {}, {}, {}, {{"MAX_NUM_STARTS", "5"}});
+    // act / assert
+    ASSERT_FALSE(a == b);
+}
+
+TEST(OptionParametersChecks, differing_dist_options_compare_unequal) {
+    // arrange
+    const OptionParameters a({}, {}, {}, {}, {}, {}, {}, {}, {}, {{"STRATEGY", "0"}});
+    const OptionParameters b({}, {}, {}, {}, {}, {}, {}, {}, {}, {{"STRATEGY", "1"}});
     // act / assert
     ASSERT_FALSE(a == b);
 }
