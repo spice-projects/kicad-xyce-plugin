@@ -52,6 +52,7 @@ jobs:
             build_enabled: false
     runs-on: ${{ matrix.os }}
     env:
+      CCACHE_DIR: ${{ runner.temp }}/.ccache
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
     steps:
       - name: Checkout repository
@@ -107,7 +108,7 @@ jobs:
         if: ${{ matrix.build_enabled }}
         uses: actions/cache@v5
         with:
-          path: ~/.ccache
+          path: ${{ runner.temp }}/.ccache
           key: ccache-${{ matrix.os }}-build-${{ github.sha }}
           restore-keys: |
             ccache-${{ matrix.os }}-build-
@@ -139,21 +140,16 @@ jobs:
             ./.build-release/tests/kicad-xyce-plugin-tests
           fi
 
-      - name: Stage shared libraries
-        if: ${{ matrix.build_enabled && runner.os == 'macOS' }}
-        run: |
-          cp .build-release/_deps/slint-build/libslint_cpp.dylib .build-release/
-          cp .build-release/vcpkg_installed/*-osx/lib/libskia.dylib .build-release/
+      - name: Gather runtime dependencies
+        if: ${{ matrix.build_enabled }}
+        run: cmake --install .build-release --component RuntimeDeps --prefix .build-release
 
       - name: Upload build artifact
         if: ${{ matrix.build_enabled }}
         uses: actions/upload-artifact@v7
         with:
           name: kicad-xyce-plugin-${{ matrix.platform }}
-          path: |
-            .build-release/kicad-xyce-plugin${{ runner.os == 'Windows' && '.exe' || '' }}
-            .build-release/libslint_cpp.dylib
-            .build-release/libskia.dylib
+          path: .build-release/artifacts/
           if-no-files-found: error
           retention-days: 7
 
@@ -191,37 +187,36 @@ jobs:
 
       - name: Create Universal binary
         run: |
-          lipo -create -output kicad-xyce-plugin \
-            artifacts/arm64/kicad-xyce-plugin \
-            artifacts/x64/kicad-xyce-plugin
-          lipo -create -output libslint_cpp.dylib \
-            artifacts/arm64/libslint_cpp.dylib \
-            artifacts/x64/libslint_cpp.dylib
-          lipo -create -output libskia.dylib \
-            artifacts/arm64/libskia.dylib \
-            artifacts/x64/libskia.dylib
-          # the executable records the build machine's absolute path to the slint library,
-          # which does not exist on user machines; rewrite it to a relocatable @rpath name
-          # resolved beside the executable in the installed package. the skia library is
-          # already referenced by its @rpath install name (set by vcpkg), so no rewrite needed
-          old_path=$(otool -L kicad-xyce-plugin | awk '/libslint_cpp\.dylib/ {print $1}')
-          install_name_tool -change "$old_path" @rpath/libslint_cpp.dylib kicad-xyce-plugin
-          install_name_tool -id @rpath/libslint_cpp.dylib libslint_cpp.dylib
-          install_name_tool -add_rpath @executable_path kicad-xyce-plugin
-          # lipo and install_name_tool drop or invalidate ad-hoc signatures, and arm64
-          # refuses to load mach-o files without a valid one
-          codesign --force --sign - kicad-xyce-plugin
-          codesign --force --sign - libslint_cpp.dylib
-          codesign --force --sign - libskia.dylib
+          mkdir -p artifacts/universal
+          for file in artifacts/arm64/*; do
+            [ -f "$file" ] || continue
+            name=$(basename "$file")
+            if [ -f "artifacts/x64/$name" ]; then
+              lipo -create -output "artifacts/universal/$name" "artifacts/arm64/$name" "artifacts/x64/$name"
+            else
+              cp "$file" "artifacts/universal/$name"
+            fi
+          done
+
+          # Rewrite library install names to @rpath and re-sign
+          for dylib in artifacts/universal/*.dylib; do
+            [ -f "$dylib" ] || continue
+            dname=$(basename "$dylib")
+            old_path=$(otool -L artifacts/universal/kicad-xyce-plugin | awk -v pat="$dname" '$1 ~ pat {print $1}')
+            if [ -n "$old_path" ]; then
+              install_name_tool -change "$old_path" "@rpath/$dname" artifacts/universal/kicad-xyce-plugin
+            fi
+            install_name_tool -id "@rpath/$dname" "$dylib"
+            codesign --force --sign - "$dylib"
+          done
+          install_name_tool -add_rpath @executable_path artifacts/universal/kicad-xyce-plugin 2>/dev/null || true
+          codesign --force --sign - artifacts/universal/kicad-xyce-plugin
 
       - name: Upload Universal artifact
         uses: actions/upload-artifact@v7
         with:
           name: kicad-xyce-plugin-macos-universal
-          path: |
-            kicad-xyce-plugin
-            libslint_cpp.dylib
-            libskia.dylib
+          path: artifacts/universal/
           if-no-files-found: error
           retention-days: 7
 
@@ -254,15 +249,18 @@ jobs:
 
       - name: Package Windows
         run: |
-          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' artifacts/windows/kicad-xyce-plugin.exe kicad-xyce-plugin.exe windows
+          dlls=$(ls artifacts/windows/*.dll 2>/dev/null | tr '\n' ' ')
+          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' artifacts/windows/kicad-xyce-plugin.exe kicad-xyce-plugin.exe windows "$dlls"
           mkdir -p packages
           mv dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.zip \
              packages/kicad-xyce-plugin-${{ steps.version.outputs.version }}-windows-x64.zip
 
       - name: Package macOS Universal
         run: |
-          chmod +x artifacts/macos/kicad-xyce-plugin artifacts/macos/libslint_cpp.dylib artifacts/macos/libskia.dylib
-          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' artifacts/macos/kicad-xyce-plugin kicad-xyce-plugin macos "artifacts/macos/libslint_cpp.dylib artifacts/macos/libskia.dylib"
+          chmod +x artifacts/macos/*
+          dylibs=$(ls artifacts/macos/*.dylib 2>/dev/null | tr '\n' ' ')
+          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' artifacts/macos/kicad-xyce-plugin kicad-xyce-plugin macos "$dylibs"
+          mkdir -p packages
           mv dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.zip \
              packages/kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-universal.zip
 

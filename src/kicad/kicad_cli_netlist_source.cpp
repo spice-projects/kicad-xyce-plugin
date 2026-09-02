@@ -156,8 +156,9 @@ namespace
                 CloseHandle(err_write);
             return -1;
         }
-        SetHandleInformation(out_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
-        SetHandleInformation(err_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+        // keep the parent pipe read ends out of the child process
+        SetHandleInformation(out_read, HANDLE_FLAG_INHERIT, 0);
+        SetHandleInformation(err_read, HANDLE_FLAG_INHERIT, 0);
         // detect batch files — CreateProcessW cannot launch them directly without
         // cmd.exe, and the auto-detect path mangles quoting via cmd.exe /S /C.
         const bool is_batch = [&] {
@@ -173,14 +174,17 @@ namespace
             wchar_t sysdir[MAX_PATH];
             GetSystemDirectoryW(sysdir, MAX_PATH);
             command_app = std::wstring(sysdir) + L"\\cmd.exe";
-            command_line = L"/c ";
+            // cmd.exe requires the complete batch invocation to be one quoted command string
+            command_line = L"/d /s /c \"";
             for (const auto& arg : args) {
                 std::wstring wide_arg = std::filesystem::path(arg).wstring();
-                // beyond "/c "
-                if (command_line.size() > 3)
+                // separate each quoted batch argument
+                if (command_line.size() > 11)
                     command_line += L" ";
                 command_line += L"\"" + wide_arg + L"\"";
             }
+            // close the command string around the quoted batch invocation
+            command_line += L"\"";
         }
         else {
             for (const auto& arg : args) {

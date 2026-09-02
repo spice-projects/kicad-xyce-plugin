@@ -8,7 +8,7 @@ EXECUTABLE=${2:-.build-debug/kicad-xyce-plugin}
 ENTRYPOINT_NAME=${3:-kicad-xyce-plugin}
 # platform, allowed values: macos, linux, windows
 PLATFORM=${4:-macos}
-# path(s) to shared libraries shipped beside the executable, macos only, space separated, defaults to none
+# path(s) to shared libraries shipped beside the executable, space separated, defaults to none
 SHARED_LIBRARIES=${5:-}
 
 # fail early when the executable is missing

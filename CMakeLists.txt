@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.25)
 
 # use overlay triplets (in ./triplets) on all platforms. the macOS triplets
 # build skia as a dynamic library (its static archive corrupts __unwind_info
@@ -255,6 +255,12 @@ endif()
 # link with the core library defined above
 target_link_libraries(kicad-xyce-plugin PRIVATE kicad-xyce-core)
 
+if(APPLE)
+    set_target_properties(kicad-xyce-plugin PROPERTIES INSTALL_RPATH "@loader_path")
+elseif(UNIX)
+    set_target_properties(kicad-xyce-plugin PROPERTIES INSTALL_RPATH "$ORIGIN")
+endif()
+
 # profile build type, activate with `cmake --preset debug -DCMAKE_BUILD_TYPE=Profile` && `cmake --build --preset debug`
 set(CMAKE_CXX_FLAGS_PROFILE "-O2 -fprofile-instr-generate -fcoverage-mapping")
 set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-fprofile-instr-generate")
@@ -263,3 +269,34 @@ if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
+# Runtime dependency gathering for CI packaging. Invoked via
+# `cmake --install .build-release --component RuntimeDeps --prefix .build-release`
+# during CI to copy all transitively-linked shared libraries into artifacts/
+# next to the executable. The whole artifacts/ directory is uploaded.
+cmake_policy(SET CMP0207 NEW)
+install(TARGETS kicad-xyce-plugin
+  RUNTIME_DEPENDENCY_SET kicad-xyce-deps
+  RUNTIME DESTINATION artifacts COMPONENT RuntimeDeps
+  BUNDLE DESTINATION artifacts COMPONENT RuntimeDeps)
+install(RUNTIME_DEPENDENCY_SET kicad-xyce-deps
+  DIRECTORIES
+    $<TARGET_FILE_DIR:kicad-xyce-plugin>
+    ${CMAKE_BINARY_DIR}/_deps/slint-build
+    ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin
+    ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib
+  PRE_EXCLUDE_REGEXES
+    [[api-ms-.*]]
+    [[ext-ms-.*]]
+    [[vcruntime.*]]
+    [[msvcp.*]]
+    [[ucrtbase.*]]
+  POST_EXCLUDE_REGEXES
+    [[^/usr/lib]]
+    [[^/System]]
+    [[.*system32/.*]]
+    [[.*windows/.*]]
+  RUNTIME DESTINATION artifacts COMPONENT RuntimeDeps
+  LIBRARY DESTINATION artifacts COMPONENT RuntimeDeps
+  FRAMEWORK DESTINATION artifacts COMPONENT RuntimeDeps
+)
