@@ -92,6 +92,9 @@ else()
     set(SLINT_FEATURE_INTERPRETER OFF CACHE BOOL "Enable Slint interpreter" FORCE)
 endif()
 
+# enable rpath install_name on macOS so that the dylib is found in the build tree
+set(SLINT_IS_TOPLEVEL_BUILD ON CACHE BOOL "Build Slint with rpath install_name on macOS" FORCE)
+
 # slint
 include(FetchContent)
 FetchContent_Declare(Slint GIT_REPOSITORY https://github.com/slint-ui/slint.git GIT_TAG release/1 SOURCE_SUBDIR api/cpp)
@@ -221,9 +224,8 @@ foreach(widget_source IN LISTS SLINT_WIDGET_SOURCES)
 endforeach()
 
 if(APPLE)
-    # skia is a dynamic vcpkg library: point the runtime loader at the vcpkg
-    # install dir so the executables find the skia dylibs when run from the build tree
-    set(CMAKE_BUILD_RPATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+    # skia and slint are dynamic libraries: point the runtime loader at the vcpkg install dir and slint build dir so executables find the dylibs in the build tree
+    set(CMAKE_BUILD_RPATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib" "${CMAKE_CURRENT_BINARY_DIR}/_deps/slint-build")
 endif()
 
 if(APPLE)
