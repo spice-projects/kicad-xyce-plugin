@@ -20,6 +20,10 @@ bool is_complex(const XyceValue& value);
 
 template <typename T>
 T scalar_value(const XyceValue& value) {
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4702) // unreachable code — false positive in second if constexpr's else
+#endif
     // processor
     auto l = []<typename T0>(T0& arg [[maybe_unused]]) -> T {
         // actual parameter type
@@ -45,7 +49,7 @@ T scalar_value(const XyceValue& value) {
             }
         }
         // complex scalar
-        else if constexpr (std::is_same_v<T, std::complex<double>>) {
+        if constexpr (std::is_same_v<T, std::complex<double>>) {
             // complex scalar
             if constexpr (std::is_same_v<TX, double>) {
                 return T(arg, 0.0);
@@ -73,6 +77,9 @@ T scalar_value(const XyceValue& value) {
     };
     // exit
     return std::visit(l, value);
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 }
 
 std::shared_ptr<View<double>> to_real_vector(const XyceValue& value);
