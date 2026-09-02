@@ -58,10 +58,14 @@ sk_sp<GrDirectContext> ChartsRenderer::create_gpu_context() {
     }
     // create backend context
     GrD3DBackendContext backend;
-    // use adapter, device and queue to create backend context
+    // use adapter, device and queue to create backend context, gr_cp AddRefs the raw pointers, release the originals to prevent leaks
     backend.fAdapter = gr_cp<IDXGIAdapter1>(adapter);
     backend.fDevice = gr_cp<ID3D12Device>(device);
     backend.fQueue = gr_cp<ID3D12CommandQueue>(queue);
+    // release the original references to prevent leaks, gr_cp has AddRef'd them
+    adapter->Release();
+    device->Release();
+    queue->Release();
     // create direct context
     return GrDirectContexts::MakeD3D(backend);
 }

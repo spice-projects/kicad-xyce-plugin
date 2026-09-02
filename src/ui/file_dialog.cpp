@@ -50,7 +50,7 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_file() {
     nfdu8char_t* outPath = nullptr;
     nfdopendialogu8args_t args{};
     args.filterList = filters.data();
-    args.filterCount = filters.size();
+    args.filterCount = static_cast<nfdfiltersize_t>(filters.size());
     const auto result = ::NFD_OpenDialogU8_With(&outPath, &args);
     // user canceled or an error occurred
     if (result != NFD_OKAY) {
@@ -63,9 +63,10 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_file() {
         return std::nullopt;
     }
 
-    // convert the native path string to a filesystem path
+    // NFD returns UTF-8 paths; construct a path from char8_t so the
+    // platform-native encoding is UTF-8 on all platforms including Windows
     NFD::UniquePathU8 pathGuard(outPath);
-    return std::filesystem::path(reinterpret_cast<const char8_t*>(outPath));
+    return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(outPath)));
 }
 
 std::optional<std::filesystem::path> FileDialog::open_xyce_executable() {
@@ -87,7 +88,8 @@ std::optional<std::filesystem::path> FileDialog::open_xyce_executable() {
         return std::nullopt;
     }
 
-    // convert the native path string to a filesystem path
+    // NFD returns UTF-8 paths; construct a path from char8_t so the
+    // platform-native encoding is UTF-8 on all platforms including Windows
     NFD::UniquePathU8 pathGuard(outPath);
-    return std::filesystem::path(reinterpret_cast<const char8_t*>(outPath));
+    return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(outPath)));
 }

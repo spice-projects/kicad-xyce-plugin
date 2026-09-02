@@ -276,11 +276,10 @@ endif()
 # `cmake --install .build-release --component RuntimeDeps --prefix .build-release`
 # during CI to copy all transitively-linked shared libraries into artifacts/
 # next to the executable. The whole artifacts/ directory is uploaded.
-cmake_policy(SET CMP0207 NEW)
-install(TARGETS kicad-xyce-plugin
-  RUNTIME_DEPENDENCY_SET kicad-xyce-deps
-  RUNTIME DESTINATION artifacts COMPONENT RuntimeDeps
-  BUNDLE DESTINATION artifacts COMPONENT RuntimeDeps)
+if(POLICY CMP0207)
+    cmake_policy(SET CMP0207 NEW)
+endif()
+install(TARGETS kicad-xyce-plugin RUNTIME_DEPENDENCY_SET kicad-xyce-deps RUNTIME DESTINATION artifacts COMPONENT RuntimeDeps BUNDLE DESTINATION artifacts COMPONENT RuntimeDeps)
 install(RUNTIME_DEPENDENCY_SET kicad-xyce-deps
   DIRECTORIES
     $<TARGET_FILE_DIR:kicad-xyce-plugin>

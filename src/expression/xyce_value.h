@@ -21,7 +21,7 @@ bool is_complex(const XyceValue& value);
 template <typename T>
 T scalar_value(const XyceValue& value) {
     // processor
-    auto l = []<typename T0>(T0& arg) -> T {
+    auto l = []<typename T0>(T0& arg [[maybe_unused]]) -> T {
         // actual parameter type
         using TX = std::decay_t<T0>;
         // real scalar
@@ -45,7 +45,7 @@ T scalar_value(const XyceValue& value) {
             }
         }
         // complex scalar
-        if constexpr (std::is_same_v<T, std::complex<double>>) {
+        else if constexpr (std::is_same_v<T, std::complex<double>>) {
             // complex scalar
             if constexpr (std::is_same_v<TX, double>) {
                 return T(arg, 0.0);
