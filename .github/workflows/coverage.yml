@@ -19,7 +19,7 @@ jobs:
     name: C++ Coverage
     runs-on: macos-26
     env:
-      CCACHE_DIR: ${{ runner.temp }}/.ccache
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
       # Force Apple's clang/clang++ instead of Homebrew LLVM which may use
       # ld64.lld — avoids LLVM bug #216154 on arm64.
@@ -50,7 +50,7 @@ jobs:
       - name: Restore ccache
         uses: actions/cache@v5
         with:
-          path: ${{ runner.temp }}/.ccache
+          path: ${{ github.workspace }}/.ccache
           key: ccache-${{ runner.os }}-profile-${{ github.sha }}
           restore-keys: |
             ccache-${{ runner.os }}-profile-
