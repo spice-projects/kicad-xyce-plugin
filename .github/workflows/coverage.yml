@@ -21,16 +21,9 @@ jobs:
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite'
-      # Force Apple's clang/clang++ instead of Homebrew LLVM which may use
-      # ld64.lld — avoids LLVM bug #216154 on arm64.
-      CC: /usr/bin/clang
-      CXX: /usr/bin/clang++
-      CLANGCC: /usr/bin/clang
-      CLANGCXX: /usr/bin/clang++
     steps:
       - name: Checkout repository
-        # persist-credentials: false keeps the job token out of .git/config;
-        # required for the fork-PR path where untrusted code is built and tested
+        # persist-credentials: false keeps the job token out of .git/config; required for the fork-PR path where untrusted code is built and tested
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref }}
@@ -40,26 +33,11 @@ jobs:
         shell: bash
         run: pip install ninja
 
-      - name: Setup ccache
-        shell: bash
-        run: |
-          if ! command -v ccache >/dev/null 2>&1; then
-            brew install ccache
-          fi
-
-      - name: Restore ccache
-        uses: actions/cache@v5
-        with:
-          path: ${{ github.workspace }}/.ccache
-          key: ccache-${{ runner.os }}-profile-${{ github.sha }}
-          restore-keys: |
-            ccache-${{ runner.os }}-profile-
-
       - name: Restore vcpkg binary cache
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.vcpkg-cache
-          key: vcpkg-macos-26-profile-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-macos-26-profile-${{ hashFiles('vcpkg.json') }}-${{ hashFiles('vcpkg-configuration.json') }}
           restore-keys: |
             vcpkg-macos-26-profile-
 
@@ -68,18 +46,33 @@ jobs:
         with:
           vcpkgJsonGlob: 'vcpkg.json'
 
-      - name: Configure CMake (Profile)
+      - name: Restore cmake build cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ github.workspace }}/.build-profile
+            ${{ github.workspace }}/.ccache
+          key: cmake-macos-26-profile-${{ hashFiles('vcpkg-configuration.json') }}-${{ hashFiles('vcpkg.json') }}-${{ hashFiles('tests/CMakeLists.txt') }}-${{ hashFiles('CMakeLists.txt') }}-${{ hashFiles('CMakePresets.json') }}
+          restore-keys: |
+            cmake-macos-26-profile-${{ hashFiles('vcpkg-configuration.json') }}-${{ hashFiles('vcpkg.json') }}-${{ hashFiles('tests/CMakeLists.txt') }}-${{ hashFiles('CMakeLists.txt') }}-${{ hashFiles('CMakePresets.json') }}
+
+      - name: Setup ccache
+        shell: bash
+        run: |
+          if ! command -v ccache >/dev/null 2>&1; then
+            brew install ccache
+          fi
+
+      - name: Configure CMake
+        if: ${{ hashFiles('.build-profile/CMakeCache.txt') == '' }}
+        shell: bash
         run: cmake --preset profile
 
-      - name: Build C++ Test Target (Profile)
+      - name: Build C++ Target
         run: cmake --build --preset profile --target kicad-xyce-plugin-tests
 
-      - name: Run C++ Tests with coverage instrumentation
+      - name: Run C++ Tests
         shell: bash
-        # run the test executable directly, not ctest (see AGENTS.md);
-        # skip the Ui-prefixed suites like the Windows job since this is a
-        # non-interactive runner session and they are not worth the flakiness
-        # for coverage numbers
         env:
           LLVM_PROFILE_FILE: ${{ github.workspace }}/coverage.profraw
         run: |
