@@ -151,7 +151,7 @@ TEST(FftChecks, computes_fft_normalization_peaks_at_one) {
     ASSERT_FALSE(result.frequencies.empty());
     double max_mag = 0.0;
     for (double val : result.values[0]) {
-        max_mag = (std::max)(max_mag, val);
+        max_mag = std::max(max_mag, val);
     }
     EXPECT_NEAR(max_mag, 1.0, 1e-9);
 }

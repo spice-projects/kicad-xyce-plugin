@@ -11,7 +11,6 @@
 #include <vector>
 
 #if defined(_WIN32)
-#define NOMINMAX
 #include <windows.h>
 #else
 #include <sys/types.h>
@@ -107,8 +106,8 @@ namespace
         ::close(out_pipe[1]);
         ::close(err_pipe[1]);
         // read stdout and stderr in parallel threads to avoid pipe deadlocks
-        std::thread thread_out([&] { stdout_text = read_all_fd(out_pipe[0]); });
-        std::thread thread_err([&] { stderr_text = read_all_fd(err_pipe[0]); });
+        std::thread thread_out([&stdout_text, &out_pipe] { stdout_text = read_all_fd(out_pipe[0]); });
+        std::thread thread_err([&stderr_text, &err_pipe] { stderr_text = read_all_fd(err_pipe[0]); });
         thread_out.join();
         thread_err.join();
         ::close(out_pipe[0]);
@@ -157,15 +156,43 @@ namespace
                 CloseHandle(err_write);
             return -1;
         }
-        SetHandleInformation(out_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
-        SetHandleInformation(err_write, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+        // keep the parent pipe read ends out of the child process
+        SetHandleInformation(out_read, HANDLE_FLAG_INHERIT, 0);
+        SetHandleInformation(err_read, HANDLE_FLAG_INHERIT, 0);
+        // detect batch files — CreateProcessW cannot launch them directly without
+        // cmd.exe, and the auto-detect path mangles quoting via cmd.exe /S /C.
+        const bool is_batch = [&] {
+            if (args.empty())
+                return false;
+            const auto ext = std::filesystem::path(args[0]).extension().wstring();
+            return ext == L".bat" || ext == L".BAT" || ext == L".cmd" || ext == L".CMD";
+        }();
         // build quoted command line
+        std::wstring command_app;
         std::wstring command_line;
-        for (const auto& arg : args) {
-            std::wstring wide_arg = std::filesystem::path(arg).wstring();
-            if (!command_line.empty())
-                command_line += L" ";
-            command_line += L"\"" + wide_arg + L"\"";
+        if (is_batch) {
+            wchar_t sysdir[MAX_PATH];
+            GetSystemDirectoryW(sysdir, MAX_PATH);
+            command_app = std::wstring(sysdir) + L"\\cmd.exe";
+            // cmd.exe requires the complete batch invocation to be one quoted command string
+            command_line = L"/d /s /c \"";
+            for (const auto& arg : args) {
+                std::wstring wide_arg = std::filesystem::path(arg).wstring();
+                // separate each quoted batch argument
+                if (command_line.size() > 11)
+                    command_line += L" ";
+                command_line += L"\"" + wide_arg + L"\"";
+            }
+            // close the command string around the quoted batch invocation
+            command_line += L"\"";
+        }
+        else {
+            for (const auto& arg : args) {
+                std::wstring wide_arg = std::filesystem::path(arg).wstring();
+                if (!command_line.empty())
+                    command_line += L" ";
+                command_line += L"\"" + wide_arg + L"\"";
+            }
         }
         STARTUPINFOW si{};
         si.cb = sizeof(si);
@@ -175,7 +202,7 @@ namespace
         si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
         const std::wstring cwd_wide = command_cwd.empty() ? std::wstring() : command_cwd.wstring();
         PROCESS_INFORMATION pi{};
-        if (!CreateProcessW(nullptr, command_line.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, cwd_wide.empty() ? nullptr : cwd_wide.c_str(), &si, &pi)) {
+        if (!CreateProcessW(command_app.empty() ? nullptr : command_app.c_str(), command_line.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, cwd_wide.empty() ? nullptr : cwd_wide.c_str(), &si, &pi)) {
             CloseHandle(out_read);
             CloseHandle(out_write);
             CloseHandle(err_read);
@@ -185,8 +212,8 @@ namespace
         CloseHandle(out_write);
         CloseHandle(err_write);
         // read stdout and stderr in parallel threads to avoid pipe deadlocks
-        std::thread thread_out([&] { stdout_text = read_all_handle(out_read); });
-        std::thread thread_err([&] { stderr_text = read_all_handle(err_read); });
+        std::thread thread_out([&stdout_text, &out_read] { stdout_text = read_all_handle(out_read); });
+        std::thread thread_err([&stderr_text, &err_read] { stderr_text = read_all_handle(err_read); });
         thread_out.join();
         thread_err.join();
         CloseHandle(out_read);

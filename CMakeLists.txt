@@ -1,14 +1,9 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.25)
 
-# on windows, build the app and all vcpkg dependencies with clang-cl (before project(), so both cmake and the vcpkg toolchain pick it up)
-if(WIN32)
-    # cc/cxx is honored both by cmake's compiler detection and, via the custom triplet below, by vcpkg dependency builds
-    set(ENV{CC} clang-cl)
-    set(ENV{CXX} clang-cl)
-    # custom triplet in ./triplets that compiles dependencies with clang-cl instead of msvc
-    set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_SOURCE_DIR}/triplets" CACHE STRING "vcpkg overlay triplets" FORCE)
-    set(VCPKG_TARGET_TRIPLET "x64-windows-clang-cl" CACHE STRING "vcpkg target triplet" FORCE)
-endif()
+# use overlay triplets (in ./triplets) on all platforms. the macOS triplets
+# build skia as a dynamic library (its static archive corrupts __unwind_info
+# tables on arm64, breaking C++ exception unwinding);
+set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_SOURCE_DIR}/.triplets" CACHE STRING "vcpkg overlay triplets" FORCE)
 
 if(APPLE)
     # enable objective-c++ language for .mm files
@@ -28,6 +23,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # generate compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# verify that we are actually using MSVC on Windows
+if(WIN32 AND NOT MSVC)
+    message(FATAL_ERROR "On Windows this project requires MSVC (cl.exe). "
+                        "CMAKE_CXX_COMPILER='${CMAKE_CXX_COMPILER}' Compiler ID='${CMAKE_CXX_COMPILER_ID}'.\n"
+                        "Possible fixes:\n"
+                        "  1. Unset the CC and CXX environment variables (if they point to LLVM/Clang)\n"
+                        "  2. Run CMake from a Visual Studio Developer Command Prompt (x64)\n"
+                        "  3. Delete CMakeCache.txt and reconfigure\n"
+                        "  4. Set the CMAKE_GENERATOR_TOOLSET cache variable to 'host=x64'")
+endif()
+
 if(APPLE)
     # enable objective-c++ language for .mm files
     enable_language(OBJCXX)
@@ -46,6 +52,8 @@ find_package(implot CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(nng CONFIG REQUIRED)
 find_package(protobuf CONFIG REQUIRED)
+find_package(unofficial-skia CONFIG REQUIRED)
+find_package(nfd CONFIG REQUIRED)
 
 if(APPLE)
     # slint style
@@ -61,18 +69,31 @@ endif()
 # slint renderer
 set(SLINT_FEATURE_RENDERER_SKIA ON CACHE BOOL "Include Skia renderer" FORCE)
 
+# disable unneeded Slint features to reduce Rust compilation time
+set(SLINT_FEATURE_RENDERER_FEMTOVG OFF CACHE BOOL "Disable FemtoVG renderer (use Skia only)" FORCE)
+set(SLINT_FEATURE_ACCESSIBILITY OFF CACHE BOOL "Disable OS accessibility APIs" FORCE)
+set(SLINT_FEATURE_TESTING OFF CACHE BOOL "Disable Slint testing API" FORCE)
+set(SLINT_FEATURE_SOFTWARE_RENDERER_PATH OFF CACHE BOOL "Disable path rendering in software renderer" FORCE)
+
 # check debug build type
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     # slint live-preview: debug builds can load/reload .slint files from disk at runtime
     set(SLINT_FEATURE_LIVE_PREVIEW ON CACHE BOOL "Enable Slint live-preview" FORCE)
     # slint mcp server: debug builds can be inspected/driven by AI agents over HTTP
     set(SLINT_FEATURE_MCP ON CACHE BOOL "Enable Slint embedded MCP server" FORCE)
+    # interpreter is required for live-preview
+    set(SLINT_FEATURE_INTERPRETER ON CACHE BOOL "Enable Slint interpreter" FORCE)
 else()
     # slint live-preview: release/profile builds keep the ahead-of-time compiled designs
     set(SLINT_FEATURE_LIVE_PREVIEW OFF CACHE BOOL "Enable Slint live-preview" FORCE)
     # slint mcp server: disabled in release/profile builds for security reasons (no HTTP server listening on a port)
     set(SLINT_FEATURE_MCP OFF CACHE BOOL "Enable Slint embedded MCP server" FORCE)
+    # interpreter is not needed when we compile .slint ahead-of-time
+    set(SLINT_FEATURE_INTERPRETER OFF CACHE BOOL "Enable Slint interpreter" FORCE)
 endif()
+
+# enable rpath install_name on macOS so that the dylib is found in the build tree
+set(SLINT_IS_TOPLEVEL_BUILD ON CACHE BOOL "Build Slint with rpath install_name on macOS" FORCE)
 
 # slint
 include(FetchContent)
@@ -131,7 +152,7 @@ elseif (LINUX)
 endif()
 
 # remove platform-specific main() sources from the shared library, they are compiled into the executable only
-list(REMOVE_ITEM SOURCE_FILES "src/main.osx.mm" "src/main.win32.c++" "src/main.linux.c++")
+list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.osx.mm" "${CMAKE_CURRENT_SOURCE_DIR}/src/main.win32.c++" "${CMAKE_CURRENT_SOURCE_DIR}/src/main.linux.c++")
 
 # compile the generated proto sources into a library shared by the app and tests
 add_library(kicad-proto STATIC ${KICAD_PROTO_GENERATED_SOURCES})
@@ -157,14 +178,20 @@ target_include_directories(kicad-xyce-core PRIVATE ${POCKETFFT_INCLUDE_DIRS})
 # expose slint's headers as system directories (see note above the slint fetch)
 target_include_directories(kicad-xyce-core SYSTEM PUBLIC ${SLINT_SYSTEM_INCLUDE_DIRS})
 
-# clang-cl treats -Wall as MSVC's /Wall (enable every warning), so only apply
-# the standard warning set to GNU-style frontends (g++, clang++)
-if(NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+# msvc uses /W4, gnu-style frontends (g++, clang++) use -Wall -Wextra -Wpedantic
+if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    target_compile_options(kicad-xyce-core PRIVATE /W4)
+else()
     target_compile_options(kicad-xyce-core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # third-party dependencies, PUBLIC so both the executable and the tests transitively link the same set of libraries
-target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng kicad-proto)
+target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng kicad-proto unofficial::skia::skia nfd::nfd)
+
+if(WIN32)
+    # prevent Windows headers from defining min/max macros that conflict with std::numeric_limits
+    target_compile_definitions(kicad-xyce-core PRIVATE NOMINMAX)
+endif()
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis, OpenGL for CGL (via Winit), Carbon for TIS/LMGetKbdType (via Winit)
@@ -173,9 +200,9 @@ if(APPLE)
     target_link_options(kicad-xyce-core PUBLIC "-Wl,-no_warn_duplicate_libraries")
 elseif(WIN32)
     # link windows graphics and system libraries required by the ui backend
-    target_link_libraries(kicad-xyce-core PUBLIC d3d11 d3dcompiler dxgi gdi32 user32 shell32 ole32 oleaut32 uuid comdlg32 advapi32 version ws2_32 wininet oleacc uxtheme)
+    target_link_libraries(kicad-xyce-core PUBLIC d3d11 d3d12 d3dcompiler dxgi gdi32 user32 shell32 ole32 oleaut32 uuid comdlg32 advapi32 version ws2_32 wininet oleacc uxtheme)
 elseif(LINUX)
-    target_link_libraries(kicad-xyce-core PUBLIC OpenGL::GL)
+    target_link_libraries(kicad-xyce-core PUBLIC OpenGL::GL expat)
 endif()
 
 # slint: embed images/fonts referenced with @image-url() into the binary
@@ -189,8 +216,17 @@ foreach(widget_source IN LISTS SLINT_WIDGET_SOURCES)
     # generate C++ code from the .slint file and add it to the core library
     slint_target_sources(kicad-xyce-core ${widget_source} NAMESPACE ${widget_namespace})
     # silence all warnings for this fully generated code
-    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp" PROPERTIES COMPILE_OPTIONS "-w")
+    if(MSVC)
+        set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp" PROPERTIES COMPILE_OPTIONS "/W0")
+    else()
+        set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp" PROPERTIES COMPILE_OPTIONS "-w")
+    endif()
 endforeach()
+
+if(APPLE)
+    # skia and slint are dynamic libraries: point the runtime loader at the vcpkg install dir and slint build dir so executables find the dylibs in the build tree
+    set(CMAKE_BUILD_RPATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib" "${CMAKE_CURRENT_BINARY_DIR}/_deps/slint-build")
+endif()
 
 if(APPLE)
     # # resources
@@ -209,6 +245,8 @@ if(APPLE)
 elseif(WIN32)
     # declare application
     add_executable(kicad-xyce-plugin src/main.win32.c++)
+    # set Windows API version to Windows 10 for CommandLineToArgW
+    target_compile_definitions(kicad-xyce-plugin PRIVATE _WIN32_WINNT=0x0A00)
     # mark it as win32 executable
     set_target_properties(kicad-xyce-plugin PROPERTIES WIN32_EXECUTABLE TRUE)
 elseif(LINUX)
@@ -219,6 +257,12 @@ endif()
 # link with the core library defined above
 target_link_libraries(kicad-xyce-plugin PRIVATE kicad-xyce-core)
 
+if(APPLE)
+    set_target_properties(kicad-xyce-plugin PROPERTIES INSTALL_RPATH "@loader_path")
+elseif(UNIX)
+    set_target_properties(kicad-xyce-plugin PROPERTIES INSTALL_RPATH "$ORIGIN")
+endif()
+
 # profile build type, activate with `cmake --preset debug -DCMAKE_BUILD_TYPE=Profile` && `cmake --build --preset debug`
 set(CMAKE_CXX_FLAGS_PROFILE "-O2 -fprofile-instr-generate -fcoverage-mapping")
 set(CMAKE_EXE_LINKER_FLAGS_PROFILE "-fprofile-instr-generate")
@@ -227,3 +271,33 @@ if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
+# Runtime dependency gathering for CI packaging. Invoked via
+# `cmake --install .build-release --component RuntimeDeps --prefix .build-release`
+# during CI to copy all transitively-linked shared libraries into artifacts/
+# next to the executable. The whole artifacts/ directory is uploaded.
+if(POLICY CMP0207)
+    cmake_policy(SET CMP0207 NEW)
+endif()
+install(TARGETS kicad-xyce-plugin RUNTIME_DEPENDENCY_SET kicad-xyce-deps RUNTIME DESTINATION artifacts COMPONENT RuntimeDeps BUNDLE DESTINATION artifacts COMPONENT RuntimeDeps)
+install(RUNTIME_DEPENDENCY_SET kicad-xyce-deps
+  DIRECTORIES
+    $<TARGET_FILE_DIR:kicad-xyce-plugin>
+    ${CMAKE_BINARY_DIR}/_deps/slint-build
+    ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin
+    ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib
+  PRE_EXCLUDE_REGEXES
+    [[api-ms-.*]]
+    [[ext-ms-.*]]
+    [[vcruntime.*]]
+    [[msvcp.*]]
+    [[ucrtbase.*]]
+  POST_EXCLUDE_REGEXES
+    [[^/usr/lib]]
+    [[^/System]]
+    [[.*system32/.*]]
+    [[.*windows/.*]]
+  RUNTIME DESTINATION artifacts COMPONENT RuntimeDeps
+  LIBRARY DESTINATION artifacts COMPONENT RuntimeDeps
+  FRAMEWORK DESTINATION artifacts COMPONENT RuntimeDeps
+)

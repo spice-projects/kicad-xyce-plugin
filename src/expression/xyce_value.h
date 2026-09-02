@@ -20,8 +20,12 @@ bool is_complex(const XyceValue& value);
 
 template <typename T>
 T scalar_value(const XyceValue& value) {
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4702) // unreachable code — false positive in second if constexpr's else
+#endif
     // processor
-    auto l = []<typename T0>(T0& arg) -> T {
+    auto l = []<typename T0>(T0& arg [[maybe_unused]]) -> T {
         // actual parameter type
         using TX = std::decay_t<T0>;
         // real scalar
@@ -39,8 +43,10 @@ T scalar_value(const XyceValue& value) {
             else if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
                 return arg->operator[](0).real();
             }
-            // not possible value type
-            throw std::invalid_argument("unsupported type");
+            else {
+                // not possible value type
+                throw std::invalid_argument("unsupported type");
+            }
         }
         // complex scalar
         if constexpr (std::is_same_v<T, std::complex<double>>) {
@@ -59,12 +65,21 @@ T scalar_value(const XyceValue& value) {
             else if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
                 return arg->operator[](0);
             }
+            else {
+                // not possible value type
+                throw std::invalid_argument("unsupported type");
+            }
         }
-        // not possible value type
-        throw std::invalid_argument("unsupported type");
+        else {
+            // not possible value type
+            throw std::invalid_argument("unsupported type");
+        }
     };
     // exit
     return std::visit(l, value);
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 }
 
 std::shared_ptr<View<double>> to_real_vector(const XyceValue& value);

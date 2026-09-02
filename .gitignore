@@ -35,6 +35,7 @@ vcpkg-manifest-install.log
 *.profraw
 *.gcda
 *.gcno
+*.gcov
 
 # Clangd / editor index cache
 .clangd/
@@ -82,3 +83,6 @@ dist/
 
 # AI related files
 .agents
+
+# vcpkg binary cache (populated by CMake presets)
+.vcpkg-cache/

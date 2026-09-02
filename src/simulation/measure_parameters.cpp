@@ -42,7 +42,7 @@ static std::vector<std::string> measure_tokenize(const std::string& statement) {
             // append char
             current += ch;
             // decrement depth
-            brace_depth = (std::max)(0, brace_depth - 1);
+            brace_depth = std::max(0, brace_depth - 1);
             // next
             continue;
         }
@@ -74,7 +74,7 @@ static size_t parse_trig_targ_clauses(const std::vector<std::string>& tokens, si
         return idx;
     }
     // parse a single clause into the given entry
-    auto parse_clause = [&](size_t start_idx, MeasureEntry& clause_entry) -> size_t {
+    auto parse_clause = [&tokens](size_t start_idx, MeasureEntry& clause_entry) -> size_t {
         // init index
         size_t c_idx = start_idx;
         // check for AT form (AT=<value>)

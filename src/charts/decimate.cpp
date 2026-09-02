@@ -177,10 +177,10 @@ static std::vector<size_t> lttb_indices(const std::span<const double>& x, const 
     for (size_t i = 1; i < target - 1; ++i) {
         // boundaries of the current bucket
         size_t bucket_start = static_cast<size_t>((i - 1) * bucket_size) + 1;
-        size_t bucket_end = (std::min)(static_cast<size_t>(i * bucket_size) + 1, length - 1);
+        size_t bucket_end = std::min(static_cast<size_t>(i * bucket_size) + 1, length - 1);
         // boundaries of the next bucket (used to compute its centroid)
         size_t next_start = bucket_end;
-        size_t next_end = (std::min)(static_cast<size_t>((i + 1) * bucket_size) + 1, length - 1);
+        size_t next_end = std::min(static_cast<size_t>((i + 1) * bucket_size) + 1, length - 1);
         // centroid of the next bucket — the "far" apex of the triangle
         double next_x_sum = 0.0;
         double next_y_sum = 0.0;

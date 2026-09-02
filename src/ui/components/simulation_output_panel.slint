@@ -119,7 +119,9 @@ export component SimulationOutputPanel inherits Rectangle {
                 vertical-alignment: center;
             }
 
-            Rectangle { horizontal-stretch: 1; }
+            Rectangle {
+                horizontal-stretch: 1;
+            }
 
             copy-button := Rectangle {
                 min-width: 52px;
@@ -128,9 +130,12 @@ export component SimulationOutputPanel inherits Rectangle {
                 background: cpb.pressed
                     ? Palette.foreground.transparentize(0.82)
                     : cpb.has-hover
-                        ? Palette.foreground.transparentize(0.92)
-                        : transparent;
-                animate background { duration: 100ms; easing: ease-out; }
+                    ? Palette.foreground.transparentize(0.92)
+                    : transparent;
+                animate background {
+                    duration: 100ms;
+                    easing: ease-out;
+                }
 
                 HorizontalLayout {
                     padding-left: 8px;
@@ -166,16 +171,20 @@ export component SimulationOutputPanel inherits Rectangle {
                 background: tb.pressed
                     ? Palette.foreground.transparentize(0.82)
                     : tb.has-hover
-                        ? Palette.foreground.transparentize(0.92)
-                        : transparent;
-                animate background { duration: 100ms; easing: ease-out; }
+                    ? Palette.foreground.transparentize(0.92)
+                    : transparent;
+                animate background {
+                    duration: 100ms;
+                    easing: ease-out;
+                }
 
-                Text {
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    text: "\u{2715}";
-                    font-size: 12px;
-                    color: Palette.foreground;
+                Image {
+                    x: (parent.width - 12px) / 2;
+                    y: (parent.height - 12px) / 2;
+                    width: 12px;
+                    height: 12px;
+                    source: @image-url("../kicad-icons/cancel_24.png");
+                    image-fit: contain;
                 }
 
                 tb := TouchArea {
@@ -203,7 +212,7 @@ export component SimulationOutputPanel inherits Rectangle {
                     // keeps the column alignment of the terminal output (the
                     // generic "monospace" family does not resolve to a real
                     // monospace font in this slint build)
-                    for line[index] in root.log-lines : log-line := Rectangle {
+                    for line[index] in root.log-lines: log-line := Rectangle {
                         height: root.row-height;
                         background: index >= root.selection-start && index <= root.selection-end
                             ? Palette.foreground.with-alpha(0.14)

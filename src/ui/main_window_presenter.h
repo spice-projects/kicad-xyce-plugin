@@ -20,15 +20,15 @@ class KiCadSession;
 // ui through MainWindowViewDef and MainWindowViewDefEvents; the presenter
 // implements the event handler interface and receives user-interaction
 // callbacks from the view without the view knowing the presenter exists
-class SlintMainWindowPresenter2 : public MainWindowViewDefEvents
+class SlintMainWindowPresenter : public MainWindowViewDefEvents
 {
 public:
-    SlintMainWindowPresenter2(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config, std::shared_ptr<KiCadSession> kicad_session);
+    SlintMainWindowPresenter(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config, std::shared_ptr<KiCadSession> kicad_session);
 
-    ~SlintMainWindowPresenter2() override;
+    ~SlintMainWindowPresenter() override;
 
-    SlintMainWindowPresenter2(const SlintMainWindowPresenter2&) = delete;
-    SlintMainWindowPresenter2& operator=(const SlintMainWindowPresenter2&) = delete;
+    SlintMainWindowPresenter(const SlintMainWindowPresenter&) = delete;
+    SlintMainWindowPresenter& operator=(const SlintMainWindowPresenter&) = delete;
 
     // file operations
     void on_open_xyce_file(const std::filesystem::path& path) override;

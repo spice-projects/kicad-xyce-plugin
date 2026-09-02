@@ -16,21 +16,20 @@
 #include "charts_renderer.h"
 #include "fft_dialog_view.h"
 #include "main_window_view_def.h"
-#include "modal_manager.h"
 #include "plugin_config_dialog_view.h"
 #include "simulation_parameters_dialog_view.h"
 #include "simulation_runner.h"
 #include "step_tool_dialog_view.h"
 
-class SlintMainWindowView2 : public MainWindowViewDef
+class SlintMainWindowView : public MainWindowViewDef
 {
 public:
-    SlintMainWindowView2(std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config);
+    SlintMainWindowView(std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config);
 
-    ~SlintMainWindowView2() override = default;
+    ~SlintMainWindowView() override = default;
 
-    SlintMainWindowView2(const SlintMainWindowView2&) = delete;
-    SlintMainWindowView2& operator=(const SlintMainWindowView2&) = delete;
+    SlintMainWindowView(const SlintMainWindowView&) = delete;
+    SlintMainWindowView& operator=(const SlintMainWindowView&) = delete;
 
     void set_event_handler(MainWindowViewDefEvents& handler) override;
 
@@ -68,6 +67,9 @@ public:
     void cancel_simulation_process() override;
     void spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) override;
 
+    // release the gpu context before the view is intentionally leaked at exit
+    void release_gpu_resources();
+
 private:
     // open file action (file dialog)
     void handle_open();
@@ -77,11 +79,6 @@ private:
 
     // copy the buffered log lines [start..end] to the platform clipboard
     void copy_simulation_selection(int start, int end);
-
-    // reposition the charts renderer over the body area, accounting for the
-    // simulation output panel height; the overlay is hidden when the charts
-    // panel is not shown
-    void update_charts_frame();
 
     void show_add_remove_plots_dialog(float chart_position);
 
@@ -104,10 +101,6 @@ private:
 
     // track whether a modal dialog is currently open
     bool m_modal_dialog_open = false;
-
-    // the window of the dialog currently open, used to restore the native
-    // parent/dialog relationship when the modal state is released
-    slint::Window* m_modal_dialog_window = nullptr;
 
     slint::ComponentHandle<main_window::MainWindow> m_window;
     MainWindowViewDefEvents* m_event_handler = nullptr;

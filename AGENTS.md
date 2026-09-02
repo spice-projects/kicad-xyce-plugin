@@ -16,6 +16,11 @@
 - Unit Tests, avoid running unit tests using `ctest`. Execute unit tests by executing the process: `./.build-debug/tests/kicad-xyce-plugin-tests`
 - Unit tests must be self-contained: no helper functions, no test utilities, no external fixtures
 - Dependencies: `vcpkg`
+- Build cache:
+  - **vcpkg binary cache** (local): `.vcpkg-cache/` is auto-populated via `VCPKG_BINARY_SOURCES` in CMake presets. Caches Skia/protobuf/nng compilation between clean builds.
+  - **ccache** (local): enabled via `CMAKE_{C,CXX}_COMPILER_LAUNCHER` in CMake presets. Inspect with `ccache --show-stats`; clear with `ccache --clear`.
+  - **CI**: both caches are persisted via `actions/cache@v5` keyed on runner OS + content hash. First CI run builds from source (~hour); subsequent runs restore in seconds.
+- Debug builds enable the embedded Slint MCP server. Launch the app with `SLINT_MCP_PORT=8080 ./build/kicad-xyce-plugin` to expose an HTTP/MCP endpoint for AI-assisted UI inspection (browse the `.slint` component tree, read/write properties, invoke callbacks).
 
 ## Workflow
 
@@ -28,9 +33,10 @@ Before editing:
 After editing:
 1. Build the project
 2. Fix compiler warnings/errors
-3. Run the linter check on all changed files: `bash build/check-format.sh`
-4. Summarize changed files
-5. Do not execute unit tests unless explicitly asked
+3. Run the linter check on all changed C++ files: `bash build/check-format.sh`
+4. Format any changed `.slint` files in-place: `slint-lsp format -i <path/to/file.slint>`
+5. Summarize changed files
+6. Do not execute unit tests unless explicitly asked
 
 ## UI (Slint)
 
@@ -38,7 +44,7 @@ The UI is built with Slint and lives under `src/ui`:
 
 - Root widgets (windows/dialogs): `src/ui/widgets/*.slint`
 - Shared components (imported only by roots): `src/ui/components/*.slint`
-- Host C++ (`slint.h`, wiring, platform backends): flat under `src/ui/` (views/presenters, dialog wrappers, `file_dialog.*`, `clipboard.*`, `modal_manager.*`, `charts_renderer.*`)
+- Host C++ (`slint.h`, wiring, platform backends): flat under `src/ui/` (views/presenters, dialog wrappers, `file_dialog.*`, `clipboard.*`, `charts_renderer.*`)
 
 ### Build integration (`CMakeLists.txt`)
 
@@ -58,20 +64,20 @@ The UI is built with Slint and lives under `src/ui`:
 
 ### Dialogs
 
-- Slint `Dialog`s are non-modal, separate native windows. Emulate modality with `modal_manager::set_input_blocked(parent, dialog, blocked)` (per-platform); gate every dialog through the view's `begin_modal_dialog()`/`end_modal_dialog()` and wrap toolbar callbacks in `guard_modal(...)` so they are rejected while a dialog is open.
-- Each dialog wrapper (e.g. `PluginConfigDialogView`) must live in its own translation unit — generated dialog headers define a `SharedGlobals` type that conflicts with the main-window header — and uses a pimpl `Impl`. It exposes `show(...)`, an `on_closed` callback and `window()`; on accept/cancel, hide the dialog, call `on_closed()`, then deliver results through `MainWindowViewDefEvents`.
+- All dialogs are rendered as inline modal overlays within `MainWindow` using the `ModalPanel` base component (no separate OS windows). Modality is enforced by the view's `begin_modal_dialog()`/`end_modal_dialog()` and the panel's dimmed backdrop; toolbar callbacks are wrapped in `guard_modal(...)` so they are rejected while a dialog is open.
+- Each dialog wrapper (e.g. `PluginConfigDialogView`) lives in its own translation unit — the generated `main_window.h` defines a `SharedGlobals` type that conflicts with other generated headers — and uses a pimpl `Impl`. It exposes `show(...)` and an `on_closed` callback; on accept/cancel, hide the panel, call `on_closed()`, then deliver results through `MainWindowViewDefEvents`.
 
 ### Charts renderer
 
-- `ChartsRenderer` is platform-neutral and owns isolated ImGui/ImPlot contexts; the per-platform backend (`charts_renderer.osx.mm`, ...) owns the native view/layer/font and frame encoding. The overlay must be pointer-transparent (macOS: `hitTest:` returns `nil`) so events reach Slint.
+- `ChartsRenderer` is platform-neutral and owns isolated ImGui/ImPlot contexts; it renders offscreen through a Skia raster surface and publishes each frame as a `slint::Image` via an injected publish function. No per-platform backends exist.
 - Always use `ChartsContextScope` (RAII) around host ImGui/ImPlot calls — never assume a global context.
-- Drive the redraw loop with a `slint::Timer` (16 ms) via `on_idle()`; position the overlay below the 59px toolbar with `set_frame(x, y, w, h, scale)`.
+- Drive the redraw loop with a `slint::Timer` (16 ms) via `on_idle()`; layout/resize events schedule frames through `refresh_charts(n)` + timer, never synchronous renders.
 - Slint passes chart interaction positions as `float [0..1]`; translate to a chart index with `ChartsRenderer::position_to_index()` before acting.
+- Call `set_visible(bool)` when the charts panel is shown/hidden to pause/resume rendering.
 
 ### Lifecycle
 
 - `App::run()` owns the event loop: build the view + presenter, wire them, `show()`, then `slint::run_event_loop()`.
-- Known slint bug: opening the charts context menu and then quitting causes a use-after-free (see `slint-bug.md`); the workaround intentionally leaks the view/presenter on exit. Keep it until the upstream fix is vendored.
 
 ## Architecture
 

@@ -21,6 +21,20 @@ using OrdinateSeries = std::tuple<AnyExpression*, int, std::unordered_map<size_t
 
 using Series = std::map<std::string, OrdinateSeries>;
 
+// default series color palette (Apple / Cupertino inspired)
+inline const std::vector<ImVec4> SERIES_COLOR_PALETTE = {
+    ImVec4(0.00f, 0.48f, 1.00f, 1.0f), // #007AFF Vibrant Blue
+    ImVec4(1.00f, 0.58f, 0.00f, 1.0f), // #FF9500 Vibrant Orange
+    ImVec4(0.20f, 0.78f, 0.35f, 1.0f), // #34C759 Vibrant Green
+    ImVec4(0.69f, 0.32f, 0.87f, 1.0f), // #AF52DE Vibrant Purple
+    ImVec4(1.00f, 0.18f, 0.33f, 1.0f), // #FF2D55 Vibrant Pink
+    ImVec4(0.19f, 0.69f, 0.78f, 1.0f), // #30B0C7 Vibrant Teal
+    ImVec4(0.35f, 0.34f, 0.84f, 1.0f), // #5856D6 Vibrant Indigo
+    ImVec4(1.00f, 0.80f, 0.00f, 1.0f), // #FFCC00 Vibrant Yellow
+    ImVec4(0.00f, 0.78f, 0.75f, 1.0f), // #00C7BE Vibrant Mint
+    ImVec4(1.00f, 0.23f, 0.19f, 1.0f), // #FF3B30 Vibrant Coral Red
+};
+
 struct AxisInformation
 {
     int axis;
@@ -53,7 +67,7 @@ public:
 
     std::vector<AnyExpression*> selected_expressions();
 
-    void render(const std::tuple<float, float, float, float>&);
+    void render();
 
     void plot_series(const std::set<AnyExpression*>& expressions);
 
@@ -88,7 +102,7 @@ private:
     size_t m_decimate_target;
     std::string m_abscissa_name;
     std::string m_abscissa_unit;
-    std::tuple<float, float, float, float> m_plot_rect = {-1, -1, -1, -1};
+    std::tuple<float, float, float, float> m_plot_rect = {-1.0f, -1.0f, -1.0f, -1.0f};
 
     Series m_series;
     std::set<size_t> m_selected_steps = {0};

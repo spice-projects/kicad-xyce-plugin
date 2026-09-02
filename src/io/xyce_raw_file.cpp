@@ -15,6 +15,7 @@
 #include <spdlog/spdlog.h>
 
 #include "../core/step_information.h"
+#include "../core/util.h"
 #include "../expression/expression.h"
 #include "mapped_file.h"
 #include "xyce_output_file.h"
@@ -32,13 +33,6 @@ namespace
         size_t num_points = 0;
         std::vector<std::tuple<int, std::string, VariableType, std::variant<std::monostate, View<double>, View<std::complex<double>>>>> variables;
     };
-
-    void trim(std::string& s) {
-        // erase leading whitespace
-        s.erase(s.begin(), std::ranges::find_if(s, [](const unsigned char ch) { return !std::isspace(ch); }));
-        // erase trailing whitespace
-        s.erase(std::find_if(s.rbegin(), s.rend(), [](const unsigned char ch) { return !std::isspace(ch); }).base(), s.end());
-    }
 
     std::vector<std::string> split(const std::string& line) {
         // split by tab characters
@@ -87,7 +81,7 @@ namespace
             // extract line
             std::string line(data + pos, newline - pos);
             // trim whitespace
-            trim(line);
+            line = trim(line);
             // log information
             spdlog::debug(">> {}", line);
             // advance position
@@ -134,9 +128,9 @@ namespace
                 // extract value
                 std::string value = line.substr(colon + 1);
                 // trim key
-                trim(key);
+                key = trim(key);
                 // trim value
-                trim(value);
+                value = trim(value);
                 // insert to map
                 headers[key] = value;
             }
@@ -169,7 +163,7 @@ namespace
         // check No variables
         if (headers.contains("No. Variables")) {
             // parse count
-            if (const size_t num_variables = std::stoull(headers.at("No. Variables")); result.variables.size() != num_variables) {
+            if (const size_t num_variables = static_cast<size_t>(std::stoull(headers.at("No. Variables"))); result.variables.size() != num_variables) {
                 // empty result
                 return std::nullopt;
             }
@@ -177,7 +171,7 @@ namespace
         // check points count
         if (headers.contains("No. Points")) {
             // parse count
-            result.num_points = std::stoull(headers.at("No. Points"));
+            result.num_points = static_cast<size_t>(std::stoull(headers.at("No. Points")));
         }
         // return result
         return result;
@@ -241,7 +235,8 @@ namespace
             // advance position
             pos = newline + 1;
             // trim line
-            trim(line);
+            line = trim(line);
+            // check empty
             if (line.empty()) {
                 // skip empty
                 continue;
@@ -256,7 +251,7 @@ namespace
             }
             try {
                 // parse index
-                const size_t index = std::stoull(tokens[0]);
+                const size_t index = static_cast<size_t>(std::stoull(tokens[0]));
                 if (index != expected_index) {
                     // log information
                     spdlog::warn("Invalid Xyce RAW file, expected index {}, got {} => {}", expected_index, index, line);
@@ -468,11 +463,11 @@ namespace
         // compute the octave points per interval
         const long octave_steps = std::lround(std::log10(2.0) / reference_ratio);
         // decade residual, degenerate step counts are ineligible
-        const double decade_residual = decade_steps >= 2 ? std::abs(reference_ratio - 1.0 / static_cast<double>(decade_steps)) : (std::numeric_limits<double>::max)();
+        const double decade_residual = decade_steps >= 2 ? std::abs(reference_ratio - 1.0 / static_cast<double>(decade_steps)) : std::numeric_limits<double>::max();
         // octave residual, degenerate step counts are ineligible
-        const double octave_residual = octave_steps >= 2 ? std::abs(reference_ratio - std::log10(2.0) / static_cast<double>(octave_steps)) : (std::numeric_limits<double>::max)();
+        const double octave_residual = octave_steps >= 2 ? std::abs(reference_ratio - std::log10(2.0) / static_cast<double>(octave_steps)) : std::numeric_limits<double>::max();
         // best candidate residual
-        const double best_residual = (std::min)(decade_residual, octave_residual);
+        const double best_residual = std::min(decade_residual, octave_residual);
         // check the best candidate is close to an integer step count
         if (best_residual > SWEEP_RESIDUAL_TOLERANCE) {
             // neither a decade nor an octave sweep

@@ -11,7 +11,7 @@
 
 #include <slint.h>
 
-#include <simulation_parameters_dialog.h>
+#include <main_window.h>
 
 #include "../core/util.h"
 #include "../simulation/ac_simulation_parameters.h"
@@ -94,13 +94,6 @@ namespace simulation_parameters_dialog_view
         // empty model for analyses without a print-type combo (index 0 is unused)
         static constexpr std::array<const char*, 0> NO_PRINT_TYPES = {};
 
-        // HB TAHB combo values;
-        // index 0 is the "(None)" entry
-        static constexpr std::array<int, 7> TAHB_VALUES = {-1, 0, 1, 2, 5, 10, 20};
-
-        // HB SELECTHARMS combo values; index 0 is the "(None)" entry
-        static constexpr std::array<const char*, 7> SELECTHARMS_VALUES = {"", "ALL", "1", "2", "3", "5", "10"};
-
         // .SAVE LEVEL combo values; index 0 is the "(default)" entry
         static constexpr std::array<const char*, 3> SAVE_LEVEL_VALUES = {"", "ALL", "NONE"};
 
@@ -112,7 +105,7 @@ namespace simulation_parameters_dialog_view
         // ordered FET lead current wildcards
         static const std::vector<std::string> FET_WILDCARDS = {"IB(*)", "ID(*)", "IG(*)", "IS(*)"};
 
-        using DialogHandle = slint::ComponentHandle<simulation_parameters_dialog::SimulationParametersDialog>;
+        using WindowHandle = slint::ComponentHandle<main_window::MainWindow>;
 
         // resolve a model value to its combo index (case-insensitive); falls
         // back to the first entry when not found
@@ -464,21 +457,21 @@ namespace simulation_parameters_dialog_view
         }
 
         // push the saved operating point parameters into the dialog root's op-* fields
-        void apply_op_parameters(const DialogHandle& dialog, const OpSimulationParameters& params) {
+        void apply_op_parameters(const WindowHandle& dialog, const OpSimulationParameters& params) {
             // print section (no print-type combo; the type is always DC)
             apply_print_section(params.print_parameters, true, true, true, false, NO_PRINT_TYPES,
                                 PrintSetters{
-                                    .enabled = [&](bool v) { dialog->set_op_print_enabled(v); },
-                                    .all_nodes = [&](bool v) { dialog->set_op_print_all_nodes(v); },
-                                    .all_currents = [&](bool v) { dialog->set_op_print_all_currents(v); },
-                                    .power = [&](bool v) { dialog->set_op_print_power(v); },
-                                    .bjt_leads = [&](bool v) { dialog->set_op_print_bjt_leads(v); },
-                                    .fet_leads = [&](bool v) { dialog->set_op_print_fet_leads(v); },
-                                    .specific_variables = [&](slint::SharedString v) { dialog->set_op_print_specific_variables(v); },
-                                    .format_index = [&](int v) { dialog->set_op_print_format_index(v); },
-                                    .output_file = [&](slint::SharedString v) { dialog->set_op_print_output_file(v); },
-                                    .extra_options = [&](slint::SharedString v) { dialog->set_op_print_extra_options(v); },
-                                    .type_index = [&](int) {},
+                                    .enabled = [&dialog](bool v) { dialog->set_op_print_enabled(v); },
+                                    .all_nodes = [&dialog](bool v) { dialog->set_op_print_all_nodes(v); },
+                                    .all_currents = [&dialog](bool v) { dialog->set_op_print_all_currents(v); },
+                                    .power = [&dialog](bool v) { dialog->set_op_print_power(v); },
+                                    .bjt_leads = [&dialog](bool v) { dialog->set_op_print_bjt_leads(v); },
+                                    .fet_leads = [&dialog](bool v) { dialog->set_op_print_fet_leads(v); },
+                                    .specific_variables = [&dialog](slint::SharedString v) { dialog->set_op_print_specific_variables(v); },
+                                    .format_index = [&dialog](int v) { dialog->set_op_print_format_index(v); },
+                                    .output_file = [&dialog](slint::SharedString v) { dialog->set_op_print_output_file(v); },
+                                    .extra_options = [&dialog](slint::SharedString v) { dialog->set_op_print_extra_options(v); },
+                                    .type_index = [](int) {},
                                 });
             // save section
             dialog->set_op_save_enabled(params.save_enabled);
@@ -491,21 +484,21 @@ namespace simulation_parameters_dialog_view
         }
 
         // read the operating point parameters from the dialog root's op-* fields
-        [[nodiscard]] OpSimulationParameters build_op_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] OpSimulationParameters build_op_parameters(const WindowHandle& dialog) {
             // print parameters (the print type is always DC for an OP analysis)
             auto print_params = build_print_section(true, true, true, false, "DC", NO_PRINT_TYPES,
                                                     PrintGetters{
-                                                        .enabled = [&] { return dialog->get_op_print_enabled(); },
-                                                        .all_nodes = [&] { return dialog->get_op_print_all_nodes(); },
-                                                        .all_currents = [&] { return dialog->get_op_print_all_currents(); },
-                                                        .power = [&] { return dialog->get_op_print_power(); },
-                                                        .bjt_leads = [&] { return dialog->get_op_print_bjt_leads(); },
-                                                        .fet_leads = [&] { return dialog->get_op_print_fet_leads(); },
-                                                        .specific_variables = [&] { return std::string(dialog->get_op_print_specific_variables()); },
-                                                        .format_index = [&] { return dialog->get_op_print_format_index(); },
-                                                        .output_file = [&] { return std::string(dialog->get_op_print_output_file()); },
-                                                        .extra_options = [&] { return std::string(dialog->get_op_print_extra_options()); },
-                                                        .type_index = [&] { return 0; },
+                                                        .enabled = [&dialog] { return dialog->get_op_print_enabled(); },
+                                                        .all_nodes = [&dialog] { return dialog->get_op_print_all_nodes(); },
+                                                        .all_currents = [&dialog] { return dialog->get_op_print_all_currents(); },
+                                                        .power = [&dialog] { return dialog->get_op_print_power(); },
+                                                        .bjt_leads = [&dialog] { return dialog->get_op_print_bjt_leads(); },
+                                                        .fet_leads = [&dialog] { return dialog->get_op_print_fet_leads(); },
+                                                        .specific_variables = [&dialog] { return std::string(dialog->get_op_print_specific_variables()); },
+                                                        .format_index = [&dialog] { return dialog->get_op_print_format_index(); },
+                                                        .output_file = [&dialog] { return std::string(dialog->get_op_print_output_file()); },
+                                                        .extra_options = [&dialog] { return std::string(dialog->get_op_print_extra_options()); },
+                                                        .type_index = [] { return 0; },
                                                     });
             // save section
             const bool save_enabled = dialog->get_op_save_enabled();
@@ -522,7 +515,7 @@ namespace simulation_parameters_dialog_view
         [[nodiscard]] OpSimulationParameters default_op_parameters() { return OpSimulationParameters(false, false, false, {}, "", "", false, "", "", {}, {}, std::nullopt); }
 
         // push the saved AC analysis parameters into the dialog root's ac-* fields
-        void apply_ac_parameters(const DialogHandle& dialog, const AcSimulationParameters& params) {
+        void apply_ac_parameters(const WindowHandle& dialog, const AcSimulationParameters& params) {
             // sweep configuration
             dialog->set_ac_sweep_mode_index(sweep_mode_index_for(params.sweep_mode));
             dialog->set_ac_points(slint::SharedString(params.points));
@@ -534,22 +527,22 @@ namespace simulation_parameters_dialog_view
             // print section (power is not available for an AC analysis)
             apply_print_section(params.print_parameters, false, true, true, true, AC_PRINT_TYPES,
                                 PrintSetters{
-                                    .enabled = [&](bool v) { dialog->set_ac_print_enabled(v); },
-                                    .all_nodes = [&](bool v) { dialog->set_ac_print_all_nodes(v); },
-                                    .all_currents = [&](bool v) { dialog->set_ac_print_all_currents(v); },
-                                    .power = [&](bool) {},
-                                    .bjt_leads = [&](bool v) { dialog->set_ac_print_bjt_leads(v); },
-                                    .fet_leads = [&](bool v) { dialog->set_ac_print_fet_leads(v); },
-                                    .specific_variables = [&](slint::SharedString v) { dialog->set_ac_print_specific_variables(v); },
-                                    .format_index = [&](int v) { dialog->set_ac_print_format_index(v); },
-                                    .output_file = [&](slint::SharedString v) { dialog->set_ac_print_output_file(v); },
-                                    .extra_options = [&](slint::SharedString v) { dialog->set_ac_print_extra_options(v); },
-                                    .type_index = [&](int v) { dialog->set_ac_print_type_index(v); },
+                                    .enabled = [&dialog](bool v) { dialog->set_ac_print_enabled(v); },
+                                    .all_nodes = [&dialog](bool v) { dialog->set_ac_print_all_nodes(v); },
+                                    .all_currents = [&dialog](bool v) { dialog->set_ac_print_all_currents(v); },
+                                    .power = [](bool) {},
+                                    .bjt_leads = [&dialog](bool v) { dialog->set_ac_print_bjt_leads(v); },
+                                    .fet_leads = [&dialog](bool v) { dialog->set_ac_print_fet_leads(v); },
+                                    .specific_variables = [&dialog](slint::SharedString v) { dialog->set_ac_print_specific_variables(v); },
+                                    .format_index = [&dialog](int v) { dialog->set_ac_print_format_index(v); },
+                                    .output_file = [&dialog](slint::SharedString v) { dialog->set_ac_print_output_file(v); },
+                                    .extra_options = [&dialog](slint::SharedString v) { dialog->set_ac_print_extra_options(v); },
+                                    .type_index = [&dialog](int v) { dialog->set_ac_print_type_index(v); },
                                 });
         }
 
         // read the AC analysis parameters from the dialog root's ac-* fields
-        [[nodiscard]] AcSimulationParameters build_ac_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] AcSimulationParameters build_ac_parameters(const WindowHandle& dialog) {
             const int sweep_mode_index = dialog->get_ac_sweep_mode_index();
             const std::string sweep_mode = SWEEP_MODE_VALUES[static_cast<size_t>(sweep_mode_index)];
             // the sweep range fields only apply to LIN/DEC/OCT sweeps
@@ -564,17 +557,17 @@ namespace simulation_parameters_dialog_view
             // print parameters (power is not available for an AC analysis)
             auto print_params = build_print_section(false, true, true, true, "AC", AC_PRINT_TYPES,
                                                     PrintGetters{
-                                                        .enabled = [&] { return dialog->get_ac_print_enabled(); },
-                                                        .all_nodes = [&] { return dialog->get_ac_print_all_nodes(); },
-                                                        .all_currents = [&] { return dialog->get_ac_print_all_currents(); },
-                                                        .power = [&] { return false; },
-                                                        .bjt_leads = [&] { return dialog->get_ac_print_bjt_leads(); },
-                                                        .fet_leads = [&] { return dialog->get_ac_print_fet_leads(); },
-                                                        .specific_variables = [&] { return std::string(dialog->get_ac_print_specific_variables()); },
-                                                        .format_index = [&] { return dialog->get_ac_print_format_index(); },
-                                                        .output_file = [&] { return std::string(dialog->get_ac_print_output_file()); },
-                                                        .extra_options = [&] { return std::string(dialog->get_ac_print_extra_options()); },
-                                                        .type_index = [&] { return dialog->get_ac_print_type_index(); },
+                                                        .enabled = [&dialog] { return dialog->get_ac_print_enabled(); },
+                                                        .all_nodes = [&dialog] { return dialog->get_ac_print_all_nodes(); },
+                                                        .all_currents = [&dialog] { return dialog->get_ac_print_all_currents(); },
+                                                        .power = [] { return false; },
+                                                        .bjt_leads = [&dialog] { return dialog->get_ac_print_bjt_leads(); },
+                                                        .fet_leads = [&dialog] { return dialog->get_ac_print_fet_leads(); },
+                                                        .specific_variables = [&dialog] { return std::string(dialog->get_ac_print_specific_variables()); },
+                                                        .format_index = [&dialog] { return dialog->get_ac_print_format_index(); },
+                                                        .output_file = [&dialog] { return std::string(dialog->get_ac_print_output_file()); },
+                                                        .extra_options = [&dialog] { return std::string(dialog->get_ac_print_extra_options()); },
+                                                        .type_index = [&dialog] { return dialog->get_ac_print_type_index(); },
                                                     });
             return AcSimulationParameters(sweep_mode, points, start, end, data_table, std::move(print_params), std::move(measures), std::nullopt);
         }
@@ -585,7 +578,7 @@ namespace simulation_parameters_dialog_view
         // --- transient analysis panel ---
 
         // push the saved transient parameters into the dialog root's tran-* fields
-        void apply_transient_parameters(const DialogHandle& dialog, const TransientSimulationParameters& params) {
+        void apply_transient_parameters(const WindowHandle& dialog, const TransientSimulationParameters& params) {
             dialog->set_tran_initial_step(slint::SharedString(params.initial_step_value));
             dialog->set_tran_final_time(slint::SharedString(params.final_time_value));
             dialog->set_tran_start_time(slint::SharedString(params.start_time_value));
@@ -598,22 +591,22 @@ namespace simulation_parameters_dialog_view
             // print section
             apply_print_section(params.print_parameters, true, true, true, true, TRAN_PRINT_TYPES,
                                 PrintSetters{
-                                    .enabled = [&](bool v) { dialog->set_tran_print_enabled(v); },
-                                    .all_nodes = [&](bool v) { dialog->set_tran_print_all_nodes(v); },
-                                    .all_currents = [&](bool v) { dialog->set_tran_print_all_currents(v); },
-                                    .power = [&](bool v) { dialog->set_tran_print_power(v); },
-                                    .bjt_leads = [&](bool v) { dialog->set_tran_print_bjt_leads(v); },
-                                    .fet_leads = [&](bool v) { dialog->set_tran_print_fet_leads(v); },
-                                    .specific_variables = [&](slint::SharedString v) { dialog->set_tran_print_specific_variables(v); },
-                                    .format_index = [&](int v) { dialog->set_tran_print_format_index(v); },
-                                    .output_file = [&](slint::SharedString v) { dialog->set_tran_print_output_file(v); },
-                                    .extra_options = [&](slint::SharedString v) { dialog->set_tran_print_extra_options(v); },
-                                    .type_index = [&](int v) { dialog->set_tran_print_type_index(v); },
+                                    .enabled = [&dialog](bool v) { dialog->set_tran_print_enabled(v); },
+                                    .all_nodes = [&dialog](bool v) { dialog->set_tran_print_all_nodes(v); },
+                                    .all_currents = [&dialog](bool v) { dialog->set_tran_print_all_currents(v); },
+                                    .power = [&dialog](bool v) { dialog->set_tran_print_power(v); },
+                                    .bjt_leads = [&dialog](bool v) { dialog->set_tran_print_bjt_leads(v); },
+                                    .fet_leads = [&dialog](bool v) { dialog->set_tran_print_fet_leads(v); },
+                                    .specific_variables = [&dialog](slint::SharedString v) { dialog->set_tran_print_specific_variables(v); },
+                                    .format_index = [&dialog](int v) { dialog->set_tran_print_format_index(v); },
+                                    .output_file = [&dialog](slint::SharedString v) { dialog->set_tran_print_output_file(v); },
+                                    .extra_options = [&dialog](slint::SharedString v) { dialog->set_tran_print_extra_options(v); },
+                                    .type_index = [&dialog](int v) { dialog->set_tran_print_type_index(v); },
                                 });
         }
 
         // read the transient parameters from the dialog root's tran-* fields
-        [[nodiscard]] TransientSimulationParameters build_transient_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] TransientSimulationParameters build_transient_parameters(const WindowHandle& dialog) {
             // resolve the OP keyword from the combo; index 0 is "(None)"
             std::string op_keyword;
             const int op_index = dialog->get_tran_op_keyword_index();
@@ -627,17 +620,17 @@ namespace simulation_parameters_dialog_view
             // print parameters
             auto print_params = build_print_section(true, true, true, true, "TRAN", TRAN_PRINT_TYPES,
                                                     PrintGetters{
-                                                        .enabled = [&] { return dialog->get_tran_print_enabled(); },
-                                                        .all_nodes = [&] { return dialog->get_tran_print_all_nodes(); },
-                                                        .all_currents = [&] { return dialog->get_tran_print_all_currents(); },
-                                                        .power = [&] { return dialog->get_tran_print_power(); },
-                                                        .bjt_leads = [&] { return dialog->get_tran_print_bjt_leads(); },
-                                                        .fet_leads = [&] { return dialog->get_tran_print_fet_leads(); },
-                                                        .specific_variables = [&] { return std::string(dialog->get_tran_print_specific_variables()); },
-                                                        .format_index = [&] { return dialog->get_tran_print_format_index(); },
-                                                        .output_file = [&] { return std::string(dialog->get_tran_print_output_file()); },
-                                                        .extra_options = [&] { return std::string(dialog->get_tran_print_extra_options()); },
-                                                        .type_index = [&] { return dialog->get_tran_print_type_index(); },
+                                                        .enabled = [&dialog] { return dialog->get_tran_print_enabled(); },
+                                                        .all_nodes = [&dialog] { return dialog->get_tran_print_all_nodes(); },
+                                                        .all_currents = [&dialog] { return dialog->get_tran_print_all_currents(); },
+                                                        .power = [&dialog] { return dialog->get_tran_print_power(); },
+                                                        .bjt_leads = [&dialog] { return dialog->get_tran_print_bjt_leads(); },
+                                                        .fet_leads = [&dialog] { return dialog->get_tran_print_fet_leads(); },
+                                                        .specific_variables = [&dialog] { return std::string(dialog->get_tran_print_specific_variables()); },
+                                                        .format_index = [&dialog] { return dialog->get_tran_print_format_index(); },
+                                                        .output_file = [&dialog] { return std::string(dialog->get_tran_print_output_file()); },
+                                                        .extra_options = [&dialog] { return std::string(dialog->get_tran_print_extra_options()); },
+                                                        .type_index = [&dialog] { return dialog->get_tran_print_type_index(); },
                                                     });
             return TransientSimulationParameters(std::string(dialog->get_tran_initial_step()), std::string(dialog->get_tran_final_time()), std::string(dialog->get_tran_start_time()), std::string(dialog->get_tran_step_ceiling()), std::move(op_keyword), std::move(schedule_points), std::move(print_params), std::move(fft_params), std::move(four_params), std::move(measure_params), std::nullopt);
         }
@@ -648,7 +641,7 @@ namespace simulation_parameters_dialog_view
         // --- DC analysis panel ---
 
         // push the saved DC parameters into the dialog root's dc-* fields
-        void apply_dc_parameters(const DialogHandle& dialog, const DCSimulationParameters& params) {
+        void apply_dc_parameters(const WindowHandle& dialog, const DCSimulationParameters& params) {
             dialog->set_dc_sweep_mode_index(choice_index_for(DC_SWEEP_MODE_VALUES, params.sweep_mode));
             dialog->set_dc_primary_variable(slint::SharedString(params.primary_variable));
             dialog->set_dc_start(slint::SharedString(params.start));
@@ -666,22 +659,22 @@ namespace simulation_parameters_dialog_view
             // print section
             apply_print_section(params.print_parameters, true, true, true, true, DC_PRINT_TYPES,
                                 PrintSetters{
-                                    .enabled = [&](bool v) { dialog->set_dc_print_enabled(v); },
-                                    .all_nodes = [&](bool v) { dialog->set_dc_print_all_nodes(v); },
-                                    .all_currents = [&](bool v) { dialog->set_dc_print_all_currents(v); },
-                                    .power = [&](bool v) { dialog->set_dc_print_power(v); },
-                                    .bjt_leads = [&](bool v) { dialog->set_dc_print_bjt_leads(v); },
-                                    .fet_leads = [&](bool v) { dialog->set_dc_print_fet_leads(v); },
-                                    .specific_variables = [&](slint::SharedString v) { dialog->set_dc_print_specific_variables(v); },
-                                    .format_index = [&](int v) { dialog->set_dc_print_format_index(v); },
-                                    .output_file = [&](slint::SharedString v) { dialog->set_dc_print_output_file(v); },
-                                    .extra_options = [&](slint::SharedString v) { dialog->set_dc_print_extra_options(v); },
-                                    .type_index = [&](int v) { dialog->set_dc_print_type_index(v); },
+                                    .enabled = [&dialog](bool v) { dialog->set_dc_print_enabled(v); },
+                                    .all_nodes = [&dialog](bool v) { dialog->set_dc_print_all_nodes(v); },
+                                    .all_currents = [&dialog](bool v) { dialog->set_dc_print_all_currents(v); },
+                                    .power = [&dialog](bool v) { dialog->set_dc_print_power(v); },
+                                    .bjt_leads = [&dialog](bool v) { dialog->set_dc_print_bjt_leads(v); },
+                                    .fet_leads = [&dialog](bool v) { dialog->set_dc_print_fet_leads(v); },
+                                    .specific_variables = [&dialog](slint::SharedString v) { dialog->set_dc_print_specific_variables(v); },
+                                    .format_index = [&dialog](int v) { dialog->set_dc_print_format_index(v); },
+                                    .output_file = [&dialog](slint::SharedString v) { dialog->set_dc_print_output_file(v); },
+                                    .extra_options = [&dialog](slint::SharedString v) { dialog->set_dc_print_extra_options(v); },
+                                    .type_index = [&dialog](int v) { dialog->set_dc_print_type_index(v); },
                                 });
         }
 
         // read the DC parameters from the dialog root's dc-* fields
-        [[nodiscard]] DCSimulationParameters build_dc_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] DCSimulationParameters build_dc_parameters(const WindowHandle& dialog) {
             const int sweep_mode_index = std::clamp(dialog->get_dc_sweep_mode_index(), 0, static_cast<int>(DC_SWEEP_MODE_VALUES.size()) - 1);
             const std::string sweep_mode = DC_SWEEP_MODE_VALUES[static_cast<size_t>(sweep_mode_index)];
             const std::string primary_variable = std::string(dialog->get_dc_primary_variable());
@@ -729,17 +722,17 @@ namespace simulation_parameters_dialog_view
             // print parameters
             auto print_params = build_print_section(true, true, true, true, "DC", DC_PRINT_TYPES,
                                                     PrintGetters{
-                                                        .enabled = [&] { return dialog->get_dc_print_enabled(); },
-                                                        .all_nodes = [&] { return dialog->get_dc_print_all_nodes(); },
-                                                        .all_currents = [&] { return dialog->get_dc_print_all_currents(); },
-                                                        .power = [&] { return dialog->get_dc_print_power(); },
-                                                        .bjt_leads = [&] { return dialog->get_dc_print_bjt_leads(); },
-                                                        .fet_leads = [&] { return dialog->get_dc_print_fet_leads(); },
-                                                        .specific_variables = [&] { return std::string(dialog->get_dc_print_specific_variables()); },
-                                                        .format_index = [&] { return dialog->get_dc_print_format_index(); },
-                                                        .output_file = [&] { return std::string(dialog->get_dc_print_output_file()); },
-                                                        .extra_options = [&] { return std::string(dialog->get_dc_print_extra_options()); },
-                                                        .type_index = [&] { return dialog->get_dc_print_type_index(); },
+                                                        .enabled = [&dialog] { return dialog->get_dc_print_enabled(); },
+                                                        .all_nodes = [&dialog] { return dialog->get_dc_print_all_nodes(); },
+                                                        .all_currents = [&dialog] { return dialog->get_dc_print_all_currents(); },
+                                                        .power = [&dialog] { return dialog->get_dc_print_power(); },
+                                                        .bjt_leads = [&dialog] { return dialog->get_dc_print_bjt_leads(); },
+                                                        .fet_leads = [&dialog] { return dialog->get_dc_print_fet_leads(); },
+                                                        .specific_variables = [&dialog] { return std::string(dialog->get_dc_print_specific_variables()); },
+                                                        .format_index = [&dialog] { return dialog->get_dc_print_format_index(); },
+                                                        .output_file = [&dialog] { return std::string(dialog->get_dc_print_output_file()); },
+                                                        .extra_options = [&dialog] { return std::string(dialog->get_dc_print_extra_options()); },
+                                                        .type_index = [&dialog] { return dialog->get_dc_print_type_index(); },
                                                     });
             return DCSimulationParameters(std::move(sweep_mode), std::move(primary_variable), std::move(start), std::move(stop), std::move(step), std::move(points), std::move(list_values), std::move(data_table_name), std::move(secondary_variable), std::move(secondary_start), std::move(secondary_stop), std::move(secondary_step), std::move(secondary_points), std::move(print_params), std::move(measure_params), std::nullopt);
         }
@@ -750,7 +743,7 @@ namespace simulation_parameters_dialog_view
         // --- noise analysis panel ---
 
         // push the saved noise parameters into the dialog root's noise-* fields
-        void apply_noise_parameters(const DialogHandle& dialog, const NoiseSimulationParameters& params) {
+        void apply_noise_parameters(const WindowHandle& dialog, const NoiseSimulationParameters& params) {
             dialog->set_noise_output_node(slint::SharedString(params.output_node));
             dialog->set_noise_ref_node(slint::SharedString(params.ref_node));
             dialog->set_noise_source_name(slint::SharedString(params.source_name));
@@ -763,22 +756,22 @@ namespace simulation_parameters_dialog_view
             // print section (no power for a noise analysis)
             apply_print_section(params.print_parameters, false, true, true, true, NOISE_PRINT_TYPES,
                                 PrintSetters{
-                                    .enabled = [&](bool v) { dialog->set_noise_print_enabled(v); },
-                                    .all_nodes = [&](bool v) { dialog->set_noise_print_all_nodes(v); },
-                                    .all_currents = [&](bool v) { dialog->set_noise_print_all_currents(v); },
-                                    .power = [&](bool) {},
-                                    .bjt_leads = [&](bool v) { dialog->set_noise_print_bjt_leads(v); },
-                                    .fet_leads = [&](bool v) { dialog->set_noise_print_fet_leads(v); },
-                                    .specific_variables = [&](slint::SharedString v) { dialog->set_noise_print_specific_variables(v); },
-                                    .format_index = [&](int v) { dialog->set_noise_print_format_index(v); },
-                                    .output_file = [&](slint::SharedString v) { dialog->set_noise_print_output_file(v); },
-                                    .extra_options = [&](slint::SharedString v) { dialog->set_noise_print_extra_options(v); },
-                                    .type_index = [&](int v) { dialog->set_noise_print_type_index(v); },
+                                    .enabled = [&dialog](bool v) { dialog->set_noise_print_enabled(v); },
+                                    .all_nodes = [&dialog](bool v) { dialog->set_noise_print_all_nodes(v); },
+                                    .all_currents = [&dialog](bool v) { dialog->set_noise_print_all_currents(v); },
+                                    .power = [](bool) {},
+                                    .bjt_leads = [&dialog](bool v) { dialog->set_noise_print_bjt_leads(v); },
+                                    .fet_leads = [&dialog](bool v) { dialog->set_noise_print_fet_leads(v); },
+                                    .specific_variables = [&dialog](slint::SharedString v) { dialog->set_noise_print_specific_variables(v); },
+                                    .format_index = [&dialog](int v) { dialog->set_noise_print_format_index(v); },
+                                    .output_file = [&dialog](slint::SharedString v) { dialog->set_noise_print_output_file(v); },
+                                    .extra_options = [&dialog](slint::SharedString v) { dialog->set_noise_print_extra_options(v); },
+                                    .type_index = [&dialog](int v) { dialog->set_noise_print_type_index(v); },
                                 });
         }
 
         // read the noise parameters from the dialog root's noise-* fields
-        [[nodiscard]] NoiseSimulationParameters build_noise_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] NoiseSimulationParameters build_noise_parameters(const WindowHandle& dialog) {
             const int sweep_type_index = std::clamp(dialog->get_noise_sweep_type_index(), 0, static_cast<int>(SWEEP_MODE_VALUES.size()) - 1);
             const std::string sweep_type = SWEEP_MODE_VALUES[static_cast<size_t>(sweep_type_index)];
             // the frequency range fields only apply to LIN/DEC/OCT sweeps
@@ -792,17 +785,17 @@ namespace simulation_parameters_dialog_view
             // print parameters (no power for a noise analysis)
             auto print_params = build_print_section(false, true, true, true, "NOISE", NOISE_PRINT_TYPES,
                                                     PrintGetters{
-                                                        .enabled = [&] { return dialog->get_noise_print_enabled(); },
-                                                        .all_nodes = [&] { return dialog->get_noise_print_all_nodes(); },
-                                                        .all_currents = [&] { return dialog->get_noise_print_all_currents(); },
-                                                        .power = [&] { return false; },
-                                                        .bjt_leads = [&] { return dialog->get_noise_print_bjt_leads(); },
-                                                        .fet_leads = [&] { return dialog->get_noise_print_fet_leads(); },
-                                                        .specific_variables = [&] { return std::string(dialog->get_noise_print_specific_variables()); },
-                                                        .format_index = [&] { return dialog->get_noise_print_format_index(); },
-                                                        .output_file = [&] { return std::string(dialog->get_noise_print_output_file()); },
-                                                        .extra_options = [&] { return std::string(dialog->get_noise_print_extra_options()); },
-                                                        .type_index = [&] { return dialog->get_noise_print_type_index(); },
+                                                        .enabled = [&dialog] { return dialog->get_noise_print_enabled(); },
+                                                        .all_nodes = [&dialog] { return dialog->get_noise_print_all_nodes(); },
+                                                        .all_currents = [&dialog] { return dialog->get_noise_print_all_currents(); },
+                                                        .power = [] { return false; },
+                                                        .bjt_leads = [&dialog] { return dialog->get_noise_print_bjt_leads(); },
+                                                        .fet_leads = [&dialog] { return dialog->get_noise_print_fet_leads(); },
+                                                        .specific_variables = [&dialog] { return std::string(dialog->get_noise_print_specific_variables()); },
+                                                        .format_index = [&dialog] { return dialog->get_noise_print_format_index(); },
+                                                        .output_file = [&dialog] { return std::string(dialog->get_noise_print_output_file()); },
+                                                        .extra_options = [&dialog] { return std::string(dialog->get_noise_print_extra_options()); },
+                                                        .type_index = [&dialog] { return dialog->get_noise_print_type_index(); },
                                                     });
             return NoiseSimulationParameters(std::string(dialog->get_noise_output_node()), std::string(dialog->get_noise_ref_node()), std::string(dialog->get_noise_source_name()), std::move(start_freq), std::move(end_freq), std::move(num_points), std::move(sweep_type), std::move(device_noise), std::move(data_table), std::move(print_params));
         }
@@ -820,46 +813,34 @@ namespace simulation_parameters_dialog_view
             return join(parts, ",");
         }
 
-        // resolve a TAHB value to its combo index; "(None)" when unset or unknown
-        [[nodiscard]] int tahb_index_for(const std::optional<int>& tahb) {
-            for (size_t i = 1; i < TAHB_VALUES.size(); ++i) {
-                if (tahb.has_value() && TAHB_VALUES[i] == *tahb)
-                    return static_cast<int>(i);
-            }
-            return 0;
-        }
-
-        // resolve a SELECTHARMS value to its combo index; "(None)" when unset
-        [[nodiscard]] int selectharms_index_for(const std::optional<std::string>& selectharms) { return selectharms.has_value() ? choice_index_for(SELECTHARMS_VALUES, *selectharms) : 0; }
-
         // push the saved HB parameters into the dialog root's hb-* fields
-        void apply_hb_parameters(const DialogHandle& dialog, const HbSimulationParameters& params) {
+        void apply_hb_parameters(const WindowHandle& dialog, const HbSimulationParameters& params) {
             dialog->set_hb_frequencies(slint::SharedString(join(params.frequencies, " ")));
             dialog->set_hb_harmonics(slint::SharedString(format_harmonics(params.harmonics)));
-            dialog->set_hb_tahb_index(tahb_index_for(params.tahb));
-            dialog->set_hb_selectharms_index(selectharms_index_for(params.selectharms));
+            dialog->set_hb_tahb(slint::SharedString(params.tahb.has_value() ? std::to_string(*params.tahb) : ""));
+            dialog->set_hb_selectharms(slint::SharedString(params.selectharms.value_or("")));
             dialog->set_hb_startup_periods(slint::SharedString(params.startup_periods.has_value() ? std::to_string(*params.startup_periods) : ""));
             dialog->set_hb_nonlin_options(slint::SharedString(format_options_text(params.nonlin_options)));
             dialog->set_hb_linsol_options(slint::SharedString(format_options_text(params.linsol_options)));
             // print section (no power, no BJT/FET leads for HB)
             apply_print_section(params.print_parameters, false, false, false, true, HB_PRINT_TYPES,
                                 PrintSetters{
-                                    .enabled = [&](bool v) { dialog->set_hb_print_enabled(v); },
-                                    .all_nodes = [&](bool v) { dialog->set_hb_print_all_nodes(v); },
-                                    .all_currents = [&](bool v) { dialog->set_hb_print_all_currents(v); },
-                                    .power = [&](bool) {},
-                                    .bjt_leads = [&](bool) {},
-                                    .fet_leads = [&](bool) {},
-                                    .specific_variables = [&](slint::SharedString v) { dialog->set_hb_print_specific_variables(v); },
-                                    .format_index = [&](int v) { dialog->set_hb_print_format_index(v); },
-                                    .output_file = [&](slint::SharedString v) { dialog->set_hb_print_output_file(v); },
-                                    .extra_options = [&](slint::SharedString v) { dialog->set_hb_print_extra_options(v); },
-                                    .type_index = [&](int v) { dialog->set_hb_print_type_index(v); },
+                                    .enabled = [&dialog](bool v) { dialog->set_hb_print_enabled(v); },
+                                    .all_nodes = [&dialog](bool v) { dialog->set_hb_print_all_nodes(v); },
+                                    .all_currents = [&dialog](bool v) { dialog->set_hb_print_all_currents(v); },
+                                    .power = [](bool) {},
+                                    .bjt_leads = [](bool) {},
+                                    .fet_leads = [](bool) {},
+                                    .specific_variables = [&dialog](slint::SharedString v) { dialog->set_hb_print_specific_variables(v); },
+                                    .format_index = [&dialog](int v) { dialog->set_hb_print_format_index(v); },
+                                    .output_file = [&dialog](slint::SharedString v) { dialog->set_hb_print_output_file(v); },
+                                    .extra_options = [&dialog](slint::SharedString v) { dialog->set_hb_print_extra_options(v); },
+                                    .type_index = [&dialog](int v) { dialog->set_hb_print_type_index(v); },
                                 });
         }
 
         // read the HB parameters from the dialog root's hb-* fields
-        [[nodiscard]] HbSimulationParameters build_hb_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] HbSimulationParameters build_hb_parameters(const WindowHandle& dialog) {
             // frequencies as owning tokens so they outlive the property getter
             const std::vector<std::string> frequencies = tokenize_owned(dialog->get_hb_frequencies());
             // harmonics text materialized first since split_by borrows views
@@ -870,15 +851,14 @@ namespace simulation_parameters_dialog_view
                 if (const auto value = parse_int(part))
                     harmonics.push_back(*value);
             }
-            // TAHB / SELECTHARMS combo values; index 0 is "(None)"
+            // TAHB / SELECTHARMS from free-form text fields
             std::optional<int> tahb;
-            const int tahb_index = std::clamp(dialog->get_hb_tahb_index(), 0, static_cast<int>(TAHB_VALUES.size()) - 1);
-            if (tahb_index > 0)
-                tahb = TAHB_VALUES[static_cast<size_t>(tahb_index)];
+            if (const auto value = parse_int(dialog->get_hb_tahb()))
+                tahb = value;
+            const std::string selectharms_text = trim(std::string(dialog->get_hb_selectharms()));
             std::optional<std::string> selectharms;
-            const int selectharms_index = std::clamp(dialog->get_hb_selectharms_index(), 0, static_cast<int>(SELECTHARMS_VALUES.size()) - 1);
-            if (selectharms_index > 0)
-                selectharms = SELECTHARMS_VALUES[static_cast<size_t>(selectharms_index)];
+            if (!selectharms_text.empty())
+                selectharms = selectharms_text;
             // optional startup periods
             std::optional<int> startup_periods;
             if (const auto value = parse_int(dialog->get_hb_startup_periods()))
@@ -886,17 +866,17 @@ namespace simulation_parameters_dialog_view
             // print parameters (no power, no BJT/FET leads for HB)
             auto print_params = build_print_section(false, false, false, true, "HB", HB_PRINT_TYPES,
                                                     PrintGetters{
-                                                        .enabled = [&] { return dialog->get_hb_print_enabled(); },
-                                                        .all_nodes = [&] { return dialog->get_hb_print_all_nodes(); },
-                                                        .all_currents = [&] { return dialog->get_hb_print_all_currents(); },
-                                                        .power = [&] { return false; },
-                                                        .bjt_leads = [&] { return false; },
-                                                        .fet_leads = [&] { return false; },
-                                                        .specific_variables = [&] { return std::string(dialog->get_hb_print_specific_variables()); },
-                                                        .format_index = [&] { return dialog->get_hb_print_format_index(); },
-                                                        .output_file = [&] { return std::string(dialog->get_hb_print_output_file()); },
-                                                        .extra_options = [&] { return std::string(dialog->get_hb_print_extra_options()); },
-                                                        .type_index = [&] { return dialog->get_hb_print_type_index(); },
+                                                        .enabled = [&dialog] { return dialog->get_hb_print_enabled(); },
+                                                        .all_nodes = [&dialog] { return dialog->get_hb_print_all_nodes(); },
+                                                        .all_currents = [&dialog] { return dialog->get_hb_print_all_currents(); },
+                                                        .power = [] { return false; },
+                                                        .bjt_leads = [] { return false; },
+                                                        .fet_leads = [] { return false; },
+                                                        .specific_variables = [&dialog] { return std::string(dialog->get_hb_print_specific_variables()); },
+                                                        .format_index = [&dialog] { return dialog->get_hb_print_format_index(); },
+                                                        .output_file = [&dialog] { return std::string(dialog->get_hb_print_output_file()); },
+                                                        .extra_options = [&dialog] { return std::string(dialog->get_hb_print_extra_options()); },
+                                                        .type_index = [&dialog] { return dialog->get_hb_print_type_index(); },
                                                     });
             // solver options (one key=value per line)
             auto nonlin_options = parse_options_text(std::string(dialog->get_hb_nonlin_options()));
@@ -910,7 +890,7 @@ namespace simulation_parameters_dialog_view
         // --- linear analysis panel ---
 
         // push the saved LIN parameters into the dialog root's lin-* fields
-        void apply_lin_parameters(const DialogHandle& dialog, const LinSimulationParameters& params) {
+        void apply_lin_parameters(const WindowHandle& dialog, const LinSimulationParameters& params) {
             dialog->set_lin_sparcalc(params.sparcalc);
             dialog->set_lin_format_index(choice_index_for(LIN_FORMAT_CHOICES, params.format));
             dialog->set_lin_lintype_index(choice_index_for(LIN_LINTYPE_CHOICES, params.lintype));
@@ -926,22 +906,22 @@ namespace simulation_parameters_dialog_view
             // print section (single AC print type)
             apply_print_section(params.print_parameters, true, true, true, true, LIN_PRINT_TYPES,
                                 PrintSetters{
-                                    .enabled = [&](bool v) { dialog->set_lin_print_enabled(v); },
-                                    .all_nodes = [&](bool v) { dialog->set_lin_print_all_nodes(v); },
-                                    .all_currents = [&](bool v) { dialog->set_lin_print_all_currents(v); },
-                                    .power = [&](bool v) { dialog->set_lin_print_power(v); },
-                                    .bjt_leads = [&](bool v) { dialog->set_lin_print_bjt_leads(v); },
-                                    .fet_leads = [&](bool v) { dialog->set_lin_print_fet_leads(v); },
-                                    .specific_variables = [&](slint::SharedString v) { dialog->set_lin_print_specific_variables(v); },
-                                    .format_index = [&](int v) { dialog->set_lin_print_format_index(v); },
-                                    .output_file = [&](slint::SharedString v) { dialog->set_lin_print_output_file(v); },
-                                    .extra_options = [&](slint::SharedString v) { dialog->set_lin_print_extra_options(v); },
-                                    .type_index = [&](int v) { dialog->set_lin_print_type_index(v); },
+                                    .enabled = [&dialog](bool v) { dialog->set_lin_print_enabled(v); },
+                                    .all_nodes = [&dialog](bool v) { dialog->set_lin_print_all_nodes(v); },
+                                    .all_currents = [&dialog](bool v) { dialog->set_lin_print_all_currents(v); },
+                                    .power = [&dialog](bool v) { dialog->set_lin_print_power(v); },
+                                    .bjt_leads = [&dialog](bool v) { dialog->set_lin_print_bjt_leads(v); },
+                                    .fet_leads = [&dialog](bool v) { dialog->set_lin_print_fet_leads(v); },
+                                    .specific_variables = [&dialog](slint::SharedString v) { dialog->set_lin_print_specific_variables(v); },
+                                    .format_index = [&dialog](int v) { dialog->set_lin_print_format_index(v); },
+                                    .output_file = [&dialog](slint::SharedString v) { dialog->set_lin_print_output_file(v); },
+                                    .extra_options = [&dialog](slint::SharedString v) { dialog->set_lin_print_extra_options(v); },
+                                    .type_index = [&dialog](int v) { dialog->set_lin_print_type_index(v); },
                                 });
         }
 
         // read the LIN parameters from the dialog root's lin-* fields
-        [[nodiscard]] LinSimulationParameters build_lin_parameters(const DialogHandle& dialog) {
+        [[nodiscard]] LinSimulationParameters build_lin_parameters(const WindowHandle& dialog) {
             const int format_index = std::clamp(dialog->get_lin_format_index(), 0, static_cast<int>(LIN_FORMAT_CHOICES.size()) - 1);
             const int lintype_index = std::clamp(dialog->get_lin_lintype_index(), 0, static_cast<int>(LIN_LINTYPE_CHOICES.size()) - 1);
             const int dataformat_index = std::clamp(dialog->get_lin_dataformat_index(), 0, static_cast<int>(LIN_DATAFORMAT_CHOICES.size()) - 1);
@@ -956,17 +936,17 @@ namespace simulation_parameters_dialog_view
             // print parameters (single AC print type)
             auto print_params = build_print_section(true, true, true, true, "AC", LIN_PRINT_TYPES,
                                                     PrintGetters{
-                                                        .enabled = [&] { return dialog->get_lin_print_enabled(); },
-                                                        .all_nodes = [&] { return dialog->get_lin_print_all_nodes(); },
-                                                        .all_currents = [&] { return dialog->get_lin_print_all_currents(); },
-                                                        .power = [&] { return dialog->get_lin_print_power(); },
-                                                        .bjt_leads = [&] { return dialog->get_lin_print_bjt_leads(); },
-                                                        .fet_leads = [&] { return dialog->get_lin_print_fet_leads(); },
-                                                        .specific_variables = [&] { return std::string(dialog->get_lin_print_specific_variables()); },
-                                                        .format_index = [&] { return dialog->get_lin_print_format_index(); },
-                                                        .output_file = [&] { return std::string(dialog->get_lin_print_output_file()); },
-                                                        .extra_options = [&] { return std::string(dialog->get_lin_print_extra_options()); },
-                                                        .type_index = [&] { return dialog->get_lin_print_type_index(); },
+                                                        .enabled = [&dialog] { return dialog->get_lin_print_enabled(); },
+                                                        .all_nodes = [&dialog] { return dialog->get_lin_print_all_nodes(); },
+                                                        .all_currents = [&dialog] { return dialog->get_lin_print_all_currents(); },
+                                                        .power = [&dialog] { return dialog->get_lin_print_power(); },
+                                                        .bjt_leads = [&dialog] { return dialog->get_lin_print_bjt_leads(); },
+                                                        .fet_leads = [&dialog] { return dialog->get_lin_print_fet_leads(); },
+                                                        .specific_variables = [&dialog] { return std::string(dialog->get_lin_print_specific_variables()); },
+                                                        .format_index = [&dialog] { return dialog->get_lin_print_format_index(); },
+                                                        .output_file = [&dialog] { return std::string(dialog->get_lin_print_output_file()); },
+                                                        .extra_options = [&dialog] { return std::string(dialog->get_lin_print_extra_options()); },
+                                                        .type_index = [&dialog] { return dialog->get_lin_print_type_index(); },
                                                     });
             return LinSimulationParameters(dialog->get_lin_sparcalc(), LIN_FORMAT_CHOICES[static_cast<size_t>(format_index)], LIN_LINTYPE_CHOICES[static_cast<size_t>(lintype_index)], LIN_DATAFORMAT_CHOICES[static_cast<size_t>(dataformat_index)], std::string(dialog->get_lin_file()), std::string(dialog->get_lin_output_width()), std::string(dialog->get_lin_precision()), std::move(sweep_mode), std::move(points), std::move(start), std::move(end), std::move(data_table), std::move(print_params));
         }
@@ -977,75 +957,76 @@ namespace simulation_parameters_dialog_view
 
     struct SimulationParametersDialogView::Impl
     {
-        // the slint dialog window, created lazily on the first use
-        slint::ComponentHandle<simulation_parameters_dialog::SimulationParametersDialog> dialog;
+        // the main window handle; the panel is an inline child of the window,
+        // so all interaction goes through the window's properties and callbacks
+        WindowHandle window;
 
         // presenter notified with the accepted configuration
         MainWindowViewDefEvents* handler = nullptr;
 
-        // notified on both accept and cancel, after the dialog window is hidden;
+        // notified on both accept and cancel, after the panel is hidden;
         // the caller releases the modal state from here
         std::function<void()> on_closed;
 
         // configuration seeded on show
         SimulationConfig m_config;
 
-        Impl() :
-            dialog(simulation_parameters_dialog::SimulationParametersDialog::create()), m_config(SimulationConfig::from_xyce_directives({})) {
-            // wire callbacks
-            dialog->on_accepted([this] { accept(); });
-            dialog->on_dismissed([this] { dismiss(); });
+        Impl(WindowHandle w) :
+            window(w), m_config(SimulationConfig::from_xyce_directives({})) {
+            // wire the forwarded callbacks from the inline panel to this view
+            window->on_simulation_parameters_accepted([this] { accept(); });
+            window->on_simulation_parameters_dismissed([this] { dismiss(); });
         }
 
         void accept() {
             // read the tab selected by the user
-            const int selected_tab = dialog->get_selected_tab();
+            const int selected_tab = window->get_simulation_parameters_selected_tab();
             // update the analysis type from the selected tab
             m_config.analysis_type = ANALYSIS_TYPES[static_cast<size_t>(selected_tab)];
             // read the operating point panel back into the analysis variant
             if (selected_tab == PAGE_OP) {
-                m_config.analysis = build_op_parameters(dialog);
-                m_config.replace_ground = dialog->get_op_replace_ground();
+                m_config.analysis = build_op_parameters(window);
+                m_config.replace_ground = window->get_op_replace_ground();
             }
             // read the AC analysis panel back into the analysis variant
             else if (selected_tab == PAGE_AC) {
-                m_config.analysis = build_ac_parameters(dialog);
-                m_config.replace_ground = dialog->get_ac_replace_ground();
+                m_config.analysis = build_ac_parameters(window);
+                m_config.replace_ground = window->get_ac_replace_ground();
             }
             // read the transient analysis panel back into the analysis variant
             else if (selected_tab == PAGE_TRAN) {
-                m_config.analysis = build_transient_parameters(dialog);
-                m_config.replace_ground = dialog->get_tran_replace_ground();
+                m_config.analysis = build_transient_parameters(window);
+                m_config.replace_ground = window->get_tran_replace_ground();
             }
             // read the DC analysis panel back into the analysis variant;
-            // reject an invalid DC sweep without closing the dialog
+            // reject an invalid DC sweep without closing the panel
             else if (selected_tab == PAGE_DC) {
-                auto dc = build_dc_parameters(dialog);
+                auto dc = build_dc_parameters(window);
                 if (const auto error = dc.validate()) {
-                    dialog->set_error_message(slint::SharedString(*error));
-                    dialog->set_show_error(true);
+                    window->set_simulation_parameters_error_message(slint::SharedString(*error));
+                    window->set_simulation_parameters_show_error(true);
                     return;
                 }
                 m_config.analysis = std::move(dc);
-                m_config.replace_ground = dialog->get_dc_replace_ground();
+                m_config.replace_ground = window->get_dc_replace_ground();
             }
             // read the noise analysis panel back into the analysis variant
             else if (selected_tab == PAGE_NOISE) {
-                m_config.analysis = build_noise_parameters(dialog);
-                m_config.replace_ground = dialog->get_noise_replace_ground();
+                m_config.analysis = build_noise_parameters(window);
+                m_config.replace_ground = window->get_noise_replace_ground();
             }
             // read the harmonic balance panel back into the analysis variant
             else if (selected_tab == PAGE_HB) {
-                m_config.analysis = build_hb_parameters(dialog);
-                m_config.replace_ground = dialog->get_hb_replace_ground();
+                m_config.analysis = build_hb_parameters(window);
+                m_config.replace_ground = window->get_hb_replace_ground();
             }
             // read the linear analysis panel back into the analysis variant
             else if (selected_tab == PAGE_LIN) {
-                m_config.analysis = build_lin_parameters(dialog);
-                m_config.replace_ground = dialog->get_lin_replace_ground();
+                m_config.analysis = build_lin_parameters(window);
+                m_config.replace_ground = window->get_lin_replace_ground();
             }
-            // hide the dialog before delivering the result
-            dialog->hide();
+            // hide the panel before delivering the result
+            window->set_simulation_parameters_visible(false);
             // release the modal state held by the caller
             if (on_closed)
                 on_closed();
@@ -1055,92 +1036,87 @@ namespace simulation_parameters_dialog_view
         }
 
         void dismiss() {
-            // hide the dialog and drop the pending state
-            dialog->hide();
+            // hide the panel and drop the pending state
+            window->set_simulation_parameters_visible(false);
             // release the modal state held by the caller
             if (on_closed)
                 on_closed();
         }
     };
 
-    SimulationParametersDialogView::SimulationParametersDialogView() :
-        m_impl(std::make_unique<Impl>()) {}
+    SimulationParametersDialogView::SimulationParametersDialogView(slint::ComponentHandle<main_window::MainWindow> main_window) :
+        m_impl(std::make_unique<Impl>(main_window)) {}
 
     SimulationParametersDialogView::~SimulationParametersDialogView() = default;
 
-    slint::Window& SimulationParametersDialogView::window() {
-        // expose the dialog window (dialog must be shown first)
-        return m_impl->dialog->window();
-    }
-
     void SimulationParametersDialogView::show(const SimulationConfig& current, MainWindowViewDefEvents& handler, const std::function<void()>& on_closed) {
-        // remember the result destination for the dialog lifetime
+        // remember the result destination for the panel lifetime
         m_impl->handler = &handler;
         // remember the close notification for this show
         m_impl->on_closed = on_closed;
-        // seed the dialog with the current configuration
+        // seed the panel with the current configuration
         m_impl->m_config = current;
         // select the tab matching the analysis type
-        m_impl->dialog->set_selected_tab(tab_index_for(current.analysis_type));
+        m_impl->window->set_simulation_parameters_selected_tab(tab_index_for(current.analysis_type));
         // sync the operating point panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* op = std::get_if<OpSimulationParameters>(&current.analysis))
-            apply_op_parameters(m_impl->dialog, *op);
+            apply_op_parameters(m_impl->window, *op);
         else
-            apply_op_parameters(m_impl->dialog, default_op_parameters());
+            apply_op_parameters(m_impl->window, default_op_parameters());
         // mirror the replace-ground toggle onto the OP panel state
-        m_impl->dialog->set_op_replace_ground(current.replace_ground);
+        m_impl->window->set_op_replace_ground(current.replace_ground);
         // sync the AC analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* ac = std::get_if<AcSimulationParameters>(&current.analysis))
-            apply_ac_parameters(m_impl->dialog, *ac);
+            apply_ac_parameters(m_impl->window, *ac);
         else
-            apply_ac_parameters(m_impl->dialog, default_ac_parameters());
+            apply_ac_parameters(m_impl->window, default_ac_parameters());
         // mirror the replace-ground toggle onto the AC panel state
-        m_impl->dialog->set_ac_replace_ground(current.replace_ground);
+        m_impl->window->set_ac_replace_ground(current.replace_ground);
         // sync the transient analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* tran = std::get_if<TransientSimulationParameters>(&current.analysis))
-            apply_transient_parameters(m_impl->dialog, *tran);
+            apply_transient_parameters(m_impl->window, *tran);
         else
-            apply_transient_parameters(m_impl->dialog, default_transient_parameters());
+            apply_transient_parameters(m_impl->window, default_transient_parameters());
         // mirror the replace-ground toggle onto the TRAN panel state
-        m_impl->dialog->set_tran_replace_ground(current.replace_ground);
+        m_impl->window->set_tran_replace_ground(current.replace_ground);
         // sync the DC analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* dc = std::get_if<DCSimulationParameters>(&current.analysis))
-            apply_dc_parameters(m_impl->dialog, *dc);
+            apply_dc_parameters(m_impl->window, *dc);
         else
-            apply_dc_parameters(m_impl->dialog, default_dc_parameters());
+            apply_dc_parameters(m_impl->window, default_dc_parameters());
         // mirror the replace-ground toggle onto the DC panel state
-        m_impl->dialog->set_dc_replace_ground(current.replace_ground);
+        m_impl->window->set_dc_replace_ground(current.replace_ground);
         // sync the noise analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* noise = std::get_if<NoiseSimulationParameters>(&current.analysis))
-            apply_noise_parameters(m_impl->dialog, *noise);
+            apply_noise_parameters(m_impl->window, *noise);
         else
-            apply_noise_parameters(m_impl->dialog, default_noise_parameters());
+            apply_noise_parameters(m_impl->window, default_noise_parameters());
         // mirror the replace-ground toggle onto the noise panel state
-        m_impl->dialog->set_noise_replace_ground(current.replace_ground);
+        m_impl->window->set_noise_replace_ground(current.replace_ground);
         // sync the harmonic balance panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* hb = std::get_if<HbSimulationParameters>(&current.analysis))
-            apply_hb_parameters(m_impl->dialog, *hb);
+            apply_hb_parameters(m_impl->window, *hb);
         else
-            apply_hb_parameters(m_impl->dialog, default_hb_parameters());
+            apply_hb_parameters(m_impl->window, default_hb_parameters());
         // mirror the replace-ground toggle onto the HB panel state
-        m_impl->dialog->set_hb_replace_ground(current.replace_ground);
+        m_impl->window->set_hb_replace_ground(current.replace_ground);
         // sync the linear analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* lin = std::get_if<LinSimulationParameters>(&current.analysis))
-            apply_lin_parameters(m_impl->dialog, *lin);
+            apply_lin_parameters(m_impl->window, *lin);
         else
-            apply_lin_parameters(m_impl->dialog, default_lin_parameters());
+            apply_lin_parameters(m_impl->window, default_lin_parameters());
         // mirror the replace-ground toggle onto the LIN panel state
-        m_impl->dialog->set_lin_replace_ground(current.replace_ground);
+        m_impl->window->set_lin_replace_ground(current.replace_ground);
         // clear any previous validation feedback
-        m_impl->dialog->set_show_error(false);
-        // show the dialog window
-        m_impl->dialog->show();
+        m_impl->window->set_simulation_parameters_show_error(false);
+        // show the inline panel
+        m_impl->window->set_simulation_parameters_visible(true);
     }
 } // namespace simulation_parameters_dialog_view

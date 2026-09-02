@@ -3,8 +3,7 @@
 #include <filesystem>
 #include <optional>
 
-// platform-native open file dialog used by the slint ui; implemented per
-// platform in file_dialog.osx.mm / file_dialog.win32.c++ / file_dialog.linux.c++
+// platform-native open file dialog backed by nativefiledialog-extended (btzy/nativefiledialog-extended)
 class FileDialog
 {
 public:

@@ -5,34 +5,37 @@
 
 #include <slint.h>
 
+#include <main_window.h>
+
+#include "../core/step_information.h"
 #include "charts_renderer.h"
+#include "main_window_view_def.h"
 
 namespace step_tool_dialog_view
 {
-    // owns the slint step tool dialog window; shown on demand for a chart and
-    // applies the accepted step selection back to the chart through the renderer.
-    // The dialog must be kept alive for the lifetime of the viewer, so it lives
-    // in its own translation unit (the generated dialog header defines a
-    // SharedGlobals type that conflicts with the main window header in the same
-    // compilation unit).
+    // owns the inline step tool panel rendered within the main window (replacing
+    // the separate slint Dialog window). The panel is an inline child of the
+    // MainWindow, so all interaction goes through the window's properties and
+    // callbacks — no separate OS window and no modal_manager input blocking is
+    // needed. The step selection is applied back to the chart through the
+    // renderer. The view must be kept alive for the lifetime of the view, so
+    // it lives in its own translation unit (the generated main_window header
+    // defines a SharedGlobals type that conflicts with the other dialog headers
+    // in the same compilation unit).
     class StepToolDialogView
     {
     public:
-        explicit StepToolDialogView(ChartsRenderer& renderer);
+        explicit StepToolDialogView(slint::ComponentHandle<main_window::MainWindow> main_window, ChartsRenderer& renderer);
 
         StepToolDialogView(const StepToolDialogView&) = delete;
         StepToolDialogView& operator=(const StepToolDialogView&) = delete;
 
         ~StepToolDialogView();
 
-        // the underlying slint window of the dialog; the dialog must be shown
-        // before accessing it
-        slint::Window& window();
-
-        // shows the dialog for the chart at the given index, pre-checking the
+        // shows the panel for the chart at the given index, pre-checking the
         // chart's selected steps. The on_closed callback is invoked on both
-        // accept and cancel, after the dialog window is hidden, so the caller
-        // can release the modal state.
+        // accept and cancel, after the panel is hidden, so the caller can
+        // release the modal state.
         void show_for_chart(size_t chart_index, const std::function<void()>& on_closed);
 
     private:

@@ -80,6 +80,12 @@ int App::run() {
     // as soon as the charts context menu has been opened once. Intentionally leak every window (the
     // main window and any spawned through new_window()) so the window adapters are never destroyed;
     // the process is exiting and the OS reclaims the memory. Remove once the slint bug is fixed.
+    // release the gpu context on every window before leaking it; the gpu
+    // context must be torn down before static destructors or skia's
+    // grmanagedresource trace asserts during teardown
+    for (auto& window : m_windows)
+        window->view->release_gpu_resources();
+    // intentionally leak the windows so the slint workaround stays active
     for (auto& window : m_windows)
         (void)window.release();
     // the event loop exited, end the application
@@ -96,11 +102,13 @@ void App::new_window(std::shared_ptr<XyceOutputFile> raw_file) {
     presenter->load_raw_file(std::move(raw_file));
 }
 
-SlintMainWindowPresenter2* App::create_window(std::unique_ptr<NetlistSource> netlist_source, std::shared_ptr<KiCadSession> session) {
+SlintMainWindowPresenter* App::create_window(std::unique_ptr<NetlistSource> netlist_source, std::shared_ptr<KiCadSession> session) {
+    // plugin config
+    auto config = PluginConfig::load();
     // the view needs only a placeholder netlist source; the presenter owns the real source
     auto instance = std::make_unique<WindowInstance>();
-    instance->view = std::make_unique<SlintMainWindowView2>(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), PluginConfig::load());
-    instance->presenter = std::make_unique<SlintMainWindowPresenter2>(*instance->view, std::move(netlist_source), PluginConfig::load(), std::move(session));
+    instance->view = std::make_unique<SlintMainWindowView>(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), config);
+    instance->presenter = std::make_unique<SlintMainWindowPresenter>(*instance->view, std::move(netlist_source), config, std::move(session));
     // wire the event handler so the view forwards user interactions to the presenter
     instance->view->set_event_handler(*instance->presenter);
     // keep the window alive while the event loop runs

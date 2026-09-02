@@ -50,12 +50,16 @@ namespace
             // combine hashes of both coordinates
             size_t hx = std::hash<double>{}(x_orig[i]);
             size_t hy = std::hash<double>{}(y_orig[i]);
-            pair_hashes.insert(hx ^ (hy << 32) ^ (hy >> 32));
+            size_t combined = hx;
+            combined ^= hy + 0x9e3779b9 + (combined << 6) + (combined >> 2);
+            pair_hashes.insert(combined);
         }
         for (size_t i = 0; i < x_out.size(); ++i) {
             size_t hx = std::hash<double>{}(x_out[i]);
             size_t hy = std::hash<double>{}(y_out[i]);
-            if (pair_hashes.find(hx ^ (hy << 32) ^ (hy >> 32)) == pair_hashes.end())
+            size_t combined = hx;
+            combined ^= hy + 0x9e3779b9 + (combined << 6) + (combined >> 2);
+            if (pair_hashes.find(combined) == pair_hashes.end())
                 return false;
         }
         return true;
