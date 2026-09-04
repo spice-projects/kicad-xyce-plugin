@@ -17,7 +17,7 @@
 #include "netlist/netlist_source.h"
 #include "simulation/simulation_config.h"
 #include "simulation/transient_simulation_parameters.h"
-#include "ui/main_window_presenter.h"
+#include "ui/slint_main_window_presenter.h"
 
 namespace
 {

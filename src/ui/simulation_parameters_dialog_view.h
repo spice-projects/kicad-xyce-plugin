@@ -8,7 +8,7 @@
 #include <main_window.h>
 
 #include "../simulation/simulation_config.h"
-#include "main_window_view_def.h"
+#include "main_window_view.h"
 
 namespace simulation_parameters_dialog_view
 {

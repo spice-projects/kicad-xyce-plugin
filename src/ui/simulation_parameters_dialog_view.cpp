@@ -26,7 +26,7 @@
 #include "../simulation/print_parameters.h"
 #include "../simulation/simulation_config.h"
 #include "../simulation/transient_simulation_parameters.h"
-#include "main_window_view_def.h"
+#include "main_window_view.h"
 #include "simulation_parameters_dialog_view.h"
 
 namespace simulation_parameters_dialog_view

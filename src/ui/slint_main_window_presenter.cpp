@@ -14,9 +14,9 @@
 #include "../netlist/editor_netlist_source.h"
 #include "../netlist/netlist.h"
 #include "../simulation/simulation_config.h"
-#include "main_window_presenter.h"
 #include "main_window_state.h"
 #include "simulation_runner.h"
+#include "slint_main_window_presenter.h"
 
 SlintMainWindowPresenter::SlintMainWindowPresenter(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config, std::shared_ptr<KiCadSession> kicad_session) :
     m_view(view), m_kicad_session(std::move(kicad_session)), m_netlist_source(std::move(netlist_source)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(std::move(plugin_config)) {

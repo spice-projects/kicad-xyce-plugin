@@ -10,7 +10,7 @@
 #include "../dsp/fft.h"
 #include "../expression/expression.h"
 #include "charts_renderer.h"
-#include "main_window_view_def.h"
+#include "main_window_view.h"
 
 namespace fft_dialog_view
 {

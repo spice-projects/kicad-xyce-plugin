@@ -10,8 +10,8 @@
 
 #include "../kicad/kicad_session.h"
 #include "../netlist/editor_netlist_source.h"
-#include "../ui/main_window_presenter.h"
-#include "../ui/main_window_view.h"
+#include "../ui/slint_main_window_presenter.h"
+#include "../ui/slint_main_window_view.h"
 
 App& App::instance() {
     static App app;

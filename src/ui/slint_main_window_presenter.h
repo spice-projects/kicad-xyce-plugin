@@ -12,7 +12,7 @@
 #include "../netlist/netlist.h"
 #include "../netlist/netlist_source.h"
 #include "../simulation/simulation_config.h"
-#include "main_window_view_def.h"
+#include "main_window_view.h"
 
 class KiCadSession;
 

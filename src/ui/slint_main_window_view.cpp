@@ -12,7 +12,7 @@
 #include "../app/app.h"
 #include "clipboard.h"
 #include "file_dialog.h"
-#include "main_window_view.h"
+#include "slint_main_window_view.h"
 
 SlintMainWindowView::SlintMainWindowView(std::unique_ptr<NetlistSource> /*netlist_source*/, PluginConfig /*plugin_config*/) :
     m_window(main_window::MainWindow::create()), m_simulation_log(std::make_shared<slint::VectorModel<slint::SharedString>>()) {
