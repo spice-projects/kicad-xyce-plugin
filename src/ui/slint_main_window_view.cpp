@@ -15,7 +15,7 @@
 #include "slint_main_window_view.h"
 
 SlintMainWindowView::SlintMainWindowView(std::unique_ptr<NetlistSource> /*netlist_source*/, PluginConfig /*plugin_config*/) :
-    m_window(main_window::MainWindow::create()), m_simulation_log(std::make_shared<slint::VectorModel<slint::SharedString>>()) {
+    m_window(main_window::MainWindow::create()), m_simulation_log(std::make_shared<slint::VectorModel<slint::SharedString>>()), m_history_enabled(false), m_history_visible(false) {
     // expose the log model to the output panel
     m_window->set_simulation_output_log(m_simulation_log);
 }
@@ -27,7 +27,6 @@ void SlintMainWindowView::set_event_handler(MainWindowViewDefEvents& handler) {
     const auto& actions = m_window->global<main_window::MainWindowActions>();
     // file group
     actions.on_open_xyce_file([this] { handle_open(); });
-    actions.on_save_netlist([this] { guard_modal([this] { m_event_handler->on_save_netlist(); }); });
     // content view group
     actions.on_show_netlist([this] { guard_modal([this] { m_event_handler->on_show_netlist(); }); });
     actions.on_show_charts([this] { guard_modal([this] { m_event_handler->on_show_charts(); }); });
@@ -53,6 +52,10 @@ void SlintMainWindowView::set_event_handler(MainWindowViewDefEvents& handler) {
     // netlist editor edits are reported live so the presenter can track the
     // dirty state and content changes
     actions.on_netlist_edited([this] { m_event_handler->on_netlist_editor_modified(); });
+
+    // history callbacks
+    actions.on_history_file_selected([this](slint::SharedString timestamp, slint::SharedString file_name) { m_event_handler->on_history_file_selected(std::string(timestamp), std::string(file_name)); });
+    actions.on_toggle_history_visibility([this] { m_event_handler->on_toggle_history_visibility(); });
 
     // charts context menu actions; chart_position is a float [0..1] from the
     // slint panel, the renderer translates it to an index using its own count
@@ -469,4 +472,44 @@ void SlintMainWindowView::end_modal_dialog() {
 void SlintMainWindowView::release_gpu_resources() {
     // destroy the gpu context before the window is leaked at exit
     m_charts_renderer.reset();
+}
+
+void SlintMainWindowView::set_history_enabled(bool enabled) {
+    // update field
+    m_history_enabled = enabled;
+    // update view
+    m_window->set_history_enabled(enabled);
+}
+
+void SlintMainWindowView::set_history_visible(bool visible) {
+    // update field
+    m_history_visible = visible;
+    // update view
+    m_window->set_history_visible(visible);
+}
+
+void SlintMainWindowView::set_history_runs(const std::vector<SimulationHistoryRun>& runs) {
+    // convert native runs to slint model
+    auto model = std::make_shared<slint::VectorModel<main_window::SimulationHistoryRun>>();
+    for (const auto& run : runs) {
+        main_window::SimulationHistoryRun slint_run;
+        slint_run.timestamp = run.timestamp;
+        // convert files
+        auto files_model = std::make_shared<slint::VectorModel<main_window::SimulationHistoryFile>>();
+        for (const auto& file : run.files) {
+            // create a slint file object
+            main_window::SimulationHistoryFile slint_file;
+            // copy the file properties
+            slint_file.type = file.type;
+            slint_file.name = file.name;
+            // push the file into the model
+            files_model->push_back(slint_file);
+        }
+        // set files
+        slint_run.files = files_model;
+        // push the run into the model
+        model->push_back(slint_run);
+    }
+    // update view
+    m_window->set_history_runs(model);
 }

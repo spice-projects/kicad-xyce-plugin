@@ -7,7 +7,6 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
-#include <vector>
 
 #if !defined(_WIN32)
 #include <unistd.h>
@@ -125,6 +124,70 @@ namespace
         return parse_json_string(content, value_start);
     }
 
+    // extract a boolean value from serialized JSON content
+    std::optional<bool> extract_json_bool(std::string_view content, std::string_view key) {
+        // search for the key in the content
+        size_t key_pos = content.find(key);
+        if (key_pos == std::string_view::npos)
+            return std::nullopt;
+        // skip past the key to find the value
+        key_pos += key.size();
+        // find the colon after the key
+        const size_t colon_pos = content.find(':', key_pos);
+        if (colon_pos == std::string_view::npos)
+            return std::nullopt;
+        // skip whitespace after colon
+        size_t value_start = colon_pos + 1;
+        while (value_start < content.size() && (content[value_start] == ' ' || content[value_start] == '\t'))
+            ++value_start;
+        // check if we reached the end of the content
+        if (value_start >= content.size())
+            return std::nullopt;
+        // check for true or false
+        if (content.substr(value_start, 4) == "true")
+            return true;
+        // check for false
+        if (content.substr(value_start, 5) == "false")
+            return false;
+        // value is not a valid boolean
+        return std::nullopt;
+    }
+
+    // extract an integer value from serialized JSON content
+    std::optional<int> extract_json_int(std::string_view content, std::string_view key) {
+        // search for the key in the content
+        size_t key_pos = content.find(key);
+        if (key_pos == std::string_view::npos)
+            return std::nullopt;
+        // skip past the key to find the value
+        key_pos += key.size();
+        // find the colon after the key
+        const size_t colon_pos = content.find(':', key_pos);
+        if (colon_pos == std::string_view::npos)
+            return std::nullopt;
+        // skip whitespace after colon
+        size_t value_start = colon_pos + 1;
+        while (value_start < content.size() && (content[value_start] == ' ' || content[value_start] == '\t'))
+            ++value_start;
+        // check if we reached the end of the content
+        if (value_start >= content.size())
+            return std::nullopt;
+        // parse the integer
+        int result = 0;
+        bool negative = false;
+        if (content[value_start] == '-') {
+            negative = true;
+            ++value_start;
+        }
+        // parse digits
+        while (value_start < content.size() && std::isdigit(static_cast<unsigned char>(content[value_start]))) {
+            result = result * 10 + (content[value_start] - '0');
+            ++value_start;
+        }
+        // return the parsed integer
+        return negative ? -result : result;
+    }
+
     // resolve the cross-platform path to the plugin configuration file
     std::filesystem::path get_config_file_path() {
 #if defined(_WIN32)
@@ -213,14 +276,31 @@ PluginConfig PluginConfig::load() {
             // read the entire file into a string buffer
             std::stringstream buffer;
             buffer << file.rdbuf();
+            // get the string content of the buffer
+            const auto content = buffer.str();
             // attempt to extract the Xyce executable path from the JSON content
-            const auto stored_path = extract_xyce_path(buffer.str());
+            const auto stored_path = extract_xyce_path(content);
             // return the stored path if it is valid and non-empty
             if (stored_path.has_value() && !stored_path->empty()) {
                 // log information
                 spdlog::debug("Loaded Xyce executable path from config: {}", *stored_path);
-                // return the stored path
-                return PluginConfig(*stored_path);
+                // create config with the stored path
+                PluginConfig config(*stored_path);
+                // extract simulation history settings
+                if (const auto hist_enabled = extract_json_bool(content, "\"simulation_history_enabled\"")) {
+                    // log information
+                    spdlog::debug("Loaded simulation_history_enabled from config: {}", *hist_enabled);
+                    // set the value in the config object
+                    config.m_simulation_history_enabled = *hist_enabled;
+                }
+                if (const auto hist_max = extract_json_int(content, "\"simulation_history_max_runs\"")) {
+                    // log information
+                    spdlog::debug("Loaded simulation_history_max_runs from config: {}", *hist_max);
+                    // set the value in the config object
+                    config.m_simulation_history_max_runs = *hist_max;
+                }
+                // return the configured object
+                return config;
             }
         }
     }
@@ -260,10 +340,12 @@ void PluginConfig::save() const {
     }
     // serialize configuration as JSON
     file << "{\n";
-    file << "    \"xyce_executable_path\": \"" << json_escape(m_xyce_executable_path) << "\"\n";
+    file << "    \"xyce_executable_path\": \"" << json_escape(m_xyce_executable_path) << "\",\n";
+    file << "    \"simulation_history_enabled\": " << (m_simulation_history_enabled ? "true" : "false") << ",\n";
+    file << "    \"simulation_history_max_runs\": " << m_simulation_history_max_runs << "\n";
     file << "}\n";
     // log information
-    spdlog::debug("Saved Xyce executable path to config: {}", m_xyce_executable_path);
+    spdlog::debug("Saved plugin configuration to disk");
 }
 
 bool PluginConfig::is_xyce_executable_valid() const {

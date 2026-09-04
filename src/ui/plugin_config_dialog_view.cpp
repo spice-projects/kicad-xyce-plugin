@@ -34,6 +34,8 @@ namespace plugin_config_dialog_view
         Impl(slint::ComponentHandle<main_window::MainWindow> w) :
             window(w) {
             // wire the forwarded callbacks from the inline panel to this view
+            window->on_plugin_config_history_enabled_changed([this](bool enabled) { m_history_enabled = enabled; });
+            window->on_plugin_config_history_max_runs_changed([this](int count) { m_history_max_runs = count; });
             window->on_plugin_config_browse_clicked([this] { browse(); });
             window->on_plugin_config_accepted([this] { accept(); });
             window->on_plugin_config_dismissed([this] { dismiss(); });
@@ -57,7 +59,7 @@ namespace plugin_config_dialog_view
             if (const auto first = raw.find_first_not_of(" \t\r\n"); first != std::string::npos) {
                 // trim
                 const auto last = raw.find_last_not_of(" \t\r\n");
-                const PluginConfig config(raw.substr(first, last - first + 1));
+                PluginConfig config(raw.substr(first, last - first + 1));
                 // reject path values that are not executable files
                 if (!config.is_xyce_executable_valid()) {
                     // show error message
@@ -66,6 +68,9 @@ namespace plugin_config_dialog_view
                     // exit
                     return;
                 }
+                // set simulation history settings from the bound UI fields
+                config.set_simulation_history_enabled(m_history_enabled);
+                config.set_simulation_history_max_runs(m_history_max_runs);
                 // persist the validated configuration
                 config.save();
                 // hide the panel before delivering the result
@@ -91,6 +96,10 @@ namespace plugin_config_dialog_view
             if (on_closed)
                 on_closed();
         }
+
+        // temporary storage for history settings until accept() is called
+        bool m_history_enabled{false};
+        int m_history_max_runs{20};
     };
 
     PluginConfigDialogView::PluginConfigDialogView(slint::ComponentHandle<main_window::MainWindow> main_window) :
@@ -105,6 +114,12 @@ namespace plugin_config_dialog_view
         m_impl->on_closed = on_closed;
         // seed the path field with the current configuration
         m_impl->window->set_plugin_config_xyce_path(slint::SharedString(current.xyce_executable_path()));
+        // seed the history fields with the current configuration
+        m_impl->window->set_plugin_config_history_enabled(current.simulation_history_enabled());
+        m_impl->window->set_plugin_config_history_max_runs(current.simulation_history_max_runs());
+        // initialize temp storage with current values
+        m_impl->m_history_enabled = current.simulation_history_enabled();
+        m_impl->m_history_max_runs = current.simulation_history_max_runs();
         // clear any previous validation feedback
         m_impl->window->set_plugin_config_show_error(false);
         // show the inline panel

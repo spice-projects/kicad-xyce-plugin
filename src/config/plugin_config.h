@@ -30,9 +30,23 @@ public:
     // set the Xyce executable path
     void set_xyce_executable_path(std::string path) { m_xyce_executable_path = std::move(path); }
 
+    // get simulation history enabled flag
+    [[nodiscard]] bool simulation_history_enabled() const { return m_simulation_history_enabled; }
+
+    // set simulation history enabled flag
+    void set_simulation_history_enabled(bool enabled) { m_simulation_history_enabled = enabled; }
+
+    // get maximum number of simulation runs to keep
+    [[nodiscard]] int simulation_history_max_runs() const { return m_simulation_history_max_runs; }
+
+    // set maximum number of simulation runs to keep
+    void set_simulation_history_max_runs(int max_runs) { m_simulation_history_max_runs = max_runs; }
+
     // search standard directories and PATH for a Xyce executable
     [[nodiscard]] static std::string discover_xyce_executable();
 
 private:
     std::string m_xyce_executable_path;
+    bool m_simulation_history_enabled{false};
+    int m_simulation_history_max_runs{20};
 };

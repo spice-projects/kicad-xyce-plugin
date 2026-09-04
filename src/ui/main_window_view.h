@@ -15,6 +15,23 @@
 #include "../simulation/simulation_config.h"
 #include "main_window_state.h"
 
+// history run data structure
+struct SimulationHistoryFile
+{
+    std::string type;
+    std::string name;
+};
+
+struct SimulationHistoryRun
+{
+    std::string timestamp;
+    std::vector<SimulationHistoryFile> files;
+};
+
+inline bool operator==(const SimulationHistoryFile& a, const SimulationHistoryFile& b) { return a.type == b.type && a.name == b.name; }
+
+inline bool operator==(const SimulationHistoryRun& a, const SimulationHistoryRun& b) { return a.timestamp == b.timestamp && a.files == b.files; }
+
 // abstract view interface for the main window, so the presenter can be tested without a ui
 class MainWindowView
 {
@@ -72,6 +89,11 @@ public:
 
     // window management
     virtual void spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) = 0;
+
+    // history panel
+    virtual void set_history_enabled(bool enabled) = 0;
+    virtual void set_history_visible(bool visible) = 0;
+    virtual void set_history_runs(const std::vector<SimulationHistoryRun>& runs) = 0;
 };
 
 // event handler interface: the view calls back into these methods when the user
@@ -133,6 +155,11 @@ public:
 
     // kiCad schematic integration
     virtual void on_extract_schematic_netlist() = 0;
+
+    // history callbacks (view -> presenter)
+    virtual void on_history_file_selected(const std::string& timestamp, const std::string& file_name) = 0;
+    virtual void on_toggle_history_visibility() = 0;
+    virtual void on_history_visible_changed(bool visible) = 0;
 };
 
 // refactored view interface that adds event handler wiring on top of

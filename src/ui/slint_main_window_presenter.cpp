@@ -20,6 +20,9 @@
 
 SlintMainWindowPresenter::SlintMainWindowPresenter(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config, std::shared_ptr<KiCadSession> kicad_session) :
     m_view(view), m_kicad_session(std::move(kicad_session)), m_netlist_source(std::move(netlist_source)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(std::move(plugin_config)) {
+    // seed the history feature state from the persisted configuration
+    m_history_enabled = m_plugin_config.simulation_history_enabled();
+    m_view.set_history_enabled(m_history_enabled);
     // initialize the toolbar action states before the window is shown
     refresh_action_states();
 }
@@ -213,6 +216,15 @@ void SlintMainWindowPresenter::on_plugin_config_dialog_result(const PluginConfig
     spdlog::info("Plugin configuration updated: Xyce path = {}", m_plugin_config.xyce_executable_path());
     // store the updated plugin configuration
     m_plugin_config = config;
+    // apply the history feature flag to the toolbar; hide the panel when the
+    // feature is disabled while visible
+    m_history_enabled = config.simulation_history_enabled();
+    m_view.set_history_enabled(m_history_enabled);
+    // reset the history visibility when the feature is disabled while visible
+    if (!m_history_enabled && m_history_visible) {
+        m_history_visible = false;
+        m_view.set_history_visible(false);
+    }
 }
 
 void SlintMainWindowPresenter::on_simulation_parameters_dialog_result(const SimulationConfig& config) {
@@ -499,6 +511,41 @@ void SlintMainWindowPresenter::on_simulation_stderr(const std::string& line) {
     m_view.append_simulation_output_line(line);
     // update the statusbar with the latest error line
     m_view.set_status_text("Simulation error: " + line);
+}
+
+void SlintMainWindowPresenter::on_history_file_selected(const std::string& timestamp, const std::string& file_name) {
+    // locate the run by timestamp
+    for (const auto& run : m_history_runs) {
+        if (run.timestamp != timestamp)
+            continue;
+        // find the file in the run
+        for (const auto& file : run.files) {
+            if (file.name != file_name)
+                continue;
+            // build the full path in the history directory
+            const auto file_path = m_history_dir / timestamp / file.name;
+            // log the file path
+            spdlog::info("History file selected: {}", file_path.string());
+            // exit
+            return;
+        }
+    }
+    // log information
+    spdlog::warn("History file not found: {}/{}", timestamp, file_name);
+}
+
+void SlintMainWindowPresenter::on_toggle_history_visibility() {
+    // toggle the history panel visibility
+    m_history_visible = !m_history_visible;
+    // sync the view property
+    m_view.set_history_visible(m_history_visible);
+}
+
+void SlintMainWindowPresenter::on_history_visible_changed(bool visible) {
+    // propagate the visibility change from the view
+    m_history_visible = visible;
+    // refresh action states
+    refresh_action_states();
 }
 
 void SlintMainWindowPresenter::on_netlist_editor_modified() {

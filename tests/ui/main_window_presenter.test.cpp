@@ -103,6 +103,11 @@ namespace
         // window management
         void spawn_raw_file_window(std::shared_ptr<XyceOutputFile> raw_file) override { m_spawned_files.push_back(std::move(raw_file)); }
 
+        // history panel
+        void set_history_enabled(bool enabled) override { m_history_enabled = enabled; }
+        void set_history_visible(bool visible) override { m_history_visible = visible; }
+        void set_history_runs(const std::vector<SimulationHistoryRun>& runs) override { m_history_runs = runs; }
+
         // event handler wiring (unused by the recording view)
         void set_event_handler(MainWindowViewDefEvents&) override {}
 
@@ -131,6 +136,11 @@ namespace
         std::filesystem::path m_started_working_directory;
         int m_cancel_count = 0;
         std::vector<std::shared_ptr<XyceOutputFile>> m_spawned_files;
+
+        // history panel state
+        bool m_history_enabled = false;
+        bool m_history_visible = false;
+        std::vector<SimulationHistoryRun> m_history_runs;
     };
 
     // stub netlist source returning canned content

@@ -73,6 +73,11 @@ public:
     // editor events
     void on_netlist_editor_modified() override;
 
+    // history panel
+    void on_history_file_selected(const std::string& timestamp, const std::string& file_name) override;
+    void on_toggle_history_visibility() override;
+    void on_history_visible_changed(bool visible) override;
+
     // kiCad schematic integration
     void on_extract_schematic_netlist() override;
 
@@ -127,4 +132,10 @@ private:
     bool m_run_pending = false;
     std::filesystem::path m_simulation_working_directory;
     std::filesystem::path m_simulation_netlist_path;
+
+    // history panel state
+    bool m_history_enabled = false;
+    bool m_history_visible = false;
+    std::vector<SimulationHistoryRun> m_history_runs;
+    std::filesystem::path m_history_dir;
 };

@@ -70,6 +70,11 @@ public:
     // release the gpu context before the view is intentionally leaked at exit
     void release_gpu_resources();
 
+    // history panel
+    void set_history_enabled(bool enabled) override;
+    void set_history_visible(bool visible) override;
+    void set_history_runs(const std::vector<SimulationHistoryRun>& runs) override;
+
 private:
     // open file action (file dialog)
     void handle_open();
@@ -133,4 +138,8 @@ private:
 
     // step tool dialog, kept alive for the lifetime of the view
     std::unique_ptr<step_tool_dialog_view::StepToolDialogView> m_step_tool_dialog;
+
+    // history panel state
+    bool m_history_enabled = false;
+    bool m_history_visible = false;
 };

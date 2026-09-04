@@ -28,6 +28,9 @@ struct ActionStateInput
     bool abscissa_is_time = false;
     // the raw output spans multiple steps, making the step tool available
     bool has_steps = false;
+    // history panel state
+    bool history_enabled = false;
+    bool history_visible = false;
 };
 
 // enablement of each main window action
@@ -53,3 +56,6 @@ ActionStateEnablement compute_action_enablement(const ActionStateInput& input);
 
 // human-readable name of an application state
 std::string_view app_state_name(AppState state);
+
+// compute the history panel visibility from the input flags
+bool compute_history_visibility(const ActionStateInput& input);

@@ -12,6 +12,10 @@ import {
 import {
     SimulationParametersPanel,
 } from "../components/simulation_parameters_panel.slint";
+import {
+    SimulationHistoryTree,
+    SimulationHistoryRun,
+} from "../components/simulation_history_tree.slint";
 export { ChartsPanelActions }from "../components/charts_panel.slint";
 
 export global MainWindowActions {
@@ -28,6 +32,8 @@ export global MainWindowActions {
     callback configure-plugin();
     callback netlist-edited();
     callback exit();
+    callback history-file-selected(timestamp: string, file-name: string);
+    callback toggle-history-visibility();
 }
 
 // Hairline group separator — 8 px gap + 1 px line + 8 px gap
@@ -197,6 +203,12 @@ export component MainWindow inherits Window {
     callback plugin-config-browse-clicked();
     callback plugin-config-path-edited(string);
 
+    // plugin configuration history settings
+    in-out property <bool> plugin-config-history-enabled: false;
+    in-out property <int> plugin-config-history-max-runs: 20;
+    callback plugin-config-history-enabled-changed(bool);
+    callback plugin-config-history-max-runs-changed(int);
+
     // add plot expression panel rendered inline as a modal overlay (no separate
     // OS window); driven from the view adapter
     in property <bool> add-plot-visible: false;
@@ -253,6 +265,11 @@ export component MainWindow inherits Window {
     // step tool panel rendered inline as a modal overlay (no separate OS
     // window); driven from the view adapter
     in property <bool> step-tool-panel-visible: false;
+
+    // history panel
+    in property <bool> history-enabled: false;
+    in property <bool> history-visible: false;
+    in property <[SimulationHistoryRun]> history-runs: [];
     in property <[StepItem]> step-tool-steps: [];
     in property <[string]> step-tool-keys: [];
     in property <string> step-tool-selection-count: "";
@@ -513,7 +530,16 @@ export component MainWindow inherits Window {
 
                         ToolbarSeparator { }
 
-                        // group 5: exit
+                        // group 5: history
+                        if root.history-enabled: ToolbarButton {
+                            text: "Simulation History";
+                            icon: @image-url("../kicad-icons/checked_ok_48.png");
+                            clicked => { MainWindowActions.toggle-history-visibility(); }
+                        }
+
+                        ToolbarSeparator { }
+
+                        // group 6: exit
                     ToolbarButton {
                             text: "Exit";
                             icon: @image-url("../kicad-icons/exit_48.png");
@@ -542,22 +568,42 @@ export component MainWindow inherits Window {
                 background: Palette.alternate-background;
 
                 VerticalLayout {
-                    if !root.charts-visible: schematic := SchematicPanel {
-                        vertical-stretch: 1;
-                        text <=> root.netlist-text;
-                        read-only: root.netlist-read-only;
-                        edited => { MainWindowActions.netlist-edited(); }
+                    HorizontalLayout {
+                        if root.history-enabled && root.history-visible: history-tree := SimulationHistoryTree {
+                            width: 240px;
+                            runs: root.history-runs;
+                            file-selected(timestamp, file_name) => {
+                                MainWindowActions.history-file-selected(timestamp, file_name);
+                            }
+                        }
+
+                        Rectangle {
+                            vertical-stretch: 1;
+                            horizontal-stretch: 1;
+
+                            VerticalLayout {
+                                if !root.charts-visible: schematic := SchematicPanel {
+                                    vertical-stretch: 1;
+                                    text <=> root.netlist-text;
+                                    read-only: root.netlist-read-only;
+                                    edited => { MainWindowActions.netlist-edited(); }
+                                }
+                                if root.charts-visible: charts := ChartsPanel {
+                                    vertical-stretch: 1;
+                                    enable-fft: root.enable-fft;
+                                    enable-step-tool: root.enable-step-tool;
+                                    has-fft-files: root.has-fft-files;
+                                // forward the rendered chart image from the host renderer
+                                charts-image: root.charts-image;
+                                // report layout changes to the renderer
+                                viewport-changed(width, height) => { root.charts-viewport-changed(width, height); }
+                                }
+                            }
+                        }
                     }
-                    if root.charts-visible: charts := ChartsPanel {
-                        vertical-stretch: 1;
-                        enable-fft: root.enable-fft;
-                        enable-step-tool: root.enable-step-tool;
-                        has-fft-files: root.has-fft-files;
-                    // forward the rendered chart image from the host renderer
-                    charts-image: root.charts-image;
-                    // report layout changes to the renderer
-                    viewport-changed(width, height) => { root.charts-viewport-changed(width, height); }
-                    }
+
+                    // the simulation output panel lives outside the history
+                    // split so it always spans the full window width
                     if root.simulation-output-visible: output := SimulationOutputPanel {
                         height: 200px;
                         log-lines: root.simulation-output-log;
@@ -613,10 +659,14 @@ export component MainWindow inherits Window {
             show-error: root.plugin-config-show-error;
             error-message: root.plugin-config-error-message;
             browse-enabled: root.plugin-config-browse-enabled;
+            history-enabled <=> root.plugin-config-history-enabled;
+            history-max-runs <=> root.plugin-config-history-max-runs;
             accepted => { root.plugin-config-accepted(); }
             dismissed => { root.plugin-config-dismissed(); }
             browse-clicked => { root.plugin-config-browse-clicked(); }
             path-edited(text) => { root.plugin-config-path-edited(text); }
+            history-enabled-changed(checked) => { root.plugin-config-history-enabled-changed(checked); }
+            history-max-runs-changed(value) => { root.plugin-config-history-max-runs-changed(value); }
         }
 
         // add plot expression panel rendered as an inline modal overlay: a dimmed

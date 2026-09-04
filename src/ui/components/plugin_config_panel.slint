@@ -2,20 +2,24 @@
 // main window. inherits the common modal panel chrome (title bar, close
 // button, dimmed backdrop, OK/Cancel footer) from ModalPanel; only the
 // form content and panel-specific properties/callbacks are defined here.
-import { Button, LineEdit, Palette } from "std-widgets.slint";
+import { Button, CheckBox, LineEdit, Palette, SpinBox } from "std-widgets.slint";
 import { ModalPanel } from "../components/modal_panel.slint";
 
 export component PluginConfigPanel inherits ModalPanel {
 
     title: "Plugin Configuration";
     card-width: 540px;
-    card-height: 216px;
+    card-height: 280px;
 
     in-out property <string> xyce-path: "";
     in property <bool> browse-enabled: true;
+    in-out property <bool> history-enabled: false;
+    in-out property <int> history-max-runs: 20;
 
     callback browse-clicked;
     callback path-edited(string);
+    callback history-enabled-changed(bool);
+    callback history-max-runs-changed(int);
 
     // form row: Xyce path label, read-only field, and browse button
     HorizontalLayout {
@@ -45,6 +49,59 @@ export component PluginConfigPanel inherits ModalPanel {
         Button {
             text: "Browse...";
             clicked => { root.browse-clicked(); }
+        }
+    }
+
+    // form row: history settings
+    HorizontalLayout {
+        spacing: 10px;
+
+        Text {
+            text: "History:";
+            font-size: 13px;
+            font-weight: 600;
+            color: Palette.foreground;
+            horizontal-alignment: left;
+            vertical-alignment: center;
+            min-width: 80px;
+            overflow: TextOverflow.elide;
+        }
+
+        CheckBox {
+            text: "Enabled";
+            checked <=> root.history-enabled;
+            toggled => { root.history-enabled-changed(self.checked); }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+    }
+
+    // form row: history max runs
+    HorizontalLayout {
+        spacing: 10px;
+
+        Text {
+            text: "Max Runs:";
+            font-size: 13px;
+            font-weight: 600;
+            color: Palette.foreground;
+            horizontal-alignment: left;
+            vertical-alignment: center;
+            min-width: 80px;
+            overflow: TextOverflow.elide;
+        }
+
+        SpinBox {
+            minimum: 1;
+            maximum: 1000;
+            value <=> root.history-max-runs;
+            edited => { root.history-max-runs-changed(self.value); }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
         }
     }
 
