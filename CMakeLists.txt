@@ -54,6 +54,7 @@ find_package(nng CONFIG REQUIRED)
 find_package(protobuf CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 find_package(nfd CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
 
 if(APPLE)
     # slint style
@@ -135,21 +136,18 @@ include_directories("src")
 if(APPLE)
     # gather objective-c++ sources
     file(GLOB_RECURSE PLATFORM_SOURCES "src/*.osx.mm")
-    # combine remaining cpp sources with .mm sources
-    set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 elseif (WIN32)
     # gather win32 sources
     file(GLOB_RECURSE PLATFORM_SOURCES "src/*.win32.c++")
-    # combine remaining cpp sources with .mm sources
-    set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 elseif (LINUX)
     # opengl is required on linux
     find_package(OpenGL REQUIRED)
     # gather linux sources
     file(GLOB_RECURSE PLATFORM_SOURCES "src/*.linux.c++")
-    # combine remaining cpp sources with .mm sources
-    set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 endif()
+
+# combine remaining cpp sources with platform sources
+set(SOURCE_FILES ${CPP_SOURCES} ${PLATFORM_SOURCES})
 
 # remove platform-specific main() sources from the shared library, they are compiled into the executable only
 list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.osx.mm" "${CMAKE_CURRENT_SOURCE_DIR}/src/main.win32.c++" "${CMAKE_CURRENT_SOURCE_DIR}/src/main.linux.c++")
@@ -186,7 +184,7 @@ else()
 endif()
 
 # third-party dependencies, PUBLIC so both the executable and the tests transitively link the same set of libraries
-target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng kicad-proto unofficial::skia::skia nfd::nfd)
+target_link_libraries(kicad-xyce-core PUBLIC glfw Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng kicad-proto unofficial::skia::skia nfd::nfd)
 
 if(WIN32)
     # prevent Windows headers from defining min/max macros that conflict with std::numeric_limits

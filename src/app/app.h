@@ -4,6 +4,11 @@
 #include <string>
 #include <vector>
 
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+
+#include <gpu/ganesh/GrDirectContext.h>
+
 class KiCadSession;
 class NetlistSource;
 class XyceOutputFile;
@@ -41,6 +46,7 @@ public:
     [[nodiscard]] const std::shared_ptr<KiCadSession>& kicad_session() const { return m_kicad_session; }
 
 private:
+    // private constructor to enforce singleton usage
     App() = default;
 
     // apply the configured log level to spdlog
@@ -51,11 +57,9 @@ private:
     // caller can seed the window content (main window netlist or raw file)
     [[nodiscard]] SlintMainWindowPresenter* create_window(std::unique_ptr<NetlistSource> netlist_source, std::shared_ptr<KiCadSession> session);
 
-    // a spawned window pair: the view owns the slint component and the
-    // presenter owns the business logic; both must stay alive for the window
-    // lifetime
     struct WindowInstance
     {
+        GLFWwindow* window = nullptr;
         std::unique_ptr<SlintMainWindowView> view;
         std::unique_ptr<SlintMainWindowPresenter> presenter;
     };
@@ -68,5 +72,4 @@ private:
     std::vector<std::unique_ptr<WindowInstance>> m_windows;
 };
 
-// platform-specific initialization (e.g. dock icon), implemented per-platform
-void platform_initialize();
+sk_sp<GrDirectContext> platform_create_gr_context(GLFWwindow* window);
