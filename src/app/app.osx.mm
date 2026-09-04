@@ -4,4 +4,7 @@
 
 #include "app.h"
 
-void platform_initialize() {}
+void platform_initialize() {
+    // log information
+    spdlog::info("Starting KiCad Xyce Plugin on macOS");
+}
