@@ -1,4 +1,10 @@
-import { CheckBox, ComboBox, LineEdit, Palette, TextEdit } from "std-widgets.slint";
+import {
+    CheckBox,
+    ComboBox,
+    LineEdit,
+    Palette,
+    TextEdit,
+} from "std-widgets.slint";
 
 export component HbParametersPanel inherits Rectangle {
 
@@ -84,6 +90,7 @@ export component HbParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         ComboBox {
                             height: 28px;
                             model: ["HB", "HB_FD", "HB_TD"];
@@ -97,8 +104,17 @@ export component HbParametersPanel inherits Rectangle {
                         spacing: 16px;
                         // min-widths pin each checkbox so toggling cannot reflow the row
                         // (the cupertino style reports a narrower preferred width when checked)
-                        CheckBox { text: "All voltages V(*)"; min-width: 142px; checked <=> root.print-all-nodes; }
-                        CheckBox { text: "All currents I(*)"; min-width: 136px; checked <=> root.print-all-currents; }
+                        CheckBox {
+                            text: "All voltages V(*)";
+                            min-width: 142px;
+                            checked <=> root.print-all-nodes;
+                        }
+
+                        CheckBox {
+                            text: "All currents I(*)";
+                            min-width: 136px;
+                            checked <=> root.print-all-currents;
+                        }
                     }
 
                     // additional variables
@@ -113,6 +129,7 @@ export component HbParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "e.g. V(out) V(in)";
@@ -133,9 +150,20 @@ export component HbParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         ComboBox {
                             height: 28px;
-                            model: ["(default)", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"];
+                            model: [
+                                "(default)",
+                                "STD",
+                                "NOINDEX",
+                                "PROBE",
+                                "TECPLOT",
+                                "RAW",
+                                "CSV",
+                                "GNUPLOT",
+                                "SPLOT"
+                            ];
                             current-index <=> root.print-format-index;
                         }
                     }
@@ -152,6 +180,7 @@ export component HbParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "optional output file path";
@@ -174,6 +203,7 @@ export component HbParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "e.g. WIDTH=20 PRECISION=12";
@@ -208,6 +238,7 @@ export component HbParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
+
                     LineEdit {
                         height: 28px;
                         placeholder-text: "space-separated fundamental frequencies";
@@ -226,6 +257,7 @@ export component HbParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
+
                     LineEdit {
                         height: 28px;
                         placeholder-text: "comma-separated integers";
@@ -245,7 +277,8 @@ export component HbParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
-                     LineEdit {
+
+                    LineEdit {
                         height: 28px;
                         placeholder-text: "e.g. 0 1 2 5 10 20";
                         text <=> root.tahb;
@@ -264,7 +297,8 @@ export component HbParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
-                     LineEdit {
+
+                    LineEdit {
                         height: 28px;
                         placeholder-text: "e.g. ALL 1 2 3 5 10";
                         text <=> root.selectharms;
@@ -282,6 +316,7 @@ export component HbParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
+
                     LineEdit {
                         height: 28px;
                         placeholder-text: "startup periods";

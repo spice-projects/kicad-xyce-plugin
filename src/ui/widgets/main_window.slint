@@ -537,7 +537,7 @@ export component MainWindow inherits Window {
                             clicked => { MainWindowActions.toggle-history-visibility(); }
                         }
 
-                        ToolbarSeparator { }
+                        if root.history-enabled: ToolbarSeparator { }
 
                         // group 6: exit
                     ToolbarButton {

@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <span>
 #include <string>
@@ -8,6 +9,7 @@
 #include <spdlog/spdlog.h>
 
 #include "../dsp/fft.h"
+#include "../history/simulation_history_store.h"
 #include "../io/xyce_fft_file.h"
 #include "../io/xyce_raw_file.h"
 #include "../kicad/kicad_session.h"
@@ -23,6 +25,8 @@ SlintMainWindowPresenter::SlintMainWindowPresenter(MainWindowViewDef& view, std:
     // seed the history feature state from the persisted configuration
     m_history_enabled = m_plugin_config.simulation_history_enabled();
     m_view.set_history_enabled(m_history_enabled);
+    // initialize the history directory and runs for the initial netlist source
+    update_history_dir();
     // initialize the toolbar action states before the window is shown
     refresh_action_states();
 }
@@ -51,6 +55,8 @@ void SlintMainWindowPresenter::on_open_xyce_file(const std::filesystem::path& pa
         m_fft_files.clear();
         // show the netlist view over the charts view
         m_view.show_netlist_view();
+        // the history directory follows the netlist directory
+        update_history_dir();
         // refresh toolbar/menu states
         refresh_action_states();
         return;
@@ -60,6 +66,8 @@ void SlintMainWindowPresenter::on_open_xyce_file(const std::filesystem::path& pa
         // parse the raw file and store it in the presenter state
         if (update_xyce_raw_file(xyce_raw_file_parser(path), true))
             show_raw_file_view();
+        // the history directory follows the file directory
+        update_history_dir();
     }
 }
 
@@ -225,6 +233,9 @@ void SlintMainWindowPresenter::on_plugin_config_dialog_result(const PluginConfig
         m_history_visible = false;
         m_view.set_history_visible(false);
     }
+    // rescan when the feature was (re)enabled so the panel shows fresh data
+    if (m_history_enabled)
+        update_history_dir();
 }
 
 void SlintMainWindowPresenter::on_simulation_parameters_dialog_result(const SimulationConfig& config) {
@@ -481,6 +492,8 @@ void SlintMainWindowPresenter::on_simulation_finished(int exit_code, bool was_ca
                     // log the number of loaded FFT files
                     spdlog::info("Loaded {} Xyce FFT calculation file(s)", m_fft_files.size());
                 }
+                // copy the output files of this run into the history directory
+                record_history();
                 // refresh toolbar/menu states
                 refresh_action_states();
                 // exit
@@ -514,29 +527,76 @@ void SlintMainWindowPresenter::on_simulation_stderr(const std::string& line) {
 }
 
 void SlintMainWindowPresenter::on_history_file_selected(const std::string& timestamp, const std::string& file_name) {
-    // locate the run by timestamp
-    for (const auto& run : m_history_runs) {
-        if (run.timestamp != timestamp)
-            continue;
-        // find the file in the run
-        for (const auto& file : run.files) {
-            if (file.name != file_name)
-                continue;
-            // build the full path in the history directory
-            const auto file_path = m_history_dir / timestamp / file.name;
-            // log the file path
-            spdlog::info("History file selected: {}", file_path.string());
-            // exit
+    // nothing to resolve without a history directory
+    if (m_history_dir.empty())
+        return;
+    // build the full path of the file inside the run folder
+    const auto file_path = m_history_dir / timestamp / file_name;
+    // warn when the file disappeared since the scan
+    if (!std::filesystem::exists(file_path)) {
+        spdlog::warn("History file not found: {}", file_path.string());
+        return;
+    }
+    // the extension decides how the file is opened
+    const auto extension = file_path.extension().string();
+    // raw files load into the charts view
+    if (extension == ".raw") {
+        if (auto raw_file = xyce_raw_file_parser(file_path.string()))
+            load_raw_file(std::move(*raw_file));
+        else
+            m_view.set_status_text("History raw file could not be parsed");
+        return;
+    }
+    // log files are shown in the simulation output panel
+    if (extension == ".out" || extension == ".log") {
+        // open the log file
+        std::ifstream log_file(file_path);
+        // warn when the log file could not be opened
+        if (!log_file.is_open()) {
+            spdlog::warn("History log file could not be opened: {}", file_path.string());
             return;
         }
+        // show the output panel with a fresh log
+        m_view.show_simulation_output_panel();
+        m_view.clear_simulation_output();
+        // stream the log lines into the output panel
+        std::string line;
+        while (std::getline(log_file, line))
+            m_view.append_simulation_output_line(line);
+        return;
     }
-    // log information
-    spdlog::warn("History file not found: {}/{}", timestamp, file_name);
+    // FFT calculation files need the step information of the run's raw file
+    if (extension.rfind(".fft", 0) == 0) {
+        // search the run folder for the raw file
+        for (const auto& entry : std::filesystem::directory_iterator(m_history_dir / timestamp)) {
+            // skip non raw entries
+            if (!entry.is_regular_file() || entry.path().extension() != ".raw")
+                continue;
+            // parse the raw file to obtain the step information
+            const auto raw_file = xyce_raw_file_parser(entry.path().string());
+            // give up when the raw file cannot be parsed
+            if (!raw_file.has_value())
+                break;
+            // parse the FFT file and open a result window per parsed file
+            if (auto fft_files = xyce_fft_file_parser(file_path, raw_file.value()->step_information()))
+                for (auto& fft_file : *fft_files)
+                    m_view.spawn_raw_file_window(std::move(fft_file));
+            return;
+        }
+        // no raw file in the run folder means the FFT file cannot be parsed
+        m_view.set_status_text("No raw file found for FFT history file");
+        return;
+    }
+    // other extensions are not handled, log for diagnosis
+    spdlog::info("No handler for history file: {}", file_path.string());
 }
 
 void SlintMainWindowPresenter::on_toggle_history_visibility() {
     // toggle the history panel visibility
     m_history_visible = !m_history_visible;
+    // rescan when shown so the panel reflects the history directory on disk
+    if (m_history_visible)
+        update_history_dir();
     // sync the view property
     m_view.set_history_visible(m_history_visible);
 }
@@ -546,6 +606,90 @@ void SlintMainWindowPresenter::on_history_visible_changed(bool visible) {
     m_history_visible = visible;
     // refresh action states
     refresh_action_states();
+}
+
+void SlintMainWindowPresenter::update_history_dir() {
+    // feature disabled means no history state is tracked
+    if (!m_history_enabled)
+        return;
+    // derive the history directory from the netlist directory
+    const auto working_directory = m_netlist_source->working_directory();
+    // an empty working directory (no netlist loaded) means no history directory
+    m_history_dir = working_directory.empty() ? std::filesystem::path() : simulation_history_directory(working_directory);
+    // refresh the runs shown in the tree
+    refresh_history_runs();
+}
+
+void SlintMainWindowPresenter::refresh_history_runs() {
+    // clear the model when there is no history directory to scan
+    if (m_history_dir.empty()) {
+        m_history_runs.clear();
+        m_view.set_history_runs(m_history_runs);
+        return;
+    }
+    // scan the history directory
+    const auto runs = scan_simulation_history(m_history_dir);
+    // map the runs to the view model
+    std::vector<SimulationHistoryRun> view_runs;
+    view_runs.reserve(runs.size());
+    for (const auto& run : runs) {
+        SimulationHistoryRun view_run;
+        view_run.timestamp = run.timestamp;
+        // build the display label: separator and time dashes become spaces and colons
+        std::string display = run.timestamp;
+        if (display.size() >= 19) {
+            display[10] = ' ';
+            display[13] = ':';
+            display[16] = ':';
+        }
+        // a collision suffix becomes a readable run number
+        if (display.size() > 19 && display[19] == '_')
+            display = display.substr(0, 19) + " (#" + display.substr(20) + ")";
+        view_run.display = std::move(display);
+        view_run.files.reserve(run.files.size());
+        for (const auto& file : run.files)
+            view_run.files.push_back({history_file_type(file), file.filename().string()});
+        view_runs.push_back(std::move(view_run));
+    }
+    // store and forward the runs to the view
+    m_history_runs = std::move(view_runs);
+    m_view.set_history_runs(m_history_runs);
+}
+
+void SlintMainWindowPresenter::record_history() {
+    // feature disabled means nothing is recorded
+    if (!m_plugin_config.simulation_history_enabled())
+        return;
+    // collect the output files produced by this run
+    std::vector<std::filesystem::path> files;
+    // add the parsed raw output file
+    if (m_xyce_raw_file.has_value())
+        files.push_back(m_xyce_raw_file.value()->filename());
+    // add the parsed FFT calculation files
+    for (const auto& fft_file : m_fft_files)
+        files.push_back(fft_file->filename());
+    // Xyce writes the run log next to the netlist with an .out extension
+    const auto log_path = m_simulation_netlist_path.string() + ".out";
+    // add the log when it exists
+    if (std::filesystem::exists(log_path))
+        files.push_back(log_path);
+    // nothing to record without output files
+    if (files.empty())
+        return;
+    // derive the history directory from the netlist directory
+    m_history_dir = simulation_history_directory(m_netlist_source->working_directory());
+    // copy the files into a new run folder, pruning old runs beyond the maximum
+    const auto recorded = record_simulation_run(m_history_dir, files, m_plugin_config.simulation_history_max_runs());
+    // report the failure in the output panel when the run folder could not be created
+    if (!recorded.has_value()) {
+        m_view.append_simulation_output_line("Failed to record simulation history");
+        return;
+    }
+    // report individual copy failures in the output panel
+    for (const auto& failed : recorded->failed_files)
+        m_view.append_simulation_output_line("History: failed to copy " + failed.string());
+    // refresh the runs shown in the tree
+    refresh_history_runs();
 }
 
 void SlintMainWindowPresenter::on_netlist_editor_modified() {

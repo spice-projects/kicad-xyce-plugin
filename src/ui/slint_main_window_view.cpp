@@ -493,7 +493,9 @@ void SlintMainWindowView::set_history_runs(const std::vector<SimulationHistoryRu
     auto model = std::make_shared<slint::VectorModel<main_window::SimulationHistoryRun>>();
     for (const auto& run : runs) {
         main_window::SimulationHistoryRun slint_run;
+        // copy the run properties
         slint_run.timestamp = run.timestamp;
+        slint_run.display = run.display;
         // convert files
         auto files_model = std::make_shared<slint::VectorModel<main_window::SimulationHistoryFile>>();
         for (const auto& file : run.files) {

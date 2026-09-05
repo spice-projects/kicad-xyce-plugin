@@ -1,4 +1,10 @@
-import { CheckBox, ComboBox, LineEdit, Palette, TextEdit } from "std-widgets.slint";
+import {
+    CheckBox,
+    ComboBox,
+    LineEdit,
+    Palette,
+    TextEdit,
+} from "std-widgets.slint";
 
 export component NoiseParametersPanel inherits Rectangle {
 
@@ -86,6 +92,7 @@ export component NoiseParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         ComboBox {
                             height: 28px;
                             model: ["NOISE"];
@@ -99,10 +106,29 @@ export component NoiseParametersPanel inherits Rectangle {
                         spacing: 16px;
                         // min-widths pin each checkbox so toggling cannot reflow the row
                         // (the cupertino style reports a narrower preferred width when checked)
-                        CheckBox { text: "All voltages V(*)"; min-width: 142px; checked <=> root.print-all-nodes; }
-                        CheckBox { text: "All currents I(*)"; min-width: 136px; checked <=> root.print-all-currents; }
-                        CheckBox { text: "BJT leads"; min-width: 110px; checked <=> root.print-bjt-leads; }
-                        CheckBox { text: "FET leads"; min-width: 111px; checked <=> root.print-fet-leads; }
+                        CheckBox {
+                            text: "All voltages V(*)";
+                            min-width: 142px;
+                            checked <=> root.print-all-nodes;
+                        }
+
+                        CheckBox {
+                            text: "All currents I(*)";
+                            min-width: 136px;
+                            checked <=> root.print-all-currents;
+                        }
+
+                        CheckBox {
+                            text: "BJT leads";
+                            min-width: 110px;
+                            checked <=> root.print-bjt-leads;
+                        }
+
+                        CheckBox {
+                            text: "FET leads";
+                            min-width: 111px;
+                            checked <=> root.print-fet-leads;
+                        }
                     }
 
                     // additional variables
@@ -117,6 +143,7 @@ export component NoiseParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "e.g. V(out) V(in)";
@@ -137,9 +164,20 @@ export component NoiseParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         ComboBox {
                             height: 28px;
-                            model: ["(default)", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"];
+                            model: [
+                                "(default)",
+                                "STD",
+                                "NOINDEX",
+                                "PROBE",
+                                "TECPLOT",
+                                "RAW",
+                                "CSV",
+                                "GNUPLOT",
+                                "SPLOT"
+                            ];
                             current-index <=> root.print-format-index;
                         }
                     }
@@ -156,6 +194,7 @@ export component NoiseParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "optional output file path";
@@ -178,6 +217,7 @@ export component NoiseParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "e.g. WIDTH=20 PRECISION=12";
@@ -212,6 +252,7 @@ export component NoiseParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
+
                     LineEdit {
                         height: 28px;
                         placeholder-text: "e.g. V(out)";
@@ -230,6 +271,7 @@ export component NoiseParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
+
                     LineEdit {
                         height: 28px;
                         placeholder-text: "e.g. V(0)";
@@ -248,6 +290,7 @@ export component NoiseParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
+
                     LineEdit {
                         height: 28px;
                         placeholder-text: "noise source (e.g. R1)";
@@ -268,6 +311,7 @@ export component NoiseParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
+
                     ComboBox {
                         height: 28px;
                         model: ["LIN", "DEC", "OCT", "DATA"];
@@ -300,6 +344,7 @@ export component NoiseParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "start frequency (e.g. 1)";
@@ -318,6 +363,7 @@ export component NoiseParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "end frequency (e.g. 10k)";
@@ -336,6 +382,7 @@ export component NoiseParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "points per decade/octave";
@@ -356,6 +403,7 @@ export component NoiseParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
+
                     LineEdit {
                         height: 28px;
                         placeholder-text: "name of the data block to sweep";

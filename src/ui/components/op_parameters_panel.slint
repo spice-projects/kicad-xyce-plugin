@@ -77,11 +77,35 @@ export component OpParametersPanel inherits Rectangle {
                         spacing: 16px;
                         // min-widths pin each checkbox so toggling cannot reflow the row
                         // (the cupertino style reports a narrower preferred width when checked)
-                        CheckBox { text: "All voltages V(*)"; min-width: 142px; checked <=> root.print-all-nodes; }
-                        CheckBox { text: "All currents I(*)"; min-width: 136px; checked <=> root.print-all-currents; }
-                        CheckBox { text: "Power P(*)"; min-width: 115px; checked <=> root.print-power; }
-                        CheckBox { text: "BJT leads"; min-width: 110px; checked <=> root.print-bjt-leads; }
-                        CheckBox { text: "FET leads"; min-width: 111px; checked <=> root.print-fet-leads; }
+                        CheckBox {
+                            text: "All voltages V(*)";
+                            min-width: 142px;
+                            checked <=> root.print-all-nodes;
+                        }
+
+                        CheckBox {
+                            text: "All currents I(*)";
+                            min-width: 136px;
+                            checked <=> root.print-all-currents;
+                        }
+
+                        CheckBox {
+                            text: "Power P(*)";
+                            min-width: 115px;
+                            checked <=> root.print-power;
+                        }
+
+                        CheckBox {
+                            text: "BJT leads";
+                            min-width: 110px;
+                            checked <=> root.print-bjt-leads;
+                        }
+
+                        CheckBox {
+                            text: "FET leads";
+                            min-width: 111px;
+                            checked <=> root.print-fet-leads;
+                        }
                     }
 
                     // additional variables
@@ -96,6 +120,7 @@ export component OpParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "e.g. V(out) V(in)";
@@ -116,9 +141,20 @@ export component OpParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         ComboBox {
                             height: 28px;
-                            model: ["(default)", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"];
+                            model: [
+                                "(default)",
+                                "STD",
+                                "NOINDEX",
+                                "PROBE",
+                                "TECPLOT",
+                                "RAW",
+                                "CSV",
+                                "GNUPLOT",
+                                "SPLOT"
+                            ];
                             current-index <=> root.print-format-index;
                         }
                     }
@@ -135,6 +171,7 @@ export component OpParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "optional output file path";
@@ -157,6 +194,7 @@ export component OpParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "e.g. WIDTH=20 PRECISION=12";
@@ -169,7 +207,7 @@ export component OpParametersPanel inherits Rectangle {
 
         // ---- .SAVE section ----
         save-card := Rectangle {
-            
+
             border-width: 1px;
             border-color: Palette.border;
             border-radius: 6px;
@@ -211,6 +249,7 @@ export component OpParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "optional output file path";
@@ -230,6 +269,7 @@ export component OpParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         ComboBox {
                             height: 28px;
                             model: ["(default)", "all", "none"];
@@ -242,7 +282,7 @@ export component OpParametersPanel inherits Rectangle {
 
         // ---- convergence hints (.NODESET) ----
         nodeset-card := Rectangle {
-            
+
             border-width: 1px;
             border-color: Palette.border;
             border-radius: 6px;

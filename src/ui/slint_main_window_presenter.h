@@ -103,6 +103,16 @@ private:
     // recompute and forward the action enablement to the view
     void refresh_action_states();
 
+    // history panel: recompute the history directory from the netlist source
+    // and refresh the runs shown in the tree
+    void update_history_dir();
+
+    // scan the history directory and forward the runs to the view
+    void refresh_history_runs();
+
+    // copy the output files of a successful run into the history directory
+    void record_history();
+
     MainWindowViewDef& m_view;
 
     std::shared_ptr<KiCadSession> m_kicad_session;

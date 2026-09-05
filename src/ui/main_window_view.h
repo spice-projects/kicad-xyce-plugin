@@ -25,6 +25,7 @@ struct SimulationHistoryFile
 struct SimulationHistoryRun
 {
     std::string timestamp;
+    std::string display;
     std::vector<SimulationHistoryFile> files;
 };
 

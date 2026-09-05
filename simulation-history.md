@@ -31,40 +31,33 @@ Add a collapsible simulation history browser that stores copies of generated fil
 
 ### Integration — UI Wiring
 - [x] Wire history callbacks to presenter:
-  - Click file → logged (full implementation pending)
   - Toolbar toggle → toggles history visibility
+  - Click file → raw loads into charts, logs into output panel, FFT in a window
 - [x] Add `history-file-selected(timestamp, file)` callback
 - [x] Add `toggle-history-visibility()` callback
 - [x] Ensure existing workflows unchanged when feature disabled
 
-## TODO (Remaining)
-
 ### History Folder Management
-- [ ] Determine netlist directory (from KiCad project or loaded file)
-- [ ] Check write access to `.kicad-xyce-history/` folder
-- [ ] Create timestamped subfolder: `<YYYY-MM-DD_HH-MM-SS>/`
-- [ ] Copy generated files after successful simulation
-- [ ] Error handling for copy failures (show in output panel)
-- [ ] Prune old runs (keep last N, configurable via max-runs)
+- [x] Determine netlist directory (from netlist source working directory)
+- [x] Check write access to `.kicad-xyce-history/` folder
+- [x] Create timestamped subfolder: `<YYYY-MM-DD_HH-MM-SS>/` (UTC, `_N` suffix on collision)
+- [x] Copy generated files after successful simulation (`*.raw`, `*.fft*`, `*.out`)
+- [x] Error handling for copy failures (reported in output panel)
+- [x] Prune old runs (keep last N, configurable via max-runs)
 
 ### History Data Model (Runtime)
-- [ ] Scan `.kicad-xyce-history/` for existing runs
-- [ ] Parse each run folder for files
-- [ ] Populate history model on startup / after successful runs
+- [x] Scan `.kicad-xyce-history/` for existing runs (newest first)
+- [x] Parse each run folder for files (type label from extension)
+- [x] Populate history model on startup, file open, config change, panel show, after runs
 
-### Integration (Runtime)
-- [ ] After successful simulation, copy output files to history
-- [ ] Prune old runs after copying
-- [ ] Load history runs when history panel is shown
-- [ ] Click file → load selected file into charts (full implementation)
+### Storage Service
+- [x] `src/history/simulation_history_store.{h,cpp}`: record/scan/prune + file type labels
+
+## TODO (Remaining)
 
 ### Testing
-- [ ] Write unit tests for:
-  - Folder creation + write access check
-  - File copying logic
-  - Pruning logic (N oldest deleted)
-  - History scanning/parsing
-- [ ] Integration test for full copy-on-success flow
+- [x] Unit tests for file type mapping, timestamp pattern, record + copy, failure paths, pruning, scanning (`tests/history/simulation_history_store.test.cpp`)
+- [ ] Integration test for full copy-on-success flow (presenter level)
 
 ## Out of Scope (for later)
 - Preview thumbnails of waveforms in tree rows
