@@ -71,9 +71,16 @@ void SlintMainWindowView::set_event_handler(MainWindowViewDefEvents& handler) {
     // events that need presenter involvement: convert float to int via renderer
     chart_actions.on_add_remove_plots([this](float chart_position) { show_add_remove_plots_dialog(chart_position); });
     chart_actions.on_calculate_fft([this](float chart_position) { m_event_handler->on_chart_calculate_fft(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
-    chart_actions.on_open_xyce_fft_calculation([this](float chart_position) { m_event_handler->on_chart_open_xyce_fft_calculation(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
     chart_actions.on_step_tool([this](float chart_position) { m_event_handler->on_chart_step_tool(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
     chart_actions.on_new_window([this](float chart_position) { m_event_handler->on_chart_new_window(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
+
+    // plot tab navigation
+    m_window->on_plot_tab_selected([this](int index) {
+        guard_modal([this, index] { m_event_handler->on_select_plot_tab(index); });
+    });
+    m_window->on_plot_tab_closed([this](int index) {
+        guard_modal([this, index] { m_event_handler->on_close_plot_tab(index); });
+    });
     // chart drag-zoom interactions
     chart_actions.on_zoom_drag_started([this](float x, float y) {
         if (m_charts_renderer)
@@ -278,10 +285,31 @@ void SlintMainWindowView::delete_all_charts() {
     }
 }
 
-void SlintMainWindowView::set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) {
-    // drive the charts context menu "Open Xyce FFT Calculation" action from the
-    // parsed FFT calculation output files
-    m_window->set_has_fft_files(!files.empty());
+void SlintMainWindowView::set_plot_tabs(const std::vector<PlotTabItem>& tabs, int active_index) {
+    // create the vector model for the plot tabs
+    auto model = std::make_shared<slint::VectorModel<main_window::PlotTabItem>>();
+    // populate the model with each tab item
+    for (const auto& tab : tabs) {
+        // create the slint tab item instance
+        main_window::PlotTabItem item;
+        // set the tab identifier
+        item.id = tab.id;
+        // set the tab title
+        item.title = slint::SharedString(tab.title);
+        // set the tab closable flag
+        item.closable = tab.closable;
+        // append the item to the model
+        model->push_back(item);
+    }
+    // set the plot tabs model in the slint window
+    m_window->set_plot_tabs(model);
+    // set the active tab index in the slint window
+    m_window->set_active_plot_tab(active_index);
+}
+
+void SlintMainWindowView::set_active_plot_tab(int active_index) {
+    // update the active tab index in the slint window
+    m_window->set_active_plot_tab(active_index);
 }
 
 std::optional<SimulationConfig> SlintMainWindowView::show_simulation_parameters_dialog(const SimulationConfig& current) {

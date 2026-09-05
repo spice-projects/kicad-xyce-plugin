@@ -561,8 +561,25 @@ namespace
                 {"Normalized", key.normalized ? "true" : "false"},
                 {"First Harmonic", std::to_string(key.first_harmonic)},
             };
+            // build descriptive title from signal names
+            std::string fft_title = "FFT - ";
+            size_t sig_idx = 0;
+            for (const auto& [signal_name, _] : entry.signals) {
+                // append separator for subsequent signals
+                if (sig_idx > 0) {
+                    fft_title += ", ";
+                }
+                // append stripped signal name
+                fft_title += strip_brace_ends(signal_name);
+                // increment signal index
+                sig_idx++;
+            }
+            // fallback title when no signals are present
+            if (sig_idx == 0) {
+                fft_title = "FFT analysis";
+            }
             // create the output file
-            output_files.push_back(std::make_shared<XyceOutputFile>(matching_files[0], "FFT analysis", false, std::move(fft_step_information), PlotType::FFT, AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, suggested_plots, std::move(metadata)));
+            output_files.push_back(std::make_shared<XyceOutputFile>(matching_files[0], std::move(fft_title), false, std::move(fft_step_information), PlotType::FFT, AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, suggested_plots, std::move(metadata)));
         }
         // return the output files
         return output_files;

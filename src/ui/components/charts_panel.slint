@@ -1,5 +1,73 @@
 import { Palette } from "std-widgets.slint";
 
+export struct PlotTabItem {
+    id: int,
+    title: string,
+    closable: bool,
+}
+
+component PlotTabButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> active: false;
+    in property <bool> closable: false;
+    callback clicked;
+    callback close-clicked;
+
+    height: 28px;
+    border-radius: 6px;
+
+    background: root.active
+        ? Palette.selection-background
+        : tab-touch.has-hover
+        ? Palette.foreground.transparentize(0.90)
+        : Palette.foreground.transparentize(0.96);
+
+    animate background {
+        duration: 100ms;
+        easing: ease-out;
+    }
+
+    tab-touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: root.closable ? 6px : 10px;
+        spacing: 6px;
+        alignment: center;
+
+        Text {
+            text: root.text;
+            font-size: 12px;
+            font-weight: root.active ? 600 : 400;
+            color: root.active ? Palette.selection-foreground : Palette.foreground;
+            vertical-alignment: center;
+        }
+
+        if root.closable: close-btn := Rectangle {
+            width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            background: close-touch.has-hover ? (root.active ? Palette.selection-foreground.transparentize(0.8) : Palette.foreground.transparentize(0.85)) : transparent;
+
+            Text {
+                text: "×";
+                font-size: 13px;
+                color: root.active ? Palette.selection-foreground : Palette.foreground;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            close-touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.close-clicked(); }
+            }
+        }
+    }
+}
+
 // context menu actions for the charts view; the view adapter forwards them to
 // the presenter, keeping the slint ui decoupled from the chart implementation.
 // The chart-position parameter is a float [0..1] representing the relative Y
@@ -12,7 +80,6 @@ export global ChartsPanelActions {
     callback add-remove-plots(/*chart-position*/ float);
     callback delete-all-plots(/*chart-position*/ float);
     callback calculate-fft(/*chart-position*/ float);
-    callback open-xyce-fft-calculation(/*chart-position*/ float);
     callback step-tool(/*chart-position*/ float);
     callback add-chart(/*chart-position*/ float);
     callback delete-chart(/*chart-position*/ float);
@@ -25,14 +92,17 @@ export global ChartsPanelActions {
     callback hover-ended();
 }
 
-// open canvas panel for the charts view. Chart rendering lands in a later
-// milestone; for now the channel is an empty panel and the context menu is the
-// only interactive surface.
+// open canvas panel for the charts view.
 export component ChartsPanel inherits Rectangle {
+    // plot tabs
+    in property <[PlotTabItem]> plot-tabs: [];
+    in-out property <int> active-plot-tab: 0;
+    callback plot-tab-selected(int);
+    callback plot-tab-closed(int);
+
     // action availability flags for the context-menu tools
     in property <bool> enable-fft: false;
     in property <bool> enable-step-tool: false;
-    in property <bool> has-fft-files: false;
 
     // the tools block only appears when at least one of its actions applies
     private property <bool> show-tools: root.enable-fft || root.enable-step-tool;
@@ -44,23 +114,10 @@ export component ChartsPanel inherits Rectangle {
     // renderer can resize its offscreen surface and recompute limits
     callback viewport-changed(width: float, height: float);
 
-    // fire the initial viewport notification when this component is first
-    // instantiated; `changed` handlers do not fire on initial value assignment
-    init => {
-        root.viewport-changed(root.width / 1px, root.height / 1px);
-    }
-    // fire again whenever the panel is resized
-    changed width => {
-        root.viewport-changed(root.width / 1px, root.height / 1px);
-    }
-    changed height => {
-        root.viewport-changed(root.width / 1px, root.height / 1px);
-    }
-
     // compute chart position as a relative Y float [0..1] from a length
     function compute_chart_position(y: length) -> float {
-        if root.height <= 0px { return 0.0; }
-        return min(1.0, max(0.0, y / root.height));
+        if canvas-rect.height <= 0px { return 0.0; }
+        return min(1.0, max(0.0, y / canvas-rect.height));
     }
 
     // store the Y position where the context menu was triggered
@@ -68,171 +125,226 @@ export component ChartsPanel inherits Rectangle {
 
     background: Palette.alternate-background;
 
-    ctx := ContextMenuArea {
-        Menu {
-            MenuItem {
-                title: "Zoom to Fit";
-                activated => { ChartsPanelActions.zoom-to-fit(root.compute_chart_position(root.context-menu-y)); }
-            }
+    VerticalLayout {
+        spacing: 0px;
 
-            MenuItem {
-                title: "Autorange";
-                activated => { ChartsPanelActions.autorange(root.compute_chart_position(root.context-menu-y)); }
-            }
+        if root.plot-tabs.length > 1: tab-bar := Rectangle {
+            height: 36px;
+            background: Palette.background;
 
-            MenuItem {
-                title: "Zoom Abscissa Extent";
-                activated => { ChartsPanelActions.zoom-abscissa-extent(root.compute_chart_position(root.context-menu-y)); }
-            }
+            VerticalLayout {
+                HorizontalLayout {
+                    cross-axis-alignment: center;
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    padding-top: 4px;
+                    padding-bottom: 4px;
+                    spacing: 4px;
 
-            MenuSeparator { }
+                    for tab[index] in root.plot-tabs: PlotTabButton {
+                        text: tab.title;
+                        active: index == root.active-plot-tab;
+                        closable: tab.closable;
+                        clicked => {
+                            root.active-plot-tab = index;
+                            root.plot-tab-selected(index);
+                        }
+                        close-clicked => {
+                            root.plot-tab-closed(index);
+                        }
+                    }
 
-            MenuItem {
-                title: "Add/Remove Plots";
-                activated => { ChartsPanelActions.add-remove-plots(root.compute_chart_position(root.context-menu-y)); }
-            }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                    }
+                }
 
-            MenuItem {
-                title: "Delete All Plots";
-                activated => { ChartsPanelActions.delete-all-plots(root.compute_chart_position(root.context-menu-y)); }
-            }
-
-            if root.show-tools: MenuSeparator { }
-            if root.enable-fft: MenuItem {
-                title: "Calculate FFT on selected plots";
-                activated => { ChartsPanelActions.calculate-fft(root.compute_chart_position(root.context-menu-y)); }
-            }
-            if root.enable-fft && root.has-fft-files: MenuItem {
-                title: "Open Xyce FFT Calculation";
-                activated => { ChartsPanelActions.open-xyce-fft-calculation(root.compute_chart_position(root.context-menu-y)); }
-            }
-            if root.enable-step-tool: MenuItem {
-                title: "Step Tool...";
-                activated => { ChartsPanelActions.step-tool(root.compute_chart_position(root.context-menu-y)); }
-            }
-            MenuSeparator { }
-
-            MenuItem {
-                title: "Add Chart";
-                activated => { ChartsPanelActions.add-chart(root.compute_chart_position(root.context-menu-y)); }
-            }
-
-            MenuItem {
-                title: "Delete Chart";
-                activated => { ChartsPanelActions.delete-chart(root.compute_chart_position(root.context-menu-y)); }
-            }
-
-            MenuSeparator { }
-
-            MenuItem {
-                title: "New Window";
-                activated => { ChartsPanelActions.new-window(root.compute_chart_position(root.context-menu-y)); }
+                Rectangle {
+                    height: 1px;
+                    background: Palette.border;
+                }
             }
         }
 
-        // channel placeholder; chart rendering lands in a later milestone.
-        // TouchArea on top captures right-click position to open the context menu,
-        // forwards left-click drag interactions for chart zooming, and tracks hover
-        // pointer movement for status bar readouts.
-        Rectangle {
+        canvas-rect := Rectangle {
+            vertical-stretch: 1;
             background: Palette.alternate-background;
 
-            // drag state for the slint-side zoom selection rectangle
-            private property <length> drag-start-x;
-            private property <length> drag-start-y;
-            private property <bool> dragging;
-
-            // display the offscreen-rendered chart frame
-            Image {
-                source: root.charts-image;
-                width: 100%;
-                height: 100%;
+            // fire the initial viewport notification when this component is first
+            // instantiated; `changed` handlers do not fire on initial value assignment
+            init => {
+                root.viewport-changed(self.width / 1px, self.height / 1px);
+            }
+            // fire again whenever the canvas is resized
+            changed width => {
+                root.viewport-changed(self.width / 1px, self.height / 1px);
+            }
+            changed height => {
+                root.viewport-changed(self.width / 1px, self.height / 1px);
             }
 
-            // zoom selection rectangle, drawn natively in slint so the offscreen
-            // renderer is never touched during a drag gesture
-            zoom-rect := Rectangle {
-                visible: dragging;
-                x: min(drag-start-x, ta.mouse-x);
-                y: min(drag-start-y, ta.mouse-y);
-                width: max(abs(ta.mouse-x - drag-start-x), 0px);
-                height: max(abs(ta.mouse-y - drag-start-y), 0px);
-                border-color: red;
-                border-width: 2px;
-                background: transparent;
-            }
+            ctx := ContextMenuArea {
+                Menu {
+                    MenuItem {
+                        title: "Zoom to Fit";
+                        activated => { ChartsPanelActions.zoom-to-fit(root.compute_chart_position(root.context-menu-y)); }
+                    }
 
-            ta := TouchArea {
-                mouse-cursor: crosshair;
+                    MenuItem {
+                        title: "Autorange";
+                        activated => { ChartsPanelActions.autorange(root.compute_chart_position(root.context-menu-y)); }
+                    }
 
-                // workaround for the native context menu leaving a stale mouse
-                // grab on this touch area (slint 1.17.1, winit/muda on macOS):
-                // the TouchArea grabs the mouse on any press; the native NSMenu
-                // shown by ContextMenuArea consumes the right-click release in
-                // its tracking loop, so slint never sees the release and the
-                // grab persists. While grabbed, slint routes every following
-                // pointer event to this touch area, swallowing the user's next
-                // click ("first click does nothing, second click performs the
-                // action"). Disabling this touch area before showing the menu
-                // makes the disabled input filter clear the grab on the next
-                // routed event; the re-arm timer re-enables it afterwards.
-                rearm := Timer {
-                    interval: 1ms;
-                    running: false;
-                    triggered() => {
-                        self.running = false;
-                        ta.enabled = true;
+                    MenuItem {
+                        title: "Zoom Abscissa Extent";
+                        activated => { ChartsPanelActions.zoom-abscissa-extent(root.compute_chart_position(root.context-menu-y)); }
+                    }
+
+                    MenuSeparator { }
+
+                    MenuItem {
+                        title: "Add/Remove Plots";
+                        activated => { ChartsPanelActions.add-remove-plots(root.compute_chart_position(root.context-menu-y)); }
+                    }
+
+                    MenuItem {
+                        title: "Delete All Plots";
+                        activated => { ChartsPanelActions.delete-all-plots(root.compute_chart_position(root.context-menu-y)); }
+                    }
+
+                    if root.show-tools: MenuSeparator { }
+                    if root.enable-fft: MenuItem {
+                        title: "Calculate FFT on selected plots";
+                        activated => { ChartsPanelActions.calculate-fft(root.compute_chart_position(root.context-menu-y)); }
+                    }
+                    if root.enable-step-tool: MenuItem {
+                        title: "Step Tool...";
+                        activated => { ChartsPanelActions.step-tool(root.compute_chart_position(root.context-menu-y)); }
+                    }
+                    MenuSeparator { }
+
+                    MenuItem {
+                        title: "Add Chart";
+                        activated => { ChartsPanelActions.add-chart(root.compute_chart_position(root.context-menu-y)); }
+                    }
+
+                    MenuItem {
+                        title: "Delete Chart";
+                        activated => { ChartsPanelActions.delete-chart(root.compute_chart_position(root.context-menu-y)); }
+                    }
+
+                    MenuSeparator { }
+
+                    MenuItem {
+                        title: "New Window";
+                        activated => { ChartsPanelActions.new-window(root.compute_chart_position(root.context-menu-y)); }
                     }
                 }
 
-                pointer-event(event) => {
-                    // check mouse button down transition
-                    if (event.kind == PointerEventKind.down) {
-                        // right-click or macOS control-click opens the context menu
-                        if (event.button == PointerEventButton.right || (event.button == PointerEventButton.left && event.modifiers.control)) {
-                            // store the Y position where the context menu was triggered
-                            root.context-menu-y = self.mouse-y;
-                            // release the mouse grab before showing the menu (see
-                            // the workaround note above)
-                            self.enabled = false;
-                            // programmatically show the context menu at the click position
-                            ctx.show({ x: self.mouse-x, y: self.mouse-y });
-                        } else if (event.button == PointerEventButton.left) {
-                            // store drag start position for the slint zoom rectangle
-                            drag-start-x = self.mouse-x;
-                            drag-start-y = self.mouse-y;
-                            dragging = true;
-                            // start zoom selection drag on left mouse down
-                            ChartsPanelActions.zoom-drag-started(self.mouse-x / 1px, self.mouse-y / 1px);
+                // TouchArea on top captures right-click position to open the context menu,
+                // forwards left-click drag interactions for chart zooming, and tracks hover
+                // pointer movement for status bar readouts.
+                Rectangle {
+                    background: Palette.alternate-background;
+
+                    // drag state for the slint-side zoom selection rectangle
+                    private property <length> drag-start-x;
+                    private property <length> drag-start-y;
+                    private property <bool> dragging;
+
+                    // display the offscreen-rendered chart frame
+                    Image {
+                        source: root.charts-image;
+                        width: 100%;
+                        height: 100%;
+                    }
+
+                    // zoom selection rectangle, drawn natively in slint so the offscreen
+                    // renderer is never touched during a drag gesture
+                    zoom-rect := Rectangle {
+                        visible: dragging;
+                        x: min(drag-start-x, ta.mouse-x);
+                        y: min(drag-start-y, ta.mouse-y);
+                        width: max(abs(ta.mouse-x - drag-start-x), 0px);
+                        height: max(abs(ta.mouse-y - drag-start-y), 0px);
+                        border-color: red;
+                        border-width: 2px;
+                        background: transparent;
+                    }
+
+                    ta := TouchArea {
+                        mouse-cursor: crosshair;
+
+                        // workaround for the native context menu leaving a stale mouse
+                        // grab on this touch area (slint 1.17.1, winit/muda on macOS):
+                        // the TouchArea grabs the mouse on any press; the native NSMenu
+                        // shown by ContextMenuArea consumes the right-click release in
+                        // its tracking loop, so slint never sees the release and the
+                        // grab persists. While grabbed, slint routes every following
+                        // pointer event to this touch area, swallowing the user's next
+                        // click ("first click does nothing, second click performs the
+                        // action"). Disabling this touch area before showing the menu
+                        // makes the disabled input filter clear the grab on the next
+                        // routed event; the re-arm timer re-enables it afterwards.
+                        rearm := Timer {
+                            interval: 1ms;
+                            running: false;
+                            triggered() => {
+                                self.running = false;
+                                ta.enabled = true;
+                            }
                         }
-                    } else if (event.kind == PointerEventKind.up && event.button == PointerEventButton.left) {
-                        // finish zoom selection drag
-                        dragging = false;
-                        ChartsPanelActions.zoom-drag-ended();
-                    } else if (event.kind == PointerEventKind.cancel) {
-                        // cancel zoom selection drag
-                        dragging = false;
-                        ChartsPanelActions.zoom-drag-canceled();
-                        // the grab was cleared within this dispatch (the disabled
-                        // input filter sent this cancel); re-enable afterwards,
-                        // when the timer fires outside the event dispatch
-                        rearm.running = true;
-                    }
-                }
 
-                moved => {
-                    // forward pointer movement: drag when pressed, hover readout otherwise
-                    if (self.pressed) {
-                        ChartsPanelActions.zoom-drag-moved(self.mouse-x / 1px, self.mouse-y / 1px);
-                    } else {
-                        ChartsPanelActions.hover-moved(self.mouse-x / 1px, self.mouse-y / 1px);
-                    }
-                }
+                        pointer-event(event) => {
+                            // check mouse button down transition
+                            if (event.kind == PointerEventKind.down) {
+                                // right-click or macOS control-click opens the context menu
+                                if (event.button == PointerEventButton.right || (event.button == PointerEventButton.left && event.modifiers.control)) {
+                                    // store the Y position where the context menu was triggered
+                                    root.context-menu-y = self.mouse-y;
+                                    // release the mouse grab before showing the menu (see
+                                    // the workaround note above)
+                                    self.enabled = false;
+                                    // programmatically show the context menu at the click position
+                                    ctx.show({ x: self.mouse-x, y: self.mouse-y });
+                                } else if (event.button == PointerEventButton.left) {
+                                    // store drag start position for the slint zoom rectangle
+                                    drag-start-x = self.mouse-x;
+                                    drag-start-y = self.mouse-y;
+                                    dragging = true;
+                                    // start zoom selection drag on left mouse down
+                                    ChartsPanelActions.zoom-drag-started(self.mouse-x / 1px, self.mouse-y / 1px);
+                                }
+                            } else if (event.kind == PointerEventKind.up && event.button == PointerEventButton.left) {
+                                // finish zoom selection drag
+                                dragging = false;
+                                ChartsPanelActions.zoom-drag-ended();
+                            } else if (event.kind == PointerEventKind.cancel) {
+                                // cancel zoom selection drag
+                                dragging = false;
+                                ChartsPanelActions.zoom-drag-canceled();
+                                // the grab was cleared within this dispatch (the disabled
+                                // input filter sent this cancel); re-enable afterwards,
+                                // when the timer fires outside the event dispatch
+                                rearm.running = true;
+                            }
+                        }
 
-                changed has-hover => {
-                    // clear hover readout when the cursor leaves the panel
-                    if (!self.has-hover) {
-                        ChartsPanelActions.hover-ended();
+                        moved => {
+                            // forward pointer movement: drag when pressed, hover readout otherwise
+                            if (self.pressed) {
+                                ChartsPanelActions.zoom-drag-moved(self.mouse-x / 1px, self.mouse-y / 1px);
+                            } else {
+                                ChartsPanelActions.hover-moved(self.mouse-x / 1px, self.mouse-y / 1px);
+                            }
+                        }
+
+                        changed has-hover => {
+                            // clear hover readout when the cursor leaves the panel
+                            if (!self.has-hover) {
+                                ChartsPanelActions.hover-ended();
+                            }
+                        }
                     }
                 }
             }

@@ -55,9 +55,12 @@ public:
     // FFT configuration, delivered by the view after the FFT dialog closes
     void on_fft_dialog_result(std::vector<AnyExpression*> selected_expressions, const fft::FftParameters& parameters) override;
 
+    // plot tabs
+    void on_select_plot_tab(int index) override;
+    void on_close_plot_tab(int index) override;
+
     // charts context menu
     void on_chart_calculate_fft(size_t chart_index) override;
-    void on_chart_open_xyce_fft_calculation(size_t chart_index) override;
     void on_chart_step_tool(size_t chart_index) override;
     void on_chart_new_window(size_t chart_index) override;
 
@@ -79,13 +82,26 @@ public:
     // accessors
     [[nodiscard]] const std::optional<std::shared_ptr<XyceOutputFile>>& raw_file() const;
     [[nodiscard]] const std::vector<std::shared_ptr<XyceOutputFile>>& fft_files() const;
+    [[nodiscard]] size_t active_dataset_index() const { return m_active_dataset_index; }
 
 private:
+    // dataset representing an output file visualized in a tab
+    struct PlotDataset
+    {
+        int id = 0;
+        std::shared_ptr<XyceOutputFile> file;
+        bool closable = false;
+    };
+
+    // synchronize plot tab list and active index with the view
+    void sync_plot_tabs_with_view();
+
+    // activate the dataset at the given index and update charts in the view
+    void activate_plot_dataset(size_t index, bool delete_charts);
+
     // launch the simulation with the configured analysis and the stored parse
     // result; used by on_run_simulation and by the pending dialog result
     void launch_simulation();
-
-    bool update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>> raw_file, bool delete_charts);
 
     void show_raw_file_view();
 
@@ -105,6 +121,10 @@ private:
     std::unique_ptr<NetlistSource> m_netlist_source;
     bool m_netlist_editor_dirty = false;
     bool m_netlist_has_content = false;
+
+    std::vector<PlotDataset> m_plot_datasets;
+    size_t m_active_dataset_index = 0;
+    int m_next_dataset_id = 1;
 
     std::optional<std::shared_ptr<XyceOutputFile>> m_xyce_raw_file;
     std::vector<std::shared_ptr<XyceOutputFile>> m_fft_files;

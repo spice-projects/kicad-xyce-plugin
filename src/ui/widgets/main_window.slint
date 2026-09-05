@@ -12,7 +12,10 @@ import {
 import {
     SimulationParametersPanel,
 } from "../components/simulation_parameters_panel.slint";
-export { ChartsPanelActions }from "../components/charts_panel.slint";
+export {
+    ChartsPanelActions,
+    PlotTabItem,
+}from "../components/charts_panel.slint";
 
 export global MainWindowActions {
     callback open-xyce-file();
@@ -144,7 +147,12 @@ export component MainWindow inherits Window {
     // charts panel action availability, forwarded to the ChartsPanel component
     in property <bool> enable-fft: false;
     in property <bool> enable-step-tool: false;
-    in property <bool> has-fft-files: false;
+
+    // plot tabs, forwarded to the ChartsPanel component
+    in property <[PlotTabItem]> plot-tabs: [];
+    in-out property <int> active-plot-tab: 0;
+    callback plot-tab-selected(int);
+    callback plot-tab-closed(int);
 
     // simulation actions are enabled only when a netlist is loaded (or the app
     // is connected to KiCad); driven from apply_action_enablement
@@ -550,13 +558,16 @@ export component MainWindow inherits Window {
                     }
                     if root.charts-visible: charts := ChartsPanel {
                         vertical-stretch: 1;
+                        plot-tabs: root.plot-tabs;
+                        active-plot-tab <=> root.active-plot-tab;
+                        plot-tab-selected(index) => { root.plot-tab-selected(index); }
+                        plot-tab-closed(index) => { root.plot-tab-closed(index); }
                         enable-fft: root.enable-fft;
                         enable-step-tool: root.enable-step-tool;
-                        has-fft-files: root.has-fft-files;
-                    // forward the rendered chart image from the host renderer
-                    charts-image: root.charts-image;
-                    // report layout changes to the renderer
-                    viewport-changed(width, height) => { root.charts-viewport-changed(width, height); }
+                        // forward the rendered chart image from the host renderer
+                        charts-image: root.charts-image;
+                        // report layout changes to the renderer
+                        viewport-changed(width, height) => { root.charts-viewport-changed(width, height); }
                     }
                     if root.simulation-output-visible: output := SimulationOutputPanel {
                         height: 200px;

@@ -15,6 +15,13 @@
 #include "../simulation/simulation_config.h"
 #include "main_window_state.h"
 
+struct PlotTabItem
+{
+    int id = 0;
+    std::string title;
+    bool closable = false;
+};
+
 // abstract view interface for the main window, so the presenter can be tested without a ui
 class MainWindowView
 {
@@ -49,8 +56,9 @@ public:
     virtual void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) = 0;
     virtual void delete_all_charts() = 0;
 
-    // parsed Xyce FFT calculation output files, forwarded to the charts context menu
-    virtual void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) = 0;
+    // plot tabs
+    virtual void set_plot_tabs(const std::vector<PlotTabItem>& tabs, int active_index) = 0;
+    virtual void set_active_plot_tab(int active_index) = 0;
 
     // show the FFT setup dialog for the chart at the given index; the accepted
     // result is delivered asynchronously through on_fft_dialog_result
@@ -117,9 +125,12 @@ public:
     // asynchronously instead of through show_fft_dialog()
     virtual void on_fft_dialog_result(std::vector<AnyExpression*> selected_expressions, const fft::FftParameters& parameters) = 0;
 
+    // plot tabs
+    virtual void on_select_plot_tab(int index) = 0;
+    virtual void on_close_plot_tab(int index) = 0;
+
     // charts context menu
     virtual void on_chart_calculate_fft(size_t chart_index) = 0;
-    virtual void on_chart_open_xyce_fft_calculation(size_t chart_index) = 0;
     virtual void on_chart_step_tool(size_t chart_index) = 0;
     virtual void on_chart_new_window(size_t chart_index) = 0;
 
