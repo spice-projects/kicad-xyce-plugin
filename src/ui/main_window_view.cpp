@@ -75,12 +75,8 @@ void SlintMainWindowView::set_event_handler(MainWindowViewDefEvents& handler) {
     chart_actions.on_new_window([this](float chart_position) { m_event_handler->on_chart_new_window(m_charts_renderer->chart_count() > 0 ? static_cast<size_t>(chart_position * static_cast<float>(m_charts_renderer->chart_count())) : 0); });
 
     // plot tab navigation
-    m_window->on_plot_tab_selected([this](int index) {
-        guard_modal([this, index] { m_event_handler->on_select_plot_tab(index); });
-    });
-    m_window->on_plot_tab_closed([this](int index) {
-        guard_modal([this, index] { m_event_handler->on_close_plot_tab(index); });
-    });
+    m_window->on_plot_tab_selected([this](int index) { guard_modal([this, index] { m_event_handler->on_select_plot_tab(index); }); });
+    m_window->on_plot_tab_closed([this](int index) { guard_modal([this, index] { m_event_handler->on_close_plot_tab(index); }); });
     // chart drag-zoom interactions
     chart_actions.on_zoom_drag_started([this](float x, float y) {
         if (m_charts_renderer)
@@ -269,19 +265,28 @@ bool SlintMainWindowView::simulation_output_has_content() const {
     return m_simulation_log->row_count() > 0;
 }
 
-void SlintMainWindowView::update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
+void SlintMainWindowView::update_charts(const int dataset_id, ExpressionManager& expression_manager, const StepInformation& step_information, const AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
     // the presenter updates the charts before showing the charts view, so create
     // the renderer here if it does not exist yet
     ensure_charts_renderer();
-    // forward the data to the renderer
-    m_charts_renderer->update(expression_manager, step_information, abscissa_scale, suggested_plots);
+    // forward the data to the renderer; datasets already known to the renderer
+    // keep their charts and zoom state
+    m_charts_renderer->update(dataset_id, expression_manager, step_information, abscissa_scale, suggested_plots);
 }
 
-void SlintMainWindowView::delete_all_charts() {
-    // the renderer may not exist yet on the first file open
+void SlintMainWindowView::release_charts(const int dataset_id) {
+    // the renderer may not exist yet when nothing was rendered
     if (m_charts_renderer) {
-        // delete all charts from the renderer and refresh the slint panel
-        m_charts_renderer->delete_all_charts();
+        // drop the chart state of the given dataset
+        m_charts_renderer->release_dataset(dataset_id);
+    }
+}
+
+void SlintMainWindowView::release_all_charts() {
+    // the renderer may not exist yet when nothing was rendered
+    if (m_charts_renderer) {
+        // drop every dataset chart state
+        m_charts_renderer->release_all_datasets();
     }
 }
 

@@ -52,9 +52,16 @@ public:
     [[nodiscard]] virtual bool simulation_output_panel_hidden() const = 0;
     [[nodiscard]] virtual bool simulation_output_has_content() const = 0;
 
-    // charts
-    virtual void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) = 0;
-    virtual void delete_all_charts() = 0;
+    // charts; datasets are identified by the plot tab id so the renderer keeps
+    // an independent chart state per tab (zoom, plots, step selection) and a
+    // tab switch restores the previous state instead of rebuilding
+    virtual void update_charts(int dataset_id, ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) = 0;
+
+    // drop the chart state of the dataset with the given tab id
+    virtual void release_charts(int dataset_id) = 0;
+
+    // drop the chart state of every dataset
+    virtual void release_all_charts() = 0;
 
     // plot tabs
     virtual void set_plot_tabs(const std::vector<PlotTabItem>& tabs, int active_index) = 0;

@@ -97,7 +97,7 @@ private:
     void sync_plot_tabs_with_view();
 
     // activate the dataset at the given index and update charts in the view
-    void activate_plot_dataset(size_t index, bool delete_charts);
+    void activate_plot_dataset(size_t index);
 
     // launch the simulation with the configured analysis and the stored parse
     // result; used by on_run_simulation and by the pending dialog result

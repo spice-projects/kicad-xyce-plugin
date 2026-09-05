@@ -56,8 +56,9 @@ public:
     void append_simulation_output_line(const std::string& line) override;
     bool simulation_output_panel_hidden() const override;
     bool simulation_output_has_content() const override;
-    void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) override;
-    void delete_all_charts() override;
+    void update_charts(int dataset_id, ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) override;
+    void release_charts(int dataset_id) override;
+    void release_all_charts() override;
     void set_plot_tabs(const std::vector<PlotTabItem>& tabs, int active_index) override;
     void set_active_plot_tab(int active_index) override;
     void show_fft_dialog(size_t chart_index) override;

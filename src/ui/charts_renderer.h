@@ -6,6 +6,7 @@
 #include <set>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #include <slint.h>
@@ -69,18 +70,24 @@ public:
     // clear the viewport so no frames are published until a valid size arrives
     void reset_viewport();
 
-    // data path, wired on file load
-    void update(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots);
+    // data path, wired on dataset activation; datasets are identified by the
+    // owning plot tab id so each tab keeps its own charts and zoom state and
+    // switching tabs restores the previous state instead of rebuilding
+    void update(int dataset_id, ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots);
 
     Chart* add_chart();
 
-    void delete_all_charts();
+    // drop the chart state of the dataset with the given tab id
+    void release_dataset(int dataset_id);
+
+    // drop the chart state of every dataset
+    void release_all_datasets();
 
     // schedule the given number of frames on the render timer
     void refresh_charts(int frames = 3);
 
-    // number of charts currently managed by this renderer
-    [[nodiscard]] size_t chart_count() const { return m_charts.size(); }
+    // number of charts of the active dataset
+    [[nodiscard]] size_t chart_count() const;
 
     // render one pending frame into the offscreen surface and publish it
     void render();
@@ -144,6 +151,27 @@ public:
 private:
     friend class ChartsContextScope;
 
+    // chart state owned by one plot tab; every dataset holds its own chart
+    // list so zoom windows, plotted series and step selections survive tab
+    // switches, and its own data references for the active rendering pass
+    struct DatasetCharts
+    {
+        ExpressionManager* expression_manager = nullptr;
+
+        StepInformation const* step_information = nullptr;
+
+        AbscissaScale abscissa_scale = AbscissaScale::LINEAR;
+
+        std::vector<std::vector<std::string>> suggested_plots;
+
+        std::vector<std::unique_ptr<Chart>> charts;
+    };
+
+    // active dataset state, or nullptr when no dataset is active
+    [[nodiscard]] DatasetCharts* active_dataset();
+
+    [[nodiscard]] const DatasetCharts* active_dataset() const;
+
     // one-time backend bring-up: isolated contexts, palette style, scaled fonts
     void initialize_backend();
 
@@ -204,16 +232,13 @@ private:
 
     int m_render_chart_frames = 0;
 
-    // data path
-    ExpressionManager* m_expression_manager = nullptr;
-
-    StepInformation const* m_step_information = nullptr;
-
-    AbscissaScale m_abscissa_scale = AbscissaScale::LINEAR;
-
     static constexpr size_t k_decimate_target = 4000;
 
-    std::vector<std::unique_ptr<Chart>> m_charts;
+    // chart state per plot tab, keyed by the dataset id assigned by the presenter
+    std::unordered_map<int, DatasetCharts> m_datasets;
+
+    // dataset id of the active tab, or -1 when no dataset is active
+    int m_active_dataset_id = -1;
 
     size_t m_selected_chart_index = 0;
 
