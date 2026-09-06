@@ -27,7 +27,7 @@ namespace
         case fft::WindowFunction::HAMMING:
             return "HAMMING";
         case fft::WindowFunction::HANNING:
-            return "HANNING";
+            return "HANN";
         case fft::WindowFunction::BLACKMAN:
             return "BLACKMAN";
         default:
@@ -550,6 +550,12 @@ void SlintMainWindowPresenter::load_raw_file(std::shared_ptr<XyceOutputFile> raw
     // guard against a missing file
     if (raw_file == nullptr)
         return;
+    // drop existing datasets and chart state before loading a new raw file
+    m_fft_files.clear();
+    m_xyce_raw_file = std::nullopt;
+    m_view.release_all_charts();
+    m_plot_datasets.clear();
+    m_active_dataset_index = 0;
     // append the parsed raw file as a primary (non-closable) plot dataset
     m_plot_datasets.push_back(PlotDataset{
         .id = m_next_dataset_id++,
