@@ -43,37 +43,29 @@ namespace
 } // namespace
 
 TEST(PluginConfigDialogViewChecks, constructor_takes_main_window_handle) {
-    // verify the constructor accepts slint::ComponentHandle<main_window::MainWindow>
     // arrange / act
-    constexpr bool is_constructible = std::is_constructible_v<plugin_config_dialog_view::PluginConfigDialogView, slint::ComponentHandle<main_window::MainWindow>>;
+    using ViewT = plugin_config_dialog_view::PluginConfigDialogView;
     // assert
-    static_assert(is_constructible);
-    EXPECT_TRUE(is_constructible);
+    EXPECT_TRUE((std::is_constructible_v<ViewT, slint::ComponentHandle<main_window::MainWindow>>));
 }
 
 TEST(PluginConfigDialogViewChecks, destructor_is_user_declared) {
-    // verify the destructor is user-declared
     // arrange / act
-    constexpr bool has_destructor = !std::is_trivially_destructible_v<plugin_config_dialog_view::PluginConfigDialogView>;
+    using ViewT = plugin_config_dialog_view::PluginConfigDialogView;
     // assert
-    static_assert(has_destructor);
-    EXPECT_TRUE(has_destructor);
+    EXPECT_FALSE(std::is_trivially_destructible_v<ViewT>);
 }
 
 TEST(PluginConfigDialogViewChecks, show_method_exists) {
-    // verify the show method signature
     // arrange / act
-    constexpr bool has_show = std::is_member_function_pointer_v<decltype(&plugin_config_dialog_view::PluginConfigDialogView::show)>;
+    using ViewT = plugin_config_dialog_view::PluginConfigDialogView;
     // assert
-    static_assert(has_show);
-    EXPECT_TRUE(has_show);
+    EXPECT_TRUE((std::is_member_function_pointer_v<decltype(&ViewT::show)>));
 }
 
 TEST(PluginConfigDialogViewChecks, implements_main_window_view_def_events) {
-    // verify the view works with MainWindowViewDefEvents
     // arrange / act
     constexpr bool is_base_of = std::is_base_of_v<MainWindowViewDefEvents, RecordingEventHandler>;
     // assert
-    static_assert(is_base_of);
     EXPECT_TRUE(is_base_of);
 }

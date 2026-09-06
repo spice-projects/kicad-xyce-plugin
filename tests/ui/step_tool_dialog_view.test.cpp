@@ -5,30 +5,24 @@
 #include "ui/step_tool_dialog_view.h"
 
 TEST(StepToolDialogViewChecks, constructor_accepts_window_and_renderer) {
-    // verify the constructor is callable with the expected parameter types at compile time
     // arrange / act
     using ViewT = step_tool_dialog_view::StepToolDialogView;
     // assert
-    static_assert(!std::is_copy_constructible_v<ViewT>);
-    static_assert(!std::is_copy_assignable_v<ViewT>);
-    static_assert(!std::is_trivially_destructible_v<ViewT>);
-    SUCCEED();
+    EXPECT_FALSE(std::is_copy_constructible_v<ViewT>);
+    EXPECT_FALSE(std::is_copy_assignable_v<ViewT>);
+    EXPECT_FALSE(std::is_trivially_destructible_v<ViewT>);
 }
 
 TEST(StepToolDialogViewChecks, show_for_chart_method_exists) {
-    // verify the show_for_chart method exists with the expected signature
     // arrange / act
     using ViewT = step_tool_dialog_view::StepToolDialogView;
     // assert
-    static_assert(std::is_member_function_pointer_v<decltype(&ViewT::show_for_chart)>);
-    SUCCEED();
+    EXPECT_TRUE(std::is_member_function_pointer_v<decltype(&ViewT::show_for_chart)>);
 }
 
 TEST(StepToolDialogViewChecks, implements_pimpl_pattern) {
-    // the class uses pimpl with std::unique_ptr<Impl>, which makes it non-copyable and non-trivially-destructible
     // arrange / act
     using ViewT = step_tool_dialog_view::StepToolDialogView;
     // assert
-    static_assert(!std::is_trivially_copyable_v<ViewT>);
-    SUCCEED();
+    EXPECT_FALSE(std::is_trivially_copyable_v<ViewT>);
 }
