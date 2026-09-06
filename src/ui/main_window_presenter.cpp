@@ -34,6 +34,32 @@ namespace
             return "UNKNOWN";
         }
     }
+
+    // map a PlotType to a human-readable tab label; falls back to the raw
+    // file's title for UNKNOWN plot types (e.g. parsed headers we don't
+    // classify). Touchstone files (detected via the data_format metadata
+    // key) always show their filename instead of the AC Analysis label.
+    std::string plot_type_to_label(const XyceOutputFile& file) {
+        // touchstone files carry a data_format metadata entry
+        if (file.metadata().count("data_format") > 0)
+            return file.filename().string();
+        switch (file.plot_type()) {
+        case PlotType::TRANSIENT:
+            return "Transient";
+        case PlotType::AC:
+            return "AC Analysis";
+        case PlotType::DC:
+            return "DC Sweep";
+        case PlotType::DC_OPERATING_POINT:
+            return "DC Operating Point";
+        case PlotType::NOISE:
+            return "Noise Analysis";
+        case PlotType::FFT:
+        case PlotType::UNKNOWN:
+        default:
+            return file.title();
+        }
+    }
 } // namespace
 
 SlintMainWindowPresenter::SlintMainWindowPresenter(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config, std::shared_ptr<KiCadSession> kicad_session) :
@@ -709,7 +735,7 @@ void SlintMainWindowPresenter::sync_plot_tabs_with_view() {
         // append tab item
         tabs.push_back(PlotTabItem{
             .id = dataset.id,
-            .title = dataset.file ? dataset.file->title() : "",
+            .title = dataset.file ? plot_type_to_label(*dataset.file) : "",
             .closable = dataset.closable,
         });
     }

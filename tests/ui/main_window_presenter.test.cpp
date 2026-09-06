@@ -639,7 +639,7 @@ TEST(SlintMainWindowPresenterChecks, load_raw_file_populates_plot_tabs) {
     presenter.load_raw_file(make_raw_file());
     // assert — the raw file became the primary, non-closable, active tab
     ASSERT_EQ(view.m_plot_tabs.size(), 1u);
-    EXPECT_EQ(view.m_plot_tabs[0].title, "Loaded Circuit");
+    EXPECT_EQ(view.m_plot_tabs[0].title, "Transient");
     EXPECT_FALSE(view.m_plot_tabs[0].closable);
     EXPECT_EQ(view.m_active_plot_tab, 0);
     EXPECT_TRUE(view.m_charts_view_shown);
