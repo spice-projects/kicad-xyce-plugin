@@ -1,4 +1,4 @@
-import { ScrollView, Palette } from "std-widgets.slint";
+import { ScrollView, Palette, VerticalBox } from "std-widgets.slint";
 
 // expression offered for plotting
 export struct ExpressionItem {
@@ -95,6 +95,18 @@ component ExpressionChip inherits Rectangle {
         }
         clicked => {
             root.clicked();
+        }
+    }
+
+    Tooltip {
+        VerticalBox {
+            Text {
+                text: root.label;
+                color: root.selected ? Palette.accent-foreground : Palette.foreground;
+                font-size: 13px;
+                horizontal-alignment: left;
+                vertical-alignment: center;
+            }
         }
     }
 }
