@@ -217,20 +217,22 @@ export component ChartsPanel inherits Rectangle {
                         // input filter sent this cancel); re-enable afterwards,
                         // when the timer fires outside the event dispatch
                         rearm.running = true;
-                    }
-                }
-
-                moved => {
-                    // forward pointer movement: drag when pressed, hover readout otherwise
-                    if (self.pressed) {
-                        ChartsPanelActions.zoom-drag-moved(self.mouse-x / 1px, self.mouse-y / 1px);
-                    } else {
-                        ChartsPanelActions.hover-moved(self.mouse-x / 1px, self.mouse-y / 1px);
+                    } else if (event.kind == PointerEventKind.move) {
+                        if (self.pressed) {
+                            ChartsPanelActions.zoom-drag-moved(
+                                self.mouse-x / 1px,
+                                self.mouse-y / 1px
+                            );
+                        } else {
+                            ChartsPanelActions.hover-moved(
+                                self.mouse-x / 1px,
+                                self.mouse-y / 1px
+                            );
+                        }
                     }
                 }
 
                 changed has-hover => {
-                    // clear hover readout when the cursor leaves the panel
                     if (!self.has-hover) {
                         ChartsPanelActions.hover-ended();
                     }
