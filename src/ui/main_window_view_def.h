@@ -20,7 +20,6 @@ struct PlotTabItem
     int id = 0;
     std::string title;
     bool closable = false;
-    std::string icon_path;
 };
 
 // abstract view interface for the main window, so the presenter can be tested without a ui

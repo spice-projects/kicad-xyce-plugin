@@ -4,7 +4,6 @@ export struct PlotTabItem {
     id: int,
     title: string,
     closable: bool,
-    icon-path: string,
 }
 
 component PlotTabButton inherits Rectangle {
@@ -34,10 +33,19 @@ component PlotTabButton inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 10px;
+        padding-left: 8px;
         padding-right: root.closable ? 6px : 10px;
         spacing: 6px;
         cross-axis-alignment: center;
+
+        Image {
+            width: 14px;
+            height: 14px;
+            source: @image-url("../kicad-icons/simulator_24.png");
+            image-fit: contain;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
 
         Text {
             text: root.text;
