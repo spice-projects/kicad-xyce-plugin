@@ -8,6 +8,7 @@
 #include "app/app.h"
 #include "config/plugin_config.h"
 #include "core/step_information.h"
+#include "dsp/fft.h"
 #include "expression/expression.h"
 #include "expression/expression_manager.h"
 #include "io/xyce_output_file.h"
