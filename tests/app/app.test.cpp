@@ -59,9 +59,10 @@ namespace
 // ========================================================================================
 
 TEST(AppChecks, instance_returns_same_reference) {
-    // arrange / act / assert — App::instance() returns the same singleton
+    // arrange / act
     App& a = App::instance();
     App& b = App::instance();
+    // assert
     EXPECT_EQ(&a, &b);
 }
 
@@ -112,4 +113,3 @@ TEST(AppChecks, initialize_normalizes_to_lowercase) {
     // assert
     EXPECT_EQ(app.log_level(), "debug");
 }
-
