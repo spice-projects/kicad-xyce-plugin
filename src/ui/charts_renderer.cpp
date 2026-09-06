@@ -457,8 +457,10 @@ void ChartsRenderer::update(const int dataset_id, ExpressionManager& expression_
         // add a new chart with no pre-populated expressions
         add_chart();
     }
-    // refresh
-    refresh_charts();
+    // refresh with a single frame; the charts are already rendered and cached
+    // from the previous activation, so one repaint is enough to show the
+    // switched-to tab without the cost of a full 3-frame refresh
+    refresh_charts(1);
 }
 
 Chart* ChartsRenderer::add_chart() {

@@ -18,6 +18,24 @@
 #include "main_window_state.h"
 #include "simulation_runner.h"
 
+namespace
+{
+    std::string window_to_string(fft::WindowFunction wf) {
+        switch (wf) {
+        case fft::WindowFunction::RECTANGULAR:
+            return "RECTANGULAR";
+        case fft::WindowFunction::HAMMING:
+            return "HAMMING";
+        case fft::WindowFunction::HANNING:
+            return "HANNING";
+        case fft::WindowFunction::BLACKMAN:
+            return "BLACKMAN";
+        default:
+            return "UNKNOWN";
+        }
+    }
+} // namespace
+
 SlintMainWindowPresenter::SlintMainWindowPresenter(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config, std::shared_ptr<KiCadSession> kicad_session) :
     m_view(view), m_kicad_session(std::move(kicad_session)), m_netlist_source(std::move(netlist_source)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(std::move(plugin_config)) {
     // initialize the toolbar action states before the window is shown
@@ -340,15 +358,10 @@ void SlintMainWindowPresenter::on_fft_dialog_result(std::vector<AnyExpression*> 
         m_view.set_status_text("FFT computation skipped: no data in the selected range");
         return;
     }
-    // build the expression name for the title
-    std::string fft_title = "FFT - ";
-    for (size_t i = 0; i < selected_expressions.size(); ++i) {
-        // append separator
-        if (i > 0)
-            fft_title += ", ";
-        // append the expression name
-        fft_title += std::get<Expression<double>>(*selected_expressions[i]).name();
-    }
+    // build title from the FFT parameters (window and output frequency range)
+    const double fft_min_freq = fft_abscissa_value_ranges.front().first;
+    const double fft_max_freq = fft_abscissa_value_ranges.front().second;
+    std::string fft_title = "FFT: " + window_to_string(fft_params.window) + ", " + std::to_string(static_cast<long long>(fft_min_freq + 0.5)) + "–" + std::to_string(static_cast<long long>(fft_max_freq + 0.5)) + " Hz";
     // build FFT expressions using the Expression<double> constructor with step slices
     std::vector<AnyExpression> fft_expressions;
     {

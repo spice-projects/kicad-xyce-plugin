@@ -678,7 +678,7 @@ TEST(SlintMainWindowPresenterChecks, fft_dialog_result_adds_closable_plot_tab) {
     presenter.on_fft_dialog_result({expressions[1]}, parameters);
     // assert — a second closable tab was appended and activated
     ASSERT_EQ(view.m_plot_tabs.size(), 2u);
-    EXPECT_EQ(view.m_plot_tabs[1].title, "FFT - V(1)");
+    EXPECT_EQ(view.m_plot_tabs[1].title, "FFT: RECTANGULAR, 0–1500 Hz");
     EXPECT_TRUE(view.m_plot_tabs[1].closable);
     EXPECT_EQ(view.m_active_plot_tab, 1);
     EXPECT_TRUE(view.m_charts_view_shown);

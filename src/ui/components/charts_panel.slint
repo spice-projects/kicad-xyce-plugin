@@ -36,7 +36,7 @@ component PlotTabButton inherits Rectangle {
         padding-left: 10px;
         padding-right: root.closable ? 6px : 10px;
         spacing: 6px;
-        alignment: center;
+        cross-axis-alignment: center;
 
         Text {
             text: root.text;
@@ -52,12 +52,13 @@ component PlotTabButton inherits Rectangle {
             border-radius: 8px;
             background: close-touch.has-hover ? (root.active ? Palette.selection-foreground.transparentize(0.8) : Palette.foreground.transparentize(0.85)) : transparent;
 
-            Text {
-                text: "×";
-                font-size: 13px;
-                color: root.active ? Palette.selection-foreground : Palette.foreground;
-                horizontal-alignment: center;
+            Image {
+                width: 12px;
+                height: 12px;
+                source: @image-url("../kicad-icons/cancel_24.png");
+                image-fit: contain;
                 vertical-alignment: center;
+                horizontal-alignment: center;
             }
 
             close-touch := TouchArea {
