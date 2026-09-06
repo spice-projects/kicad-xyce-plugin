@@ -88,14 +88,3 @@ TEST(SlintMainWindowViewChecks, implements_main_window_view_def) {
     // assert
     EXPECT_TRUE((std::is_base_of_v<BaseT, ViewT>));
 }
-
-TEST(SlintMainWindowViewChecks, guard_modal_is_private) {
-    // guard_modal is a private template method
-    // used internally to gate modal dialog interactions
-    // this is verified by inspecting the class design (non-public interface)
-    // arrange / act / assert
-    // While we cannot directly test private methods, we can verify the class compiles
-    // and links correctly which implies the method exists
-    using ViewT = SlintMainWindowView;
-    EXPECT_TRUE(true);
-}

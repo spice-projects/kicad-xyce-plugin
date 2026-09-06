@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include <memory>
 #include <string>
+#include <type_traits>
 
 #include "config/plugin_config.h"
 #include "dsp/fft.h"

@@ -1,3 +1,5 @@
+#include <type_traits>
+
 #include <gtest/gtest.h>
 
 #include "ui/add_plot_dialog_view.h"
