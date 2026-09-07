@@ -168,8 +168,8 @@ jobs:
       code-quality: write
     uses: ./.github/workflows/coverage.yml
 
-  osx-universal:
-    name: macOS Universal Binary
+  macos-app-bundle:
+    name: macOS App Bundle
     needs: [build-and-test]
     if: |-
       !cancelled() &&
@@ -188,44 +188,64 @@ jobs:
           name: kicad-xyce-plugin-macos-x64
           path: artifacts/x64
 
-      - name: Create Universal binary
+      - name: Create macOS app bundle
         run: |
-          mkdir -p artifacts/universal
-          for file in artifacts/arm64/*; do
-            [ -f "$file" ] || continue
-            name=$(basename "$file")
-            if [ -f "artifacts/x64/$name" ]; then
-              lipo -create -output "artifacts/universal/$name" "artifacts/arm64/$name" "artifacts/x64/$name"
-            else
-              cp "$file" "artifacts/universal/$name"
-            fi
-          done
+          APP_BUNDLE="artifacts/KiCad Xyce Plugin.app"
+          rm -rf "$APP_BUNDLE"
+          mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
 
-          # Rewrite library install names to @rpath and re-sign
-          for dylib in artifacts/universal/*.dylib; do
+          cp "plugin-icon-64x64.png" "$APP_BUNDLE/Contents/Resources/plugin-icon-64x64.png"
+
+          lipo -create \
+            -output "$APP_BUNDLE/Contents/MacOS/kicad-xyce-plugin" \
+            "artifacts/arm64/kicad-xyce-plugin" \
+            "artifacts/x64/kicad-xyce-plugin"
+
+          for dylib in artifacts/arm64/*.dylib artifacts/x64/*.dylib; do
             [ -f "$dylib" ] || continue
-            dname=$(basename "$dylib")
-            old_path=$(otool -L artifacts/universal/kicad-xyce-plugin | awk -v pat="$dname" '$1 ~ pat {print $1}')
-            if [ -n "$old_path" ]; then
-              install_name_tool -change "$old_path" "@rpath/$dname" artifacts/universal/kicad-xyce-plugin
-            fi
-            install_name_tool -id "@rpath/$dname" "$dylib"
-            codesign --force --sign - "$dylib"
+            cp "$dylib" "$APP_BUNDLE/Contents/MacOS/"
           done
-          install_name_tool -add_rpath @executable_path artifacts/universal/kicad-xyce-plugin 2>/dev/null || true
-          codesign --force --sign - artifacts/universal/kicad-xyce-plugin
 
-      - name: Upload Universal artifact
+          cat > "$APP_BUNDLE/Contents/Info.plist" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>kicad-xyce-plugin</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.spice-projects.kicad-xyce-plugin</string>
+              <key>CFBundleIconFile</key>
+              <string>plugin-icon-64x64.png</string>
+              <key>CFBundleName</key>
+              <string>KiCad Xyce Plugin</string>
+              <key>CFBundleDisplayName</key>
+              <string>KiCad Xyce Plugin</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0</string>
+              <key>CFBundleVersion</key>
+              <string>1</string>
+          </dict>
+          </plist>
+          EOF
+
+          chmod +x "$APP_BUNDLE/Contents/MacOS/kicad-xyce-plugin"
+          install_name_tool -add_rpath @executable_path "$APP_BUNDLE/Contents/MacOS/kicad-xyce-plugin" 2>/dev/null || true
+          codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/kicad-xyce-plugin" 2>/dev/null || true
+
+      - name: Upload macOS app bundle artifact
         uses: actions/upload-artifact@v7
         with:
-          name: kicad-xyce-plugin-macos-universal
-          path: artifacts/universal/
+          name: kicad-xyce-plugin-macos-app-bundle
+          path: artifacts/KiCad Xyce Plugin.app
           if-no-files-found: error
           retention-days: 7
 
   package-and-artifacts:
     name: Package & Artifacts
-    needs: [build-and-test, osx-universal]
+    needs: [build-and-test, macos-app-bundle]
     if: |-
       !cancelled() &&
       (github.event_name != 'push' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || needs.check-pr.outputs.has_pr != 'true')
@@ -246,10 +266,10 @@ jobs:
           name: kicad-xyce-plugin-windows-x64
           path: artifacts/windows
 
-      - name: Download macOS Universal artifact
+      - name: Download macOS app bundle artifact
         uses: actions/download-artifact@v8
         with:
-          name: kicad-xyce-plugin-macos-universal
+          name: kicad-xyce-plugin-macos-app-bundle
           path: artifacts/macos
 
       - name: Package Windows
@@ -260,11 +280,10 @@ jobs:
           mv dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.zip \
              packages/kicad-xyce-plugin-${{ steps.version.outputs.version }}-windows-x64.zip
 
-      - name: Package macOS Universal
+      - name: Package macOS app bundle
         run: |
-          chmod +x artifacts/macos/*
-          dylibs=$(ls artifacts/macos/*.dylib 2>/dev/null | tr '\n' ' ')
-          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' artifacts/macos/kicad-xyce-plugin kicad-xyce-plugin macos "$dylibs"
+          APP_BUNDLE="artifacts/macos/KiCad Xyce Plugin.app"
+          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' "$APP_BUNDLE" 'KiCad Xyce Plugin.app' macos ""
           mkdir -p packages
           mv dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.zip \
              packages/kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-universal.zip
