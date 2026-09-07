@@ -286,10 +286,9 @@ jobs:
       - name: Package macOS app bundle
         run: |
           APP_BUNDLE="artifacts/macos/KiCad Xyce Plugin.app"
-          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' "$APP_BUNDLE" 'KiCad Xyce Plugin.app' macos ""
           mkdir -p packages
-          mv dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.zip \
-             packages/kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-universal.zip
+          ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" \
+            "packages/kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-app-bundle.zip"
 
       - name: Upload Windows package artifact
         uses: actions/upload-artifact@v7
@@ -299,11 +298,11 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload macOS Universal package artifact
+      - name: Upload macOS app bundle package artifact
         uses: actions/upload-artifact@v7
         with:
-          name: kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-universal-package
-          path: packages/kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-universal.zip
+          name: kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-app-bundle-package
+          path: packages/kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-app-bundle.zip
           if-no-files-found: error
           retention-days: 7
 
@@ -325,10 +324,10 @@ jobs:
           name: kicad-xyce-plugin-${{ steps.version.outputs.version }}-windows-x64-package
           path: packages/windows
 
-      - name: Download macOS Universal package artifact
+      - name: Download macOS app bundle package artifact
         uses: actions/download-artifact@v8
         with:
-          name: kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-universal-package
+          name: kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-app-bundle-package
           path: packages/macos
 
       - name: Upload packages to GitHub Release
@@ -337,4 +336,4 @@ jobs:
         run: |
           gh release upload '${{ github.ref_name }}' --clobber \
             packages/windows/kicad-xyce-plugin-${{ steps.version.outputs.version }}-windows-x64.zip \
-            packages/macos/kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-universal.zip
+            packages/macos/kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-app-bundle.zip
