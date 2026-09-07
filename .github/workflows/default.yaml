@@ -35,7 +35,7 @@ jobs:
       !cancelled() &&
       (github.event_name != 'push' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || needs.check-pr.outputs.has_pr != 'true')
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - os: macos-26
@@ -99,7 +99,7 @@ jobs:
             ${{ github.workspace }}/.ccache
           key: cmake-${{ matrix.os }}-build-${{ hashFiles('vcpkg-configuration.json') }}-${{ hashFiles('vcpkg.json') }}-${{ hashFiles('tests/CMakeLists.txt') }}-${{ hashFiles('CMakeLists.txt') }}-${{ hashFiles('CMakePresets.json') }}
           restore-keys: |
-            cmake-${{ matrix.os }}-build-${{ hashFiles('vcpkg-configuration.json') }}-${{ hashFiles('vcpkg.json') }}-${{ hashFiles('tests/CMakeLists.txt') }}-${{ hashFiles('CMakeLists.txt') }}-${{ hashFiles('CMakePresets.json') }}
+            cmake-${{ matrix.os }}-build-
 
       - name: Setup ccache
         if: ${{ matrix.build_enabled }}
