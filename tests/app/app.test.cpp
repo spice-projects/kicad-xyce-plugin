@@ -7,15 +7,9 @@
 
 #include "app/app.h"
 #include "config/plugin_config.h"
-#include "core/step_information.h"
-#include "dsp/fft.h"
-#include "expression/expression.h"
 #include "expression/expression_manager.h"
 #include "io/xyce_output_file.h"
-#include "netlist/editor_netlist_source.h"
-#include "netlist/netlist_source.h"
 #include "simulation/simulation_config.h"
-#include "ui/main_window_presenter.h"
 #include "ui/main_window_view_def.h"
 
 namespace
@@ -41,9 +35,9 @@ namespace
         void append_simulation_output_line(const std::string&) override {}
         bool simulation_output_panel_hidden() const override { return true; }
         bool simulation_output_has_content() const override { return false; }
-        void update_charts(ExpressionManager&, const StepInformation&, AbscissaScale, const std::vector<std::vector<std::string>>&) override {}
-        void delete_all_charts() override {}
-        void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>&) override {}
+        void update_charts(int, ExpressionManager&, const StepInformation&, AbscissaScale, const std::vector<std::vector<std::string>>&) override {}
+        void release_charts(int) override {}
+        void release_all_charts() override {}
         void show_fft_dialog(size_t) override {}
         void show_step_tool_dialog(size_t) override {}
         std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig&) override { return std::nullopt; }
