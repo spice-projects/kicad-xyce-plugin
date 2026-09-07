@@ -293,20 +293,22 @@ void ChartsRenderer::render_panel() {
     ImGui::SetNextWindowSize(ImVec2(m_viewport_width, m_viewport_height), ImGuiCond_Always);
     // panel window covering the whole viewport without decoration
     if (ImGui::Begin("Charts Panel", nullptr, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground)) {
+        // charts of the active dataset
+        auto* dataset = active_dataset();
         // check we have charts to render
-        if (!m_charts.empty()) {
+        if (dataset != nullptr && !dataset->charts.empty()) {
             // available area
             const ImVec2 total_space = ImGui::GetContentRegionAvail();
             // chart height
-            const float height = total_space.y / static_cast<float>(m_charts.size());
+            const float height = total_space.y / static_cast<float>(dataset->charts.size());
             // render charts within the native frame
-            for (size_t i = 0; i < m_charts.size(); ++i) {
+            for (size_t i = 0; i < dataset->charts.size(); ++i) {
                 // area name
                 auto name = std::format("Chart {}", i);
                 // create child with given height, use the whole area in the horizontal
                 if (ImGui::BeginChild(name.c_str(), ImVec2(0, height), false, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration)) {
                     // render chart
-                    m_charts[i]->render();
+                    dataset->charts[i]->render();
                     // close
                     ImGui::EndChild();
                 }
@@ -386,19 +388,44 @@ void ChartsRenderer::on_idle() {
     }
 }
 
-void ChartsRenderer::update(ExpressionManager& expression_manager, const StepInformation& step_information, const AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
-    // update fields
-    m_expression_manager = &expression_manager;
-    m_step_information = &step_information;
-    m_abscissa_scale = abscissa_scale;
-    // new simulation data, clear any hover readout from the previous file
+ChartsRenderer::DatasetCharts* ChartsRenderer::active_dataset() {
+    // look up the state of the active tab
+    const auto it = m_datasets.find(m_active_dataset_id);
+    // no state when the tab has none
+    return it != m_datasets.end() ? &it->second : nullptr;
+}
+
+const ChartsRenderer::DatasetCharts* ChartsRenderer::active_dataset() const {
+    // look up the state of the active tab
+    const auto it = m_datasets.find(m_active_dataset_id);
+    // no state when the tab has none
+    return it != m_datasets.end() ? &it->second : nullptr;
+}
+
+void ChartsRenderer::update(const int dataset_id, ExpressionManager& expression_manager, const StepInformation& step_information, const AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) {
+    // fetch or create the state of this tab
+    auto& dataset = m_datasets[dataset_id];
+    // remember whether the charts must be re-pointed to a replaced file
+    const bool file_changed = dataset.expression_manager != &expression_manager;
+    // refresh the dataset data references
+    dataset.expression_manager = &expression_manager;
+    dataset.step_information = &step_information;
+    dataset.abscissa_scale = abscissa_scale;
+    dataset.suggested_plots = suggested_plots;
+    // activation or new data, clear any hover readout from the previous tab
     hover_ended();
-    // check charts are present, if not add one
-    if (!m_charts.empty()) {
-        // loop charts
-        for (const auto& chart : m_charts) {
-            // update chart with new information
-            chart->update(m_expression_manager, m_step_information, m_abscissa_scale);
+    // make this dataset the active tab
+    m_active_dataset_id = dataset_id;
+    // check charts already exist for this dataset
+    if (!dataset.charts.empty()) {
+        // a replaced file (simulation re-run) re-points the charts to the new
+        // data while zoom windows, plotted series names and step selections
+        // survive; a plain tab switch reuses the charts untouched
+        if (file_changed) {
+            // loop charts
+            for (const auto& chart : dataset.charts)
+                // update chart with the new information
+                chart->update(dataset.expression_manager, dataset.step_information, dataset.abscissa_scale);
         }
     }
     else if (!suggested_plots.empty()) {
@@ -411,7 +438,7 @@ void ChartsRenderer::update(ExpressionManager& expression_manager, const StepInf
             // resolve each expression name to its pointer
             for (const auto& name : plot_names) {
                 // evaluate the expression name
-                auto* expression = m_expression_manager->evaluate(name);
+                auto* expression = dataset.expression_manager->evaluate(name);
                 // check it resolved to an existing expression
                 if (expression == nullptr) {
                     // log information
@@ -430,116 +457,169 @@ void ChartsRenderer::update(ExpressionManager& expression_manager, const StepInf
         // add a new chart with no pre-populated expressions
         add_chart();
     }
-    // refresh
-    refresh_charts();
+    // refresh with a single frame; the charts are already rendered and cached
+    // from the previous activation, so one repaint is enough to show the
+    // switched-to tab without the cost of a full 3-frame refresh
+    refresh_charts(1);
 }
 
 Chart* ChartsRenderer::add_chart() {
-    // create chart and append it to vector
-    m_charts.push_back(std::make_unique<Chart>(m_expression_manager, m_step_information, m_abscissa_scale, k_decimate_target));
+    // active dataset state
+    auto* dataset = active_dataset();
+    // no charts can be added without an active dataset
+    if (dataset == nullptr)
+        return nullptr;
+    // create chart and append it to the dataset vector
+    dataset->charts.push_back(std::make_unique<Chart>(dataset->expression_manager, dataset->step_information, dataset->abscissa_scale, k_decimate_target));
     // chart
-    auto& chart = m_charts[m_charts.size() - 1];
+    auto& chart = dataset->charts[dataset->charts.size() - 1];
     // plot series (will do nothing, but will set the correct abscissa for the zoom window)
     chart->plot_series({});
     // exit
     return chart.get();
 }
 
-void ChartsRenderer::delete_all_charts() {
+void ChartsRenderer::release_dataset(const int dataset_id) {
+    // clear the active hover readout when the released tab was active
+    if (m_active_dataset_id == dataset_id) {
+        // clear hover state
+        hover_ended();
+        // no dataset is active anymore
+        m_active_dataset_id = -1;
+    }
+    // drop the chart state of the tab
+    m_datasets.erase(dataset_id);
+    // refresh
+    refresh_charts();
+}
+
+void ChartsRenderer::release_all_datasets() {
     // clear active hover readout
     hover_ended();
-    // simple, clean vector
-    m_charts.clear();
+    // drop every dataset chart state
+    m_datasets.clear();
+    // no dataset is active anymore
+    m_active_dataset_id = -1;
     // refresh
     refresh_charts();
 }
 
 void ChartsRenderer::refresh_charts(int frames) { m_render_chart_frames = frames; }
 
-std::vector<AnyExpression*> ChartsRenderer::all_expressions() const {
-    // nothing to list without an expression manager
-    if (m_expression_manager == nullptr)
-        return {};
-    // delegate to the expression manager
-    return m_expression_manager->expressions();
+size_t ChartsRenderer::chart_count() const {
+    // active dataset state
+    const auto* dataset = active_dataset();
+    // no charts without an active dataset
+    return dataset != nullptr ? dataset->charts.size() : 0;
 }
 
-std::vector<AnyExpression*> ChartsRenderer::chart_selected_expressions(size_t chart_index) const {
-    // guard against an invalid chart index
-    if (chart_index >= m_charts.size())
+std::vector<AnyExpression*> ChartsRenderer::all_expressions() const {
+    // active dataset state
+    const auto* dataset = active_dataset();
+    // nothing to list without an active dataset
+    if (dataset == nullptr || dataset->expression_manager == nullptr)
+        return {};
+    // delegate to the expression manager
+    return dataset->expression_manager->expressions();
+}
+
+std::vector<AnyExpression*> ChartsRenderer::chart_selected_expressions(const size_t chart_index) const {
+    // active dataset state
+    const auto* dataset = active_dataset();
+    // guard against a missing dataset or an invalid chart index
+    if (dataset == nullptr || chart_index >= dataset->charts.size())
         return {};
     // delegate to the chart
-    return m_charts[chart_index]->selected_expressions();
+    return dataset->charts[chart_index]->selected_expressions();
 }
 
 std::pair<double, double> ChartsRenderer::abscissa_range() const {
+    // active dataset state
+    const auto* dataset = active_dataset();
     // no step information loaded yet, fall back to a safe default
-    if (m_step_information == nullptr)
+    if (dataset == nullptr || dataset->step_information == nullptr)
         return {0.0, 1.0};
     // full abscissa value range of the loaded file
-    return {m_step_information->abscissa_left_value(), m_step_information->abscissa_right_value()};
+    return {dataset->step_information->abscissa_left_value(), dataset->step_information->abscissa_right_value()};
 }
 
 AnyExpression* ChartsRenderer::evaluate_expression(const std::string& expression) {
-    // nothing to evaluate without an expression manager
-    if (m_expression_manager == nullptr)
+    // active dataset state
+    auto* dataset = active_dataset();
+    // nothing to evaluate without an active dataset
+    if (dataset == nullptr || dataset->expression_manager == nullptr)
         return nullptr;
     // delegate to the expression manager
-    return m_expression_manager->evaluate(expression, expression);
+    return dataset->expression_manager->evaluate(expression, expression);
 }
 
-std::set<size_t> ChartsRenderer::chart_selected_steps(size_t chart_index) const {
-    // guard against an invalid chart index
-    if (chart_index >= m_charts.size())
+std::set<size_t> ChartsRenderer::chart_selected_steps(const size_t chart_index) const {
+    // active dataset state
+    const auto* dataset = active_dataset();
+    // guard against a missing dataset or an invalid chart index
+    if (dataset == nullptr || chart_index >= dataset->charts.size())
         return {};
     // delegate to the chart
-    return m_charts[chart_index]->selected_steps();
+    return dataset->charts[chart_index]->selected_steps();
 }
 
-void ChartsRenderer::set_chart_selected_steps(size_t chart_index, const std::set<size_t>& steps) {
-    // guard against an invalid chart index
-    if (chart_index >= m_charts.size())
+void ChartsRenderer::set_chart_selected_steps(const size_t chart_index, const std::set<size_t>& steps) {
+    // active dataset state
+    auto* dataset = active_dataset();
+    // guard against a missing dataset or an invalid chart index
+    if (dataset == nullptr || chart_index >= dataset->charts.size())
         return;
     // apply the given step selection to the chart
-    m_charts[chart_index]->set_selected_steps(steps);
+    dataset->charts[chart_index]->set_selected_steps(steps);
     // refresh to show the updated selection
     refresh_charts();
 }
 
 const StepInformation* ChartsRenderer::step_information() const {
-    // expose the step information of the loaded file
-    return m_step_information;
+    // expose the step information of the active dataset
+    const auto* dataset = active_dataset();
+    // nothing loaded yet
+    return dataset != nullptr ? dataset->step_information : nullptr;
 }
 
-void ChartsRenderer::plot_chart_expressions(size_t chart_index, const std::set<AnyExpression*>& expressions) {
-    // guard against an invalid chart index
-    if (chart_index >= m_charts.size())
+void ChartsRenderer::plot_chart_expressions(const size_t chart_index, const std::set<AnyExpression*>& expressions) {
+    // active dataset state
+    auto* dataset = active_dataset();
+    // guard against a missing dataset or an invalid chart index
+    if (dataset == nullptr || chart_index >= dataset->charts.size())
         return;
     // plot the given expressions on the chart
-    m_charts[chart_index]->plot_series(expressions);
+    dataset->charts[chart_index]->plot_series(expressions);
     // refresh to show the updated selection
     refresh_charts();
 }
 
-size_t ChartsRenderer::position_to_index(float position) const {
-    // clamp to valid range and multiply by chart count
-    if (m_charts.empty())
+size_t ChartsRenderer::position_to_index(const float position) const {
+    // charts of the active dataset
+    const auto* dataset = active_dataset();
+    // nothing to translate without an active dataset
+    if (dataset == nullptr || dataset->charts.empty())
         return 0;
     // clamp the position to [0, 1] and compute the corresponding chart index
     const float clamped = std::clamp(position, 0.0f, 1.0f);
-    const size_t index = static_cast<size_t>(clamped * static_cast<float>(m_charts.size()));
-    return std::min(index, m_charts.size() - 1);
+    const size_t index = static_cast<size_t>(clamped * static_cast<float>(dataset->charts.size()));
+    return std::min(index, dataset->charts.size() - 1);
 }
 
-void ChartsRenderer::zoom_to_fit(float chart_position) {
+void ChartsRenderer::zoom_to_fit(const float chart_position) {
     // find the chart index corresponding to the position in the panel
     const size_t chart_index = position_to_index(chart_position);
+    // active dataset state
+    auto* dataset = active_dataset();
     // log information
     spdlog::debug("User requested zoom to fit on chart at position {} (index {})", chart_position, chart_index);
+    // nothing to do without an active dataset
+    if (dataset == nullptr)
+        return;
     // loop charts
-    for (size_t i = 0; i < m_charts.size(); i++) {
+    for (size_t i = 0; i < dataset->charts.size(); i++) {
         // chart at i
-        const auto& chart = m_charts[i];
+        const auto& chart = dataset->charts[i];
         // check if this is the chart that triggered the zoom to fit action
         if (i == chart_index) {
             // reset zoom window
@@ -554,27 +634,34 @@ void ChartsRenderer::zoom_to_fit(float chart_position) {
     refresh_charts();
 }
 
-void ChartsRenderer::autorange(float chart_position) {
+void ChartsRenderer::autorange(const float chart_position) {
     // find the chart index corresponding to the position in the panel
     const size_t chart_index = position_to_index(chart_position);
+    // active dataset state
+    auto* dataset = active_dataset();
     // log information
     spdlog::debug("User requested autorange on chart at position {} (index {})", chart_position, chart_index);
     // reset vertical zoom only on the selected chart
-    if (chart_index < m_charts.size()) {
+    if (dataset != nullptr && chart_index < dataset->charts.size()) {
         // reset vertical zoom window
-        m_charts[chart_index]->reset_zoom_window(false, true);
+        dataset->charts[chart_index]->reset_zoom_window(false, true);
         // refresh
         refresh_charts();
     }
 }
 
-void ChartsRenderer::zoom_abscissa_extent(float chart_position) {
+void ChartsRenderer::zoom_abscissa_extent(const float chart_position) {
     // find the chart index corresponding to the position in the panel
     const size_t chart_index = position_to_index(chart_position);
+    // active dataset state
+    auto* dataset = active_dataset();
     // log information
     spdlog::debug("User requested zoom abscissa extent on chart at position {} (index {})", chart_position, chart_index);
+    // nothing to do without an active dataset
+    if (dataset == nullptr)
+        return;
     // loop all charts
-    for (const auto& chart : m_charts) {
+    for (const auto& chart : dataset->charts) {
         // reset zoom window
         chart->reset_zoom_window(true, false);
     }
@@ -582,29 +669,36 @@ void ChartsRenderer::zoom_abscissa_extent(float chart_position) {
     refresh_charts();
 }
 
-void ChartsRenderer::delete_all_plots(float chart_position) {
+void ChartsRenderer::delete_all_plots(const float chart_position) {
     // find the chart index corresponding to the position in the panel
     const size_t chart_index = position_to_index(chart_position);
+    // active dataset state
+    auto* dataset = active_dataset();
     // log information
     spdlog::debug("User requested deleting all plots on chart at position {} (index {})", chart_position, chart_index);
     // selected chart
-    if (chart_index < m_charts.size()) {
+    if (dataset != nullptr && chart_index < dataset->charts.size()) {
         // clear chart
-        m_charts[chart_index]->clear();
+        dataset->charts[chart_index]->clear();
         // refresh
         refresh_charts();
     }
 }
 
-void ChartsRenderer::delete_chart(float chart_position) {
+void ChartsRenderer::delete_chart(const float chart_position) {
     // find the chart index corresponding to the position in the panel
     const size_t chart_index = position_to_index(chart_position);
+    // active dataset state
+    auto* dataset = active_dataset();
     // log information
     spdlog::debug("User requested deleting chart at position {} (index {})", chart_position, chart_index);
+    // nothing to delete without an active dataset
+    if (dataset == nullptr)
+        return;
     // delete chart at index
-    m_charts.erase(m_charts.begin() + static_cast<int>(chart_index));
+    dataset->charts.erase(dataset->charts.begin() + static_cast<int>(chart_index));
     // ensure at least one chart in panel
-    if (m_charts.empty())
+    if (dataset->charts.empty())
         add_chart();
     // refresh
     refresh_charts();
@@ -613,13 +707,15 @@ void ChartsRenderer::delete_chart(float chart_position) {
 void ChartsRenderer::zoom_drag_started(float x, float y) {
     // clear active hover readout during drag interactions
     hover_ended();
+    // charts of the active dataset
+    auto* dataset = active_dataset();
     // nothing to select when no charts exist
-    if (m_charts.empty())
+    if (dataset == nullptr || dataset->charts.empty())
         return;
     // find the chart whose plot area contains the start point
-    for (size_t i = 0; i < m_charts.size(); ++i) {
+    for (size_t i = 0; i < dataset->charts.size(); ++i) {
         // plot bounding box for chart i
-        const auto [x_min, y_min, x_max, y_max] = m_charts[i]->get_plot_rect();
+        const auto [x_min, y_min, x_max, y_max] = dataset->charts[i]->get_plot_rect();
         // check if click is inside the plot rectangle
         if (x >= x_min && x <= x_max && y >= y_min && y <= y_max) {
             // retain active chart index
@@ -635,12 +731,14 @@ void ChartsRenderer::zoom_drag_started(float x, float y) {
 }
 
 void ChartsRenderer::zoom_drag_moved(float x, float y) {
+    // charts of the active dataset
+    auto* dataset = active_dataset();
     // check a drag selection was initiated inside a valid chart
     const auto [x1, y1, x2, y2] = m_zoom_selection;
-    if (x1 < 0.0f || y1 < 0.0f || m_selected_chart_index >= m_charts.size())
+    if (x1 < 0.0f || y1 < 0.0f || dataset == nullptr || m_selected_chart_index >= dataset->charts.size())
         return;
     // current chart plot bounds
-    const auto [x_min, y_min, x_max, y_max] = m_charts[m_selected_chart_index]->get_plot_rect();
+    const auto [x_min, y_min, x_max, y_max] = dataset->charts[m_selected_chart_index]->get_plot_rect();
     // clamp mouse coordinates to the active plot area
     const float clamped_x = std::clamp(x, x_min, x_max);
     const float clamped_y = std::clamp(y, y_min, y_max);
@@ -649,12 +747,14 @@ void ChartsRenderer::zoom_drag_moved(float x, float y) {
 }
 
 void ChartsRenderer::zoom_drag_ended() {
+    // charts of the active dataset
+    auto* dataset = active_dataset();
     // check a valid zoom selection exists
     const auto [x1, y1, x2, y2] = m_zoom_selection;
-    const bool valid_zoom = m_selected_chart_index < m_charts.size() && x1 >= 0.0f && y1 >= 0.0f && x2 >= 0.0f && y2 >= 0.0f && std::abs(x2 - x1) > 10.0f && std::abs(y2 - y1) > 10.0f;
+    const bool valid_zoom = dataset != nullptr && m_selected_chart_index < dataset->charts.size() && x1 >= 0.0f && y1 >= 0.0f && x2 >= 0.0f && y2 >= 0.0f && std::abs(x2 - x1) > 10.0f && std::abs(y2 - y1) > 10.0f;
     if (valid_zoom) {
         // current chart plot bounds
-        const auto [x_min, y_min, x_max, y_max] = m_charts[m_selected_chart_index]->get_plot_rect();
+        const auto [x_min, y_min, x_max, y_max] = dataset->charts[m_selected_chart_index]->get_plot_rect();
         // plot dimensions
         const float width = x_max - x_min;
         const float height = y_max - y_min;
@@ -666,9 +766,9 @@ void ChartsRenderer::zoom_drag_ended() {
             const double z_x2 = (static_cast<double>(std::max(x1, x2)) - x_min) / width;
             const double z_y2 = (static_cast<double>(std::max(y1, y2)) - y_min) / height;
             // loop all charts to apply zoom
-            for (size_t i = 0; i < m_charts.size(); ++i) {
+            for (size_t i = 0; i < dataset->charts.size(); ++i) {
                 // chart at index i
-                const auto& chart = m_charts[i];
+                const auto& chart = dataset->charts[i];
                 // check if this is the chart that triggered the zoom action
                 if (i == m_selected_chart_index) {
                     // log information
@@ -702,8 +802,10 @@ void ChartsRenderer::zoom_drag_canceled() {
 }
 
 void ChartsRenderer::hover_moved(float x, float y) {
+    // charts of the active dataset
+    auto* dataset = active_dataset();
     // nothing to hover without charts
-    if (m_charts.empty()) {
+    if (dataset == nullptr || dataset->charts.empty()) {
         // clear hover state
         hover_ended();
         // exit
@@ -712,9 +814,9 @@ void ChartsRenderer::hover_moved(float x, float y) {
     // look for the chart whose plot area contains the cursor
     m_hover_in_plot = false;
     // loop charts
-    for (size_t i = 0; i < m_charts.size(); ++i) {
+    for (size_t i = 0; i < dataset->charts.size(); ++i) {
         // current chart plot bounds
-        const auto [px_min, py_min, px_max, py_max] = m_charts[i]->get_plot_rect();
+        const auto [px_min, py_min, px_max, py_max] = dataset->charts[i]->get_plot_rect();
         // check the cursor is inside the plot area
         if (x >= px_min && x <= px_max && y >= py_min && y <= py_max && (px_max - px_min) > 0.0f) {
             // chart index being hovered
@@ -724,7 +826,7 @@ void ChartsRenderer::hover_moved(float x, float y) {
             // ratio of the cursor within the plot area
             const double ratio = static_cast<double>(x - px_min) / static_cast<double>(px_max - px_min);
             // scale-aware abscissa value at the ratio
-            m_hover_abscissa_value = m_charts[i]->plot_ratio_to_abscissa_value(ratio);
+            m_hover_abscissa_value = dataset->charts[i]->plot_ratio_to_abscissa_value(ratio);
             // only the first matching chart is considered
             break;
         }
@@ -758,10 +860,12 @@ void ChartsRenderer::hover_ended() {
 void ChartsRenderer::publish_hover() {
     // hover text to publish, empty restores the previous status bar text
     std::string text;
+    // active dataset state
+    auto* dataset = active_dataset();
     // cursor is inside the plot area of a valid chart
-    if (m_hover_in_plot && m_hover_chart_index < m_charts.size()) {
+    if (dataset != nullptr && m_hover_in_plot && m_hover_chart_index < dataset->charts.size()) {
         // series values as a single string for the current abscissa value
-        text = m_charts[m_hover_chart_index]->hovered_series_text(m_hover_abscissa_value);
+        text = dataset->charts[m_hover_chart_index]->hovered_series_text(m_hover_abscissa_value);
     }
     // publish when the hover text has changed
     if (text != m_last_hover_text) {

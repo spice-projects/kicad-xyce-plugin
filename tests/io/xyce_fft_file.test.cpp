@@ -481,7 +481,7 @@ TEST(XyceFftFileTest, output_file_contains_abscissa_metadata) {
     // assert
     ASSERT_TRUE(result.has_value());
     const auto& output_file = result->front();
-    ASSERT_EQ(output_file->title(), "FFT analysis");
+    ASSERT_EQ(output_file->title(), "FFT: HANN, 100–1000 Hz,fh=100, Norm");
     ASSERT_EQ(output_file->filename(), tmp.path() / "sim.fft0");
     ASSERT_FALSE(output_file->is_complex());
     ASSERT_EQ(output_file->abscissa_scale(), AbscissaScale::LINEAR);
