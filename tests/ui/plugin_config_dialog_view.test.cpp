@@ -6,6 +6,7 @@
 #include "config/plugin_config.h"
 #include "dsp/fft.h"
 #include "expression/expression.h"
+#include "main_window.h"
 #include "simulation/simulation_config.h"
 #include "ui/main_window_view_def.h"
 #include "ui/plugin_config_dialog_view.h"
@@ -31,7 +32,6 @@ namespace
         void on_simulation_parameters_dialog_result(const SimulationConfig&) override {}
         void on_fft_dialog_result(std::vector<AnyExpression*>, const fft::FftParameters&) override {}
         void on_chart_calculate_fft(size_t) override {}
-        void on_chart_open_xyce_fft_calculation(size_t) override {}
         void on_chart_step_tool(size_t) override {}
         void on_chart_new_window(size_t) override {}
         void on_simulation_finished(int, bool) override {}
