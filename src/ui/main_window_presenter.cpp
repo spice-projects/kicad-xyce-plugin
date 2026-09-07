@@ -18,6 +18,50 @@
 #include "main_window_state.h"
 #include "simulation_runner.h"
 
+namespace
+{
+    std::string window_to_string(fft::WindowFunction wf) {
+        switch (wf) {
+        case fft::WindowFunction::RECTANGULAR:
+            return "RECTANGULAR";
+        case fft::WindowFunction::HAMMING:
+            return "HAMMING";
+        case fft::WindowFunction::HANNING:
+            return "HANN";
+        case fft::WindowFunction::BLACKMAN:
+            return "BLACKMAN";
+        default:
+            return "UNKNOWN";
+        }
+    }
+
+    // map a PlotType to a human-readable tab label; falls back to the raw
+    // file's title for UNKNOWN plot types (e.g. parsed headers we don't
+    // classify). Touchstone files (detected via the data_format metadata
+    // key) always show their filename instead of the AC Analysis label.
+    std::string plot_type_to_label(const XyceOutputFile& file) {
+        // touchstone files carry a data_format metadata entry
+        if (file.metadata().count("data_format") > 0)
+            return file.filename().string();
+        switch (file.plot_type()) {
+        case PlotType::TRANSIENT:
+            return "Transient";
+        case PlotType::AC:
+            return "AC Analysis";
+        case PlotType::DC:
+            return "DC Sweep";
+        case PlotType::DC_OPERATING_POINT:
+            return "DC Operating Point";
+        case PlotType::NOISE:
+            return "Noise Analysis";
+        case PlotType::FFT:
+        case PlotType::UNKNOWN:
+        default:
+            return file.title();
+        }
+    }
+} // namespace
+
 SlintMainWindowPresenter::SlintMainWindowPresenter(MainWindowViewDef& view, std::unique_ptr<NetlistSource> netlist_source, PluginConfig plugin_config, std::shared_ptr<KiCadSession> kicad_session) :
     m_view(view), m_kicad_session(std::move(kicad_session)), m_netlist_source(std::move(netlist_source)), m_simulation_config(SimulationConfig::from_xyce_directives({})), m_plugin_config(std::move(plugin_config)) {
     // initialize the toolbar action states before the window is shown
@@ -46,6 +90,14 @@ void SlintMainWindowPresenter::on_open_xyce_file(const std::filesystem::path& pa
         m_xyce_raw_file = std::nullopt;
         // remove the parsed FFT calculation files, they belong to a previous run
         m_fft_files.clear();
+        // drop every dataset chart state, they belong to a previous file
+        m_view.release_all_charts();
+        // clear plot datasets
+        m_plot_datasets.clear();
+        // reset active dataset index
+        m_active_dataset_index = 0;
+        // synchronize plot tabs with view
+        sync_plot_tabs_with_view();
         // show the netlist view over the charts view
         m_view.show_netlist_view();
         // refresh toolbar/menu states
@@ -54,9 +106,13 @@ void SlintMainWindowPresenter::on_open_xyce_file(const std::filesystem::path& pa
     }
     // raw file extension
     if (extension == ".raw") {
-        // parse the raw file and store it in the presenter state
-        if (update_xyce_raw_file(xyce_raw_file_parser(path), true))
-            show_raw_file_view();
+        // parse the raw file
+        auto raw_file = xyce_raw_file_parser(path);
+        // check raw file was parsed
+        if (raw_file.has_value()) {
+            // load the parsed raw file
+            load_raw_file(std::move(raw_file.value()));
+        }
     }
 }
 
@@ -328,15 +384,10 @@ void SlintMainWindowPresenter::on_fft_dialog_result(std::vector<AnyExpression*> 
         m_view.set_status_text("FFT computation skipped: no data in the selected range");
         return;
     }
-    // build the expression name for the title
-    std::string fft_title = "FFT - ";
-    for (size_t i = 0; i < selected_expressions.size(); ++i) {
-        // append separator
-        if (i > 0)
-            fft_title += ", ";
-        // append the expression name
-        fft_title += std::get<Expression<double>>(*selected_expressions[i]).name();
-    }
+    // build title from the FFT parameters (window and output frequency range)
+    const double fft_min_freq = fft_abscissa_value_ranges.front().first;
+    const double fft_max_freq = fft_abscissa_value_ranges.front().second;
+    std::string fft_title = "FFT: " + window_to_string(fft_params.window) + ", " + std::to_string(static_cast<long long>(fft_min_freq + 0.5)) + "–" + std::to_string(static_cast<long long>(fft_max_freq + 0.5)) + " Hz";
     // build FFT expressions using the Expression<double> constructor with step slices
     std::vector<AnyExpression> fft_expressions;
     {
@@ -380,9 +431,93 @@ void SlintMainWindowPresenter::on_fft_dialog_result(std::vector<AnyExpression*> 
     StepInformation fft_step_information(step_information.keys(), step_information.values(), fft_abscissa_value_ranges);
     // build the expression manager (moves from the expression list)
     ExpressionManager fft_expression_manager(fft_expressions, fft_abscissa_indices);
-    // create a raw file with the FFT results and spawn a result window
+    // allocate a new dataset id
+    const int dataset_id = m_next_dataset_id++;
+    // create a raw file with the FFT results
     auto fft_raw = std::make_shared<XyceOutputFile>("", fft_title, false, std::move(fft_step_information), PlotType::FFT, AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, suggested_plots);
-    m_view.spawn_raw_file_window(std::move(fft_raw));
+    // append the FFT dataset as a closable tab
+    m_plot_datasets.push_back(PlotDataset{
+        .id = dataset_id,
+        .file = std::move(fft_raw),
+        .closable = true,
+    });
+    // new tab index
+    const size_t new_tab_index = m_plot_datasets.size() - 1;
+    // synchronize tabs with the view
+    sync_plot_tabs_with_view();
+    // activate the newly created FFT dataset
+    activate_plot_dataset(new_tab_index);
+    // switch to the charts view
+    m_view.show_charts_view();
+    // refresh toolbar/menu states
+    refresh_action_states();
+}
+
+void SlintMainWindowPresenter::on_select_plot_tab(int index) {
+    // bounds check the tab index
+    if (index < 0 || static_cast<size_t>(index) >= m_plot_datasets.size())
+        return;
+    // ignore when already active
+    if (static_cast<size_t>(index) == m_active_dataset_index)
+        return;
+    // activate the selected dataset and switch charts
+    activate_plot_dataset(static_cast<size_t>(index));
+    // refresh toolbar/menu states
+    refresh_action_states();
+}
+
+void SlintMainWindowPresenter::on_close_plot_tab(int index) {
+    // bounds check the tab index
+    if (index < 0 || static_cast<size_t>(index) >= m_plot_datasets.size())
+        return;
+    // only closable datasets can be closed
+    if (!m_plot_datasets[static_cast<size_t>(index)].closable)
+        return;
+    // drop the chart state of the closed tab
+    m_view.release_charts(m_plot_datasets[static_cast<size_t>(index)].id);
+    // erase the dataset at the given index
+    m_plot_datasets.erase(m_plot_datasets.begin() + index);
+    // handle case where no datasets remain
+    if (m_plot_datasets.empty()) {
+        // reset active dataset index
+        m_active_dataset_index = 0;
+        // reset raw file reference
+        m_xyce_raw_file = std::nullopt;
+        // drop any remaining chart state
+        m_view.release_all_charts();
+        // synchronize plot tabs with view
+        sync_plot_tabs_with_view();
+        // refresh toolbar/menu states
+        refresh_action_states();
+        // exit
+        return;
+    }
+    // handle case where active tab was closed or index is past end
+    if (m_active_dataset_index == static_cast<size_t>(index)) {
+        // clamp active index if it was the last element
+        if (m_active_dataset_index >= m_plot_datasets.size())
+            m_active_dataset_index = m_plot_datasets.size() - 1;
+        // synchronize tabs before activating
+        sync_plot_tabs_with_view();
+        // activate the new current dataset
+        activate_plot_dataset(m_active_dataset_index);
+    }
+    else if (m_active_dataset_index > static_cast<size_t>(index)) {
+        // decrement active index because a preceding item was removed
+        --m_active_dataset_index;
+        // synchronize plot tabs with view
+        sync_plot_tabs_with_view();
+        // update active plot tab in view
+        m_view.set_active_plot_tab(static_cast<int>(m_active_dataset_index));
+    }
+    else {
+        // synchronize plot tabs with view
+        sync_plot_tabs_with_view();
+        // update active plot tab in view
+        m_view.set_active_plot_tab(static_cast<int>(m_active_dataset_index));
+    }
+    // refresh toolbar/menu states
+    refresh_action_states();
 }
 
 void SlintMainWindowPresenter::on_chart_calculate_fft(size_t chart_index) {
@@ -393,12 +528,6 @@ void SlintMainWindowPresenter::on_chart_calculate_fft(size_t chart_index) {
     // ask the view to show the FFT setup dialog for the chart; the accepted
     // expressions and parameters are delivered through on_fft_dialog_result
     m_view.show_fft_dialog(chart_index);
-}
-
-void SlintMainWindowPresenter::on_chart_open_xyce_fft_calculation(size_t) {
-    // open a new window for each parsed FFT calculation output file
-    for (const auto& fft_file : m_fft_files)
-        m_view.spawn_raw_file_window(fft_file);
 }
 
 void SlintMainWindowPresenter::on_chart_step_tool(size_t chart_index) {
@@ -412,18 +541,32 @@ void SlintMainWindowPresenter::on_chart_step_tool(size_t chart_index) {
 }
 
 void SlintMainWindowPresenter::on_chart_new_window(size_t) {
-    // spawn a new window seeded with the current raw file
+    // spawn a new window seeded with the active dataset file
     if (m_xyce_raw_file.has_value())
         m_view.spawn_raw_file_window(m_xyce_raw_file.value());
 }
 
 void SlintMainWindowPresenter::load_raw_file(std::shared_ptr<XyceOutputFile> raw_file) {
-    // store the already-parsed raw file; the parsed FFT calculation files belong
-    // to the previous run
+    // guard against a missing file
+    if (raw_file == nullptr)
+        return;
+    // drop existing datasets and chart state before loading a new raw file
     m_fft_files.clear();
-    // update the charts with the raw file data and switch to the charts view
-    if (update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>>(std::move(raw_file)), true))
-        show_raw_file_view();
+    m_xyce_raw_file = std::nullopt;
+    m_view.release_all_charts();
+    m_plot_datasets.clear();
+    m_active_dataset_index = 0;
+    // append the parsed raw file as a primary (non-closable) plot dataset
+    m_plot_datasets.push_back(PlotDataset{
+        .id = m_next_dataset_id++,
+        .file = std::move(raw_file),
+        .closable = false,
+    });
+    // synchronize tabs with the view, activate the new dataset (the renderer
+    // creates a fresh chart state for it) and switch to the charts view
+    sync_plot_tabs_with_view();
+    activate_plot_dataset(m_plot_datasets.size() - 1);
+    show_raw_file_view();
 }
 
 void SlintMainWindowPresenter::on_simulation_finished(int exit_code, bool was_canceled) {
@@ -448,27 +591,56 @@ void SlintMainWindowPresenter::on_simulation_finished(int exit_code, bool was_ca
             auto raw_file = xyce_raw_file_parser(raw_path->string());
             // check the raw file was parsed
             if (raw_file.has_value()) {
-                // update the charts view with the parsed data; keep the existing
-                // charts since this is a re-run of the same netlist, so plots and
-                // their step selections survive across runs
-                update_xyce_raw_file(std::move(raw_file), false);
-                // switch to the charts view
-                m_view.show_charts_view();
-                // update the window title from the raw file
-                set_base_title(m_xyce_raw_file.value()->title());
-                // update the statusbar
-                m_view.set_status_text("Simulation finished successfully");
-                // parse the FFT calculation output files produced by this run, derived from the analysis config
+                // drop the chart states of the previous run except the primary
+                // dataset, whose identity is kept so the renderer re-points its
+                // charts and zoom windows, plots and step selections survive the
+                // re-run of the same netlist
+                for (size_t i = 1; i < m_plot_datasets.size(); ++i)
+                    m_view.release_charts(m_plot_datasets[i].id);
+                m_plot_datasets.resize(std::min<size_t>(m_plot_datasets.size(), 1));
+                // remove the parsed FFT calculation files from the previous run
                 m_fft_files.clear();
+                // extract primary raw file
+                auto primary_raw = std::move(raw_file.value());
+                // a re-run replaces the primary file in place, a first run
+                // appends it as a non-closable dataset
+                if (m_plot_datasets.empty())
+                    m_plot_datasets.push_back(PlotDataset{
+                        .id = m_next_dataset_id++,
+                        .file = primary_raw,
+                        .closable = false,
+                    });
+                else
+                    m_plot_datasets[0].file = std::move(primary_raw);
+                // parse the FFT calculation output files produced by this run, derived from the analysis config
                 if (const auto fft_pattern = m_simulation_config.fft_output_file_path_pattern(m_simulation_netlist_path); fft_pattern.has_value()) {
-                    // raw file instance
-                    const auto& raw_file_instance = m_xyce_raw_file.value();
                     // parse the matching FFT output files
-                    if (auto parsed_files = xyce_fft_file_parser(*fft_pattern, raw_file_instance->step_information(), &raw_file_instance->expression_manager()))
+                    if (auto parsed_files = xyce_fft_file_parser(*fft_pattern, m_plot_datasets[0].file->step_information(), &m_plot_datasets[0].file->expression_manager())) {
+                        // store the parsed FFT files
                         m_fft_files = std::move(*parsed_files);
+                        // append each FFT output file as a non-closable plot dataset
+                        for (auto& fft_file : m_fft_files) {
+                            // append dataset
+                            m_plot_datasets.push_back(PlotDataset{
+                                .id = m_next_dataset_id++,
+                                .file = fft_file,
+                                .closable = false,
+                            });
+                        }
+                    }
                     // log the number of loaded FFT files
                     spdlog::info("Loaded {} Xyce FFT calculation file(s)", m_fft_files.size());
                 }
+                // set active dataset index to primary dataset
+                m_active_dataset_index = 0;
+                // synchronize plot tabs with view
+                sync_plot_tabs_with_view();
+                // activate primary dataset
+                activate_plot_dataset(0);
+                // switch to the charts view
+                m_view.show_charts_view();
+                // update the statusbar
+                m_view.set_status_text("Simulation finished successfully");
                 // refresh toolbar/menu states
                 refresh_action_states();
                 // exit
@@ -558,27 +730,47 @@ void SlintMainWindowPresenter::refresh_action_states() {
     m_view.apply_action_enablement(enablement);
     // drive the Run/Stop toolbar toggle from the simulation state
     m_view.set_simulation_running(m_simulation_running);
-    // forward the parsed FFT calculation files so the charts context menu can expose the action
-    m_view.set_open_fft_calculation_files(m_fft_files);
 }
 
-bool SlintMainWindowPresenter::update_xyce_raw_file(std::optional<std::shared_ptr<XyceOutputFile>> raw_file, bool delete_charts) {
-    // store the raw file reference
-    m_xyce_raw_file = std::move(raw_file);
+void SlintMainWindowPresenter::sync_plot_tabs_with_view() {
+    // build the tab items list from the active datasets
+    std::vector<PlotTabItem> tabs;
+    tabs.reserve(m_plot_datasets.size());
+    // convert each dataset to a tab item
+    for (const auto& dataset : m_plot_datasets) {
+        // append tab item
+        tabs.push_back(PlotTabItem{
+            .id = dataset.id,
+            .title = dataset.file ? plot_type_to_label(*dataset.file) : "",
+            .closable = dataset.closable,
+        });
+    }
+    // active index as int or -1 if empty
+    const int active_tab = m_plot_datasets.empty() ? -1 : static_cast<int>(m_active_dataset_index);
+    // send tabs and active index to the view
+    m_view.set_plot_tabs(tabs, active_tab);
+}
+
+void SlintMainWindowPresenter::activate_plot_dataset(size_t index) {
+    // guard against out of bounds index
+    if (index >= m_plot_datasets.size())
+        return;
+    // store the active dataset index
+    m_active_dataset_index = index;
+    // set the current raw file reference to the dataset file
+    m_xyce_raw_file = m_plot_datasets[index].file;
     // check the file is present
     if (m_xyce_raw_file.has_value()) {
         // file instance
         auto& file = m_xyce_raw_file.value();
-        // delete all charts when the file may differ from the previous one
-        if (delete_charts)
-            m_view.delete_all_charts();
-        // update the charts with the parsed data
-        m_view.update_charts(file->expression_manager(), file->step_information(), file->abscissa_scale(), file->suggested_plots());
-        // indicate success
-        return true;
+        // activate the dataset in the renderer; switching back to a dataset
+        // restores its charts with zoom windows, plots and step selections intact
+        m_view.update_charts(m_plot_datasets[index].id, file->expression_manager(), file->step_information(), file->abscissa_scale(), file->suggested_plots());
+        // update the active tab in the view
+        m_view.set_active_plot_tab(static_cast<int>(index));
+        // update the base title from the dataset title
+        set_base_title(file->title());
     }
-    // indicate failure
-    return false;
 }
 
 void SlintMainWindowPresenter::show_raw_file_view() {

@@ -67,13 +67,23 @@ namespace
 
         [[nodiscard]] bool simulation_output_has_content() const override { return !m_output_lines.empty(); }
 
-        // charts
-        void update_charts(ExpressionManager&, const StepInformation&, AbscissaScale, const std::vector<std::vector<std::string>>&) override { m_update_charts_count++; }
+        // charts; the dataset id identifies the plot tab the charts belong to
+        void update_charts(int dataset_id, ExpressionManager&, const StepInformation&, AbscissaScale, const std::vector<std::vector<std::string>>&) override {
+            m_update_charts_count++;
+            m_updated_dataset_ids.push_back(dataset_id);
+        }
 
-        void delete_all_charts() override { m_delete_all_charts_count++; }
+        void release_charts(int dataset_id) override { m_released_dataset_ids.push_back(dataset_id); }
 
-        // parsed Xyce FFT calculation output files, forwarded to the charts context menu
-        void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) override { m_fft_files_count = files.size(); }
+        void release_all_charts() override { m_release_all_count++; }
+
+        // plot tabs
+        void set_plot_tabs(const std::vector<PlotTabItem>& tabs, int active_index) override {
+            m_plot_tabs = tabs;
+            m_active_plot_tab = active_index;
+        }
+
+        void set_active_plot_tab(int active_index) override { m_active_plot_tab = active_index; }
 
         // show the FFT setup dialog for the chart at the given index
         void show_fft_dialog(size_t chart_index) override { m_fft_dialog_index = chart_index; }
@@ -118,8 +128,11 @@ namespace
         bool m_output_panel_hidden = true;
         std::vector<std::string> m_output_lines;
         int m_update_charts_count = 0;
-        int m_delete_all_charts_count = 0;
-        size_t m_fft_files_count = 0;
+        std::vector<int> m_updated_dataset_ids;
+        std::vector<int> m_released_dataset_ids;
+        int m_release_all_count = 0;
+        std::vector<PlotTabItem> m_plot_tabs;
+        int m_active_plot_tab = -1;
         std::optional<size_t> m_fft_dialog_index;
         std::optional<size_t> m_step_tool_dialog_index;
         std::optional<SimulationConfig> m_simulation_config_result;
@@ -336,6 +349,46 @@ TEST(SlintMainWindowPresenterChecks, simulation_finished_success_loads_raw_file)
     std::filesystem::remove(raw_path, ec);
 }
 
+TEST(SlintMainWindowPresenterChecks, simulation_rerun_keeps_primary_dataset_identity) {
+    // arrange — launch a transient simulation first so the run paths are known
+    RecordingView view;
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 1m\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    presenter.on_run_simulation();
+    ASSERT_TRUE(view.m_started);
+    // arrange — write an ascii raw file at the expected output location
+    const auto raw_path = view.m_started_netlist_path.string() + ".raw";
+    {
+        std::ofstream raw_file(raw_path, std::ios::out | std::ios::trunc);
+        raw_file << "Title: Presenter Test Circuit\n";
+        raw_file << "Plotname: Transient Analysis\n";
+        raw_file << "Flags: real\n";
+        raw_file << "No. Variables: 2\n";
+        raw_file << "No. Points: 3\n";
+        raw_file << "Variables:\n";
+        raw_file << "\t0\ttime\ttime\n";
+        raw_file << "\t1\tV(1)\tvoltage\n";
+        raw_file << "Values:\n";
+        raw_file << " 0  0.0  1.0\n";
+        raw_file << " 1  0.001  2.0\n";
+        raw_file << " 2  0.002  3.0\n";
+    }
+    // act — finish the first run
+    presenter.on_simulation_finished(0, false);
+    const int primary_id = view.m_updated_dataset_ids.back();
+    // act — finish a second run of the same netlist
+    presenter.on_simulation_finished(0, false);
+    // assert — the primary dataset kept its identity so the renderer re-points
+    // its charts instead of rebuilding, and no chart state was released
+    EXPECT_EQ(view.m_updated_dataset_ids.back(), primary_id);
+    EXPECT_TRUE(view.m_released_dataset_ids.empty());
+    ASSERT_EQ(view.m_plot_tabs.size(), 1u);
+    EXPECT_EQ(view.m_active_plot_tab, 0);
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove(view.m_started_netlist_path, ec);
+    std::filesystem::remove(raw_path, ec);
+}
+
 // ========================================================================================
 // simulation output forwarding
 // ========================================================================================
@@ -543,7 +596,6 @@ TEST(SlintMainWindowPresenterChecks, load_raw_file_switches_to_charts_view) {
     // act
     presenter.load_raw_file(make_raw_file());
     // assert
-    EXPECT_EQ(view.m_delete_all_charts_count, 1);
     EXPECT_EQ(view.m_update_charts_count, 1);
     EXPECT_TRUE(view.m_charts_view_shown);
     EXPECT_EQ(view.m_title, "Loaded Circuit");
@@ -573,11 +625,104 @@ TEST(SlintMainWindowPresenterChecks, chart_actions_delegate_with_loaded_raw_file
     presenter.on_chart_calculate_fft(2);
     presenter.on_chart_step_tool(1);
     presenter.on_chart_new_window(7);
-    presenter.on_chart_open_xyce_fft_calculation(7);
     // assert — dialogs target the requested chart and the raw file spawns a window
     EXPECT_EQ(view.m_fft_dialog_index, 2u);
     EXPECT_EQ(view.m_step_tool_dialog_index, 1u);
     ASSERT_EQ(view.m_spawned_files.size(), 1);
+}
+
+TEST(SlintMainWindowPresenterChecks, load_raw_file_populates_plot_tabs) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    // act
+    presenter.load_raw_file(make_raw_file());
+    // assert — the raw file became the primary, non-closable, active tab
+    ASSERT_EQ(view.m_plot_tabs.size(), 1u);
+    EXPECT_EQ(view.m_plot_tabs[0].title, "Transient");
+    EXPECT_FALSE(view.m_plot_tabs[0].closable);
+    EXPECT_EQ(view.m_active_plot_tab, 0);
+    EXPECT_TRUE(view.m_charts_view_shown);
+}
+
+TEST(SlintMainWindowPresenterChecks, select_plot_tab_validates_index) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    presenter.load_raw_file(make_raw_file());
+    const int charts_before = view.m_update_charts_count;
+    // act — out of bounds and already-active selections are ignored
+    presenter.on_select_plot_tab(3);
+    presenter.on_select_plot_tab(0);
+    // assert — no chart update was triggered
+    EXPECT_EQ(view.m_update_charts_count, charts_before);
+    EXPECT_EQ(view.m_active_plot_tab, 0);
+}
+
+TEST(SlintMainWindowPresenterChecks, fft_dialog_result_adds_closable_plot_tab) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    presenter.load_raw_file(make_raw_file());
+    // act — compute an FFT over the full abscissa range of the loaded raw file
+    auto expressions = presenter.raw_file().value()->expression_manager().expressions();
+    const fft::FftParameters parameters{
+        .np = 4,
+        .window = fft::WindowFunction::RECTANGULAR,
+        .format = fft::FftFormat::NORM,
+        .start = 0.0,
+        .stop = 0.002,
+        .output = fft::FftOutput::MAGNITUDE,
+        .keep_dc = true,
+    };
+    presenter.on_fft_dialog_result({expressions[1]}, parameters);
+    // assert — a second closable tab was appended and activated
+    ASSERT_EQ(view.m_plot_tabs.size(), 2u);
+    EXPECT_EQ(view.m_plot_tabs[1].title, "FFT: RECTANGULAR, 0–1500 Hz");
+    EXPECT_TRUE(view.m_plot_tabs[1].closable);
+    EXPECT_EQ(view.m_active_plot_tab, 1);
+    EXPECT_TRUE(view.m_charts_view_shown);
+    // act — close the FFT tab
+    presenter.on_close_plot_tab(1);
+    // assert — the primary tab remains and stays active
+    ASSERT_EQ(view.m_plot_tabs.size(), 1u);
+    EXPECT_EQ(view.m_active_plot_tab, 0);
+    // act — the non-closable primary tab cannot be closed
+    presenter.on_close_plot_tab(0);
+    // assert
+    EXPECT_EQ(view.m_plot_tabs.size(), 1u);
+}
+
+TEST(SlintMainWindowPresenterChecks, tab_switch_preserves_dataset_chart_state) {
+    // arrange
+    RecordingView view;
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path()), PluginConfig(""), nullptr);
+    presenter.load_raw_file(make_raw_file());
+    const int primary_id = view.m_updated_dataset_ids.back();
+    // arrange — create a second dataset through an interactive FFT
+    auto expressions = presenter.raw_file().value()->expression_manager().expressions();
+    const fft::FftParameters parameters{
+        .np = 4,
+        .window = fft::WindowFunction::RECTANGULAR,
+        .format = fft::FftFormat::NORM,
+        .start = 0.0,
+        .stop = 0.002,
+        .output = fft::FftOutput::MAGNITUDE,
+        .keep_dc = true,
+    };
+    presenter.on_fft_dialog_result({expressions[1]}, parameters);
+    const int fft_id = view.m_updated_dataset_ids.back();
+    ASSERT_NE(primary_id, fft_id);
+    // act — switch back to the primary tab
+    presenter.on_select_plot_tab(0);
+    // assert — the primary dataset was re-activated and no chart state was released
+    EXPECT_EQ(view.m_updated_dataset_ids.back(), primary_id);
+    EXPECT_TRUE(view.m_released_dataset_ids.empty());
+    // act — close the FFT tab
+    presenter.on_close_plot_tab(1);
+    // assert — only the FFT chart state was released
+    ASSERT_EQ(view.m_released_dataset_ids.size(), 1u);
+    EXPECT_EQ(view.m_released_dataset_ids.back(), fft_id);
 }
 
 TEST(SlintMainWindowPresenterChecks, fft_dialog_result_guards_without_raw_file) {

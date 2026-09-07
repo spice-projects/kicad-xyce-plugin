@@ -557,12 +557,12 @@ namespace
             ExpressionManager fft_expression_manager(expressions, step_slices);
             // file metadata
             std::unordered_map<std::string, std::string> metadata{
-                {"Window", key.window},
-                {"Normalized", key.normalized ? "true" : "false"},
-                {"First Harmonic", std::to_string(key.first_harmonic)},
+                {"Window", key.window}, {"Normalized", key.normalized ? "true" : "false"}, {"First Harmonic", std::to_string(key.first_harmonic)}, {"start_freq", std::to_string(key.start_freq)}, {"stop_freq", std::to_string(key.stop_freq)},
             };
+            // build title from the abscissa configuration (integer Hz with no trailing zeros)
+            std::string fft_title = "FFT: " + key.window + ", " + std::to_string(static_cast<long long>(key.start_freq)) + "–" + std::to_string(static_cast<long long>(key.stop_freq)) + " Hz," + "fh=" + std::to_string(static_cast<long long>(key.first_harmonic)) + "," + (key.normalized ? " Norm" : " Pure");
             // create the output file
-            output_files.push_back(std::make_shared<XyceOutputFile>(matching_files[0], "FFT analysis", false, std::move(fft_step_information), PlotType::FFT, AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, suggested_plots, std::move(metadata)));
+            output_files.push_back(std::make_shared<XyceOutputFile>(matching_files[0], std::move(fft_title), false, std::move(fft_step_information), PlotType::FFT, AbscissaScale::LINEAR, std::move(fft_expression_manager), nullptr, suggested_plots, std::move(metadata)));
         }
         // return the output files
         return output_files;

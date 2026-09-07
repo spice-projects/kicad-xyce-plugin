@@ -15,6 +15,13 @@
 #include "../simulation/simulation_config.h"
 #include "main_window_state.h"
 
+struct PlotTabItem
+{
+    int id = 0;
+    std::string title;
+    bool closable = false;
+};
+
 // abstract view interface for the main window, so the presenter can be tested without a ui
 class MainWindowView
 {
@@ -45,12 +52,20 @@ public:
     [[nodiscard]] virtual bool simulation_output_panel_hidden() const = 0;
     [[nodiscard]] virtual bool simulation_output_has_content() const = 0;
 
-    // charts
-    virtual void update_charts(ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) = 0;
-    virtual void delete_all_charts() = 0;
+    // charts; datasets are identified by the plot tab id so the renderer keeps
+    // an independent chart state per tab (zoom, plots, step selection) and a
+    // tab switch restores the previous state instead of rebuilding
+    virtual void update_charts(int dataset_id, ExpressionManager& expression_manager, const StepInformation& step_information, AbscissaScale abscissa_scale, const std::vector<std::vector<std::string>>& suggested_plots) = 0;
 
-    // parsed Xyce FFT calculation output files, forwarded to the charts context menu
-    virtual void set_open_fft_calculation_files(const std::vector<std::shared_ptr<XyceOutputFile>>& files) = 0;
+    // drop the chart state of the dataset with the given tab id
+    virtual void release_charts(int dataset_id) = 0;
+
+    // drop the chart state of every dataset
+    virtual void release_all_charts() = 0;
+
+    // plot tabs
+    virtual void set_plot_tabs(const std::vector<PlotTabItem>& tabs, int active_index) = 0;
+    virtual void set_active_plot_tab(int active_index) = 0;
 
     // show the FFT setup dialog for the chart at the given index; the accepted
     // result is delivered asynchronously through on_fft_dialog_result
@@ -117,9 +132,12 @@ public:
     // asynchronously instead of through show_fft_dialog()
     virtual void on_fft_dialog_result(std::vector<AnyExpression*> selected_expressions, const fft::FftParameters& parameters) = 0;
 
+    // plot tabs
+    virtual void on_select_plot_tab(int index) = 0;
+    virtual void on_close_plot_tab(int index) = 0;
+
     // charts context menu
     virtual void on_chart_calculate_fft(size_t chart_index) = 0;
-    virtual void on_chart_open_xyce_fft_calculation(size_t chart_index) = 0;
     virtual void on_chart_step_tool(size_t chart_index) = 0;
     virtual void on_chart_new_window(size_t chart_index) = 0;
 
