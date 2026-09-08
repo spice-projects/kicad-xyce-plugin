@@ -12,7 +12,7 @@ PLATFORM=${4:-macos}
 SHARED_LIBRARIES=${5:-}
 
 # fail early when the executable is missing
-if [ ! -f "$EXECUTABLE" ]; then
+if [ ! -f "$EXECUTABLE" ] && [ ! -d "$EXECUTABLE" ]; then
     echo "error: executable not found at $EXECUTABLE" >&2
     exit 1
 fi
@@ -44,11 +44,11 @@ mkdir -p "$temp_dir"/resources
 cp plugin-icon-64x64.png "$temp_dir"/resources/icon.png
 
 # copy plugin manifest and icons
-sed "s/ENTRYPOINT_NAME/$ENTRYPOINT_NAME/g" src/plugin.json > "$temp_dir"/plugins/plugin.json
+sed "s|ENTRYPOINT_NAME|$ENTRYPOINT_NAME|g" src/plugin.json > "$temp_dir"/plugins/plugin.json
 cp src/plugin-icon-24x24.png "$temp_dir"/plugins/
 
 # copy the compiled executable under the entrypoint name
-cp "$EXECUTABLE" "$temp_dir"/plugins/"$ENTRYPOINT_NAME"
+cp -r "$EXECUTABLE" "$temp_dir"/plugins/
 
 # copy the shared libraries beside the executable so they resolve through @executable_path
 for library in $SHARED_LIBRARIES; do
