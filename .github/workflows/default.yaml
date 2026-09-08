@@ -238,11 +238,16 @@ jobs:
           install_name_tool -add_rpath @executable_path "$APP_BUNDLE/Contents/MacOS/kicad-xyce-plugin" 2>/dev/null || true
           codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/kicad-xyce-plugin" 2>/dev/null || true
 
+      - name: Stage macOS app bundle for upload
+        run: |
+          mkdir -p _upload
+          cp -R "artifacts/KiCad Xyce Plugin.app" _upload/
+
       - name: Upload macOS app bundle artifact
         uses: actions/upload-artifact@v7
         with:
           name: KiCad Xyce Plugin.app
-          path: artifacts/KiCad Xyce Plugin.app
+          path: _upload/
           if-no-files-found: error
           retention-days: 7
 
