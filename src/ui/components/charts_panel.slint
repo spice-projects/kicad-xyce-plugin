@@ -341,17 +341,14 @@ export component ChartsPanel inherits Rectangle {
                                 if (self.pressed) {
                                     ChartsPanelActions.zoom-drag-moved(
                                         self.mouse-x / 1px,
-                                        self.mouse-y / 1px
-                                    );
+                                        self.mouse-y / 1px);
                                 } else {
                                     ChartsPanelActions.hover-moved(
                                         self.mouse-x / 1px,
-                                        self.mouse-y / 1px
-                                    );
+                                        self.mouse-y / 1px);
                                 }
                             }
                         }
-
 
                         changed has-hover => {
                             // clear hover readout when the cursor leaves the panel

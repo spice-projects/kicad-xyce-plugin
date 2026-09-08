@@ -92,8 +92,9 @@ namespace
         void show_step_tool_dialog(size_t chart_index) override { m_step_tool_dialog_index = chart_index; }
 
         // modal dialogs (the view's job, they need a parent window)
-        [[nodiscard]] std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig&) override {
+        [[nodiscard]] std::optional<SimulationConfig> show_simulation_parameters_dialog(const SimulationConfig& current) override {
             m_simulation_dialog_requests++;
+            m_last_simulation_config_seed = current;
             return m_simulation_config_result;
         }
 
@@ -137,6 +138,7 @@ namespace
         std::optional<size_t> m_step_tool_dialog_index;
         std::optional<SimulationConfig> m_simulation_config_result;
         int m_simulation_dialog_requests = 0;
+        std::optional<SimulationConfig> m_last_simulation_config_seed;
         std::optional<PluginConfig> m_plugin_config_result;
         bool m_started = false;
         std::string m_started_program;
@@ -211,6 +213,27 @@ TEST(SlintMainWindowPresenterChecks, run_simulation_with_empty_netlist_never_lau
     EXPECT_FALSE(view.m_started);
 }
 
+TEST(SlintMainWindowPresenterChecks, two_consecutive_runs_on_empty_netlist_do_not_launch) {
+    // arrange — empty netlist with a valid executable path
+    RecordingView view;
+    auto source = std::make_unique<StubNetlistSource>("", std::filesystem::temp_directory_path());
+    source->m_reloaded = true;
+    SlintMainWindowPresenter presenter(view, std::move(source), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    // act — first run
+    presenter.on_run_simulation();
+    // assert — empty netlist exits early without dialog or launch
+    EXPECT_EQ(view.m_simulation_dialog_requests, 0);
+    EXPECT_FALSE(view.m_started);
+    EXPECT_EQ(view.m_status_text, "No netlist content to simulate");
+    // act — second run (cached pending state is still empty from the first early exit)
+    view.m_status_text.clear();
+    presenter.on_run_simulation();
+    // assert — same early exit, no dialog, no launch
+    EXPECT_EQ(view.m_simulation_dialog_requests, 0);
+    EXPECT_FALSE(view.m_started);
+    EXPECT_EQ(view.m_status_text, "No netlist content to simulate");
+}
+
 // ========================================================================================
 // simulation control flow
 // ========================================================================================
@@ -240,8 +263,8 @@ TEST(SlintMainWindowPresenterChecks, run_simulation_with_transient_launches_proc
     EXPECT_EQ(view.m_started_working_directory, working_directory);
     EXPECT_FALSE(view.m_started_netlist_path.empty());
     EXPECT_TRUE(std::filesystem::exists(view.m_started_netlist_path));
-    // the output panel was prepared for this run and the ui shows the running state
-    EXPECT_FALSE(view.m_output_panel_hidden);
+    // the output panel is no longer shown on launch — it shows on failure only
+    EXPECT_TRUE(view.m_output_panel_hidden);
     EXPECT_TRUE(view.m_simulation_running_ui);
     EXPECT_FALSE(view.m_last_enablement.run_simulation);
     // cleanup
@@ -266,6 +289,68 @@ TEST(SlintMainWindowPresenterChecks, pending_dialog_result_launches_the_simulati
     std::filesystem::remove(view.m_started_netlist_path, ec);
 }
 
+TEST(SlintMainWindowPresenterChecks, rerun_with_saved_config_does_not_show_empty_dialog) {
+    // arrange — netlist without any analysis directive so the first run parks on the dialog; the source reports not-reloaded on the second run
+    RecordingView view;
+    StubNetlistSource* source = new StubNetlistSource("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path());
+    SlintMainWindowPresenter presenter(view, std::unique_ptr<StubNetlistSource>(source), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    // act — first run: no directives → dialog shown
+    presenter.on_run_simulation();
+    ASSERT_EQ(view.m_simulation_dialog_requests, 1);
+    ASSERT_FALSE(view.m_started);
+    // accept a transient configuration
+    const SimulationConfig config("TRAN", TransientSimulationParameters("1u", "1m", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    presenter.on_simulation_parameters_dialog_result(config);
+    ASSERT_TRUE(view.m_started);
+    // record the first run's netlist path
+    const auto first_netlist_path = view.m_started_netlist_path;
+    // finish the first run successfully
+    presenter.on_simulation_finished(0, false);
+    // act — second run (reloaded=false, cached pending state still valid, m_simulation_config holds the saved transient config)
+    presenter.on_run_simulation();
+    // assert — the dialog was NOT shown again.  instead, the saved config triggered a direct launch with a fresh netlist path
+    EXPECT_EQ(view.m_simulation_dialog_requests, 1);
+    ASSERT_TRUE(view.m_started);
+    EXPECT_NE(view.m_started_netlist_path, first_netlist_path);
+    EXPECT_TRUE(view.m_simulation_running_ui);
+    // cleanup both temp netlists
+    std::error_code ec;
+    std::filesystem::remove(first_netlist_path, ec);
+    std::filesystem::remove(view.m_started_netlist_path, ec);
+}
+
+TEST(SlintMainWindowPresenterChecks, schematic_change_without_directives_preserves_saved_config) {
+    // arrange — directive-less netlist, valid executable
+    RecordingView view;
+    StubNetlistSource* source = new StubNetlistSource("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path());
+    source->m_reloaded = true;
+    SlintMainWindowPresenter presenter(view, std::unique_ptr<StubNetlistSource>(source), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    // act — first run: no directives → dialog shown
+    presenter.on_run_simulation();
+    ASSERT_EQ(view.m_simulation_dialog_requests, 1);
+    ASSERT_FALSE(view.m_started);
+    // accept a transient configuration
+    const SimulationConfig config("TRAN", TransientSimulationParameters("1u", "1m", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    presenter.on_simulation_parameters_dialog_result(config);
+    ASSERT_TRUE(view.m_started);
+    const auto first_netlist_path = view.m_started_netlist_path;
+    // finish the first run successfully
+    presenter.on_simulation_finished(0, false);
+    view.m_started = false;
+    // arrange — KiCad schematic changed (reloaded=true) but still has no directives
+    source->m_reloaded = true;
+    // act — second run
+    presenter.on_run_simulation();
+    // assert — saved config was preserved despite reload, dialog NOT shown, direct launch
+    EXPECT_EQ(view.m_simulation_dialog_requests, 1);
+    ASSERT_TRUE(view.m_started);
+    EXPECT_NE(view.m_started_netlist_path, first_netlist_path);
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove(first_netlist_path, ec);
+    std::filesystem::remove(view.m_started_netlist_path, ec);
+}
+
 TEST(SlintMainWindowPresenterChecks, configure_result_updates_netlist_without_launching) {
     // arrange
     RecordingView view;
@@ -278,6 +363,26 @@ TEST(SlintMainWindowPresenterChecks, configure_result_updates_netlist_without_la
     // assert — the editor was rebuilt with the new directives, nothing launched
     EXPECT_FALSE(view.m_started);
     EXPECT_NE(view.m_editor_content.find(".TRAN 1u 1m"), std::string::npos);
+}
+
+TEST(SlintMainWindowPresenterChecks, subsequent_configure_shows_dialog_with_saved_config) {
+    // arrange — directive-less netlist, valid executable
+    RecordingView view;
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    // act — first configure: no directives → dialog shown with empty seed
+    presenter.on_configure_simulation();
+    ASSERT_EQ(view.m_simulation_dialog_requests, 1);
+    ASSERT_TRUE(view.m_last_simulation_config_seed.has_value());
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(view.m_last_simulation_config_seed->analysis));
+    // accept a transient configuration
+    const SimulationConfig config("TRAN", TransientSimulationParameters("1u", "1m", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    presenter.on_simulation_parameters_dialog_result(config);
+    // act — second configure: dialog shown again, seeded with the saved transient config
+    presenter.on_configure_simulation();
+    EXPECT_EQ(view.m_simulation_dialog_requests, 2);
+    ASSERT_TRUE(view.m_last_simulation_config_seed.has_value());
+    EXPECT_FALSE(std::holds_alternative<std::monostate>(view.m_last_simulation_config_seed->analysis));
+    EXPECT_EQ(view.m_last_simulation_config_seed->analysis_type, "TRAN");
 }
 
 TEST(SlintMainWindowPresenterChecks, cancel_simulation_forwards_to_view) {
@@ -299,6 +404,7 @@ TEST(SlintMainWindowPresenterChecks, simulation_finished_canceled_sets_status) {
     // assert
     EXPECT_EQ(view.m_status_text, "Simulation canceled");
     EXPECT_FALSE(view.m_simulation_running_ui);
+    EXPECT_FALSE(view.m_output_panel_hidden);
 }
 
 TEST(SlintMainWindowPresenterChecks, simulation_finished_failure_reports_exit_code) {
@@ -310,6 +416,7 @@ TEST(SlintMainWindowPresenterChecks, simulation_finished_failure_reports_exit_co
     // assert
     EXPECT_EQ(view.m_status_text, "Simulation failed (exit code 3)");
     EXPECT_FALSE(view.m_simulation_running_ui);
+    EXPECT_FALSE(view.m_output_panel_hidden);
 }
 
 TEST(SlintMainWindowPresenterChecks, simulation_finished_success_loads_raw_file) {
@@ -335,18 +442,74 @@ TEST(SlintMainWindowPresenterChecks, simulation_finished_success_loads_raw_file)
         raw_file << " 1  0.001  2.0\n";
         raw_file << " 2  0.002  3.0\n";
     }
+    // expose the output panel before act so we can assert it gets hidden on success
+    view.m_output_panel_hidden = false;
     // act
     presenter.on_simulation_finished(0, false);
     // assert — charts are shown with the parsed data and the title comes from the raw file
     EXPECT_TRUE(view.m_charts_view_shown);
     EXPECT_EQ(view.m_title, "Presenter Test Circuit");
     EXPECT_EQ(view.m_status_text, "Simulation finished successfully");
+    EXPECT_TRUE(view.m_output_panel_hidden);
     ASSERT_TRUE(presenter.raw_file().has_value());
     EXPECT_GT(view.m_update_charts_count, 0);
     // cleanup
     std::error_code ec;
     std::filesystem::remove(view.m_started_netlist_path, ec);
     std::filesystem::remove(raw_path, ec);
+}
+
+TEST(SlintMainWindowPresenterChecks, simulation_finished_success_hides_output_panel) {
+    // arrange — launch a transient simulation
+    RecordingView view;
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 1m\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    presenter.on_run_simulation();
+    ASSERT_TRUE(view.m_started);
+    // arrange — write an ascii raw file at the expected output location
+    const auto raw_path = view.m_started_netlist_path.string() + ".raw";
+    {
+        std::ofstream raw_file(raw_path, std::ios::out | std::ios::trunc);
+        raw_file << "Title: Presenter Test\n";
+        raw_file << "Plotname: Transient Analysis\n";
+        raw_file << "Flags: real\n";
+        raw_file << "No. Variables: 2\n";
+        raw_file << "No. Points: 3\n";
+        raw_file << "Variables:\n";
+        raw_file << "\t0\ttime\ttime\n";
+        raw_file << "\t1\tV(1)\tvoltage\n";
+        raw_file << "Values:\n";
+        raw_file << " 0  0.0  1.0\n";
+        raw_file << " 1  0.001  2.0\n";
+        raw_file << " 2  0.002  3.0\n";
+    }
+    // expose the output panel so we can later assert it was hidden
+    view.m_output_panel_hidden = false;
+    // act
+    presenter.on_simulation_finished(0, false);
+    // assert — success hides the output panel and shows charts
+    EXPECT_TRUE(view.m_output_panel_hidden);
+    EXPECT_TRUE(view.m_charts_view_shown);
+    EXPECT_EQ(view.m_status_text, "Simulation finished successfully");
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove(view.m_started_netlist_path, ec);
+    std::filesystem::remove(raw_path, ec);
+}
+
+TEST(SlintMainWindowPresenterChecks, simulation_finished_raw_file_not_found_shows_output_panel) {
+    // arrange — launch a transient simulation but do NOT create the raw file
+    RecordingView view;
+    SlintMainWindowPresenter presenter(view, std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 1m\n.END\n", std::filesystem::temp_directory_path()), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    presenter.on_run_simulation();
+    ASSERT_TRUE(view.m_started);
+    // act — simulation finishes successfully but raw file is missing
+    presenter.on_simulation_finished(0, false);
+    // assert — output panel shown so user can diagnose
+    EXPECT_FALSE(view.m_output_panel_hidden);
+    EXPECT_EQ(view.m_status_text, "Simulation finished but output raw file could not be found");
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove(view.m_started_netlist_path, ec);
 }
 
 TEST(SlintMainWindowPresenterChecks, simulation_rerun_keeps_primary_dataset_identity) {
@@ -372,9 +535,13 @@ TEST(SlintMainWindowPresenterChecks, simulation_rerun_keeps_primary_dataset_iden
         raw_file << " 1  0.001  2.0\n";
         raw_file << " 2  0.002  3.0\n";
     }
+    // expose the output panel so we can assert it gets hidden on success
+    view.m_output_panel_hidden = false;
     // act — finish the first run
     presenter.on_simulation_finished(0, false);
     const int primary_id = view.m_updated_dataset_ids.back();
+    // assert — first finish hides the output panel on success
+    EXPECT_TRUE(view.m_output_panel_hidden);
     // act — finish a second run of the same netlist
     presenter.on_simulation_finished(0, false);
     // assert — the primary dataset kept its identity so the renderer re-points

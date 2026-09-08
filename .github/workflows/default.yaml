@@ -204,9 +204,18 @@ jobs:
             "artifacts/arm64/kicad-xyce-plugin" \
             "artifacts/x64/kicad-xyce-plugin"
 
-          for dylib in artifacts/arm64/*.dylib artifacts/x64/*.dylib; do
-            [ -f "$dylib" ] || continue
-            cp "$dylib" "$APP_BUNDLE/Contents/MacOS/"
+          dylib_names=$( { ls artifacts/arm64/*.dylib artifacts/x64/*.dylib; } 2>/dev/null | xargs -n1 basename | sort -u)
+          for name in $dylib_names; do
+            arm64_lib="artifacts/arm64/$name"
+            x64_lib="artifacts/x64/$name"
+            dest="$APP_BUNDLE/Contents/MacOS/$name"
+            if [ -f "$arm64_lib" ] && [ -f "$x64_lib" ]; then
+              lipo -create -output "$dest" "$arm64_lib" "$x64_lib"
+            elif [ -f "$arm64_lib" ]; then
+              cp "$arm64_lib" "$dest"
+            else
+              cp "$x64_lib" "$dest"
+            fi
           done
 
           cat > "$APP_BUNDLE/Contents/Info.plist" <<'EOF'
