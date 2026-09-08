@@ -251,12 +251,10 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  package-and-artifacts:
+  package:
     name: Package & Artifacts
     needs: [build-and-test, macos-app-bundle]
-    if: |-
-      !cancelled() &&
-      (github.event_name != 'push' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || needs.check-pr.outputs.has_pr != 'true')
+    if: startsWith(github.ref, 'refs/tags/v')    
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -293,50 +291,10 @@ jobs:
           mkdir -p packages
           cp dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.zip packages/kicad-xyce-plugin-macos.zip
 
-      - name: Upload Windows package artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: kicad-xyce-plugin-windows-package
-          path: packages/kicad-xyce-plugin-windows.zip
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload macOS package artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: kicad-xyce-plugin-macos-package
-          path: packages/kicad-xyce-plugin-macos.zip
-          if-no-files-found: error
-          retention-days: 7
-
-  upload-to-release:
-    name: Upload Packages to GitHub Release
-    needs: [package-and-artifacts]
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Extract version from tag
-        id: version
-        run: echo "version=$(echo '${{ github.ref_name }}' | sed 's/^v//')" >> $GITHUB_OUTPUT
-
-      - name: Download Windows package artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: kicad-xyce-plugin-windows-package
-          path: packages/windows
-
-      - name: Download macOS package artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: kicad-xyce-plugin-macos-package
-          path: packages/macos
-
       - name: Upload packages to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload '${{ github.ref_name }}' --clobber \
-            packages/windows/kicad-xyce-plugin-windows.zip \
-            packages/macos/kicad-xyce-plugin-macos.zip
+            packages/kicad-xyce-plugin-windows.zip \
+            packages/kicad-xyce-plugin-macos.zip
