@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <functional>
+#include <type_traits>
 
 #include "ui/simulation_parameters_dialog_view.h"
 

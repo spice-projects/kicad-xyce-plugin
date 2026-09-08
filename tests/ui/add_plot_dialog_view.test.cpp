@@ -8,6 +8,7 @@ TEST(AddPlotDialogViewChecks, constructor_accepts_window_and_renderer) {
     // arrange / act
     using ViewT = add_plot_dialog_view::AddPlotDialogView;
     // assert
+    EXPECT_TRUE((std::is_constructible_v<ViewT, slint::ComponentHandle<main_window::MainWindow>, ChartsRenderer&>));
     EXPECT_FALSE(std::is_copy_constructible_v<ViewT>);
     EXPECT_FALSE(std::is_copy_assignable_v<ViewT>);
     EXPECT_FALSE(std::is_trivially_destructible_v<ViewT>);
