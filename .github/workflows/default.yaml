@@ -241,7 +241,7 @@ jobs:
       - name: Upload macOS app bundle artifact
         uses: actions/upload-artifact@v7
         with:
-          name: kicad-xyce-plugin-macos-app-bundle
+          name: KiCad Xyce Plugin.app
           path: artifacts/KiCad Xyce Plugin.app
           if-no-files-found: error
           retention-days: 7
@@ -272,7 +272,7 @@ jobs:
       - name: Download macOS app bundle artifact
         uses: actions/download-artifact@v8
         with:
-          name: kicad-xyce-plugin-macos-app-bundle
+          name: KiCad Xyce Plugin.app
           path: artifacts/macos
 
       - name: Package Windows
@@ -287,8 +287,8 @@ jobs:
         run: |
           APP_BUNDLE="artifacts/macos/KiCad Xyce Plugin.app"
           mkdir -p packages
-          ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" \
-            "packages/kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-app-bundle.zip"
+          cd artifacts/macos && zip -r -y "$GITHUB_WORKSPACE/packages/kicad-xyce-plugin-${{ steps.version.outputs.version }}-macos-app-bundle.zip" \
+            "KiCad Xyce Plugin.app"
 
       - name: Upload Windows package artifact
         uses: actions/upload-artifact@v7
