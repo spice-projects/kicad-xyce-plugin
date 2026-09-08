@@ -20,6 +20,8 @@ https://github.com/spice-projects/kicad-xyce-plugin/releases
 
 ### Step 4: Unzip downloaded file
 
+Unzip the downloaded archive. You should now have a plugin file ready to install.
+
 ### Step 5: Install KiCad Xyce Plugin from file
 
 1. Open KiCad
@@ -30,7 +32,11 @@ https://github.com/spice-projects/kicad-xyce-plugin/releases
 
 ### Step 6: Restart KiCad
 
+Restart KiCad so the newly installed plugin is loaded and registered.
+
 ### Step 7: Open KiCad Xyce Plugin from schematics toolbar
+
+Open a schematic project. The plugin appears as a toolbar button in the schematic editor — click it to launch the simulator.
 
 ![KiCad Schematic Editor](docs/kicad-schematic-editor.png)
 
