@@ -1,4 +1,10 @@
-import { CheckBox, ComboBox, LineEdit, Palette, TextEdit } from "std-widgets.slint";
+import {
+    CheckBox,
+    ComboBox,
+    LineEdit,
+    Palette,
+    TextEdit,
+} from "std-widgets.slint";
 
 export component LinParametersPanel inherits Rectangle {
 
@@ -97,6 +103,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         ComboBox {
                             height: 28px;
                             model: ["AC"];
@@ -109,11 +116,35 @@ export component LinParametersPanel inherits Rectangle {
                         spacing: 16px;
                         // min-widths pin each checkbox so toggling cannot reflow the row
                         // (the cupertino style reports a narrower preferred width when checked)
-                        CheckBox { text: "All voltages V(*)"; min-width: 142px; checked <=> root.print-all-nodes; }
-                        CheckBox { text: "All currents I(*)"; min-width: 136px; checked <=> root.print-all-currents; }
-                        CheckBox { text: "Power P(*)"; min-width: 115px; checked <=> root.print-power; }
-                        CheckBox { text: "BJT leads"; min-width: 110px; checked <=> root.print-bjt-leads; }
-                        CheckBox { text: "FET leads"; min-width: 111px; checked <=> root.print-fet-leads; }
+                        CheckBox {
+                            text: "All voltages V(*)";
+                            min-width: 142px;
+                            checked <=> root.print-all-nodes;
+                        }
+
+                        CheckBox {
+                            text: "All currents I(*)";
+                            min-width: 136px;
+                            checked <=> root.print-all-currents;
+                        }
+
+                        CheckBox {
+                            text: "Power P(*)";
+                            min-width: 115px;
+                            checked <=> root.print-power;
+                        }
+
+                        CheckBox {
+                            text: "BJT leads";
+                            min-width: 110px;
+                            checked <=> root.print-bjt-leads;
+                        }
+
+                        CheckBox {
+                            text: "FET leads";
+                            min-width: 111px;
+                            checked <=> root.print-fet-leads;
+                        }
                     }
 
                     // additional variables
@@ -128,6 +159,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "e.g. V(out) V(in)";
@@ -148,9 +180,20 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         ComboBox {
                             height: 28px;
-                            model: ["(default)", "STD", "NOINDEX", "PROBE", "TECPLOT", "RAW", "CSV", "GNUPLOT", "SPLOT"];
+                            model: [
+                                "(default)",
+                                "STD",
+                                "NOINDEX",
+                                "PROBE",
+                                "TECPLOT",
+                                "RAW",
+                                "CSV",
+                                "GNUPLOT",
+                                "SPLOT"
+                            ];
                             current-index <=> root.print-format-index;
                         }
                     }
@@ -167,6 +210,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "optional output file path";
@@ -189,6 +233,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "e.g. WIDTH=20 PRECISION=12";
@@ -244,6 +289,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         ComboBox {
                             height: 28px;
                             model: ["TOUCHSTONE2", "TOUCHSTONE"];
@@ -263,6 +309,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         ComboBox {
                             height: 28px;
                             model: ["S", "Y", "Z"];
@@ -282,6 +329,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         ComboBox {
                             height: 28px;
                             model: ["RI", "MA", "DB"];
@@ -300,6 +348,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "touchstone output file path";
@@ -318,6 +367,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "width in characters";
@@ -336,6 +386,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "decimal precision";
@@ -381,6 +432,7 @@ export component LinParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
+
                     ComboBox {
                         height: 28px;
                         model: ["LIN", "DEC", "OCT", "DATA"];
@@ -413,6 +465,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "number of points per decade";
@@ -431,6 +484,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "start frequency (e.g. 1k)";
@@ -449,6 +503,7 @@ export component LinParametersPanel inherits Rectangle {
                             horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         LineEdit {
                             height: 28px;
                             placeholder-text: "stop frequency (e.g. 100MEG)";
@@ -469,6 +524,7 @@ export component LinParametersPanel inherits Rectangle {
                         horizontal-alignment: left;
                         overflow: elide;
                     }
+
                     LineEdit {
                         height: 28px;
                         placeholder-text: "name of the data block to sweep";

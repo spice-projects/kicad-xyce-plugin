@@ -3,6 +3,8 @@
 #include <functional>
 #include <memory>
 
+#include <main_window.h>
+
 #include <slint.h>
 
 #include "charts_renderer.h"

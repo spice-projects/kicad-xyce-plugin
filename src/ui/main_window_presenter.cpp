@@ -162,24 +162,29 @@ void SlintMainWindowPresenter::on_run_simulation() {
     }
     // load the netlist source content
     const auto [reloaded, content] = m_netlist_source->load_netlist();
-    // parse the netlist and extract the topology
-    const auto [sanitized_netlist, topology] = parse_netlist(content);
-    // guard against an empty netlist
-    if (sanitized_netlist.empty()) {
-        // update the statusbar
-        m_view.set_status_text("No netlist content to simulate");
-        // update the editor with the final netlist
-        if (reloaded && update_netlist_editor_content("", false))
-            refresh_action_states();
-        // exit
-        return;
+    // re-parse when the schematic changed or when no cached state exists yet (e.g. the first run exited early on an empty netlist)
+    if (reloaded || m_pending_sanitized_netlist.empty()) {
+        // parse the netlist and extract the topology
+        const auto [sanitized_netlist, topology] = parse_netlist(content);
+        // guard against an empty netlist (parse_netlist always produces at least "\n" even for empty input, so check for that sentinel too)
+        if (sanitized_netlist.empty() || sanitized_netlist == "\n") {
+            // update the statusbar
+            m_view.set_status_text("No netlist content to simulate");
+            // update the editor with the final netlist
+            if (update_netlist_editor_content("", false))
+                refresh_action_states();
+            // exit
+            return;
+        }
+        // initialize the simulation config from the parsed directives, keep existing config if netlist does not contain any analysis directives
+        const auto simulation_config = SimulationConfig::from_xyce_directives(topology.m_directives);
+        if (!std::holds_alternative<std::monostate>(simulation_config.analysis))
+            m_simulation_config = simulation_config;
+        // remember the parse result for the launch (always updated when the
+        m_pending_sanitized_netlist = sanitized_netlist;
+        m_pending_topology = topology;
+        m_pending_original_netlist = content;
     }
-    // initialize the simulation config from the parsed directives
-    m_simulation_config = SimulationConfig::from_xyce_directives(topology.m_directives);
-    // remember the parse result for the launch
-    m_pending_sanitized_netlist = sanitized_netlist;
-    m_pending_topology = topology;
-    m_pending_original_netlist = content;
     // prompt the user when no analysis is configured yet
     if (std::holds_alternative<std::monostate>(m_simulation_config.analysis)) {
         // mark the pending dialog as a simulation run
@@ -225,8 +230,6 @@ void SlintMainWindowPresenter::launch_simulation() {
     m_simulation_netlist_path = temp_path;
     // mark the simulation as running
     m_simulation_running = true;
-    // show the simulation output panel for this run
-    m_view.show_simulation_output_panel();
     // reset the log for this run
     m_view.clear_simulation_output();
     // launch the simulation through the view, which wires the runner
@@ -245,8 +248,13 @@ void SlintMainWindowPresenter::on_configure_simulation() {
         update_netlist_editor_content(content, false);
     // parse the netlist and extract the topology
     const auto [sanitized_netlist, topology] = parse_netlist(content);
-    // build the simulation config from the parsed directives
-    m_simulation_config = SimulationConfig::from_xyce_directives(topology.m_directives);
+    // build the simulation config from the parsed directives; only overwrite
+    // the user's saved config when the schematic actually carries new
+    // directives — preserving the existing config when the schematic is
+    // directive-less
+    const auto parsed_config = SimulationConfig::from_xyce_directives(topology.m_directives);
+    if (!std::holds_alternative<std::monostate>(parsed_config.analysis))
+        m_simulation_config = parsed_config;
     // remember the parse result so the accepted config can rebuild the netlist
     m_pending_sanitized_netlist = sanitized_netlist;
     m_pending_topology = topology;
@@ -574,6 +582,8 @@ void SlintMainWindowPresenter::on_simulation_finished(int exit_code, bool was_ca
     m_simulation_running = false;
     // handle canceled simulations
     if (was_canceled) {
+        // show the output panel so the user can inspect the log
+        m_view.show_simulation_output_panel();
         // update the statusbar
         m_view.set_status_text("Simulation canceled");
         // refresh toolbar/menu states
@@ -639,6 +649,8 @@ void SlintMainWindowPresenter::on_simulation_finished(int exit_code, bool was_ca
                 activate_plot_dataset(0);
                 // switch to the charts view
                 m_view.show_charts_view();
+                // hide the output panel — it is only shown on failure
+                m_view.hide_simulation_output_panel();
                 // update the statusbar
                 m_view.set_status_text("Simulation finished successfully");
                 // refresh toolbar/menu states
@@ -654,6 +666,8 @@ void SlintMainWindowPresenter::on_simulation_finished(int exit_code, bool was_ca
         // simulation failed with a non-zero exit code
         m_view.set_status_text("Simulation failed (exit code " + std::to_string(exit_code) + ")");
     }
+    // show the output panel so the user can inspect the log on failure
+    m_view.show_simulation_output_panel();
     // refresh toolbar/menu states
     refresh_action_states();
 }
