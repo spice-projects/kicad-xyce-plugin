@@ -2,6 +2,38 @@
 
 KiCad plugin that integrates the Xyce circuit simulator into the KiCad UI, so you can configure and run simulations directly from a schematic workflow.
 
+## Installation
+
+### Step 1: Enable KiCad API
+
+1. Open KiCad
+2. Go to **Preferences** → **Settings** → **API**
+3. Enable **KiCad API**
+
+![KiCad Plugin Preferences](docs/kicad-plugin-settings.png)
+
+### Step 2: Restart KiCad
+
+### Step 3: Download the latest KiCad Xyce Plugin
+
+https://github.com/spice-projects/kicad-xyce-plugin/releases
+
+### Step 4: Unzip downloaded file
+
+### Step 5: Install KiCad Xyce Plugin from file
+
+1. Open KiCad
+2. Go to **Tools** → **Plugin Manager** (or **Preferences** → **Plugin Manager**)
+3. Click **Install from File...** and select the unzipped plugin file
+
+![Install from File](docs/kicad-package-manager.png)
+
+### Step 6: Restart KiCad
+
+### Step 7: Open KiCad Xyce Plugin from schematics toolbar
+
+![KiCad Schematic Editor](docs/kicad-schematic-editor.png)
+
 ## Current status
 
 - Development status: in progress
