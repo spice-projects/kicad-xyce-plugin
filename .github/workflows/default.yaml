@@ -306,4 +306,5 @@ jobs:
         run: |
           gh release upload '${{ github.ref_name }}' --clobber \
             packages/kicad-xyce-plugin-windows.zip \
-            packages/kicad-xyce-plugin-macos.zip
+            packages/kicad-xyce-plugin-macos.zip \
+            "artifacts/macos/KiCad Xyce Plugin.app"
