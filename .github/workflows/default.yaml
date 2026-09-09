@@ -263,7 +263,7 @@ jobs:
   package:
     name: Package & Artifacts
     needs: [build-and-test, macos-app-bundle]
-    if: startsWith(github.ref, 'refs/tags/v')    
+    if: github.ref_type == 'tag' && success()
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -300,11 +300,12 @@ jobs:
           mkdir -p packages
           cp dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.zip packages/kicad-xyce-plugin-macos.zip
 
-      - name: Upload packages to GitHub Release
+      - name: Associate with GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload '${{ github.ref_name }}' --clobber \
+          gh release upload "${{ github.ref_name }}" \
             packages/kicad-xyce-plugin-windows.zip \
             packages/kicad-xyce-plugin-macos.zip \
-            "artifacts/macos/KiCad Xyce Plugin.app"
+            "artifacts/macos/KiCad Xyce Plugin.app" \
+            --clobber
