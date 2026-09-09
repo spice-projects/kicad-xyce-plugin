@@ -2,10 +2,7 @@
 
 ## Language
 
-- C++23
-- Use RAII
-- Avoid raw owning pointers
-- Prefer std::span/std::string_view for non-owning views
+- All code style rules live in `STYLE-GUIDE.md`
 - Preserve existing architecture unless explicitly requested
 
 ## Build & Unit Tests

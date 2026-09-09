@@ -2,6 +2,12 @@
 
 This document defines the code style preferences for this project.
 
+## Language
+
+- C++23
+- Use RAII
+- Avoid raw owning pointers
+
 ## C++ Formatting
 
 ### Indentation
@@ -40,6 +46,10 @@ This document defines the code style preferences for this project.
 
 - `#pragma once` only
 
+### Function Definitions and Calls
+
+- No multiline function definitions or calls; keep them on a single line, even if long
+
 ### Comments
 
 - Comments are placed **above** the code they describe, not inline
@@ -70,23 +80,67 @@ This document defines the code style preferences for this project.
 - Return `const&` from accessors
 - Pass by value and `std::move` for sink parameters
 
+## Python Formatting
+
+### Indentation
+
+- 4 spaces per indent
+- No tabs
+
+### Line Length
+
+- No hard limit; prefer readability over strict wrapping
+
+### Naming
+
+- Class names: `PascalCase`
+- Functions and variables: `snake_case`
+- Member variables: `_` prefix with snake_case
+- Constants: `UPPER_SNAKE_CASE` for file-scope constants and enum values
+
+### Imports
+
+- Three sections separated by a blank line:
+  1. Python standard library (alphabetical)
+  2. Third-party libraries (alphabetical)
+  3. Project files (alphabetical)
+
+### Comments
+
+- Comments are placed **above** the code they describe, not inline
+- Format: `# comment text` (starts with lowercase letter, no period), single line
+- Every non-trivial statement gets its own comment line above it — including statements inside `if` blocks, loops, and other control structures
+- No docstring comments
+
+### Line Breaks
+
+- One blank line between function definitions
+- A maximum of one blank line between sections inside a function
+- One blank line between import sections
+
+### Function Definitions and Calls
+
+- No multiline function definitions or calls; keep them on a single line, even if long
+
 ## Testing
 
-### Framework
+### C++
+
+#### Framework
 
 - Use Google Test (`gtest`)
 
-### File Naming
+#### File Naming
 
 - Test files live under the `tests/` directory and mirror the source tree layout
 - Named `<module>.test.cpp`
 
-### Naming
+#### Naming
 
 - Test suite name: `PascalCase` (e.g. `DCSimulationParametersChecks`)
 - Test case name: descriptive `snake_case` string (e.g. `parses_lin_sweep`)
 
-### Structure — Arrange / Act / Assert
+#### Structure — Arrange / Act / Assert
 
 - Every test **must** use the `arrange, act, assert` format with explicit section-comment markers
   ```cpp
@@ -101,8 +155,39 @@ This document defines the code style preferences for this project.
 - Do not separate each section with blank lines
 - All test methods should be self-contained whenever possible, avoid utility functions
 
-### Assertions
+#### Assertions
 
 - Use `ASSERT_*` and `EXPECT_*` macros from Google Test, not `assert`
 - Prefer `ASSERT_EQ`, `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_THROW`
 - Use one assertion per line and group related assertions together without blank lines between them
+
+### Python
+
+#### Framework
+
+- Use `unittest`
+
+#### File Naming
+
+- Test files live under the `tests/` directory and mirror the source tree layout
+- Named `<module>_test.py`
+
+#### Naming
+
+- Test suite name: `PascalCase`
+- Test case name: descriptive `snake_case`
+
+#### Structure — Arrange / Act / Assert
+
+- Every test **must** use the `arrange, act, assert` format with explicit section-comment markers
+  ```python
+  # arrange
+  ...
+  # act
+  ...
+  # assert
+  ...
+  ```
+- `# arrange / act` is also acceptable when setup and execution are a single step
+- Do not separate each section with blank lines
+- All test methods should be self-contained whenever possible, avoid utility functions

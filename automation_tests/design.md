@@ -13,16 +13,23 @@ The framework should provide a simple, Playwright-inspired API without depending
 Example target usage:
 
 ```python
-def test_open_project(app):
-    app.get_by_id("open-project").click()
+class OpenProjectChecks(unittest.TestCase):
 
-    app.get_by_id("filename").fill("test-project.kicad_pro")
+    def setUp(self):
+        # arrange
+        self._app = SlintApp.launch(APPLICATION_PATH)
 
-    app.get_by_id("open").click()
+    def tearDown(self):
+        # close the application after each test
+        self._app.close()
 
-    expect(
-        app.get_by_id("project-name")
-    ).to_have_text("test-project")
+    def test_open_project(self):
+        # act
+        self._app.get_by_id("open-project").click()
+        self._app.get_by_id("filename").fill("test-project.kicad_pro")
+        self._app.get_by_id("open").click()
+        # assert
+        expect(self._app.get_by_id("project-name")).to_have_text("test-project")
 ```
 
 The first implementation should prioritize correctness, simplicity, and a clean abstraction boundary over feature completeness.
@@ -101,6 +108,15 @@ Do not invent MCP tool names or schemas based on examples from other versions.
 
 The framework should isolate all Slint/MCP-specific assumptions in one layer.
 
+**Status: complete.** The installed Slint version (`release/1`, verified live) is documented in
+`automation_tests/slint-mcp-api.md`. Key findings that adjust this document:
+
+* transport is plain JSON-RPC 2.0 over HTTP POST `/mcp` — no sessions, no SSE, no batch;
+* `tools/call` failures come back as `isError: true` results, never as JSON-RPC errors;
+* element identification uses Slint **element IDs** (`ComponentName::element-id`), not the
+  `accessible-id` property (see §10);
+* handles are ephemeral per query and must be re-resolved before every action (see §12).
+
 ---
 
 # 3. Current Slint assumptions
@@ -154,10 +170,10 @@ Do not reorganize unrelated application code.
 The framework consists of five primary layers.
 
 ```text
-                    pytest
+                    unittest
                       |
                       v
-                 SlintApp
+                  SlintApp
                       |
               +-------+-------+
               |               |
@@ -327,10 +343,34 @@ wait for MCP endpoint
        |
        v
 MCP initialize
-       |
-       v
+        |
+        v
 SlintApp ready
 ```
+
+## 7.1 Port allocation and parallel safety
+
+Allocating a free port by binding a socket to port `0`, closing it, and
+reusing the port has a small race window: another process may claim the port
+between allocation and application startup. To keep this from causing
+flakiness:
+
+1. Bind a listening socket to `127.0.0.1:0` and record the port.
+2. Close the socket immediately before spawning the application.
+3. Start the application with `SLINT_MCP_PORT=<port>`.
+4. If the MCP endpoint does not become reachable within a short grace period,
+   treat "port stolen by another process" as a retryable startup failure,
+   allocate a new port, and retry with a bounded number of attempts.
+
+Parallel test execution requirements:
+
+* every test launches its own application process with its own port;
+* no state may be shared between application instances;
+* artifact and temporary directories must be unique per test;
+* tests must not depend on execution order.
+
+The initial implementation does not have to enable parallel execution, but no
+part of the design may preclude it (see §48).
 
 ---
 
@@ -431,18 +471,23 @@ The first and preferred locator should be:
 app.get_by_id("some-element-id")
 ```
 
-The application should use stable Slint identifiers intended for testing.
+The application should use stable Slident identifiers intended for testing.
 
-For example:
+**Verified against the installed Slint version**: the MCP server matches elements by their
+Slint **element ID** as declared in `.slint` source (`match_id` query), qualified as
+`ComponentName::element-id`. The `accessible-id` property is NOT used for lookup:
 
 ```slint
-Button {
-    accessible-id: "run-button";
-    text: "Run";
+component ToolbarButton {
+    ta := TouchArea { }   // addressable as "ToolbarButton::ta"
 }
 ```
 
-Use the appropriate Slint property/mechanism supported by the actual version of Slint.
+The `accessible-label` / `accessible-value` properties expose an element's *text content*
+(read back via `get_element_properties`), which is what text assertions check.
+
+Use the element-ID mechanism; see `automation_tests/slint-mcp-api.md` §6 for the full mapping
+between framework concepts and MCP tools.
 
 Do not require tests to locate elements based on screen coordinates.
 
@@ -523,9 +568,7 @@ Create an `expect()` API.
 Example:
 
 ```python
-expect(
-    app.get_by_id("status")
-).to_have_text("Simulation complete")
+expect(app.get_by_id("status")).to_have_text("Simulation complete")
 ```
 
 Suggested initial API:
@@ -577,12 +620,7 @@ Therefore assertions should eventually support polling.
 Example:
 
 ```python
-expect(
-    app.get_by_id("status")
-).to_have_text(
-    "Simulation complete",
-    timeout=10.0,
-)
+expect(app.get_by_id("status")).to_have_text("Simulation complete", timeout=10.0)
 ```
 
 Initial implementation can use a framework-wide default timeout:
@@ -603,6 +641,32 @@ The assertion should:
 Do not use excessively aggressive polling.
 
 Make polling interval configurable.
+
+## 14.1 Explicit waits
+
+Assertion polling covers the most common case, but some flows need to wait for
+a condition that is not a simple element state check. Provide a small set of
+explicit wait utilities on `SlintApp` and `Locator`:
+
+```python
+app.wait_for_condition(
+    lambda: ...,
+    timeout=5.0,
+    poll_interval=0.1,
+    message="charts panel became visible",
+)
+
+locator.wait_for_exists(timeout=5.0)
+locator.wait_for_gone(timeout=5.0)
+```
+
+Rules:
+
+* waits must always have a timeout; no unbounded waits;
+* wait failures must raise the same error types used by assertions, with the
+  last observed state included in the message;
+* do not add implicit global sleeps or waits between actions; waiting belongs
+  in assertions and explicit wait calls only.
 
 ---
 
@@ -658,37 +722,39 @@ mcp-response.json
 
 for the failing operation.
 
-The framework should make artifact collection automatic through pytest integration where practical.
+The framework should make artifact collection automatic through unittest integration where practical.
 
 ---
 
-# 17. Pytest integration
+# 17. Test runner integration
 
-Use pytest as the initial test runner.
+Use the standard library `unittest` as the test runner, per `STYLE-GUIDE.md`.
 
-Create a fixture:
-
-```python
-@pytest.fixture
-def app():
-    with SlintApp.launch(
-        APPLICATION_PATH
-    ) as app:
-        yield app
-```
-
-Tests should then be concise:
+Each integration test suite derives from `unittest.TestCase`; `setUp` launches
+the application and `tearDown` closes it:
 
 ```python
-def test_application_starts(app):
-    expect(
-        app.get_by_id("main-window")
-    ).to_exist()
+class MainWindowChecks(unittest.TestCase):
+
+    def setUp(self):
+        # arrange
+        self._app = SlintApp.launch(APPLICATION_PATH)
+
+    def tearDown(self):
+        # close the application after each test
+        self._app.close()
+
+    def test_application_starts(self):
+        # assert
+        expect(self._app.get_by_id("main-window")).to_exist()
 ```
 
-Do not put application-specific behavior into the generic fixture.
+Do not put application-specific behavior into the generic base class.
 
-Application-specific fixtures can be added later.
+Application-specific base classes can be added later.
+
+`setUp` must launch a fresh application instance per test and isolate any
+persistent application state; see §46.
 
 ---
 
@@ -698,9 +764,8 @@ Do not hardcode the application executable.
 
 Support configuration through:
 
-1. pytest command-line options;
-2. environment variables;
-3. configuration file.
+1. environment variables;
+2. a configuration file.
 
 For example:
 
@@ -708,10 +773,10 @@ For example:
 SLINT_TEST_APPLICATION=/path/to/MyApplication
 ```
 
-or a pytest option:
+Tests are discovered with the standard unittest runner:
 
 ```text
-pytest --application ./build/MyApplication
+python -m unittest discover -s tests -p "*_test.py"
 ```
 
 The exact mechanism should follow the repository's existing testing conventions.
@@ -793,6 +858,42 @@ Timeout:
     5.0 seconds
 ```
 
+## 20.1 MCP error mapping
+
+`McpClient` must translate transport- and protocol-level failures into the
+exceptions above. Map at least:
+
+| Condition | Exception |
+| --- | --- |
+| HTTP connection refused / timeout during startup | `ApplicationStartupError` |
+| HTTP failure on an established connection | `McpError` |
+| JSON-RPC error response from a tool call | `McpError` with code and message |
+| Malformed / non-JSON response | `McpError` with raw payload attached |
+| Element not found during resolution | `LocatorError` |
+| Ambiguous element match | `LocatorError` |
+| Assertion condition not met within timeout | `SlintAssertionError` |
+
+`McpError` should carry structured context as attributes and in its string
+representation: the method/tool name, the request arguments, the response
+body, and the HTTP status if applicable.
+
+## 20.2 Transient failures and retries
+
+Some failures are transient (element not yet present, UI in transition). The
+retry policy must be explicit and layered:
+
+* locator resolution inside actions and assertions: retried until the
+  operation's timeout budget is exhausted (this is the §14/§14.1 behavior);
+* MCP transport errors: retried only for idempotent read operations and only
+  within the caller's timeout budget;
+* startup: bounded retries only for the port-in-use race described in §7.1;
+* actions (`click`, `fill`, `press`, ...): never retried blindly, because an
+  action may already have taken effect. If an element handle becomes stale,
+  re-resolve the locator and retry once; if re-resolution also fails, raise
+  `LocatorError`.
+
+Never repeat an action without knowing whether the first attempt was applied.
+
 ---
 
 # 21. Logging
@@ -813,6 +914,20 @@ Example:
 Do not print excessive protocol-level details by default.
 
 Provide a debug mode that can expose MCP requests/responses.
+
+## 21.1 Structured logging and tracing
+
+Use the standard `logging` module with a namespaced logger (e.g.
+`slint_test`) instead of `print`:
+
+* each `SlintApp` instance gets a correlation ID (e.g. MCP port plus child
+  PID) included in every log line, so parallel or sequential multi-test runs
+  stay readable;
+* `DEBUG` level exposes full MCP requests/responses (JSON-RPC frames);
+* the default level logs lifecycle events only (launch, ready, element
+  resolution, actions, close, artifact collection);
+* the unittest integration must attach the captured per-test application log to
+  the failure artifacts (§16).
 
 ---
 
@@ -868,8 +983,10 @@ First implement a minimal MCP client capable of:
 Create a smoke test:
 
 ```python
-def test_mcp_connection(app):
-    ...
+class McpConnectivityChecks(unittest.TestCase):
+
+    def test_mcp_connection(self):
+        ...
 ```
 
 Acceptance criteria:
@@ -904,10 +1021,11 @@ Create a test that:
 Example:
 
 ```python
-def test_main_window(app):
-    expect(
-        app.get_by_id("status")
-    ).to_have_text("Ready")
+class MainWindowChecks(unittest.TestCase):
+
+    def test_main_window(self):
+        # assert
+        expect(self._app.get_by_id("status")).to_have_text("Ready")
 ```
 
 ---
@@ -928,12 +1046,14 @@ only for operations actually supported by the Slint MCP interface.
 Create a test such as:
 
 ```python
-def test_button(app):
-    app.get_by_id("run-button").click()
+class ButtonChecks(unittest.TestCase):
 
-    expect(
-        app.get_by_id("status")
-    ).to_have_text("Running")
+    def test_button(self):
+        # act
+        self._app.get_by_id("run-button").click()
+
+        # assert
+        expect(self._app.get_by_id("status")).to_have_text("Running")
 ```
 
 ---
@@ -1028,27 +1148,17 @@ Unit tests remain responsible for testing individual C++ components.
 
 # 31. Stable UI identifiers
 
-Application UI code should use stable identifiers for important testable elements.
-
-For example:
-
-```slint
-Button {
-    accessible-id: "save-button";
-    text: "Save";
-}
-```
-
-Use semantic identifiers:
+Application UI code should assign Slint element IDs (`id :=`) to important testable elements.
+The MCP server resolves them as qualified IDs (`ComponentName::element-id`); keep declared IDs
+stable and semantic:
 
 Good:
 
 ```text
+MainWindow::toolbar
+ToolbarButton::ta
 save-button
-open-project
-simulation-run
 simulation-status
-project-name
 ```
 
 Bad:
@@ -1061,6 +1171,8 @@ element123
 ```
 
 IDs should describe the semantic purpose of the element rather than its implementation.
+Accessible properties (`accessible-label`, `accessible-value`) complement IDs for reading text
+content and asserting state.
 
 ---
 
@@ -1155,7 +1267,7 @@ Keep dependencies minimal.
 Preferred initial dependencies:
 
 ```text
-pytest
+unittest (Python standard library, no third-party test runner)
 HTTP/MCP client implementation
 ```
 
@@ -1179,7 +1291,8 @@ Do not add OCR.
 
 # 38. Coding standards
 
-Follow the existing repository's Python/C++ conventions.
+Follow `STYLE-GUIDE.md` at the repository root — it is authoritative for both
+C++ and Python.
 
 For Python:
 
@@ -1190,6 +1303,31 @@ For Python:
 * context managers for process ownership;
 * small classes with clear responsibilities;
 * unit tests for framework internals.
+
+Mandatory comment style (from `STYLE-GUIDE.md`, applies to all framework and
+test code):
+
+* comments are placed **above** the code they describe, never inline;
+* format `# comment text` — starts with a lowercase letter, no trailing
+  period, single line;
+* **every non-trivial statement gets its own comment line above it**,
+  including statements inside `if` blocks, loops, and other control
+  structures;
+* no docstrings of any kind (`"""..."""` is forbidden).
+
+Additional Python rules from `STYLE-GUIDE.md`:
+
+* member variables use a `_` prefix with snake_case (`self._process`);
+* constants use `UPPER_SNAKE_CASE`;
+* imports in three blank-line-separated sections: standard library,
+  third-party, project files (each alphabetical);
+* tests use the standard library `unittest` (see §17), files named
+  `<module>_test.py` under `tests/`, PascalCase suite names, snake_case test
+  names, and every test structured with explicit `# arrange` / `# act` /
+  `# assert` markers (`# arrange / act` allowed when setup and execution are
+  one step); no blank lines between the sections; tests are self-contained;
+* **no multiline function definitions or calls** — keep them on a single
+  line, even if long (see `STYLE-GUIDE.md`, Function Definitions and Calls).
 
 Do not introduce unnecessary abstraction layers.
 
@@ -1213,6 +1351,10 @@ process shutdown
 locator behavior
 assertion polling
 timeout handling
+retry policy for transient failures
+explicit wait utilities
+feature detection / missing-tool errors
+port allocation race handling
 ```
 
 Do not require a real Slint application for tests of the MCP transport layer.
@@ -1292,6 +1434,16 @@ Version 0.1 is complete when all of the following are true:
 * [ ] stdout/stderr are captured.
 * [ ] failed tests generate useful artifacts.
 
+### Stability
+
+* [ ] explicit wait utilities exist (`wait_for_condition`, `wait_for_exists`,
+      `wait_for_gone`);
+* [ ] tests run sequentially without state leakage between tests;
+* [ ] a missing/unknown MCP tool produces a clear error naming the tool and
+      the detected Slint version;
+* [ ] port allocation handles the port-in-use race without flakiness;
+* [ ] actions are never retried blindly (§20.2).
+
 ### Testing
 
 * [ ] framework unit tests exist;
@@ -1309,11 +1461,12 @@ Do not implement the entire framework in one change.
 Use this sequence:
 
 ```text
-Phase 1
+Phase 1  — DONE
   Inspect repository
   Inspect Slint version
   Inspect actual MCP implementation
   Determine exact protocol/tools
+  → documented in automation_tests/slint-mcp-api.md (verified live)
 
 Phase 2
   Implement MCP client
@@ -1332,13 +1485,19 @@ Phase 5
 
 Phase 6
   Implement expect/assertions
+  Implement explicit wait utilities (§14.1)
 
 Phase 7
   Implement diagnostics/artifacts
+  Implement structured logging with correlation IDs (§21.1)
 
 Phase 8
   Add real application integration tests
 ```
+
+Test isolation (§46) and test data management (§47) are part of Phase 3
+(process management) and must be in place before Phase 8. Parallel execution
+(§48) is not part of the initial plan; only its preconditions are.
 
 After each phase:
 
@@ -1376,7 +1535,7 @@ Never reverse this relationship.
 ```text
 Locator
 SlintApp
-pytest
+unittest
 application-specific concepts
 ```
 
@@ -1393,19 +1552,25 @@ This separation is the primary architectural requirement.
 The final framework should make tests look approximately like:
 
 ```python
-def test_run_simulation(app):
-    expect(
-        app.get_by_id("simulation-status")
-    ).to_have_text("Ready")
+class RunSimulationChecks(unittest.TestCase):
 
-    app.get_by_id("run-simulation").click()
+    def setUp(self):
+        # arrange
+        self._app = SlintApp.launch(APPLICATION_PATH)
 
-    expect(
-        app.get_by_id("simulation-status")
-    ).to_have_text(
-        "Simulation complete",
-        timeout=30,
-    )
+    def tearDown(self):
+        # close the application after each test
+        self._app.close()
+
+    def test_run_simulation(self):
+        # assert
+        expect(self._app.get_by_id("simulation-status")).to_have_text("Ready")
+
+        # act
+        self._app.get_by_id("run-simulation").click()
+
+        # assert
+        expect(self._app.get_by_id("simulation-status")).to_have_text("Simulation complete", timeout=30)
 ```
 
 The test author should not need to know:
@@ -1438,7 +1603,108 @@ Do NOT implement initially:
 * remote application testing;
 * authentication;
 * production MCP support;
-* a replacement for pytest;
+* a replacement for unittest;
 * a replacement for Slint's commercial GUI Test Framework.
 
 The objective is a small, reliable test framework built on the MCP server that already exists in the Slint application.
+
+---
+
+# 46. Test isolation and state management
+
+Each test must start from a known application state.
+
+Rules:
+
+* the TestCase `setUp` launches a fresh application process per test by
+  default; a single application instance must never be shared between tests;
+* application state that persists on disk (recent projects, settings, caches)
+  must be redirected to a per-test temporary directory through the child
+  process environment (`HOME`, `XDG_*`, `APPDATA`, or application-specific
+  flags);
+* `tearDown` owns removing that temporary directory;
+* if the application cannot isolate its state via environment or flags,
+  prefer adding a test-only flag over having tests clean global state;
+* tests must not depend on state left behind by earlier tests and must not
+  assume any particular execution order.
+
+A shared long-lived instance may later be added for cheap read-only smoke
+tests, but state-mutating tests always get a fresh instance.
+
+---
+
+# 47. Test data management
+
+* fixture files and sample projects live in a dedicated test-data directory
+  inside the test package (e.g. `tests/integration/data/`);
+* tests never modify shared fixture data in place: each test copies the data
+  it needs into its per-test temporary directory first;
+* files created by a test are written only inside its temporary directory or
+  its artifact directory;
+* no fixed file paths may be shared between tests, so parallel execution
+  remains possible (§48).
+
+---
+
+# 48. Parallel execution
+
+Parallel execution (e.g. a parallel unittest runner) is not an initial
+requirement, but the design must not preclude it:
+
+* port allocation per instance (§7.1);
+* per-test application process and temporary directories (§46, §47);
+* per-test artifact directories;
+* no global mutable state in the framework; configuration objects are passed
+  explicitly, never read from module-level globals;
+* when parallelism is added, the runner integration must key artifacts and
+  logs by test name plus worker ID to avoid collisions.
+
+---
+
+# 49. Slint / MCP version compatibility
+
+The framework couples to whatever MCP surface the pinned Slint version
+exposes. To keep Slint upgrades manageable:
+
+* at connect time, `McpClient` records the detected Slint version and the
+  list of tools the server advertises;
+* the framework performs feature detection against the advertised tool list
+  instead of assuming every tool exists;
+* if a required tool is missing, raise a clear `McpError` naming the missing
+  tool and the detected Slint version, instead of failing deep inside a
+  locator;
+* all knowledge of tool names and arguments lives in the MCP adapter layer
+  (`mcp_client.py` plus a thin Slint-specific adapter), so a Slint upgrade is
+  ideally a single-module change;
+* maintain a small compatibility matrix in this document when the Slint
+  version is upgraded (version → observed tool/behavior changes).
+
+---
+
+# 50. Contributor guide
+
+* development setup: create a virtual environment, install the test package
+  in editable mode, and point `SLINT_TEST_APPLICATION` at a debug build of
+  the application (the debug build enables the embedded MCP server);
+* framework changes require: framework unit tests, a run of the framework
+  end-to-end tests against the reference test application (§40), and at
+  least the real-application smoke tests;
+* Python style follows §38 and `STYLE-GUIDE.md`; type annotations are
+  mandatory; comments follow the mandatory comment rules (a `#` comment above
+  every non-trivial statement, lowercase, no period) and docstrings are
+  forbidden;
+* changes to the MCP adapter layer must be verified against the actual Slint
+  version in use, per §2.4;
+* CI should run framework unit tests on every change and integration tests
+  against the debug build wherever a GUI/display is available.
+
+---
+
+# 51. Documentation requirements
+
+* the framework package ships a README covering: installation, configuration
+  (§18, §19), writing tests (§44), and debugging failures (§16, §21);
+* the application documentation must describe which builds enable the MCP
+  server and how stable IDs are assigned in Slint code (§31);
+* every locator action and assertion added to the framework must document its
+  MCP-backed behavior and any limitations.
