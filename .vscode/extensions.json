@@ -2,6 +2,7 @@
     "recommendations": [
         "ms-vscode.cpptools-extension-pack",
         "llvm-vs-code-extensions.vscode-clangd",
-        "slint.slint"
+        "slint.slint",
+        "ms-python.python"
     ]
 }

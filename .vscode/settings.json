@@ -11,5 +11,9 @@
   "[objective-cpp]": {
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
   },
-  "cmake.ctest.testSuiteDelimiter": "\\.|/|:"
+  "cmake.ctest.testSuiteDelimiter": "\\.|/|:",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.autopep8"
+  },
+  "python-envs.defaultEnvManager": "ms-python.python:venv"
 }
