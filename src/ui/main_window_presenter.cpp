@@ -86,6 +86,12 @@ void SlintMainWindowPresenter::on_open_xyce_file(const std::filesystem::path& pa
         const auto [reloaded, content] = m_netlist_source->load_netlist();
         // set the editor content to the loaded netlist
         update_netlist_editor_content(content, false);
+        // clear the parse cache so the next run re-parses the new content
+        m_pending_sanitized_netlist.clear();
+        m_pending_topology = NetlistTopology{};
+        m_pending_original_netlist.clear();
+        // clear the cached simulation config, forcing a fresh parse on next run
+        m_simulation_config = SimulationConfig::from_xyce_directives({});
         // remove the raw output file reference
         m_xyce_raw_file = std::nullopt;
         // remove the parsed FFT calculation files, they belong to a previous run

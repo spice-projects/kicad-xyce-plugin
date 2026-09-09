@@ -234,6 +234,41 @@ TEST(SlintMainWindowPresenterChecks, two_consecutive_runs_on_empty_netlist_do_no
     EXPECT_EQ(view.m_status_text, "No netlist content to simulate");
 }
 
+TEST(SlintMainWindowPresenterChecks, opening_new_netlist_clears_stale_pending_state) {
+    // arrange — create a temp .cir file with no analysis directives
+    const auto temp_dir = std::filesystem::temp_directory_path();
+    const auto temp_cir = temp_dir / "test_no_analysis.cir";
+    {
+        std::ofstream file(temp_cir, std::ios::out | std::ios::trunc);
+        file << "V1 1 0 5\nR1 1 0 1K\n.END\n";
+    }
+    RecordingView view;
+    // arrange — first netlist has .TRAN so on_run_simulation populates the pending cache
+    auto first_source = std::make_unique<StubNetlistSource>("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 1m\n.END\n", temp_dir);
+    SlintMainWindowPresenter presenter(view, std::move(first_source), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    // fill the pending parse cache and m_simulation_config with the first netlist data
+    presenter.on_run_simulation();
+    ASSERT_TRUE(view.m_started);
+    // cleanup the temp netlist from the first run
+    std::error_code ec;
+    std::filesystem::remove(view.m_started_netlist_path, ec);
+    view.m_started = false;
+    view.m_simulation_dialog_requests = 0;
+    // act — open a second netlist file that has no analysis directives
+    presenter.on_open_xyce_file(temp_cir);
+    // the editor now reflects the new file content
+    ASSERT_EQ(view.m_editor_content, "V1 1 0 5\nR1 1 0 1K\n.END\n");
+    // run simulation on the second netlist
+    presenter.on_run_simulation();
+    // assert — the config dialog was shown because the new file has no analysis
+    // directives; before the fix the stale TRAN config from the first netlist
+    // would have launched the simulation directly without showing the dialog
+    EXPECT_EQ(view.m_simulation_dialog_requests, 1);
+    EXPECT_FALSE(view.m_started);
+    // cleanup
+    std::filesystem::remove(temp_cir, ec);
+}
+
 // ========================================================================================
 // simulation control flow
 // ========================================================================================
