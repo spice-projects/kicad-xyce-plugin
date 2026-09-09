@@ -307,6 +307,7 @@ jobs:
           bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' "artifacts/macos/KiCad Xyce Plugin.app" "KiCad Xyce Plugin.app/Contents/MacOS/kicad-xyce-plugin" macos
           mkdir -p packages
           cp dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.zip packages/kicad-xyce-plugin-macos.zip
+          zip -qry "packages/KiCad Xyce Plugin.app.zip" "artifacts/macos/KiCad Xyce Plugin.app"
 
       - name: Associate with GitHub Release
         env:
@@ -315,5 +316,5 @@ jobs:
           gh release upload "${{ github.ref_name }}" \
             packages/kicad-xyce-plugin-windows.zip \
             packages/kicad-xyce-plugin-macos.zip \
-            "artifacts/macos/KiCad Xyce Plugin.app" \
+            "packages/KiCad Xyce Plugin.app.zip" \
             --clobber
