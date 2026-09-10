@@ -14,19 +14,18 @@
   "cmake.ctest.testSuiteDelimiter": "\\.|/|:",
   "[python]": {
     "editor.defaultFormatter": "ms-python.autopep8"
-  },
-  "python-envs.defaultEnvManager": "ms-python.python:venv",
+  },  
   "[jsonc]": {
     "editor.defaultFormatter": "vscode.json-language-features"
   },
   "python.testing.unittestArgs": [
     "-v",
     "-s",
-    "automation_tests",
+    ".",
     "-p",
     "*_test.py"
   ],
-  "python.testing.cwd": "${workspaceFolder}",
+  "python-envs.defaultEnvManager": "ms-python.python:venv",
   "python.testing.pytestEnabled": false,
   "python.testing.unittestEnabled": true
 }

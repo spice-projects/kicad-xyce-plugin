@@ -1,8 +1,8 @@
 import unittest
 
-from framework.assertions import expect
-from framework.session import TestSession
-from framework.slint_application import launch
+from slint_automation.assertions import expect
+from slint_automation.session import TestSession
+from slint_automation.slint_application import launch
 
 
 class ApplicationSmokeChecks(unittest.TestCase):

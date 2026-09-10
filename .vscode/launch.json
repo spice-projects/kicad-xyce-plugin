@@ -2,15 +2,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "kicad-xyce-plugin",
+            "name": "xyce-studio",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
+            "program": "${workspaceFolder}/.build-debug/xyce-studio",
             "linux": {
                 "MIMode": "gdb"
             },
             "windows": {
-                "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin.exe"
+                "program": "${workspaceFolder}/.build-debug/xyce-studio.exe"
             },
             "args": [
                 "--log-level=debug"
@@ -22,15 +22,15 @@
             "MIMode": "lldb"
         },        
         {
-            "name": "kicad-xyce-plugin (plugin)",
+            "name": "xyce-studio (plugin)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin",
+            "program": "${workspaceFolder}/.build-debug/xyce-studio",
             "linux": {
                 "MIMode": "gdb"
             },
             "windows": {
-                "program": "${workspaceFolder}/.build-debug/kicad-xyce-plugin.exe"
+                "program": "${workspaceFolder}/.build-debug/xyce-studio.exe"
             },
             "args": [
                 "--log-level=debug"
@@ -42,15 +42,15 @@
             "MIMode": "lldb"
         },
         {
-            "name": "kicad-xyce-plugin-tests",
+            "name": "xyce-studio-tests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/.build-debug/tests/kicad-xyce-plugin-tests",
+            "program": "${workspaceFolder}/.build-debug/tests/xyce-studio-tests",
             "linux": {
                 "MIMode": "gdb"
             },
             "windows": {
-                "program": "${workspaceFolder}/.build-debug/tests/kicad-xyce-plugin-tests.exe"
+                "program": "${workspaceFolder}/.build-debug/tests/xyce-studio-tests.exe"
             },
             "args": [],
             "stopAtEntry": false,

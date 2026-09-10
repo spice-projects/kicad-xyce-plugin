@@ -4,8 +4,8 @@ import unittest
 
 from pathlib import Path
 
-from framework.session import TestSession
-from framework.slint_application import SlintApplication
+from slint_automation.session import TestSession
+from slint_automation.slint_application import SlintApplication
 
 
 class FakeProcess:

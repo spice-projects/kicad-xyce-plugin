@@ -4,5 +4,5 @@
 
 void platform_initialize() {
     // log information
-    spdlog::info("Starting KiCad Xyce Plugin on Windows");
+    spdlog::info("Starting Xyce Studio on Windows");
 }

@@ -1,6 +1,6 @@
 import unittest
 
-from framework.slint_client import SlintClient
+from slint_automation.slint_client import SlintClient
 
 
 class FakeMcpClient:

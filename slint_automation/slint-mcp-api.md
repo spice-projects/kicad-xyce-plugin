@@ -5,7 +5,7 @@ Observed against the Slint version used by this project:
 * Slint pinned via FetchContent: `release/1` (commit `cf62c975c311e7036d599ed8ed0b7e6a8386a934`, 2026-07-06)
 * Server source: `internal/backends/testing/mcp_server.rs`, message schema: `internal/backends/testing/slint_systest.proto`
 * **All behavior below was verified live** against a running debug build of this application
-  (`SLINT_MCP_PORT=<port> ./.build-debug/kicad-xyce-plugin`) by direct HTTP probing.
+  (`SLINT_MCP_PORT=<port> ./.build-debug/xyce-studio`) by direct HTTP probing.
 
 ---
 
@@ -320,7 +320,7 @@ Raw request/response pairs captured during live verification are kept in `/tmp/o
 `shot.json`) — regenerate with the app running:
 
 ```bash
-SLINT_MCP_PORT=37421 ./.build-debug/kicad-xyce-plugin &
+SLINT_MCP_PORT=37421 ./.build-debug/xyce-studio &
 curl -s -X POST http://127.0.0.1:37421/mcp -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
 ```

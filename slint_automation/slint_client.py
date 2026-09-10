@@ -1,7 +1,7 @@
 import base64
 
-from framework.errors import McpError
-from framework.mcp_client import McpClient
+from .errors import McpError
+from .mcp_client import McpClient
 
 
 class SlintClient:

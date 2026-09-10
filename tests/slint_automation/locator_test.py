@@ -1,9 +1,9 @@
 import unittest
 from typing import Any
 
-from framework.errors import LocatorError
-from framework.locator import Locator
-from framework.locator import LocatorCollection
+from slint_automation.errors import LocatorError
+from slint_automation.locator import Locator
+from slint_automation.locator import LocatorCollection
 
 
 class FakeClient:

@@ -3,8 +3,8 @@ import json
 import threading
 import unittest
 
-from framework.errors import McpError
-from framework.mcp_client import McpClient
+from slint_automation.errors import McpError
+from slint_automation.mcp_client import McpClient
 
 
 class MockMcpHandler(http.server.BaseHTTPRequestHandler):

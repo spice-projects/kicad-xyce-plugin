@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from types import TracebackType
 
-from framework.slint_application import SlintApplication
+from .slint_application import SlintApplication
 
 DEFAULT_ARTIFACTS_DIRECTORY = "artifacts"
 ARTIFACTS_ENVIRONMENT_VARIABLE = "SLINT_TEST_ARTIFACTS"

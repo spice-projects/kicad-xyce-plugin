@@ -2,7 +2,7 @@ import time
 
 from typing import Callable
 
-from framework.errors import SlintAssertionError
+from .errors import SlintAssertionError
 
 DEFAULT_WAIT_TIMEOUT = 5.0
 DEFAULT_POLL_INTERVAL = 0.1

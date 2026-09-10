@@ -1,8 +1,8 @@
 import unittest
 
-from framework.assertions import expect
-from framework.errors import SlintAssertionError
-from framework.locator import Locator
+from slint_automation.assertions import expect
+from slint_automation.errors import SlintAssertionError
+from slint_automation.locator import Locator
 
 
 class SequencedClient:

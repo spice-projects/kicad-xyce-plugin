@@ -383,7 +383,7 @@ The application process must be owned by `SlintApplication`.
 Use a context manager:
 
 ```python
-with launch("./kicad-xyce-plugin") as app:
+with launch("./xyce-studio") as app:
     ...
 ```
 
@@ -1382,7 +1382,7 @@ Do not introduce unnecessary abstraction layers.
 The framework test suite must be **fully (100%) mock based**: no framework
 test may launch the real application or any GUI process. Use mocked HTTP/MCP
 servers, fake process objects, and fake clients. Real-application coverage
-belongs to the kicad-xyce-plugin integration test suite (the second
+belongs to the xyce-studio integration test suite (the second
 deliverable), which will live under `automation_tests/integration/` and use
 real UI arrange/act/assert flows.
 

@@ -5,11 +5,11 @@ import threading
 import unittest
 from unittest import mock
 
-from framework import launch
-from framework.errors import ApplicationStartupError
-from framework.mcp_client import McpClient
-from framework.slint_application import SlintApplication
-from framework.slint_client import SlintClient
+from slint_automation import launch
+from slint_automation.errors import ApplicationStartupError
+from slint_automation.mcp_client import McpClient
+from slint_automation.slint_application import SlintApplication
+from slint_automation.slint_client import SlintClient
 
 
 class MockMcpHandler(http.server.BaseHTTPRequestHandler):
@@ -120,15 +120,15 @@ class ApplicationLaunchChecks(unittest.TestCase):
         # arrange: fake the application process
         self._process = FakeProcess()
         # arrange: point the port allocation at the mock server port
-        port_patcher = mock.patch("framework.slint_application._allocate_port", return_value=self._server.server_address[1])
+        port_patcher = mock.patch("slint_automation.slint_application._allocate_port", return_value=self._server.server_address[1])
         port_patcher.start()
         self.addCleanup(port_patcher.stop)
         # arrange: launch the application through the patched popen
-        patcher = mock.patch("framework.slint_application.subprocess.Popen", return_value=self._process)
+        patcher = mock.patch("slint_automation.slint_application.subprocess.Popen", return_value=self._process)
         self._popen = patcher.start()
         self.addCleanup(patcher.stop)
         # arrange: launch the application for testing
-        self._app = launch("/fake/kicad-xyce-plugin", startup_timeout=5.0)
+        self._app = launch("/fake/xyce-studio", startup_timeout=5.0)
         # cleanup: shut the mock server down after the test
         self.addCleanup(self._server.shutdown)
         self.addCleanup(self._server.server_close)
@@ -214,15 +214,15 @@ class ApplicationLifecycleChecks(unittest.TestCase):
     def test_launch_raises_after_retries_when_process_exits(self) -> None:
         # arrange
         process = FakeProcess(exit_code=3)
-        port_patcher = mock.patch("framework.slint_application._allocate_port", return_value=self._server.server_address[1])
+        port_patcher = mock.patch("slint_automation.slint_application._allocate_port", return_value=self._server.server_address[1])
         port_patcher.start()
         self.addCleanup(port_patcher.stop)
-        patcher = mock.patch("framework.slint_application.subprocess.Popen", return_value=process)
+        patcher = mock.patch("slint_automation.slint_application.subprocess.Popen", return_value=process)
         popen = patcher.start()
         self.addCleanup(patcher.stop)
         # act
         with self.assertRaises(ApplicationStartupError) as context:
-            launch("/fake/kicad-xyce-plugin", startup_timeout=0.3)
+            launch("/fake/xyce-studio", startup_timeout=0.3)
         # assert
         self.assertIn("failed to launch application", str(context.exception))
         self.assertEqual(popen.call_count, 3)
@@ -231,15 +231,15 @@ class ApplicationLifecycleChecks(unittest.TestCase):
         # arrange: make the server return malformed responses
         self._server.malformed = True
         process = FakeProcess()
-        port_patcher = mock.patch("framework.slint_application._allocate_port", return_value=self._server.server_address[1])
+        port_patcher = mock.patch("slint_automation.slint_application._allocate_port", return_value=self._server.server_address[1])
         port_patcher.start()
         self.addCleanup(port_patcher.stop)
-        patcher = mock.patch("framework.slint_application.subprocess.Popen", return_value=process)
+        patcher = mock.patch("slint_automation.slint_application.subprocess.Popen", return_value=process)
         popen = patcher.start()
         self.addCleanup(patcher.stop)
         # act
         with self.assertRaises(ApplicationStartupError):
-            launch("/fake/kicad-xyce-plugin", startup_timeout=0.3)
+            launch("/fake/xyce-studio", startup_timeout=0.3)
         # assert
         self.assertEqual(popen.call_count, 3)
         self.assertTrue(process.was_terminated())

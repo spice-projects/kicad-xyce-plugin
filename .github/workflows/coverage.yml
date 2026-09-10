@@ -69,14 +69,14 @@ jobs:
         run: cmake --preset profile
 
       - name: Build C++ Target
-        run: cmake --build --preset profile --target kicad-xyce-plugin-tests
+        run: cmake --build --preset profile --target xyce-studio-tests
 
       - name: Run C++ Tests
         shell: bash
         env:
           LLVM_PROFILE_FILE: ${{ github.workspace }}/coverage.profraw
         run: |
-          ./.build-profile/tests/kicad-xyce-plugin-tests --gtest_filter=-Ui*
+          ./.build-profile/tests/xyce-studio-tests --gtest_filter=-Ui*
 
       - name: Generate Cobertura report
         shell: bash
@@ -85,8 +85,8 @@ jobs:
           xcrun llvm-cov export \
             --instr-profile coverage.profdata \
             --format=lcov \
-            ./.build-profile/tests/kicad-xyce-plugin-tests "$PWD/src" \
-            ./.build-profile/tests/kicad-xyce-plugin-tests > coverage.lcov
+            ./.build-profile/tests/xyce-studio-tests "$PWD/src" \
+            ./.build-profile/tests/xyce-studio-tests > coverage.lcov
           pip install lcov_cobertura
           lcov_cobertura coverage.lcov --output cobertura.xml
 

@@ -130,24 +130,24 @@ namespace
 #if defined(_WIN32)
         // check APPDATA environment variable on Windows
         if (const auto appdata = get_environment_variable("APPDATA"); appdata.has_value() && !appdata->empty())
-            return std::filesystem::path(*appdata) / "kicad-xyce-plugin" / "config.json";
+            return std::filesystem::path(*appdata) / "xyce-studio" / "config.json";
         // check USERPROFILE environment variable as fallback on Windows
         if (const auto userprofile = get_environment_variable("USERPROFILE"); userprofile.has_value() && !userprofile->empty())
-            return std::filesystem::path(*userprofile) / "AppData" / "Roaming" / "kicad-xyce-plugin" / "config.json";
+            return std::filesystem::path(*userprofile) / "AppData" / "Roaming" / "xyce-studio" / "config.json";
 #elif defined(__APPLE__)
         // check XDG_CONFIG_HOME first if explicitly set
         if (const auto xdg = get_environment_variable("XDG_CONFIG_HOME"); xdg.has_value() && !xdg->empty())
-            return std::filesystem::path(*xdg) / "kicad-xyce-plugin" / "config.json";
+            return std::filesystem::path(*xdg) / "xyce-studio" / "config.json";
         // use standard macOS Preferences directory
         if (const auto home = get_environment_variable("HOME"); home.has_value() && !home->empty())
-            return std::filesystem::path(*home) / "Library" / "Preferences" / "kicad-xyce-plugin" / "config.json";
+            return std::filesystem::path(*home) / "Library" / "Preferences" / "xyce-studio" / "config.json";
 #else
         // check XDG_CONFIG_HOME on POSIX/Linux
         if (const auto xdg = get_environment_variable("XDG_CONFIG_HOME"); xdg.has_value() && !xdg->empty())
-            return std::filesystem::path(*xdg) / "kicad-xyce-plugin" / "config.json";
+            return std::filesystem::path(*xdg) / "xyce-studio" / "config.json";
         // fallback to ~/.config on POSIX/Linux
         if (const auto home = get_environment_variable("HOME"); home.has_value() && !home->empty())
-            return std::filesystem::path(*home) / ".config" / "kicad-xyce-plugin" / "config.json";
+            return std::filesystem::path(*home) / ".config" / "xyce-studio" / "config.json";
 #endif
         // fallback to current working directory
         return std::filesystem::path{"config.json"};

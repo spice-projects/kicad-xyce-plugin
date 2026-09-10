@@ -1,8 +1,8 @@
 import unittest
 
-from framework.log import configure_from_environment
-from framework.slint_application import SlintApplication
-from framework.session import TestSession
+from .log import configure_from_environment
+from .slint_application import SlintApplication
+from .session import TestSession
 
 
 # the unittest adapter over the runner neutral TestSession; pytest and other

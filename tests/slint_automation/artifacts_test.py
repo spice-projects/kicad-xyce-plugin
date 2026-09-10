@@ -6,8 +6,8 @@ import unittest
 from io import BytesIO
 from pathlib import Path
 
-from framework.slint_application import SlintApplication
-from framework.test_case import SlintTestCase
+from slint_automation.slint_application import SlintApplication
+from slint_automation.test_case import SlintTestCase
 
 
 class FakeProcess:

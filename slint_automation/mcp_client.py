@@ -3,8 +3,8 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from framework.errors import McpError
-from framework.log import logger
+from .errors import McpError
+from .log import logger
 
 DEFAULT_HTTP_TIMEOUT = 10.0
 MCP_PROTOCOL_VERSION = "2025-06-18"

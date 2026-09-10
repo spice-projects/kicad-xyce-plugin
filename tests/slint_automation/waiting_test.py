@@ -1,11 +1,11 @@
 import unittest
 
-from framework.errors import SlintAssertionError
-from framework.locator import Locator
-from framework.mcp_client import McpClient
-from framework.slint_application import SlintApplication
-from framework.slint_client import SlintClient
-from framework.waiting import wait_for
+from slint_automation.errors import SlintAssertionError
+from slint_automation.locator import Locator
+from slint_automation.mcp_client import McpClient
+from slint_automation.slint_application import SlintApplication
+from slint_automation.slint_client import SlintClient
+from slint_automation.waiting import wait_for
 
 
 class FakeProcess:

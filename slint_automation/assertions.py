@@ -1,10 +1,10 @@
 from typing import Any, Callable
 
-from framework.errors import LocatorError
-from framework.locator import Locator
-from framework.waiting import DEFAULT_POLL_INTERVAL
-from framework.waiting import DEFAULT_WAIT_TIMEOUT
-from framework.waiting import wait_for
+from .errors import LocatorError
+from .locator import Locator
+from .waiting import DEFAULT_POLL_INTERVAL
+from .waiting import DEFAULT_WAIT_TIMEOUT
+from .waiting import wait_for
 
 DEFAULT_ASSERTION_TIMEOUT = DEFAULT_WAIT_TIMEOUT
 

@@ -8,15 +8,12 @@ from pathlib import Path
 from types import TracebackType
 from typing import BinaryIO, Callable
 
-from framework.errors import ApplicationStartupError
-from framework.errors import McpError
-from framework.locator import Locator, LocatorCollection
-from framework.log import logger
-from framework.mcp_client import McpClient
-from framework.slint_client import SlintClient
-from framework.waiting import DEFAULT_POLL_INTERVAL
-from framework.waiting import DEFAULT_WAIT_TIMEOUT
-from framework.waiting import wait_for
+from .errors import ApplicationStartupError, McpError
+from .locator import Locator, LocatorCollection
+from .log import logger
+from .mcp_client import McpClient
+from .slint_client import SlintClient
+from .waiting import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIMEOUT, wait_for
 
 DEFAULT_STARTUP_TIMEOUT = 10.0
 DEFAULT_READY_POLL_INTERVAL = 0.1
@@ -196,7 +193,7 @@ def default_executable() -> str:
     executable = os.environ.get(DEFAULT_EXECUTABLE_ENVIRONMENT_VARIABLE)
     # fall back to the debug build at the repository root otherwise
     if not executable:
-        executable = str(Path(__file__).resolve().parents[2] / ".build-debug" / "kicad-xyce-plugin")
+        executable = str(Path(__file__).resolve().parents[2] / ".build-debug" / "xyce-studio")
     # return the resolved executable path
     return executable
 
