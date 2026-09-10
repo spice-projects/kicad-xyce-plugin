@@ -1,6 +1,8 @@
 #include <cctype>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include <slint.h>
 #include <spdlog/spdlog.h>
@@ -13,6 +15,32 @@
 #include "../ui/main_window_presenter.h"
 #include "../ui/main_window_view.h"
 
+// extract the value of a long option, accepting both "--option VALUE" and "--option=VALUE" forms
+static std::optional<std::string> option_value(int argc, char** argv, int& i, std::string_view name) {
+    // match the space separated form and consume the following value token
+    if (i + 1 < argc && argv[i] == name)
+        return std::string(argv[++i]);
+    // match the equals separated form
+    const std::string_view argument = argv[i];
+    // check for the option name followed by the separator
+    if (argument.starts_with(name) && argument.size() > name.size() && argument[name.size()] == '=')
+        // extract everything after the equals sign
+        return std::string(argument.substr(name.size() + 1));
+    // the option is not present at this position
+    return std::nullopt;
+}
+
+// check that the path carries the expected extension, logging a warning and rejecting it otherwise
+static bool has_extension(const std::filesystem::path& path, std::string_view extension) {
+    // compare the normalized lowercase extension
+    if (to_lower(path.extension().string()) == extension)
+        return true;
+    // warn about the rejected file so the user understands why it was not opened
+    spdlog::warn("ignoring {}: {} is not a {} file", path.string(), path.string(), extension);
+    // reject the path
+    return false;
+}
+
 App& App::instance() {
     static App app;
     return app;
@@ -21,6 +49,10 @@ App& App::instance() {
 App::~App() = default;
 
 void App::initialize(int argc, char** argv) {
+    // reset the parsed file options so repeated initialization starts fresh
+    m_netlist_path.reset();
+    m_raw_path.reset();
+    m_xyce_path.reset();
     // parse command line arguments
     for (int i = 1; i < argc; ++i) {
         // --log-level VALUE or -l VALUE
@@ -29,6 +61,21 @@ void App::initialize(int argc, char** argv) {
         // --log-level=VALUE
         else if (std::string(argv[i]).starts_with("--log-level="))
             m_log_level = std::string(argv[i]).substr(12);
+        // --netlist VALUE or --netlist=VALUE opens a netlist file at startup
+        else if (auto value = option_value(argc, argv, i, "--netlist")) {
+            // only netlist files are accepted through this option
+            if (has_extension(*value, ".cir"))
+                m_netlist_path = std::filesystem::path(*value);
+        }
+        // --raw VALUE or --raw=VALUE opens a simulation output file at startup
+        else if (auto value = option_value(argc, argv, i, "--raw")) {
+            // only raw output files are accepted through this option
+            if (has_extension(*value, ".raw"))
+                m_raw_path = std::filesystem::path(*value);
+        }
+        // --xyce VALUE or --xyce=VALUE overrides the Xyce executable for this session
+        else if (auto value = option_value(argc, argv, i, "--xyce"))
+            m_xyce_path = *value;
     }
     // normalize to lowercase
     m_log_level = to_lower(m_log_level);
@@ -71,6 +118,15 @@ int App::run() {
     // extract the schematic netlist before the first frame (KiCad plugin mode)
     if (m_kicad_session != nullptr)
         main_presenter->on_extract_schematic_netlist();
+    // seed the window from the command line when running standalone; the plugin session owns the netlist source
+    if (m_kicad_session == nullptr) {
+        // open the requested netlist through the same code path as the file selection action
+        if (m_netlist_path)
+            main_presenter->on_open_xyce_file(*m_netlist_path);
+        // load the requested raw output through the same dispatch as the file selection action
+        if (m_raw_path)
+            main_presenter->on_open_xyce_file(*m_raw_path);
+    }
     // run the slint event loop until the last window closes
     slint::run_event_loop();
     // WORKAROUND (see slint-bug.md): slint 1.17.1 caches the native context menu item tree in
@@ -103,8 +159,8 @@ void App::new_window(std::shared_ptr<XyceOutputFile> raw_file) {
 }
 
 SlintMainWindowPresenter* App::create_window(std::unique_ptr<NetlistSource> netlist_source, std::shared_ptr<KiCadSession> session) {
-    // plugin config
-    auto config = PluginConfig::load();
+    // plugin config; the --xyce command line override replaces the disk configuration for this session
+    auto config = m_xyce_path ? PluginConfig(*m_xyce_path) : PluginConfig::load();
     // the view needs only a placeholder netlist source; the presenter owns the real source
     auto instance = std::make_unique<WindowInstance>();
     instance->view = std::make_unique<SlintMainWindowView>(std::make_unique<EditorNetlistSource>([]() -> std::string { return std::string{}; }, std::filesystem::path{}), config);

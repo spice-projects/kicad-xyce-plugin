@@ -172,6 +172,16 @@ class ApplicationLaunchChecks(unittest.TestCase):
         # assert: verify the child received the mock server port
         self.assertEqual(kwargs["env"]["SLINT_MCP_PORT"], str(self._server.server_address[1]))
 
+    def test_application_passes_command_line_arguments(self) -> None:
+        # arrange: relaunch with command line arguments for the application
+        self._popen.reset_mock()
+        # act: launch with the file loading arguments
+        launch("/fake/kicad-xyce-plugin", startup_timeout=5.0, args=["--netlist", "/tmp/amp.cir", "--raw=/tmp/out.raw"])
+        # assert: verify the arguments follow the executable path
+        args, _ = self._popen.call_args
+        self.assertEqual(args[0][0], "/fake/kicad-xyce-plugin")
+        self.assertEqual(args[0][1:], ["--netlist", "/tmp/amp.cir", "--raw=/tmp/out.raw"])
+
     def test_application_receives_clean_environment(self) -> None:
         # arrange: inject an external variable like an editor .env file would
         os.environ["KICAD_API_TOKEN"] = "external-value"

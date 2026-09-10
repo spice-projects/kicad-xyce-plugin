@@ -39,7 +39,7 @@ class WaitHelperChecks(unittest.TestCase):
         # assert
         self.assertIn("waiting for charts panel", str(context.exception))
         self.assertIn("last observed: unknown", str(context.exception))
-        self.assertIn("timeout: 0.2 seconds", str(context.exception))
+        self.assertIn("waited: 0.2 seconds", str(context.exception))
 
     def test_wait_for_reports_observed_state(self) -> None:
         # act

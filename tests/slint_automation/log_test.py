@@ -2,9 +2,7 @@ import logging
 import os
 import unittest
 
-from slint_automation.log import LOGGER_NAME
-from slint_automation.log import configure_from_environment
-from slint_automation.log import logger
+from slint_automation.log import LOGGER_NAME, configure_from_environment, logger
 
 
 class LoggingChecks(unittest.TestCase):

@@ -13,7 +13,7 @@ from .locator import Locator, LocatorCollection
 from .log import logger
 from .mcp_client import McpClient
 from .slint_client import SlintClient
-from .waiting import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIMEOUT, wait_for
+from .waiting import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIMEOUT, reports_test_frames, wait_for
 
 DEFAULT_STARTUP_TIMEOUT = 10.0
 DEFAULT_READY_POLL_INTERVAL = 0.1
@@ -68,6 +68,7 @@ class SlintApplication:
         # create a collection locator for the slint type name
         return LocatorCollection(self._client, type_name)
 
+    @reports_test_frames
     def wait_for_condition(self, condition: Callable[[], bool], *, timeout: float = DEFAULT_WAIT_TIMEOUT, poll_interval: float = DEFAULT_POLL_INTERVAL, message: str) -> None:
         # wait until the caller supplied condition holds
         wait_for(condition, timeout=timeout, poll_interval=poll_interval, timeout_message=message)
@@ -179,7 +180,7 @@ class SlintApplication:
         path.write_text(text)
 
 
-def launch(executable_path: str | None = None, *, startup_timeout: float = DEFAULT_STARTUP_TIMEOUT, env: dict[str, str] | None = None) -> "SlintApplication":
+def launch(executable_path: str | None = None, *, startup_timeout: float = DEFAULT_STARTUP_TIMEOUT, env: dict[str, str] | None = None, args: list[str] | None = None) -> "SlintApplication":
     # resolve the executable from the argument or the framework defaults
     path = executable_path or default_executable()
     # log the launch request for the caller
@@ -188,7 +189,7 @@ def launch(executable_path: str | None = None, *, startup_timeout: float = DEFAU
     last_error: ApplicationStartupError | None = None
     for _attempt in range(MAX_LAUNCH_ATTEMPTS):
         try:
-            return _launch_attempt(path, startup_timeout, env or {})
+            return _launch_attempt(path, startup_timeout, env or {}, args or [])
         except ApplicationStartupError as error:
             last_error = error
     # all attempts failed so surface the last startup error
@@ -216,7 +217,7 @@ def _child_environment(overrides: dict[str, str]) -> dict[str, str]:
     return env
 
 
-def _launch_attempt(executable_path: str, startup_timeout: float, env_overrides: dict[str, str]) -> "SlintApplication":
+def _launch_attempt(executable_path: str, startup_timeout: float, env_overrides: dict[str, str], command_arguments: list[str]) -> "SlintApplication":
     # allocate a free localhost port for the embedded mcp server
     port = _allocate_port()
     # build the controlled child environment with the mcp server port enabled
@@ -225,8 +226,8 @@ def _launch_attempt(executable_path: str, startup_timeout: float, env_overrides:
     # open spooled temp files capturing the child output streams
     stdout_file = tempfile.TemporaryFile()
     stderr_file = tempfile.TemporaryFile()
-    # launch the application as a subprocess with the mcp server enabled
-    process = subprocess.Popen([executable_path], env=env, stdout=stdout_file, stderr=stderr_file)
+    # launch the application as a subprocess with the command line arguments appended after the executable
+    process = subprocess.Popen([executable_path, *command_arguments], env=env, stdout=stdout_file, stderr=stderr_file)
     # build the mcp transport and the ui facade on top of it
     mcp = McpClient(port)
     client = SlintClient(mcp)

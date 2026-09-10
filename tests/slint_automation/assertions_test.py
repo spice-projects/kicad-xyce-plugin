@@ -54,7 +54,7 @@ class ExpectationChecks(unittest.TestCase):
         # assert
         self.assertIn("to have text 'Ready'", str(context.exception))
         self.assertIn("last observed: text 'Running'", str(context.exception))
-        self.assertIn("timeout: 0.2 seconds", str(context.exception))
+        self.assertIn("waited: 0.2 seconds", str(context.exception))
 
     def test_negated_to_have_text_passes_when_different(self) -> None:
         # arrange
@@ -205,6 +205,27 @@ class ExpectationChecks(unittest.TestCase):
         # assert
         self.assertIn("to have opacity 1.0", str(context.exception))
         self.assertIn("last observed: opacity 0.4", str(context.exception))
+
+    def test_to_have_opacity_reports_only_test_frames(self) -> None:
+        # arrange
+        client = SequencedClient({"App::icon": [{"index": "9", "generation": "1"}]}, [{"computedOpacity": 0.4000000059604645}])
+        locator = Locator(client, "App::icon")
+        # arrange: capture the raised failure manually since assertRaises strips the traceback
+        failure = None
+        try:
+            # act: assert a wrong opacity with a tiny timeout
+            expect(locator).to_have_opacity(1.0, timeout=0.2, poll_interval=0.05)
+        except SlintAssertionError as error:
+            failure = error
+        # arrange: collect the reported traceback frames
+        frames = []
+        entry = failure.__traceback__
+        while entry is not None:
+            frames.append(entry)
+            entry = entry.tb_next
+        # assert: the framework internals are hidden so only the test frame is reported
+        self.assertEqual(len(frames), 1)
+        self.assertIn("assertions_test", frames[0].tb_frame.f_code.co_filename)
 
     def test_negated_to_have_opacity_passes_when_different(self) -> None:
         # arrange

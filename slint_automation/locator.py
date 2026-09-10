@@ -2,9 +2,7 @@ from typing import Any
 
 from .errors import LocatorError
 from .slint_client import SlintClient
-from .waiting import DEFAULT_POLL_INTERVAL
-from .waiting import DEFAULT_WAIT_TIMEOUT
-from .waiting import wait_for
+from .waiting import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIMEOUT, reports_test_frames, wait_for
 
 
 class Locator:
@@ -84,10 +82,12 @@ class Locator:
         # create a strict locator for a child element of this element by slint type
         return Locator(self._client, type_name=type_name, scope=self)
 
+    @reports_test_frames
     def wait_for_exists(self, timeout: float = DEFAULT_WAIT_TIMEOUT, poll_interval: float = DEFAULT_POLL_INTERVAL) -> None:
         # wait until the element appears in the ui
         wait_for(self.exists, timeout=timeout, poll_interval=poll_interval, timeout_message=f"timed out waiting for element {self.describe()!r} to exist", observe=lambda: "exists" if self.exists() else "missing")
 
+    @reports_test_frames
     def wait_for_gone(self, timeout: float = DEFAULT_WAIT_TIMEOUT, poll_interval: float = DEFAULT_POLL_INTERVAL) -> None:
         # wait until the element disappears from the ui
         wait_for(lambda: not self.exists(), timeout=timeout, poll_interval=poll_interval, timeout_message=f"timed out waiting for element {self.describe()!r} to be removed", observe=lambda: "exists" if self.exists() else "missing")

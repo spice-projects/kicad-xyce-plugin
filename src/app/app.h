@@ -1,6 +1,8 @@
 #pragma once
 
+#include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -40,6 +42,15 @@ public:
     // the shared kicad session for plugin-mode communication, null when standalone
     [[nodiscard]] const std::shared_ptr<KiCadSession>& kicad_session() const { return m_kicad_session; }
 
+    // the netlist file requested through --netlist, unset when not provided
+    [[nodiscard]] const std::optional<std::filesystem::path>& netlist_path() const { return m_netlist_path; }
+
+    // the raw output file requested through --raw, unset when not provided
+    [[nodiscard]] const std::optional<std::filesystem::path>& raw_path() const { return m_raw_path; }
+
+    // the Xyce executable requested through --xyce, unset when not provided
+    [[nodiscard]] const std::optional<std::string>& xyce_path() const { return m_xyce_path; }
+
 private:
     App() = default;
 
@@ -62,6 +73,11 @@ private:
 
     std::shared_ptr<KiCadSession> m_kicad_session;
     std::string m_log_level = "info";
+
+    // command line requested files and executable, unset when not provided
+    std::optional<std::filesystem::path> m_netlist_path;
+    std::optional<std::filesystem::path> m_raw_path;
+    std::optional<std::string> m_xyce_path;
 
     // windows kept alive while the event loop runs; the main window is the
     // first entry

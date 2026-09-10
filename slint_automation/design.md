@@ -857,11 +857,15 @@ class LocatorError(SlintTestError):
     pass
 
 
-class AssertionError(SlintTestError):
+class SlintAssertionError(AssertionError):
     pass
 ```
 
 Do not shadow Python's built-in `AssertionError` unless there is a strong reason.
+
+`SlintAssertionError` must derive from the built-in `AssertionError` so test
+runners report expectation failures as test failures, not as errors with a
+stack trace.
 
 Prefer names such as:
 
@@ -872,6 +876,16 @@ SlintAssertionError
 if a custom assertion exception is required.
 
 Error messages must contain useful context.
+
+Assertion failure messages must lead with the failed expectation itself
+(what was expected), followed by the last observed state and the waited
+time, never with the polling mechanics ("timed out waiting ...").
+
+Reported tracebacks for expectation failures must stop at the test frame:
+every public entry point that polls (`expect` methods, locator waits,
+`wait_for_condition`) trims the framework frames from the raised
+`SlintAssertionError` so the reported traceback points at the failing test
+line only.
 
 Example:
 
@@ -1186,6 +1200,35 @@ external processes/services
 ```
 
 Unit tests remain responsible for testing individual C++ components.
+
+## 30.1 Scenario authoring
+
+An integration scenario is a user workflow that may span several actions and
+application state transitions. Scenarios follow these rules:
+
+* one scenario is one test method; scenarios are split by behavior, not by
+  line count — a long method covering one coherent workflow is preferred over
+  several methods sharing setup;
+* each scenario launches a fresh application process (§46); a sequential
+  workflow cannot be split across test methods because test methods never
+  share state;
+* workflow scenarios are structured with `# step N:` comment markers instead
+  of the `# arrange` / `# act` / `# assert` markers, which remain for simple
+  single-state assertions;
+* every step is followed by its own assertions so a failure pinpoints the
+  broken stage; assertion timeouts (5s default) absorb UI refresh races
+  between the action and the state update;
+* long-running steps (e.g. a real simulation) use an explicit, generous wait
+  timeout scoped to that step only;
+* scenario setup is expressed through data, never through shared test code:
+  the starting state comes from `launch()` parameters (command line
+  arguments, environment) and read-only fixture files; the framework is the
+  only shared code between scenarios;
+* duplication across scenarios is accepted: self-contained scenarios stay
+  independent when one of them fails;
+* external executables required by a scenario (e.g. the real Xyce binary)
+  are resolved from the environment; when unavailable the scenario skips
+  with a clear message instead of failing.
 
 ---
 

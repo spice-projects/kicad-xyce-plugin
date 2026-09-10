@@ -14,5 +14,5 @@ class LocatorError(SlintTestError):
     pass
 
 
-class SlintAssertionError(SlintTestError):
+class SlintAssertionError(AssertionError):
     pass
