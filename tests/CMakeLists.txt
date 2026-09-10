@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(kicad-xyce-plugin-tests LANGUAGES CXX)
+project(xyce-studio-tests LANGUAGES CXX)
 
 # c++ 23
 set(CMAKE_CXX_STANDARD 23)
@@ -16,28 +16,28 @@ file(GLOB_RECURSE TEST_FILES "./*.cpp")
 message(STATUS "Collected test files:\n${TEST_FILES}")
 
 # the test runner tests against the shared core library, so the shared application sources are not compiled again for this target
-add_executable(kicad-xyce-plugin-tests ${TEST_FILES})
+add_executable(xyce-studio-tests ${TEST_FILES})
 # depend on the generated proto sources before building
-add_dependencies(kicad-xyce-plugin-tests kicad-proto)
+add_dependencies(xyce-studio-tests kicad-proto)
 
 # link the core library (which brings the app headers, defines, and the slint/imgui/implot/spdlog/nng/protobuf/platform dependencies), plus gtest
-target_link_libraries(kicad-xyce-plugin-tests PRIVATE kicad-xyce-core GTest::gtest GTest::gtest_main)
+target_link_libraries(xyce-studio-tests PRIVATE xyce-studio-core GTest::gtest GTest::gtest_main)
 
 if(WIN32)
     # Copy runtime DLLs (slint_cpp.dll, vcpkg DLLs) next to the test executable
     # so ctest and direct execution find them at runtime.
-    add_custom_command(TARGET kicad-xyce-plugin-tests POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:kicad-xyce-plugin-tests> $<TARGET_FILE_DIR:kicad-xyce-plugin-tests> COMMAND_EXPAND_LISTS)
+    add_custom_command(TARGET xyce-studio-tests POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:xyce-studio-tests> $<TARGET_FILE_DIR:xyce-studio-tests> COMMAND_EXPAND_LISTS)
 endif()
 
 # enable more warnings: msvc uses /W4, gnu-style frontends use -Wall -Wextra -Wpedantic
 if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
-    target_compile_options(kicad-xyce-plugin-tests PRIVATE /W4)
+    target_compile_options(xyce-studio-tests PRIVATE /W4)
 else()
-    target_compile_options(kicad-xyce-plugin-tests PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(xyce-studio-tests PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # auto-discover Gtests as Ctests
 include(CTest)
 include(GoogleTest)
-gtest_discover_tests(kicad-xyce-plugin-tests DISCOVERY_TIMEOUT 60)
-# add_test(NAME AllGoogleTests COMMAND kicad-xyce-plugin-tests)
+gtest_discover_tests(xyce-studio-tests DISCOVERY_TIMEOUT 60)
+# add_test(NAME AllGoogleTests COMMAND xyce-studio-tests)

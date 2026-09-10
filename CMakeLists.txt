@@ -7,10 +7,10 @@ set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_SOURCE_DIR}/.triplets" CACHE STRING 
 
 if(APPLE)
     # enable objective-c++ language for .mm files
-    project(kicad-xyce-plugin LANGUAGES CXX OBJCXX)
+    project(xyce-studio LANGUAGES CXX OBJCXX)
 else()
     # on windows and linux, objective-c++ is not supported, so only enable c++ language
-    project(kicad-xyce-plugin LANGUAGES CXX)
+    project(xyce-studio LANGUAGES CXX)
 endif()
 
 # c++ 23
@@ -170,43 +170,43 @@ if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 # shared application code, compiled once and linked into both consumers
-add_library(kicad-xyce-core STATIC ${SOURCE_FILES})
+add_library(xyce-studio-core STATIC ${SOURCE_FILES})
 # expose the application header directory to consumers (executable and tests)
-target_include_directories(kicad-xyce-core PUBLIC "src")
+target_include_directories(xyce-studio-core PUBLIC "src")
 # link the core library with the vendored pocketfft library
-target_include_directories(kicad-xyce-core PRIVATE ${POCKETFFT_INCLUDE_DIRS})
+target_include_directories(xyce-studio-core PRIVATE ${POCKETFFT_INCLUDE_DIRS})
 # expose slint's headers as system directories (see note above the slint fetch)
-target_include_directories(kicad-xyce-core SYSTEM PUBLIC ${SLINT_SYSTEM_INCLUDE_DIRS})
+target_include_directories(xyce-studio-core SYSTEM PUBLIC ${SLINT_SYSTEM_INCLUDE_DIRS})
 
 # msvc uses /W4, gnu-style frontends (g++, clang++) use -Wall -Wextra -Wpedantic
 if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
-    target_compile_options(kicad-xyce-core PRIVATE /W4)
+    target_compile_options(xyce-studio-core PRIVATE /W4)
 else()
-    target_compile_options(kicad-xyce-core PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(xyce-studio-core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # third-party dependencies, PUBLIC so both the executable and the tests transitively link the same set of libraries
-target_link_libraries(kicad-xyce-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng kicad-proto unofficial::skia::skia nfd::nfd)
+target_link_libraries(xyce-studio-core PUBLIC Slint::Slint imgui::imgui implot::implot spdlog::spdlog nng::nng kicad-proto unofficial::skia::skia nfd::nfd)
 
 if(WIN32)
     # prevent Windows headers from defining min/max macros that conflict with std::numeric_limits
-    target_compile_definitions(kicad-xyce-core PRIVATE NOMINMAX)
+    target_compile_definitions(xyce-studio-core PRIVATE NOMINMAX)
 endif()
 
 if(APPLE)
     # link AppKit for NSApp dock icon and other cocoa apis, OpenGL for CGL (via Winit), Carbon for TIS/LMGetKbdType (via Winit)
-    target_link_libraries(kicad-xyce-core PUBLIC "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController" "-framework UniformTypeIdentifiers" "-framework QuartzCore" "-framework OpenGL" "-framework Carbon")
+    target_link_libraries(xyce-studio-core PUBLIC "-framework AppKit" "-framework Metal" "-framework MetalKit" "-framework GameController" "-framework UniformTypeIdentifiers" "-framework QuartzCore" "-framework OpenGL" "-framework Carbon")
     # suppress duplicate library warnings on macOS, which are emitted when linking against the same framework multiple times (e.g. AppKit and Metal)
-    target_link_options(kicad-xyce-core PUBLIC "-Wl,-no_warn_duplicate_libraries")
+    target_link_options(xyce-studio-core PUBLIC "-Wl,-no_warn_duplicate_libraries")
 elseif(WIN32)
     # link windows graphics and system libraries required by the ui backend
-    target_link_libraries(kicad-xyce-core PUBLIC d3d11 d3d12 d3dcompiler dxgi gdi32 user32 shell32 ole32 oleaut32 uuid comdlg32 advapi32 version ws2_32 wininet oleacc uxtheme)
+    target_link_libraries(xyce-studio-core PUBLIC d3d11 d3d12 d3dcompiler dxgi gdi32 user32 shell32 ole32 oleaut32 uuid comdlg32 advapi32 version ws2_32 wininet oleacc uxtheme)
 elseif(LINUX)
-    target_link_libraries(kicad-xyce-core PUBLIC OpenGL::GL expat)
+    target_link_libraries(xyce-studio-core PUBLIC OpenGL::GL expat)
 endif()
 
 # slint: embed images/fonts referenced with @image-url() into the binary
-set_property(TARGET kicad-xyce-core PROPERTY SLINT_EMBED_RESOURCES embed-files)
+set_property(TARGET xyce-studio-core PROPERTY SLINT_EMBED_RESOURCES embed-files)
 
 # only slint files in the widgets directory are compiled into the library
 file(GLOB_RECURSE SLINT_WIDGET_SOURCES "src/ui/widgets/*.slint")
@@ -214,7 +214,7 @@ foreach(widget_source IN LISTS SLINT_WIDGET_SOURCES)
     # use the .slint file name (without extension) as the namespace for the generated C++ code
     get_filename_component(widget_namespace ${widget_source} NAME_WE)
     # generate C++ code from the .slint file and add it to the core library
-    slint_target_sources(kicad-xyce-core ${widget_source} NAMESPACE ${widget_namespace})
+    slint_target_sources(xyce-studio-core ${widget_source} NAMESPACE ${widget_namespace})
     # silence all warnings for this fully generated code
     if(MSVC)
         set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/slint_generated_${widget_namespace}_1.cpp" PROPERTIES COMPILE_OPTIONS "/W0")
@@ -232,35 +232,35 @@ if(APPLE)
     # # resources
     # set(APP_RESOURCES plugin-icon-64x64.png)
     # # create bundle
-    # add_executable(kicad-xyce-plugin MACOSX_BUNDLE src/main.osx.mm ${APP_RESOURCES})
+    # add_executable(xyce-studio MACOSX_BUNDLE src/main.osx.mm ${APP_RESOURCES})
     # # boundle properties
-    # set_target_properties(kicad-xyce-plugin PROPERTIES 
-    #     MACOSX_BUNDLE_BUNDLE_NAME "KiCad Xyce Plugin" 
-    #     MACOSX_BUNDLE_GUI_IDENTIFIER "com.github.spice-projects.kicad-xyce-plugin"
+    # set_target_properties(xyce-studio PROPERTIES 
+    #     MACOSX_BUNDLE_BUNDLE_NAME "Xyce Studio" 
+    #     MACOSX_BUNDLE_GUI_IDENTIFIER "com.github.spice-projects.xyce-studio"
     #     RESOURCE "${APP_RESOURCES}"
     #     MACOSX_BUNDLE_ICON_FILE "plugin-icon-64x64.png"
     # )
     # declare application
-    add_executable(kicad-xyce-plugin src/main.osx.mm)
+    add_executable(xyce-studio src/main.osx.mm)
 elseif(WIN32)
     # declare application
-    add_executable(kicad-xyce-plugin src/main.win32.c++)
+    add_executable(xyce-studio src/main.win32.c++)
     # set Windows API version to Windows 10 for CommandLineToArgW
-    target_compile_definitions(kicad-xyce-plugin PRIVATE _WIN32_WINNT=0x0A00)
+    target_compile_definitions(xyce-studio PRIVATE _WIN32_WINNT=0x0A00)
     # mark it as win32 executable
-    set_target_properties(kicad-xyce-plugin PROPERTIES WIN32_EXECUTABLE TRUE)
+    set_target_properties(xyce-studio PROPERTIES WIN32_EXECUTABLE TRUE)
 elseif(LINUX)
     # declare application
-    add_executable(kicad-xyce-plugin src/main.linux.c++)
+    add_executable(xyce-studio src/main.linux.c++)
 endif()
 
 # link with the core library defined above
-target_link_libraries(kicad-xyce-plugin PRIVATE kicad-xyce-core)
+target_link_libraries(xyce-studio PRIVATE xyce-studio-core)
 
 if(APPLE)
-    set_target_properties(kicad-xyce-plugin PROPERTIES INSTALL_RPATH "@loader_path")
+    set_target_properties(xyce-studio PROPERTIES INSTALL_RPATH "@loader_path")
 elseif(UNIX)
-    set_target_properties(kicad-xyce-plugin PROPERTIES INSTALL_RPATH "$ORIGIN")
+    set_target_properties(xyce-studio PROPERTIES INSTALL_RPATH "$ORIGIN")
 endif()
 
 # profile build type, activate with `cmake --preset debug -DCMAKE_BUILD_TYPE=Profile` && `cmake --build --preset debug`
@@ -279,10 +279,10 @@ endif()
 if(POLICY CMP0207)
     cmake_policy(SET CMP0207 NEW)
 endif()
-install(TARGETS kicad-xyce-plugin RUNTIME_DEPENDENCY_SET kicad-xyce-deps RUNTIME DESTINATION artifacts COMPONENT RuntimeDeps BUNDLE DESTINATION artifacts COMPONENT RuntimeDeps)
-install(RUNTIME_DEPENDENCY_SET kicad-xyce-deps
+install(TARGETS xyce-studio RUNTIME_DEPENDENCY_SET xyce-studio-deps RUNTIME DESTINATION artifacts COMPONENT RuntimeDeps BUNDLE DESTINATION artifacts COMPONENT RuntimeDeps)
+install(RUNTIME_DEPENDENCY_SET xyce-studio-deps
   DIRECTORIES
-    $<TARGET_FILE_DIR:kicad-xyce-plugin>
+    $<TARGET_FILE_DIR:xyce-studio>
     ${CMAKE_BINARY_DIR}/_deps/slint-build
     ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin
     ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib

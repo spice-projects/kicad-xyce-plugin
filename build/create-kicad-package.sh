@@ -3,9 +3,9 @@
 # project version, defaults to 0.0.1
 PROJECT_VERSION=${1:-0.0.1}
 # path to the compiled plugin executable, defaults to the debug build output
-EXECUTABLE=${2:-.build-debug/kicad-xyce-plugin}
+EXECUTABLE=${2:-.build-debug/xyce-studio}
 # plugin entrypoint name as referenced by src/plugin.json
-ENTRYPOINT_NAME=${3:-kicad-xyce-plugin}
+ENTRYPOINT_NAME=${3:-xyce-studio}
 # platform, allowed values: macos, linux, windows
 PLATFORM=${4:-macos}
 # path(s) to shared libraries shipped beside the executable, space separated, defaults to none
@@ -56,7 +56,7 @@ for library in $SHARED_LIBRARIES; do
 done
 
 # distribution file
-output_zip="$(pwd)/dist/kicad-xyce-plugin-$PROJECT_VERSION.zip"
+output_zip="$(pwd)/dist/xyce-studio-$PROJECT_VERSION.zip"
 
 # create package, flat structure
 (cd "$temp_dir" && zip -r "$output_zip" .)
