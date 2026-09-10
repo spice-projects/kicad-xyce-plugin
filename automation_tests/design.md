@@ -13,17 +13,15 @@ The framework should provide a simple, Playwright-inspired API without depending
 Example target usage:
 
 ```python
-class OpenProjectChecks(unittest.TestCase):
+class OpenProjectChecks(SlintTestCase):
 
-    def setUp(self):
-        # arrange
-        self._app = SlintApp.launch(APPLICATION_PATH)
+    def setUp(self) -> None:
+        # arrange: initialize the base test case hooks
+        super().setUp()
+        # arrange: launch the real application with a dynamic mcp port
+        self._app = launch(executable)
 
-    def tearDown(self):
-        # close the application after each test
-        self._app.close()
-
-    def test_open_project(self):
+    def test_open_project(self) -> None:
         # act
         self._app.get_by_id("open-project").click()
         self._app.get_by_id("filename").fill("test-project.kicad_pro")
@@ -250,6 +248,10 @@ The exact implementation must match the actual MCP transport used by the Slint v
 
 # 6. SlintApp
 
+**Implemented as `SlintApplication`** (`framework/slint_application.py`) with a
+module-level `launch(executable_path, *, startup_timeout=...)` factory; the
+name below was the planning name.
+
 `SlintApp` is the main public object used by tests.
 
 It represents a running instance of the application.
@@ -308,7 +310,7 @@ app.mcp.call_tool(...)
 
 # 7. Application process management
 
-`SlintApp.launch()` must:
+`launch()` (in `framework/slint_application.py`) must:
 
 1. Start the application as a subprocess.
 2. Allocate an available TCP port.
@@ -317,7 +319,7 @@ app.mcp.call_tool(...)
 5. Start the process.
 6. Wait until the MCP server is available.
 7. Initialize the MCP connection.
-8. Return a ready `SlintApp`.
+8. Return a ready `SlintApplication`.
 
 Do not use a fixed port such as `8080`.
 
@@ -376,12 +378,12 @@ part of the design may preclude it (see §48).
 
 # 8. Process lifecycle
 
-The application process must be owned by `SlintApp`.
+The application process must be owned by `SlintApplication`.
 
 Use a context manager:
 
 ```python
-with SlintApp.launch("./MyApplication") as app:
+with launch("./kicad-xyce-plugin") as app:
     ...
 ```
 
@@ -465,23 +467,16 @@ First determine the available MCP tools.
 
 # 10. Element identification
 
-The first and preferred locator should be:
+Locators resolve elements through two mechanisms, in order of preference:
 
-```python
-app.get_by_id("some-element-id")
-```
-
-The application should use stable Slident identifiers intended for testing.
-
-**Verified against the installed Slint version**: the MCP server matches elements by their
-Slint **element ID** as declared in `.slint` source (`match_id` query), qualified as
-`ComponentName::element-id`. The `accessible-id` property is NOT used for lookup:
-
-```slint
-component ToolbarButton {
-    ta := TouchArea { }   // addressable as "ToolbarButton::ta"
-}
-```
+1. `app.get_by_role("Button")` — accessible-role queries through the MCP
+   `query_element_descendants` tool (first-match semantics); requires no UI
+   changes and must be the default choice for tests;
+2. `app.get_by_id("some-element-id")` — Slint element IDs (`match_id` query,
+   qualified as `ComponentName::element-id`); the **last resort**, used only
+   when the id already exists for application requirements — never add an id
+   purely for testing, since unused ids can trigger compilation warnings and
+   the build must stay 100% clean.
 
 The `accessible-label` / `accessible-value` properties expose an element's *text content*
 (read back via `get_element_properties`), which is what text assertions check.
@@ -728,26 +723,34 @@ The framework should make artifact collection automatic through unittest integra
 
 # 17. Test runner integration
 
-Use the standard library `unittest` as the test runner, per `STYLE-GUIDE.md`.
+The framework core is **runner agnostic**: no module under `framework/` may
+import `unittest`, `pytest`, or any other test runner. An application under
+test chooses its own runner (unittest, pytest, plain scripts) and must get
+identical behavior from the framework.
 
-Each integration test suite derives from `unittest.TestCase`; `setUp` launches
-the application and `tearDown` closes it:
+The runner-neutral building block is `TestSession`
+(`framework/session.py`): it owns the application instance, names the
+failure-artifact scope, and closes the application on `finish(failed)`. It
+also works as a context manager that collects artifacts and closes whenever
+the wrapped block raises:
 
 ```python
-class MainWindowChecks(unittest.TestCase):
-
-    def setUp(self):
-        # arrange
-        self._app = SlintApp.launch(APPLICATION_PATH)
-
-    def tearDown(self):
-        # close the application after each test
-        self._app.close()
-
-    def test_application_starts(self):
-        # assert
-        expect(self._app.get_by_id("main-window")).to_exist()
+with TestSession(launch(executable), "open-project") as app:
+    app.get_by_role("Button").click()
+    expect(app.get_by_role("Text")).to_have_text("Done")
 ```
+
+`SlintTestCase` (`framework/test_case.py`) is an **optional unittest
+adapter** over `TestSession`: it maps unittest failure detection onto
+`session.finish(failed)` so `setUp`-launched applications get automatic
+failure artifacts. It must stay thin; all behavior lives in the neutral core.
+
+In this repository, the framework's own suite and the integration tests use
+unittest (per `STYLE-GUIDE.md`). Applications embedding the framework with
+pytest wire `TestSession` through their own fixtures/hooks.
+
+The reference template is `automation_tests/integration/smoke_test.py`;
+new integration suites must follow it.
 
 Do not put application-specific behavior into the generic base class.
 
@@ -999,6 +1002,10 @@ Acceptance criteria:
 
 Do not proceed to locator abstractions until this works.
 
+Per §39, the framework suite validates this milestone with mocked servers and
+a patched process; launching the real application for this smoke check
+belongs to the plugin integration suite (second deliverable).
+
 ---
 
 # 25. Second milestone: UI inspection
@@ -1128,6 +1135,14 @@ over:
 application_internal_state.save()
 ```
 
+**Tests must never reference MCP or Slint protocol shapes.** No test code may
+touch payload internals such as `typeNamesAndIds`, `elementHandles`,
+`computedOpacity`, raw handles, or raw element dictionaries; whenever a test
+needs such information, the missing capability belongs to the framework
+(locators, assertions, collections). The only knowledge a test author needs
+is the UI structure (the project's `.slint` files) and the scenario under
+test.
+
 Do not directly manipulate C++ business logic from integration tests.
 
 The purpose of these tests is to verify integration between:
@@ -1148,9 +1163,11 @@ Unit tests remain responsible for testing individual C++ components.
 
 # 31. Stable UI identifiers
 
-Application UI code should assign Slint element IDs (`id :=`) to important testable elements.
-The MCP server resolves them as qualified IDs (`ComponentName::element-id`); keep declared IDs
-stable and semantic:
+Element IDs (`id :=`) must exist only for application requirements; tests
+prefer role-based lookup (§10) and use ids as the last resort. Do NOT add
+ids purely for testing: unused ids can add compilation warnings and the
+build must stay 100% clean. Existing declared IDs must remain stable and
+semantic:
 
 Good:
 
@@ -1176,25 +1193,26 @@ content and asserting state.
 
 ---
 
-# 32. Do not over-automate selectors initially
+# 32. Selector strategy
 
-Initially support only the most reliable selector:
-
-```python
-get_by_id()
-```
-
-Later consider:
+The preferred selector is role based:
 
 ```python
 get_by_role()
-get_by_text()
-get_by_label()
 ```
 
-Only implement them if the underlying Slint accessibility/introspection API provides reliable information.
+backed by `query_element_descendants` with `matchElementAccessibleRole`
+(first-match semantics, verified live). Type based locators select elements
+by their Slint type in declaration order for collections:
 
-Do not emulate browser DOM semantics unnecessarily.
+```python
+app.get_by_type("ToolbarButton")    # collection: count(), nth(i), all()
+locator.child("Image")              # strict child locator inside the subtree
+```
+
+`get_by_id()` remains available as the last resort (§10). `get_by_text()` /
+`get_by_label()` stay unimplemented until a test needs them; do not emulate
+browser DOM semantics unnecessarily.
 
 ---
 
@@ -1267,9 +1285,13 @@ Keep dependencies minimal.
 Preferred initial dependencies:
 
 ```text
-unittest (Python standard library, no third-party test runner)
-HTTP/MCP client implementation
+HTTP/MCP client implementation (standard library only)
 ```
+
+The framework core has **no test-runner dependency**: `unittest` is used only
+by this repository's own suites and the optional `SlintTestCase` adapter
+(§17). A future spin-off package ships the neutral core plus the optional
+unittest adapter; pytest integration belongs to the embedding application.
 
 Use an existing MCP client library only if:
 
@@ -1335,7 +1357,12 @@ Do not introduce unnecessary abstraction layers.
 
 # 39. Framework unit tests
 
-The framework itself must have unit tests.
+The framework test suite must be **fully (100%) mock based**: no framework
+test may launch the real application or any GUI process. Use mocked HTTP/MCP
+servers, fake process objects, and fake clients. Real-application coverage
+belongs to the kicad-xyce-plugin integration test suite (the second
+deliverable), which will live under `automation_tests/integration/` and use
+real UI arrange/act/assert flows.
 
 At minimum test:
 
@@ -1367,27 +1394,10 @@ Then use a small real Slint application for end-to-end framework tests.
 
 # 40. Reference test application
 
-If necessary, create a minimal test-only Slint application:
-
-```text
-test-app/
-    main.cpp
-    test-window.slint
-```
-
-It should contain:
-
-```text
-Button
-Text
-LineEdit/TextInput
-CheckBox
-ComboBox
-```
-
-and stable accessibility IDs.
-
-Use this application to validate the framework independently of the real production application.
+Superseded by the mock-only policy in §39: the framework test suite is fully
+mock based and does not need a reference Slint application. The real
+application is exercised directly by the plugin integration test suite (the
+second deliverable under `automation_tests/integration/`).
 
 This avoids confusing framework failures with application failures.
 
@@ -1468,31 +1478,67 @@ Phase 1  — DONE
   Determine exact protocol/tools
   → documented in automation_tests/slint-mcp-api.md (verified live)
 
-Phase 2
+Phase 2  — DONE
   Implement MCP client
   Add MCP connectivity smoke test
+  → framework/mcp_client.py, framework/errors.py,
+    tests/mcp_client_test.py (mock transport), tests/mcp_connectivity_test.py
 
-Phase 3
+Phase 3  — DONE
   Implement SlintApp
   Implement process management
+  → framework/slint_application.py (dynamic port, readiness wait, graceful
+    shutdown with kill fallback, bounded launch retries per §7.1)
 
-Phase 4
+Phase 4  — DONE
   Implement Locator
   Implement get_by_id()
+  → framework/locator.py, tests/locator_test.py (fake client unit tests),
+    tests/element_inspection_test.py (real app, §25 milestone)
+  → src/ui/widgets/main_window.slint gained the stable id `status` on the
+    status bar text element per §31
 
-Phase 5
+Phase 5  — DONE
   Implement basic UI actions
+  → framework/locator.py gained click() / fill() / press();
+    framework/slint_client.py gained click_element / set_element_value /
+    dispatch_key_event
+  → type() is intentionally deferred: the MCP server has no element-focused
+    character typing (dispatch_key_event is window-level); its own guidance
+    is to set text via set_element_value (fill)
 
-Phase 6
+Phase 6  — DONE
   Implement expect/assertions
   Implement explicit wait utilities (§14.1)
+  → framework/assertions.py: expect(locator) with to_exist / to_have_text /
+    to_have_property / to_be_visible / to_be_enabled and negation via
+    expect(locator).not_.<assertion>
+  → framework/waiting.py: shared poll helper (deadline, poll interval,
+    failure message with last observed state, §14/§20)
+  → locator.wait_for_exists / wait_for_gone and
+    app.wait_for_condition per §14.1
+  → SlintAssertionError added to framework/errors.py
+  → visibility maps to computedOpacity and enabled to accessibleEnabled;
+    protobuf JSON omits zero/false values so absence means 0.0 / False
 
-Phase 7
+Phase 7  — DONE
   Implement diagnostics/artifacts
   Implement structured logging with correlation IDs (§21.1)
+  → framework/slint_application.py: stdout/stderr capture via spooled temp
+    files, screenshot(), collect_artifacts() (best effort screenshot.png /
+    ui-tree.json / stdout.txt / stderr.txt per §16)
+  → framework/test_case.py: SlintTestCase collects failure artifacts
+    automatically on unittest failures (§16); artifacts root configurable
+    through SLINT_TEST_ARTIFACTS
+  → framework/log.py: namespaced slint_test logger, SLINT_TEST_DEBUG env
+    toggle for protocol-level debug logging; McpClient logs full
+    requests/responses at debug level
 
-Phase 8
+Phase 8  — DONE
   Add real application integration tests
+  → automation_tests/integration/smoke_test.py: application starts, main
+    window appears, toolbar id located, initial status text asserted via
+    get_by_role("Text") per §10 (no test-only ids added to the UI)
 ```
 
 Test isolation (§46) and test data management (§47) are part of Phase 3
@@ -1552,26 +1598,27 @@ This separation is the primary architectural requirement.
 The final framework should make tests look approximately like:
 
 ```python
-class RunSimulationChecks(unittest.TestCase):
+class RunSimulationChecks(SlintTestCase):
 
-    def setUp(self):
-        # arrange
-        self._app = SlintApp.launch(APPLICATION_PATH)
+    def setUp(self) -> None:
+        # arrange: initialize the base test case hooks
+        super().setUp()
+        # arrange: launch the real application with a dynamic mcp port
+        self._app = launch(executable)
 
-    def tearDown(self):
-        # close the application after each test
-        self._app.close()
-
-    def test_run_simulation(self):
+    def test_run_simulation(self) -> None:
         # assert
-        expect(self._app.get_by_id("simulation-status")).to_have_text("Ready")
+        expect(self._app.get_by_role("Text")).to_have_text("Ready")
 
         # act
-        self._app.get_by_id("run-simulation").click()
+        self._app.get_by_role("Button").click()
 
         # assert
-        expect(self._app.get_by_id("simulation-status")).to_have_text("Simulation complete", timeout=30)
+        expect(self._app.get_by_role("Text")).to_have_text("Simulation complete", timeout=30)
 ```
+
+The base class closes the application and collects failure artifacts
+automatically; tests never call `close()` themselves.
 
 The test author should not need to know:
 

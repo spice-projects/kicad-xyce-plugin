@@ -110,7 +110,24 @@ This document defines the code style preferences for this project.
 - Comments are placed **above** the code they describe, not inline
 - Format: `# comment text` (starts with lowercase letter, no period), single line
 - Every non-trivial statement gets its own comment line above it — including statements inside `if` blocks, loops, and other control structures
-- No docstring comments
+- No docstring comments, including for files (no module-level docstrings)
+
+### Classes
+
+- One blank line between the class declaration and the first method
+
+  Incorrect:
+  ```python
+  class FakeClient:
+      def __init__(self) -> None:
+  ```
+
+  Correct:
+  ```python
+  class FakeClient:
+
+      def __init__(self) -> None:
+  ```
 
 ### Line Breaks
 
@@ -121,6 +138,20 @@ This document defines the code style preferences for this project.
 ### Function Definitions and Calls
 
 - No multiline function definitions or calls; keep them on a single line, even if long
+
+### Type Annotations
+
+- All functions must explicitly declare input and return value types
+- Use `-> None` to indicate no return value
+
+  ```python
+  # incorrect: missing return type
+  def properties(self):
+  # incorrect: missing parameter type
+  def properties(self, name) -> None:
+  # correct
+  def properties(self, name: str) -> None:
+  ```
 
 ## Testing
 

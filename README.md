@@ -117,6 +117,12 @@ Tests are built alongside the plugin. Run the test executable directly:
 ./.build-debug/tests/kicad-xyce-plugin-tests
 ```
 
+## UI Integration tests
+
+```bash
+(cd automation_tests && python3 -m unittest discover -s tests -p "*_test.py")
+```
+
 ## Configuration
 
 At runtime, the plugin expects a valid path to the Xyce executable. Configure it in the plugin UI via the Configuration dialog, along with analysis-specific simulation settings.

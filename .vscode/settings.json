@@ -15,5 +15,8 @@
   "[python]": {
     "editor.defaultFormatter": "ms-python.autopep8"
   },
-  "python-envs.defaultEnvManager": "ms-python.python:venv"
+  "python-envs.defaultEnvManager": "ms-python.python:venv",
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  }
 }

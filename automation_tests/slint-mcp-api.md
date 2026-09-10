@@ -183,6 +183,15 @@ Matches Slint **element IDs** as declared in `.slint` source (`ToolbarButton::ta
 {"elementHandles": [{"generation": "1", "index": "31"}]}
 ```
 
+Verified live behaviors:
+
+* **No match returns `{}`, not `{"elementHandles": []}`** — the protobuf JSON
+  serializer omits empty repeated fields, so clients must default to an empty
+  list when the key is absent.
+* The window root element's listed id (`MainWindow::root`) is NOT matchable
+  through this tool; nested declared ids (`MainWindow::toolbar`,
+  `ToolbarButton::ta`) match fine.
+
 Returns an empty list when nothing matches (no error).
 
 #### query_element_descendants — `{elementHandle, queryStack, findAll?}`
@@ -192,6 +201,12 @@ Pipeline search. Each `queryStack` entry has exactly one of:
 `matchElementTypeNameOrBase`, `matchElementAccessibleRole` (PascalCase role).
 Instructions apply in order. Returns `{"elementHandles": [...]}`.
 More efficient than `get_element_tree` for targeted lookups.
+
+**Verified live caveat**: `findAll: true` visits and returns **duplicated
+elements** — the traversal reports 338 visited nodes for a 73-element tree,
+with matches repeated once per nesting path (e.g. the single status bar
+`Text` is returned 4 times). Use `findAll: false` (first-match semantics) for
+single-element lookup; the framework's `find_by_role` does exactly that.
 
 #### get_element_properties — `{elementHandle}`
 
