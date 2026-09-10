@@ -283,41 +283,41 @@ jobs:
         id: version
         run: echo "version=$(echo '${{ github.ref_name }}' | sed 's/^v//')" >> $GITHUB_OUTPUT
 
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: kicad-xyce-plugin-windows-x64
-          path: artifacts/windows
-
       - name: Download macOS app bundle artifact
         uses: actions/download-artifact@v8
         with:
           name: KiCad Xyce Plugin.app
           path: artifacts/macos
 
-      - name: Package Windows
-        run: |
-          dlls=$(ls artifacts/windows/*.dll 2>/dev/null | tr '\n' ' ')
-          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' artifacts/windows/kicad-xyce-plugin.exe kicad-xyce-plugin.exe windows "$dlls"
-          mkdir -p packages
-          cp dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.zip packages/kicad-xyce-plugin-windows.zip
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: kicad-xyce-plugin-windows-x64
+          path: artifacts/windows
 
       - name: Package macOS
         run: |
           mkdir -p packages
           # upload-artifact does not preserve file permissions, restore the exec bit
           chmod +x "artifacts/macos/KiCad Xyce Plugin.app/Contents/MacOS/kicad-xyce-plugin"
-          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' "artifacts/macos/KiCad Xyce Plugin.app" "KiCad Xyce Plugin.app/Contents/MacOS/kicad-xyce-plugin" macos
-          cp dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.zip packages/kicad-xyce-plugin-macos.zip
+          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}.1' "artifacts/macos/KiCad Xyce Plugin.app" "KiCad Xyce Plugin.app/Contents/MacOS/kicad-xyce-plugin" macos
+          cp dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.1.zip packages/kicad-xyce-plugin-macos.zip
           # zip from inside artifacts/macos so the archive has no path prefix
           (cd artifacts/macos && zip -qry "../../packages/KiCad Xyce Plugin.app.zip" "KiCad Xyce Plugin.app")
+
+      - name: Package Windows
+        run: |
+          dlls=$(ls artifacts/windows/*.dll 2>/dev/null | tr '\n' ' ')
+          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}.2' artifacts/windows/kicad-xyce-plugin.exe kicad-xyce-plugin.exe windows "$dlls"
+          mkdir -p packages
+          cp dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.2.zip packages/kicad-xyce-plugin-windows.zip
 
       - name: Associate with GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload "${{ github.ref_name }}" \
-            packages/kicad-xyce-plugin-windows.zip \
             packages/kicad-xyce-plugin-macos.zip \
+            packages/kicad-xyce-plugin-windows.zip \
             "packages/KiCad Xyce Plugin.app.zip" \
             --clobber
