@@ -5,6 +5,14 @@ on:
     branches:
       - main
   push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/') }}
 
 permissions:
   pull-requests: write
@@ -263,7 +271,7 @@ jobs:
   package:
     name: Package & Artifacts
     needs: [build-and-test, macos-app-bundle]
-    if: github.ref_type == 'tag' && success()
+    if: ${{ always() && !cancelled() && !failure() && github.ref_type == 'tag' && needs.build-and-test.result == 'success' && needs.macos-app-bundle.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -296,9 +304,13 @@ jobs:
 
       - name: Package macOS
         run: |
-          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' "artifacts/macos/KiCad Xyce Plugin.app" "KiCad Xyce Plugin.app/Contents/MacOS/kicad-xyce-plugin" macos
           mkdir -p packages
+          # upload-artifact does not preserve file permissions, restore the exec bit
+          chmod +x "artifacts/macos/KiCad Xyce Plugin.app/Contents/MacOS/kicad-xyce-plugin"
+          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}' "artifacts/macos/KiCad Xyce Plugin.app" "KiCad Xyce Plugin.app/Contents/MacOS/kicad-xyce-plugin" macos
           cp dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.zip packages/kicad-xyce-plugin-macos.zip
+          # zip from inside artifacts/macos so the archive has no path prefix
+          (cd artifacts/macos && zip -qry "../../packages/KiCad Xyce Plugin.app.zip" "KiCad Xyce Plugin.app")
 
       - name: Associate with GitHub Release
         env:
@@ -307,5 +319,5 @@ jobs:
           gh release upload "${{ github.ref_name }}" \
             packages/kicad-xyce-plugin-windows.zip \
             packages/kicad-xyce-plugin-macos.zip \
-            "artifacts/macos/KiCad Xyce Plugin.app" \
+            "packages/KiCad Xyce Plugin.app.zip" \
             --clobber
