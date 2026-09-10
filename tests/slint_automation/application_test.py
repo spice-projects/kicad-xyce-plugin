@@ -187,14 +187,16 @@ class ApplicationLaunchChecks(unittest.TestCase):
     def test_application_injects_explicit_environment(self) -> None:
         # arrange: relaunch with the plugin simulation variables injected
         self._popen.reset_mock()
+        # arrange: snapshot the test process environment to detect leaks
+        before = dict(os.environ)
         # act: launch with explicit application variables
         launch("/fake/kicad-xyce-plugin", startup_timeout=5.0, env={"KICAD_API_SOCKET": "ipc://test", "KICAD_API_TOKEN": "explicit"})
-        # assert
+        # assert: verify the injected variables reach the application
         _, kwargs = self._popen.call_args
         self.assertEqual(kwargs["env"]["KICAD_API_SOCKET"], "ipc://test")
         self.assertEqual(kwargs["env"]["KICAD_API_TOKEN"], "explicit")
-        # assert: verify the injected variables do not leak into the test process
-        self.assertNotIn("KICAD_API_SOCKET", os.environ)
+        # assert: verify the launch left the test process environment untouched
+        self.assertEqual(os.environ, before)
 
 
 class ApplicationLifecycleChecks(unittest.TestCase):
