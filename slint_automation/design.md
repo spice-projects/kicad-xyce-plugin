@@ -315,7 +315,13 @@ app.mcp.call_tool(...)
 1. Start the application as a subprocess.
 2. Allocate an available TCP port.
 3. Set `SLINT_MCP_PORT` for the child process.
-4. Preserve the caller's environment unless explicitly overridden.
+4. Start the application in a **controlled environment**: the child process
+   never inherits the test process environment wholesale (editors and shells
+   inject `.env` variables that can change application behavior); only
+   essential system variables (`PATH`, `HOME`, `TMPDIR`, ...) pass through,
+   and application specific variables (e.g. simulating the KiCad plugin with
+   `KICAD_API_*`) must be injected explicitly through
+   `launch(env={...})`.
 5. Start the process.
 6. Wait until the MCP server is available.
 7. Initialize the MCP connection.

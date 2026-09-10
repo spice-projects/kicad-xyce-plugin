@@ -20,6 +20,13 @@ DEFAULT_READY_POLL_INTERVAL = 0.1
 DEFAULT_TERMINATE_TIMEOUT = 5.0
 MAX_LAUNCH_ATTEMPTS = 3
 DEFAULT_EXECUTABLE_ENVIRONMENT_VARIABLE = "SLINT_TEST_APPLICATION"
+CLEAN_ENVIRONMENT_VARIABLES = [
+    "PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL", "USER",
+    "LOGNAME", "SHELL", "DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY",
+    "XDG_RUNTIME_DIR", "XDG_DATA_DIRS", "XDG_CONFIG_DIRS", "SYSTEMROOT",
+    "SYSTEMDRIVE", "COMSPEC", "PATHEXT", "APPDATA", "LOCALAPPDATA",
+    "PROGRAMFILES", "WINDIR",
+]
 _LOGGER = logger()
 
 
@@ -172,7 +179,7 @@ class SlintApplication:
         path.write_text(text)
 
 
-def launch(executable_path: str | None = None, *, startup_timeout: float = DEFAULT_STARTUP_TIMEOUT) -> "SlintApplication":
+def launch(executable_path: str | None = None, *, startup_timeout: float = DEFAULT_STARTUP_TIMEOUT, env: dict[str, str] | None = None) -> "SlintApplication":
     # resolve the executable from the argument or the framework defaults
     path = executable_path or default_executable()
     # log the launch request for the caller
@@ -181,7 +188,7 @@ def launch(executable_path: str | None = None, *, startup_timeout: float = DEFAU
     last_error: ApplicationStartupError | None = None
     for _attempt in range(MAX_LAUNCH_ATTEMPTS):
         try:
-            return _launch_attempt(path, startup_timeout)
+            return _launch_attempt(path, startup_timeout, env or {})
         except ApplicationStartupError as error:
             last_error = error
     # all attempts failed so surface the last startup error
@@ -193,16 +200,27 @@ def default_executable() -> str:
     executable = os.environ.get(DEFAULT_EXECUTABLE_ENVIRONMENT_VARIABLE)
     # fall back to the debug build at the repository root otherwise
     if not executable:
-        executable = str(Path(__file__).resolve().parents[2] / ".build-debug" / "xyce-studio")
+        executable = str(Path(__file__).resolve().parents[1] / ".build-debug" / "xyce-studio")
     # return the resolved executable path
     return executable
 
 
-def _launch_attempt(executable_path: str, startup_timeout: float) -> "SlintApplication":
+def _child_environment(overrides: dict[str, str]) -> dict[str, str]:
+    # start from a minimal copy of the essential system variables so the
+    # application under test never inherits variables injected by external
+    # tooling (editor environments, .env files, shells, ...)
+    env = {name: value for name, value in os.environ.items() if name in CLEAN_ENVIRONMENT_VARIABLES}
+    # apply the explicitly injected application variables on top
+    env.update(overrides)
+    # return the controlled child environment
+    return env
+
+
+def _launch_attempt(executable_path: str, startup_timeout: float, env_overrides: dict[str, str]) -> "SlintApplication":
     # allocate a free localhost port for the embedded mcp server
     port = _allocate_port()
-    # copy the caller environment and enable the mcp server port
-    env = os.environ.copy()
+    # build the controlled child environment with the mcp server port enabled
+    env = _child_environment(env_overrides)
     env["SLINT_MCP_PORT"] = str(port)
     # open spooled temp files capturing the child output streams
     stdout_file = tempfile.TemporaryFile()

@@ -1,5 +1,6 @@
 import http.server
 import json
+import os
 import subprocess
 import threading
 import unittest
@@ -170,6 +171,30 @@ class ApplicationLaunchChecks(unittest.TestCase):
         _, kwargs = self._popen.call_args
         # assert: verify the child received the mock server port
         self.assertEqual(kwargs["env"]["SLINT_MCP_PORT"], str(self._server.server_address[1]))
+
+    def test_application_receives_clean_environment(self) -> None:
+        # arrange: inject an external variable like an editor .env file would
+        os.environ["KICAD_API_TOKEN"] = "external-value"
+        self.addCleanup(os.environ.pop, "KICAD_API_TOKEN", None)
+        # act: inspect the environment passed to the spawned process
+        _, kwargs = self._popen.call_args
+        # assert: verify the external variable never reaches the application
+        self.assertNotIn("KICAD_API_TOKEN", kwargs["env"])
+        # assert: verify the essential system variables are preserved
+        self.assertIn("PATH", kwargs["env"])
+        self.assertIn("HOME", kwargs["env"])
+
+    def test_application_injects_explicit_environment(self) -> None:
+        # arrange: relaunch with the plugin simulation variables injected
+        self._popen.reset_mock()
+        # act: launch with explicit application variables
+        launch("/fake/kicad-xyce-plugin", startup_timeout=5.0, env={"KICAD_API_SOCKET": "ipc://test", "KICAD_API_TOKEN": "explicit"})
+        # assert
+        _, kwargs = self._popen.call_args
+        self.assertEqual(kwargs["env"]["KICAD_API_SOCKET"], "ipc://test")
+        self.assertEqual(kwargs["env"]["KICAD_API_TOKEN"], "explicit")
+        # assert: verify the injected variables do not leak into the test process
+        self.assertNotIn("KICAD_API_SOCKET", os.environ)
 
 
 class ApplicationLifecycleChecks(unittest.TestCase):

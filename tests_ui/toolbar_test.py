@@ -1,8 +1,6 @@
 import unittest
 
-from slint_automation.assertions import expect
-from slint_automation.session import TestSession
-from slint_automation.slint_application import launch
+from slint_automation import expect, TestSession, launch
 
 
 class ToolbarInitialChecks(unittest.TestCase):
@@ -14,11 +12,9 @@ class ToolbarInitialChecks(unittest.TestCase):
             tools = app.get_by_type("ToolbarButton")
             # assert: exactly nine action tools are present
             self.assertEqual(tools.count(), 9)
-            # assert: every tool reports its initial state from left to right:
-            # open enabled, save disabled, netlist disabled, simulation charts
-            # disabled, simulation output disabled, run simulation disabled,
-            # configure simulation disabled, plugin config enabled, exit enabled
+            # toolbar actions from left to right
             expected_states = [True, False, False, False, False, False, False, True, True]
+            # loop expected toolbar tools states
             for index, expected_enabled in enumerate(expected_states):
                 # the disabled state is rendered by the dimmed icon inside the tool
                 icon = tools.nth(index).child("Image")
