@@ -58,6 +58,29 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"
+        },
+        {
+            "name": "python: unittest test",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "unittest",
+            "args": [
+                "${input:pythonTestId}",
+                "-v"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "pythonTestId",
+            "type": "promptString",
+            "description": "dotted test id, e.g. automation_tests.integration.toolbar_test.ToolbarInitialChecks.test_toolbar_contains_nine_tools_in_expected_state",
+            "default": "automation_tests.integration.toolbar_test.ToolbarInitialChecks.test_toolbar_contains_nine_tools_in_expected_state"
         }
     ]
 }

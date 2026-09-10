@@ -7,7 +7,6 @@ from io import BytesIO
 from pathlib import Path
 
 from framework.slint_application import SlintApplication
-from framework.slint_client import SlintClient
 from framework.test_case import SlintTestCase
 
 

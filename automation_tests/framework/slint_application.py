@@ -22,6 +22,7 @@ DEFAULT_STARTUP_TIMEOUT = 10.0
 DEFAULT_READY_POLL_INTERVAL = 0.1
 DEFAULT_TERMINATE_TIMEOUT = 5.0
 MAX_LAUNCH_ATTEMPTS = 3
+DEFAULT_EXECUTABLE_ENVIRONMENT_VARIABLE = "SLINT_TEST_APPLICATION"
 _LOGGER = logger()
 
 
@@ -174,18 +175,30 @@ class SlintApplication:
         path.write_text(text)
 
 
-def launch(executable_path: str, *, startup_timeout: float = DEFAULT_STARTUP_TIMEOUT) -> "SlintApplication":
+def launch(executable_path: str | None = None, *, startup_timeout: float = DEFAULT_STARTUP_TIMEOUT) -> "SlintApplication":
+    # resolve the executable from the argument or the framework defaults
+    path = executable_path or default_executable()
     # log the launch request for the caller
-    _LOGGER.info("launching application %s", executable_path)
+    _LOGGER.info("launching application %s", path)
     # retry the launch to absorb the free-port allocation race
     last_error: ApplicationStartupError | None = None
     for _attempt in range(MAX_LAUNCH_ATTEMPTS):
         try:
-            return _launch_attempt(executable_path, startup_timeout)
+            return _launch_attempt(path, startup_timeout)
         except ApplicationStartupError as error:
             last_error = error
     # all attempts failed so surface the last startup error
     raise ApplicationStartupError(f"failed to launch application after {MAX_LAUNCH_ATTEMPTS} attempts: {last_error}")
+
+
+def default_executable() -> str:
+    # use the override executable when provided through the environment
+    executable = os.environ.get(DEFAULT_EXECUTABLE_ENVIRONMENT_VARIABLE)
+    # fall back to the debug build at the repository root otherwise
+    if not executable:
+        executable = str(Path(__file__).resolve().parents[2] / ".build-debug" / "kicad-xyce-plugin")
+    # return the resolved executable path
+    return executable
 
 
 def _launch_attempt(executable_path: str, startup_timeout: float) -> "SlintApplication":

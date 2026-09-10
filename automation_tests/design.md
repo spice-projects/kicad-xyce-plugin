@@ -732,22 +732,44 @@ The runner-neutral building block is `TestSession`
 (`framework/session.py`): it owns the application instance, names the
 failure-artifact scope, and closes the application on `finish(failed)`. It
 also works as a context manager that collects artifacts and closes whenever
-the wrapped block raises:
+the wrapped block raises. **Integration test classes must not inherit
+framework classes** — they derive from the runner's own test class
+(`unittest.TestCase`) and compose with `TestSession` per test:
 
 ```python
-with TestSession(launch(executable), "open-project") as app:
-    app.get_by_role("Button").click()
-    expect(app.get_by_role("Text")).to_have_text("Done")
+class ToolbarInitialChecks(unittest.TestCase):
+
+    def test_toolbar_state(self) -> None:
+        # arrange: launch the application in a session scoped to this test
+        with TestSession(launch(), self.id()) as app:
+            # assert
+            expect(app.get_by_type("ToolbarButton")).nth(0).exists()
 ```
 
-`SlintTestCase` (`framework/test_case.py`) is an **optional unittest
-adapter** over `TestSession`: it maps unittest failure detection onto
-`session.finish(failed)` so `setUp`-launched applications get automatic
-failure artifacts. It must stay thin; all behavior lives in the neutral core.
+`launch()` resolves the executable from the `SLINT_TEST_APPLICATION`
+environment variable and falls back to the repository debug build.
+
+`SlintTestCase` (`framework/test_case.py`) remains an **optional unittest
+adapter** over `TestSession` for suites that prefer `setUp`-based launching;
+it maps unittest failure detection onto `session.finish(failed)`. It must
+stay thin; all behavior lives in the neutral core.
 
 In this repository, the framework's own suite and the integration tests use
 unittest (per `STYLE-GUIDE.md`). Applications embedding the framework with
 pytest wire `TestSession` through their own fixtures/hooks.
+
+Test discovery and execution must run with an interpreter that can import
+`automation_tests` — the repository ships a `pyproject.toml` so any
+interpreter gets it through an editable install (`pip install -e .`; the
+project `.venv` is preinstalled). The layered import resolution is:
+
+* `automation_tests/__init__.py` puts the package directory on `sys.path` so
+  `from framework import ...` resolves under any discovery root;
+* `import automation_tests` requires either the repository root on
+  `sys.path` (working directory or `PYTHONPATH`) or the editable install; a
+  missing root yields `ModuleNotFoundError: No module named
+  'automation_tests'` (typically caused by a wrong working directory or an
+  interpreter without the editable install).
 
 The reference template is `automation_tests/integration/smoke_test.py`;
 new integration suites must follow it.
@@ -756,7 +778,7 @@ Do not put application-specific behavior into the generic base class.
 
 Application-specific base classes can be added later.
 
-`setUp` must launch a fresh application instance per test and isolate any
+Each test must launch a fresh application instance and isolate any
 persistent application state; see §46.
 
 ---
@@ -1598,27 +1620,24 @@ This separation is the primary architectural requirement.
 The final framework should make tests look approximately like:
 
 ```python
-class RunSimulationChecks(SlintTestCase):
-
-    def setUp(self) -> None:
-        # arrange: initialize the base test case hooks
-        super().setUp()
-        # arrange: launch the real application with a dynamic mcp port
-        self._app = launch(executable)
+class RunSimulationChecks(unittest.TestCase):
 
     def test_run_simulation(self) -> None:
-        # assert
-        expect(self._app.get_by_role("Text")).to_have_text("Ready")
+        # arrange: launch the application in a session scoped to this test
+        with TestSession(launch(), self.id()) as app:
+            # assert
+            expect(app.get_by_role("Text")).to_have_text("Ready")
 
-        # act
-        self._app.get_by_role("Button").click()
+            # act
+            app.get_by_role("Button").click()
 
-        # assert
-        expect(self._app.get_by_role("Text")).to_have_text("Simulation complete", timeout=30)
+            # assert
+            expect(app.get_by_role("Text")).to_have_text("Simulation complete", timeout=30)
 ```
 
-The base class closes the application and collects failure artifacts
-automatically; tests never call `close()` themselves.
+The session closes the application and collects failure artifacts
+automatically; tests never call `close()` themselves and never inherit
+framework classes.
 
 The test author should not need to know:
 

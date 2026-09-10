@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kicad-xyce-plugin-automation-tests"
+version = "0.1.0"
+description = "Slint MCP integration testing framework and application tests"
+requires-python = ">=3.12"
+
+[tool.setuptools]
+packages = [
+    "automation_tests",
+    "automation_tests.framework",
+    "automation_tests.tests",
+    "automation_tests.integration",
+]

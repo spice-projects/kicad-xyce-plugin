@@ -1,1 +1,1 @@
-# no third-party dependencies; the test runner is the standard library unittest
+flake8
