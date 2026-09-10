@@ -144,9 +144,9 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
-            ./.build-release/tests/kicad-xyce-plugin-tests.exe --gtest_filter=-Ui*
+            ./.build-release/tests/xyce-studio-tests.exe --gtest_filter=-Ui*
           else
-            ./.build-release/tests/kicad-xyce-plugin-tests
+            ./.build-release/tests/xyce-studio-tests
           fi
 
       - name: Gather runtime dependencies
@@ -157,7 +157,7 @@ jobs:
         if: ${{ matrix.build_enabled }}
         uses: actions/upload-artifact@v7
         with:
-          name: kicad-xyce-plugin-${{ matrix.platform }}
+          name: xyce-studio-${{ matrix.platform }}
           path: .build-release/artifacts/
           if-no-files-found: error
           retention-days: 7
@@ -167,7 +167,7 @@ jobs:
     needs: [check-pr]
     if: |-
       !cancelled() &&
-      github.repository == 'spice-projects/kicad-xyce-plugin' &&
+      github.repository == 'spice-projects/xyce-studio' &&
       (github.event_name != 'push' || needs.check-pr.outputs.has_pr == 'true') &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
@@ -190,27 +190,27 @@ jobs:
       - name: Download arm64 artifact
         uses: actions/download-artifact@v8
         with:
-          name: kicad-xyce-plugin-macos-arm64
+          name: xyce-studio-macos-arm64
           path: artifacts/arm64
 
       - name: Download x64 artifact
         uses: actions/download-artifact@v8
         with:
-          name: kicad-xyce-plugin-macos-x64
+          name: xyce-studio-macos-x64
           path: artifacts/x64
 
       - name: Create macOS app bundle
         run: |
-          APP_BUNDLE="artifacts/KiCad Xyce Plugin.app"
+          APP_BUNDLE="artifacts/Xyce Studio.app"
           rm -rf "$APP_BUNDLE"
           mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
 
           cp "plugin-icon-64x64.png" "$APP_BUNDLE/Contents/Resources/plugin-icon-64x64.png"
 
           lipo -create \
-            -output "$APP_BUNDLE/Contents/MacOS/kicad-xyce-plugin" \
-            "artifacts/arm64/kicad-xyce-plugin" \
-            "artifacts/x64/kicad-xyce-plugin"
+            -output "$APP_BUNDLE/Contents/MacOS/xyce-studio" \
+            "artifacts/arm64/xyce-studio" \
+            "artifacts/x64/xyce-studio"
 
           dylib_names=$( { ls artifacts/arm64/*.dylib artifacts/x64/*.dylib; } 2>/dev/null | xargs -n1 basename | sort -u)
           for name in $dylib_names; do
@@ -232,15 +232,15 @@ jobs:
           <plist version="1.0">
           <dict>
               <key>CFBundleExecutable</key>
-              <string>kicad-xyce-plugin</string>
+              <string>xyce-studio</string>
               <key>CFBundleIdentifier</key>
-              <string>com.spice-projects.kicad-xyce-plugin</string>
+              <string>com.spice-projects.xyce-studio</string>
               <key>CFBundleIconFile</key>
               <string>plugin-icon-64x64.png</string>
               <key>CFBundleName</key>
-              <string>KiCad Xyce Plugin</string>
+              <string>Xyce Studio</string>
               <key>CFBundleDisplayName</key>
-              <string>KiCad Xyce Plugin</string>
+              <string>Xyce Studio</string>
               <key>CFBundlePackageType</key>
               <string>APPL</string>
               <key>CFBundleShortVersionString</key>
@@ -251,19 +251,19 @@ jobs:
           </plist>
           EOF
 
-          chmod +x "$APP_BUNDLE/Contents/MacOS/kicad-xyce-plugin"
-          install_name_tool -add_rpath @executable_path "$APP_BUNDLE/Contents/MacOS/kicad-xyce-plugin" 2>/dev/null || true
-          codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/kicad-xyce-plugin" 2>/dev/null || true
+          chmod +x "$APP_BUNDLE/Contents/MacOS/xyce-studio"
+          install_name_tool -add_rpath @executable_path "$APP_BUNDLE/Contents/MacOS/xyce-studio" 2>/dev/null || true
+          codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/xyce-studio" 2>/dev/null || true
 
       - name: Stage macOS app bundle for upload
         run: |
           mkdir -p _upload
-          cp -R "artifacts/KiCad Xyce Plugin.app" _upload/
+          cp -R "artifacts/Xyce Studio.app" _upload/
 
       - name: Upload macOS app bundle artifact
         uses: actions/upload-artifact@v7
         with:
-          name: KiCad Xyce Plugin.app
+          name: Xyce Studio.app
           path: _upload/
           if-no-files-found: error
           retention-days: 7
@@ -286,31 +286,31 @@ jobs:
       - name: Download macOS app bundle artifact
         uses: actions/download-artifact@v8
         with:
-          name: KiCad Xyce Plugin.app
+          name: Xyce Studio.app
           path: artifacts/macos
 
       - name: Download Windows artifact
         uses: actions/download-artifact@v8
         with:
-          name: kicad-xyce-plugin-windows-x64
+          name: xyce-studio-windows-x64
           path: artifacts/windows
 
       - name: Package macOS
         run: |
           mkdir -p packages
           # upload-artifact does not preserve file permissions, restore the exec bit
-          chmod +x "artifacts/macos/KiCad Xyce Plugin.app/Contents/MacOS/kicad-xyce-plugin"
-          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}.1' "artifacts/macos/KiCad Xyce Plugin.app" "KiCad Xyce Plugin.app/Contents/MacOS/kicad-xyce-plugin" macos
-          cp dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.1.zip packages/kicad-xyce-plugin-macos.zip
+          chmod +x "artifacts/macos/Xyce Studio.app/Contents/MacOS/xyce-studio"
+          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}.1' "artifacts/macos/Xyce Studio.app" "Xyce Studio.app/Contents/MacOS/xyce-studio" macos
+          cp dist/xyce-studio-${{ steps.version.outputs.version }}.1.zip packages/kicad-xyce-plugin-macos.zip
           # zip from inside artifacts/macos so the archive has no path prefix
-          (cd artifacts/macos && zip -qry "../../packages/KiCad Xyce Plugin.app.zip" "KiCad Xyce Plugin.app")
+          (cd artifacts/macos && zip -qry "../../packages/xyce-studio-macos.zip" "Xyce Studio.app")
 
       - name: Package Windows
         run: |
           dlls=$(ls artifacts/windows/*.dll 2>/dev/null | tr '\n' ' ')
-          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}.2' artifacts/windows/kicad-xyce-plugin.exe kicad-xyce-plugin.exe windows "$dlls"
+          bash build/create-kicad-package.sh '${{ steps.version.outputs.version }}.2' artifacts/windows/xyce-studio.exe xyce-studio.exe windows "$dlls"
           mkdir -p packages
-          cp dist/kicad-xyce-plugin-${{ steps.version.outputs.version }}.2.zip packages/kicad-xyce-plugin-windows.zip
+          cp dist/xyce-studio-${{ steps.version.outputs.version }}.2.zip packages/kicad-xyce-plugin-windows.zip
 
       - name: Associate with GitHub Release
         env:
@@ -319,5 +319,5 @@ jobs:
           gh release upload "${{ github.ref_name }}" \
             packages/kicad-xyce-plugin-macos.zip \
             packages/kicad-xyce-plugin-windows.zip \
-            "packages/KiCad Xyce Plugin.app.zip" \
+            "packages/xyce-studio-macos.zip" \
             --clobber

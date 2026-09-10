@@ -2,7 +2,6 @@
 
 #include <string>
 
-// configuration for the KiCad Xyce plugin, managing the Xyce executable path
 class PluginConfig
 {
 public:

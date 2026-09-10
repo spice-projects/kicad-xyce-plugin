@@ -8,15 +8,15 @@
     "author": {
         "name": "SPICE Projects",
         "contact": {
-            "website": "https://github.com/spice-projects/kicad-xyce-plugin"
+            "website": "https://github.com/spice-projects/xyce-studio"
         }
     },
     "license": "Apache-2.0",
     "runtime": "ipc",
     "resources": {
-        "homepage": "https://github.com/spice-projects/kicad-xyce-plugin",
-        "repository": "https://github.com/spice-projects/kicad-xyce-plugin",
-        "issues": "https://github.com/spice-projects/kicad-xyce-plugin/issues"
+        "homepage": "https://github.com/spice-projects/xyce-studio",
+        "repository": "https://github.com/spice-projects/xyce-studio",
+        "issues": "https://github.com/spice-projects/xyce-studio/issues"
     },
     "tags": [
         "simulation",
