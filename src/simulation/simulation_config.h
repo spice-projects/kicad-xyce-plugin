@@ -49,6 +49,10 @@ public:
     // get the first step for backward compatibility
     [[nodiscard]] StepParameters step() const;
 
+    // validate the entire simulation config across all components;
+    // returns a user-facing error message, or nullopt when valid
+    [[nodiscard]] std::optional<std::string> validate() const;
+
     // equality operator
     [[nodiscard]] bool operator==(const SimulationConfig& other) const;
 

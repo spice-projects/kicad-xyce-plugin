@@ -27,6 +27,22 @@ StepParameters SimulationConfig::step() const {
     return StepParameters();
 }
 
+std::optional<std::string> SimulationConfig::validate() const {
+    // a .STEP directive requires a primary analysis
+    for (const auto& step : steps) {
+        if (step.enabled && std::holds_alternative<std::monostate>(analysis)) {
+            return "STEP sweep requires a primary analysis (e.g. .DC, .TRAN, .AC)";
+        }
+    }
+    // validate each individual step
+    for (const auto& step : steps) {
+        if (const auto error = step.validate()) {
+            return *error;
+        }
+    }
+    return std::nullopt;
+}
+
 SimulationConfig SimulationConfig::from_xyce_directives(const std::vector<std::string>& directives) {
     // init analysis result to none (monostate)
     std::variant<std::monostate, AcSimulationParameters, DCSimulationParameters, HbSimulationParameters, LinSimulationParameters, NoiseSimulationParameters, OpSimulationParameters, TransientSimulationParameters> analysis = std::monostate{};

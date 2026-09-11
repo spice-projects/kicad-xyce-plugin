@@ -1,4 +1,6 @@
 #include <cctype>
+#include <cmath>
+#include <cstdlib>
 #include <optional>
 #include <regex>
 #include <string>
@@ -193,6 +195,83 @@ std::vector<std::string> StepParameters::to_xyce_directives() const {
     }
     // return the directive as a single-item list
     return {directive};
+}
+
+namespace
+{
+    // parse the leading numeric portion of a value (supports SI suffixes like 1k);
+    // returns false when the value does not start with a number
+    [[nodiscard]] bool parse_number(const std::string& text, double& value) {
+        if (text.empty()) {
+            return false;
+        }
+        const char* start = text.c_str();
+        char* end = nullptr;
+        value = std::strtod(start, &end);
+        return end != start;
+    }
+} // namespace
+
+std::optional<std::string> StepParameters::validate() const {
+    // only validate when the step is enabled
+    if (!enabled) {
+        return std::nullopt;
+    }
+    // data sweeps require a data table name
+    if (sweep_mode == "DATA") {
+        if (data_table_name.empty()) {
+            return "STEP DATA sweep requires a data table name";
+        }
+        return std::nullopt;
+    }
+    // list sweeps require a sweep variable and at least one value
+    if (sweep_mode == "LIST") {
+        if (variable.empty()) {
+            return "STEP LIST sweep requires a sweep variable";
+        }
+        if (list_values.empty()) {
+            return "STEP LIST sweep requires at least one value";
+        }
+        return std::nullopt;
+    }
+    // validate common sweep fields
+    if (variable.empty()) {
+        return "STEP " + sweep_mode + " sweep: sweep variable is required";
+    }
+    if (start.empty()) {
+        return "STEP " + sweep_mode + " sweep: start value is required";
+    }
+    if (stop.empty()) {
+        return "STEP " + sweep_mode + " sweep: stop value is required";
+    }
+    // dec/oct validate points is a positive integer and start > 0
+    if (sweep_mode == "DEC" || sweep_mode == "OCT") {
+        if (points.empty()) {
+            return "STEP " + sweep_mode + " sweep: points value is required";
+        }
+        double points_value = 0.0;
+        if (parse_number(points, points_value) && (points_value < 1.0 || std::floor(points_value) != points_value)) {
+            return "STEP " + sweep_mode + " sweep: points value must be a positive integer";
+        }
+        double start_value = 0.0;
+        if (parse_number(start, start_value) && start_value <= 0.0) {
+            return "STEP " + sweep_mode + " sweep: start value must be greater than zero";
+        }
+        return std::nullopt;
+    }
+    // linear sweep: step is required; for descending sweeps, step must be negative
+    if (step.empty()) {
+        return "STEP LIN sweep: step value is required";
+    }
+    double start_value = 0.0;
+    double stop_value = 0.0;
+    if (parse_number(start, start_value) && parse_number(stop, stop_value) && start_value > stop_value) {
+        double step_value = 0.0;
+        if (parse_number(step, step_value) && step_value >= 0.0) {
+            return "STEP LIN sweep: step value must be negative for descending sweep";
+        }
+    }
+    return std::nullopt;
 }
 
 bool StepParameters::operator==(const StepParameters& other) const {

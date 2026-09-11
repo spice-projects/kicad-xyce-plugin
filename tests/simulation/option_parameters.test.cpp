@@ -177,6 +177,34 @@ TEST(OptionParametersChecks, parse_dist_strategy_option) {
     ASSERT_EQ(params.dist.at("STRATEGY"), "2");
 }
 
+TEST(OptionParametersChecks, parse_measure_options) {
+    // arrange
+    const std::vector<std::string> directives = {
+        ".OPTIONS MEASURE DEFAULT_VAL=0 MEASDGT=8 MEASFAIL=0 MEASOUT=1 MEASPRINT=ALL",
+    };
+    // act
+    const auto params = OptionParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_EQ(params.measure.size(), 5);
+    ASSERT_EQ(params.measure.at("DEFAULT_VAL"), "0");
+    ASSERT_EQ(params.measure.at("MEASDGT"), "8");
+    ASSERT_EQ(params.measure.at("MEASFAIL"), "0");
+    ASSERT_EQ(params.measure.at("MEASOUT"), "1");
+    ASSERT_EQ(params.measure.at("MEASPRINT"), "ALL");
+}
+
+TEST(OptionParametersChecks, parse_measure_options_case_insensitive) {
+    // arrange
+    const std::vector<std::string> directives = {
+        ".OPTIONS measure measdgt=10",
+    };
+    // act
+    const auto params = OptionParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_EQ(params.measure.size(), 1);
+    ASSERT_EQ(params.measure.at("MEASDGT"), "10");
+}
+
 // ========================================================================================
 // to_xyce_directives
 // ========================================================================================
@@ -266,6 +294,16 @@ TEST(OptionParametersChecks, generate_dist_directive) {
     ASSERT_EQ(directives[0], ".OPTIONS DIST STRATEGY=2");
 }
 
+TEST(OptionParametersChecks, generate_measure_directive) {
+    // arrange
+    const OptionParameters params({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {{"MEASDGT", "8"}, {"MEASFAIL", "0"}});
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 1);
+    ASSERT_EQ(directives[0], ".OPTIONS MEASURE MEASDGT=8 MEASFAIL=0");
+}
+
 TEST(OptionParametersChecks, generate_new_packages_in_deterministic_order) {
     // arrange
     const OptionParameters params({}, {}, {}, {}, {}, {}, {{"MODEL_BINNING", "0"}}, {{"TYPE", "KLU"}}, {{"MAX_NUM_STARTS", "4"}}, {{"STRATEGY", "1"}});
@@ -339,20 +377,31 @@ TEST(OptionParametersChecks, round_trip_diagnostic_options) {
 TEST(OptionParametersChecks, round_trip_new_package_options) {
     // arrange
     const std::vector<std::string> directives = {
-        ".OPTIONS PARSER MODEL_BINNING=0 SCALE=2.5",
-        ".OPTIONS LINSOL-AC TYPE=KLU",
-        ".OPTIONS LOCA MAX_NUM_STARTS=4 MIN_START=0.1",
-        ".OPTIONS DIST STRATEGY=2",
+        ".OPTIONS PARSER MODEL_BINNING=0 SCALE=2.5", ".OPTIONS LINSOL-AC TYPE=KLU", ".OPTIONS LOCA MAX_NUM_STARTS=4 MIN_START=0.1", ".OPTIONS DIST STRATEGY=2", ".OPTIONS MEASURE MEASDGT=8 MEASFAIL=0",
     };
     // act
     const auto params = OptionParameters::from_xyce_directives(directives);
     const auto round_trip = params.to_xyce_directives(NetlistTopology{});
     // assert
-    ASSERT_EQ(round_trip.size(), 4);
+    ASSERT_EQ(round_trip.size(), 5);
     ASSERT_EQ(round_trip[0], ".OPTIONS LINSOL-AC TYPE=KLU");
     ASSERT_EQ(round_trip[1], ".OPTIONS PARSER MODEL_BINNING=0 SCALE=2.5");
     ASSERT_EQ(round_trip[2], ".OPTIONS LOCA MAX_NUM_STARTS=4 MIN_START=0.1");
     ASSERT_EQ(round_trip[3], ".OPTIONS DIST STRATEGY=2");
+    ASSERT_EQ(round_trip[4], ".OPTIONS MEASURE MEASDGT=8 MEASFAIL=0");
+}
+
+TEST(OptionParametersChecks, round_trip_measure_options) {
+    // arrange
+    const std::vector<std::string> directives = {
+        ".OPTIONS MEASURE MEASDGT=10 MEASOUT=0",
+    };
+    // act
+    const auto params = OptionParameters::from_xyce_directives(directives);
+    const auto round_trip = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(round_trip.size(), 1);
+    ASSERT_EQ(round_trip[0], ".OPTIONS MEASURE MEASDGT=10 MEASOUT=0");
 }
 
 // ========================================================================================
@@ -419,6 +468,22 @@ TEST(OptionParametersChecks, differing_dist_options_compare_unequal) {
     // arrange
     const OptionParameters a({}, {}, {}, {}, {}, {}, {}, {}, {}, {{"STRATEGY", "0"}});
     const OptionParameters b({}, {}, {}, {}, {}, {}, {}, {}, {}, {{"STRATEGY", "1"}});
+    // act / assert
+    ASSERT_FALSE(a == b);
+}
+
+TEST(OptionParametersChecks, equal_measure_options_compare_equal) {
+    // arrange
+    const OptionParameters a({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {{"MEASDGT", "8"}, {"MEASFAIL", "0"}});
+    const OptionParameters b({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {{"MEASDGT", "8"}, {"MEASFAIL", "0"}});
+    // act / assert
+    ASSERT_TRUE(a == b);
+}
+
+TEST(OptionParametersChecks, differing_measure_options_compare_unequal) {
+    // arrange
+    const OptionParameters a({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {{"MEASDGT", "8"}});
+    const OptionParameters b({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {{"MEASDGT", "10"}});
     // act / assert
     ASSERT_FALSE(a == b);
 }
