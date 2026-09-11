@@ -247,3 +247,50 @@ TEST(SimulationConfigFftPathChecks, fft_pattern_is_absent_for_other_analyses) {
     // assert
     EXPECT_FALSE(pattern.has_value());
 }
+
+// ========================================================================================
+// validate
+// ========================================================================================
+
+TEST(SimulationConfigValidationChecks, validate_passes_when_no_steps) {
+    // arrange
+    const SimulationConfig config("DC", DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    // act / assert
+    EXPECT_FALSE(config.validate().has_value());
+}
+
+TEST(SimulationConfigValidationChecks, validate_passes_when_step_is_disabled) {
+    // arrange
+    const StepParameters disabled_step("LIN", "R1", "1k", "10k", "1k", "", {}, "", false);
+    const SimulationConfig config("DC", DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt), {disabled_step}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    // act / assert
+    EXPECT_FALSE(config.validate().has_value());
+}
+
+TEST(SimulationConfigValidationChecks, validate_rejects_step_without_analysis) {
+    // arrange — a step is enabled but no primary analysis is configured
+    const StepParameters enabled_step("LIN", "R1", "1k", "10k", "1k", "", {}, "", true);
+    const SimulationConfig config("", std::monostate{}, {enabled_step}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    // act / assert
+    const auto error = config.validate();
+    ASSERT_TRUE(error.has_value());
+    EXPECT_NE(error->find("primary analysis"), std::string::npos);
+}
+
+TEST(SimulationConfigValidationChecks, validate_checks_invalid_step_params) {
+    // arrange — a step has empty variable
+    const StepParameters bad_step("LIST", "", "", "", "", "", {}, "", true);
+    const SimulationConfig config("DC", DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt), {bad_step}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    // act / assert
+    const auto error = config.validate();
+    ASSERT_TRUE(error.has_value());
+    EXPECT_NE(error->find("sweep variable"), std::string::npos);
+}
+
+TEST(SimulationConfigValidationChecks, validate_passes_with_enabled_step_and_analysis) {
+    // arrange
+    const StepParameters valid_step("LIN", "R1", "1k", "10k", "1k", "", {}, "", true);
+    const SimulationConfig config("DC", DCSimulationParameters("LIN", "VIN", "0", "5", "0.1", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt), {valid_step}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    // act / assert
+    EXPECT_FALSE(config.validate().has_value());
+}

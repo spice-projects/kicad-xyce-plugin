@@ -28,6 +28,10 @@ public:
     // serialize this instance to a list of Xyce directive strings
     [[nodiscard]] std::vector<std::string> to_xyce_directives() const;
 
+    // validate the step parameters against the Xyce reference guide;
+    // returns a user-facing error message, or nullopt when the parameters are valid
+    [[nodiscard]] std::optional<std::string> validate() const;
+
     // equality operator
     [[nodiscard]] bool operator==(const StepParameters& other) const;
 
