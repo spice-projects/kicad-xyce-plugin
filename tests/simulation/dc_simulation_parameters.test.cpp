@@ -288,7 +288,7 @@ TEST(DCSimulationParametersChecks, no_secondary_when_variable_empty) {
     ASSERT_EQ(result->sweeps[0].start, "0");
     ASSERT_EQ(result->sweeps[0].stop, "5");
     ASSERT_EQ(result->sweeps[0].step, "0.1");
-    ASSERT_EQ(result->sweeps[1].variable, "");
+    ASSERT_EQ(result->sweeps.size(), 1);
 }
 
 TEST(DCSimulationParametersChecks, parses_dec_sweep_with_fractional_step) {
