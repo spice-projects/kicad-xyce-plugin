@@ -106,7 +106,6 @@ private:
 
     slint::ComponentHandle<main_window::MainWindow> m_window;
     MainWindowViewDefEvents* m_event_handler = nullptr;
-    std::string m_netlist_content;
     bool m_netlist_read_only = false;
     std::string m_last_status_text;
 

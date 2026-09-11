@@ -118,16 +118,18 @@ The executable defaults to `.build-debug/xyce-studio` and can be overridden as t
 
 ## Testing
 
+### C++
+
 Tests are built alongside the plugin. Run the test executable directly:
 
 ```bash
 ./.build-debug/tests/xyce-studio-tests
 ```
 
-## UI Integration tests
+### Python (including UI integration tests)
 
 ```bash
-(cd automation_tests && python3 -m unittest discover -s tests -p "*_test.py")
+python3 -m unittest discover -v -s . -p "*_test.py"
 ```
 
 ## Configuration

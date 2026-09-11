@@ -108,3 +108,105 @@ TEST(AppChecks, initialize_normalizes_to_lowercase) {
     // assert
     EXPECT_EQ(app.log_level(), "debug");
 }
+
+TEST(AppChecks, initialize_parses_netlist_space_form) {
+    // arrange
+    const char* argv[] = {"test", "--netlist", "/tmp/amplifier.cir"};
+    int argc = 3;
+    App& app = App::instance();
+    // act
+    app.initialize(argc, const_cast<char**>(argv));
+    // assert
+    ASSERT_TRUE(app.netlist_path().has_value());
+    EXPECT_EQ(app.netlist_path()->string(), "/tmp/amplifier.cir");
+}
+
+TEST(AppChecks, initialize_parses_netlist_equals_form) {
+    // arrange
+    const char* argv[] = {"test", "--netlist=/tmp/amplifier.cir"};
+    int argc = 2;
+    App& app = App::instance();
+    // act
+    app.initialize(argc, const_cast<char**>(argv));
+    // assert
+    ASSERT_TRUE(app.netlist_path().has_value());
+    EXPECT_EQ(app.netlist_path()->string(), "/tmp/amplifier.cir");
+}
+
+TEST(AppChecks, initialize_parses_raw_space_form) {
+    // arrange
+    const char* argv[] = {"test", "--raw", "/tmp/output.raw"};
+    int argc = 3;
+    App& app = App::instance();
+    // act
+    app.initialize(argc, const_cast<char**>(argv));
+    // assert
+    ASSERT_TRUE(app.raw_path().has_value());
+    EXPECT_EQ(app.raw_path()->string(), "/tmp/output.raw");
+}
+
+TEST(AppChecks, initialize_parses_xyce_space_form) {
+    // arrange
+    const char* argv[] = {"test", "--xyce", "/usr/local/bin/Xyce"};
+    int argc = 3;
+    App& app = App::instance();
+    // act
+    app.initialize(argc, const_cast<char**>(argv));
+    // assert
+    ASSERT_TRUE(app.xyce_path().has_value());
+    EXPECT_EQ(app.xyce_path().value(), "/usr/local/bin/Xyce");
+}
+
+TEST(AppChecks, initialize_parses_all_file_options_together) {
+    // arrange
+    const char* argv[] = {"test", "--netlist", "/tmp/amplifier.cir", "--raw=/tmp/output.raw", "--xyce", "/usr/local/bin/Xyce"};
+    int argc = 6;
+    App& app = App::instance();
+    // act
+    app.initialize(argc, const_cast<char**>(argv));
+    // assert
+    ASSERT_TRUE(app.netlist_path().has_value());
+    ASSERT_TRUE(app.raw_path().has_value());
+    ASSERT_TRUE(app.xyce_path().has_value());
+    EXPECT_EQ(app.netlist_path()->string(), "/tmp/amplifier.cir");
+    EXPECT_EQ(app.raw_path()->string(), "/tmp/output.raw");
+    EXPECT_EQ(app.xyce_path().value(), "/usr/local/bin/Xyce");
+}
+
+TEST(AppChecks, initialize_rejects_netlist_with_wrong_extension) {
+    // arrange
+    const char* argv[] = {"test", "--netlist", "/tmp/output.raw"};
+    int argc = 3;
+    App& app = App::instance();
+    // act
+    app.initialize(argc, const_cast<char**>(argv));
+    // assert
+    EXPECT_FALSE(app.netlist_path().has_value());
+}
+
+TEST(AppChecks, initialize_rejects_raw_with_wrong_extension) {
+    // arrange
+    const char* argv[] = {"test", "--raw", "/tmp/amplifier.cir"};
+    int argc = 3;
+    App& app = App::instance();
+    // act
+    app.initialize(argc, const_cast<char**>(argv));
+    // assert
+    EXPECT_FALSE(app.raw_path().has_value());
+}
+
+TEST(AppChecks, initialize_resets_file_options_when_absent) {
+    // arrange
+    const char* argv[] = {"test", "--netlist", "/tmp/amplifier.cir"};
+    int argc = 3;
+    App& app = App::instance();
+    // act
+    app.initialize(argc, const_cast<char**>(argv));
+    // continue: initialize again without the file options
+    const char* empty_argv[] = {"test"};
+    app.initialize(1, const_cast<char**>(empty_argv));
+    // assert
+    EXPECT_FALSE(app.netlist_path().has_value());
+    EXPECT_FALSE(app.raw_path().has_value());
+    EXPECT_FALSE(app.xyce_path().has_value());
+}

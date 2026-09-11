@@ -2,9 +2,11 @@
 // title bar with close button, a dimmed backdrop that absorbs pointer input,
 // and OK/Cancel footer buttons. The FocusScope root captures keyboard focus
 // via init => self.focus() and accepts all key events so Escape (dismiss)
-// and other keys never reach the underlying content. implementing panels
-// inherit from this component, set the title/card-width/card-height
-// properties, and provide their form content as @children.
+// and other keys never reach the underlying content — except Tab/Backtab,
+// which are rejected so the built-in tab focus traversal can move between
+// the dialog's input controls. implementing panels inherit from this
+// component, set the title/card-width/card-height properties, and provide
+// their form content as @children.
 import { Palette, ScrollView, StandardButton } from "std-widgets.slint";
 
 export component ModalPanel inherits FocusScope {
@@ -25,12 +27,18 @@ export component ModalPanel inherits FocusScope {
     init => { self.focus(); }
 
     // intercept key events at the root level; accept all keys so they do
-    // not propagate to the underlying window
+    // not propagate to the underlying window — except Tab/Backtab, which are
+    // rejected so slint's built-in tab focus traversal can move focus between
+    // the dialog's input controls
     key-pressed(event) => {
         if event.text == Key.Escape {
             root.dismissed();
+            accept
+        } else if event.text == Key.Tab || event.text == Key.Backtab {
+            reject
+        } else {
+            accept
         }
-        accept
     }
 
     // dimmed backdrop: a child Rectangle provides the visual overlay and a

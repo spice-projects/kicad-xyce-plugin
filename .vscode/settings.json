@@ -11,5 +11,21 @@
   "[objective-cpp]": {
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
   },
-  "cmake.ctest.testSuiteDelimiter": "\\.|/|:"
+  "cmake.ctest.testSuiteDelimiter": "\\.|/|:",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.autopep8"
+  },  
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "python.testing.unittestArgs": [
+    "discover",
+    "-s",
+    ".",
+    "-p",
+    "*_test.py"
+  ],
+  "python-envs.defaultEnvManager": "ms-python.python:venv",
+  "python.testing.pytestEnabled": false,
+  "python.testing.unittestEnabled": true
 }

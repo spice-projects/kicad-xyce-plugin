@@ -168,15 +168,15 @@ void SlintMainWindowView::show_charts_view() {
 }
 
 void SlintMainWindowView::set_netlist_editor_content(const std::string& content) {
-    // store the netlist content for the presenter to retrieve
-    m_netlist_content = content;
     // push the content into the slint editor widget
     m_window->set_netlist_text(slint::SharedString(content));
 }
 
 std::string SlintMainWindowView::netlist_editor_content() const {
-    // return the cached netlist content
-    return m_netlist_content;
+    // read the live editor text from the slint property so user edits reach
+    // the save path; the cached copy only holds the latest programmatic push
+    // and would silently discard typed edits on save
+    return std::string(m_window->get_netlist_text());
 }
 
 void SlintMainWindowView::set_netlist_editor_read_only(bool read_only) {
