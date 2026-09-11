@@ -55,26 +55,54 @@ namespace
         }
         return std::nullopt;
     }
+
+    // consume log sweep tuples (DEC/OCT) from tokens starting at a given index;
+    // each tuple is: DEC|OCT var start stop points
+    void parse_log_sweeps(const std::vector<std::string_view>& tokens, size_t start_index, std::vector<DcSweep>& sweeps) {
+        size_t i = start_index;
+        while (i + 4 < tokens.size()) {
+            const std::string mode = to_upper(tokens[i]);
+            if (mode != "DEC" && mode != "OCT")
+                break;
+            DcSweep sweep;
+            sweep.variable = std::string(tokens[i + 1]);
+            sweep.start = std::string(tokens[i + 2]);
+            sweep.stop = std::string(tokens[i + 3]);
+            sweep.points = std::string(tokens[i + 4]);
+            sweeps.push_back(std::move(sweep));
+            i += 5;
+        }
+    }
+
+    // consume LIN sweep tuples from tokens starting at a given index;
+    // each tuple is: var start stop step  (no leading LIN keyword when implicit)
+    void parse_lin_sweeps(const std::vector<std::string_view>& tokens, size_t start_index, std::vector<DcSweep>& sweeps) {
+        size_t i = start_index;
+        while (i + 3 < tokens.size()) {
+            // If the next token looks like a mode keyword (DEC/OCT/LIN/LIST/DATA), stop
+            const std::string next_upper = to_upper(tokens[i]);
+            if (next_upper == "DEC" || next_upper == "OCT" || next_upper == "LIN" || next_upper == "LIST" || next_upper == "DATA")
+                break;
+            DcSweep sweep;
+            sweep.variable = std::string(tokens[i]);
+            sweep.start = std::string(tokens[i + 1]);
+            sweep.stop = std::string(tokens[i + 2]);
+            sweep.step = std::string(tokens[i + 3]);
+            sweeps.push_back(std::move(sweep));
+            i += 4;
+        }
+    }
 } // namespace
 
-DCSimulationParameters::DCSimulationParameters(std::string sweep_mode, std::string primary_variable, std::string start, std::string stop, std::string step, std::string points, std::vector<std::string> list_values, std::string data_table_name, std::string secondary_variable, std::string secondary_start, std::string secondary_stop, std::string secondary_step, std::string secondary_points, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
-    sweep_mode(std::move(sweep_mode)), primary_variable(std::move(primary_variable)), start(std::move(start)), stop(std::move(stop)), step(std::move(step)), points(std::move(points)), list_values(std::move(list_values)), data_table_name(std::move(data_table_name)), secondary_variable(std::move(secondary_variable)), secondary_start(std::move(secondary_start)), secondary_stop(std::move(secondary_stop)), secondary_step(std::move(secondary_step)), secondary_points(std::move(secondary_points)), print_parameters(std::move(print_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
+DCSimulationParameters::DCSimulationParameters(std::string sweep_mode, std::vector<DcSweep> sweeps, std::vector<std::string> list_values, std::string data_table_name, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
+    sweep_mode(std::move(sweep_mode)), sweeps(std::move(sweeps)), list_values(std::move(list_values)), data_table_name(std::move(data_table_name)), print_parameters(std::move(print_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
 
 std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // init defaults
     std::string sweep_mode = "LIN";
-    std::string primary_variable;
-    std::string start;
-    std::string stop;
-    std::string step;
-    std::string points;
+    std::vector<DcSweep> sweeps;
     std::vector<std::string> list_values;
     std::string data_table_name;
-    std::string secondary_variable;
-    std::string secondary_start;
-    std::string secondary_stop;
-    std::string secondary_step;
-    std::string secondary_points;
     std::optional<PrintParameters> print_parameters;
     std::vector<MeasureEntry> measure_parameters;
     std::optional<SensParameter> sensitivity;
@@ -145,72 +173,37 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
         }
 
         const std::string second = to_upper(tokens[1]);
-
-        // detect decade or octave log sweep: .DC DEC|OCT var start stop points
-        if (second == "DEC" || second == "OCT") {
-            sweep_mode = second;
-            // primary sweep tokens: MODE var start stop points
-            if (tokens.size() >= 6) {
-                primary_variable = tokens[2];
-                start = tokens[3];
-                stop = tokens[4];
-                points = tokens[5];
-            }
-            // optional secondary sweep: MODE var2 start2 stop2 points2
-            if (tokens.size() >= 11 && (to_upper(tokens[6]) == "DEC" || to_upper(tokens[6]) == "OCT")) {
-                secondary_variable = tokens[7];
-                secondary_start = tokens[8];
-                secondary_stop = tokens[9];
-                secondary_points = tokens[10];
-            }
-            continue;
-        }
+        const std::string third = tokens.size() > 2 ? to_upper(tokens[2]) : "";
 
         // detect LIST sweep: .DC var LIST val [val ...]
-        if (tokens.size() >= 3 && to_upper(tokens[2]) == "LIST") {
-            // set sweep mode, primary variable, and list values
+        if (tokens.size() >= 3 && third == "LIST") {
             sweep_mode = "LIST";
-            primary_variable = tokens[1];
+            DcSweep primary;
+            primary.variable = std::string(tokens[1]);
+            sweeps.push_back(std::move(primary));
             for (size_t i = 3; i < tokens.size(); ++i) {
                 list_values.push_back(std::string(tokens[i]));
             }
             continue;
         }
 
-        // linear sweep: .DC [LIN] var start stop step [var2 start2 stop2 step2]
-        sweep_mode = "LIN";
+        // detect decade or octave log sweep: .DC DEC|OCT var start stop points ...
+        if (second == "DEC" || second == "OCT") {
+            sweep_mode = second;
+            parse_log_sweeps(tokens, 1, sweeps);
+            continue;
+        }
+
+        // explicit LIN keyword: .DC LIN var start stop step [var2 start2 stop2 step2 ...]
         if (second == "LIN") {
-            // explicit LIN keyword
-            if (tokens.size() >= 6) {
-                primary_variable = tokens[2];
-                start = tokens[3];
-                stop = tokens[4];
-                step = tokens[5];
-            }
-            // optional secondary sweep tokens: var2 start2 stop2 step2
-            if (tokens.size() >= 10) {
-                secondary_variable = tokens[6];
-                secondary_start = tokens[7];
-                secondary_stop = tokens[8];
-                secondary_step = tokens[9];
-            }
+            sweep_mode = "LIN";
+            parse_lin_sweeps(tokens, 2, sweeps);
+            continue;
         }
-        else {
-            // implicit LIN
-            if (tokens.size() >= 5) {
-                primary_variable = tokens[1];
-                start = tokens[2];
-                stop = tokens[3];
-                step = tokens[4];
-            }
-            // optional secondary sweep tokens: var2 start2 stop2 step2
-            if (tokens.size() >= 9) {
-                secondary_variable = tokens[5];
-                secondary_start = tokens[6];
-                secondary_stop = tokens[7];
-                secondary_step = tokens[8];
-            }
-        }
+
+        // implicit linear syntax: .DC var start stop step [var2 start2 stop2 step2 ...]
+        sweep_mode = "LIN";
+        parse_lin_sweeps(tokens, 1, sweeps);
     }
 
     // parse sensitivity as a companion directive before analysis detection
@@ -221,7 +214,7 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
         return std::nullopt;
     }
 
-    return DCSimulationParameters(sweep_mode, primary_variable, start, stop, step, points, list_values, data_table_name, secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, print_parameters, measure_parameters, sensitivity);
+    return DCSimulationParameters(sweep_mode, sweeps, list_values, data_table_name, print_parameters, measure_parameters, sensitivity);
 }
 
 std::vector<std::string> DCSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
@@ -234,22 +227,24 @@ std::vector<std::string> DCSimulationParameters::to_xyce_directives(const Netlis
         dc_directive += " DATA=" + data_table_name;
     }
     else if (sweep_mode == "LIST") {
-        dc_directive += " " + primary_variable + " LIST";
+        if (!sweeps.empty()) {
+            dc_directive += " " + sweeps[0].variable + " LIST";
+        }
         for (const auto& val : list_values) {
             dc_directive += " " + val;
         }
     }
-    else if (sweep_mode == "LIN") {
-        dc_directive += " " + primary_variable + " " + start + " " + stop + " " + step;
-        if (!secondary_variable.empty()) {
-            dc_directive += " " + secondary_variable + " " + secondary_start + " " + secondary_stop + " " + secondary_step;
-        }
-    }
     else {
-        // log sweep (DEC or OCT)
-        dc_directive += " " + sweep_mode + " " + primary_variable + " " + start + " " + stop + " " + points;
-        if (!secondary_variable.empty()) {
-            dc_directive += " " + secondary_variable + " " + secondary_start + " " + secondary_stop + " " + secondary_points;
+        // LIN or log sweep — emit each sweep tuple
+        for (size_t i = 0; i < sweeps.size(); ++i) {
+            const auto& s = sweeps[i];
+            if (sweep_mode == "LIN") {
+                dc_directive += " " + s.variable + " " + s.start + " " + s.stop + " " + s.step;
+            }
+            else {
+                // DEC or OCT — emit mode keyword before each sweep segment
+                dc_directive += " " + sweep_mode + " " + s.variable + " " + s.start + " " + s.stop + " " + s.points;
+            }
         }
     }
 
@@ -277,7 +272,7 @@ std::vector<std::string> DCSimulationParameters::to_xyce_directives(const Netlis
 
 bool DCSimulationParameters::operator==(const DCSimulationParameters& other) const {
     // compare all fields for equality
-    return sweep_mode == other.sweep_mode && primary_variable == other.primary_variable && start == other.start && stop == other.stop && step == other.step && points == other.points && list_values == other.list_values && data_table_name == other.data_table_name && secondary_variable == other.secondary_variable && secondary_start == other.secondary_start && secondary_stop == other.secondary_stop && secondary_step == other.secondary_step && secondary_points == other.secondary_points && print_parameters == other.print_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
+    return sweep_mode == other.sweep_mode && sweeps == other.sweeps && list_values == other.list_values && data_table_name == other.data_table_name && print_parameters == other.print_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
 }
 
 std::optional<std::string> DCSimulationParameters::validate() const {
@@ -290,7 +285,7 @@ std::optional<std::string> DCSimulationParameters::validate() const {
     }
     // list sweeps require a sweep variable and at least one value
     if (sweep_mode == "LIST") {
-        if (primary_variable.empty()) {
+        if (sweeps.empty() || sweeps[0].variable.empty()) {
             return "DC LIST sweep requires a sweep variable";
         }
         if (list_values.empty()) {
@@ -298,16 +293,13 @@ std::optional<std::string> DCSimulationParameters::validate() const {
         }
         return std::nullopt;
     }
-    // validate the primary sweep
-    auto primary_error = validate_sweep(sweep_mode, primary_variable, start, stop, step, points);
-    if (primary_error) {
-        return "DC " + sweep_mode + " sweep: " + *primary_error;
-    }
-    // validate the secondary sweep when a secondary variable is present
-    if (!secondary_variable.empty()) {
-        auto secondary_error = validate_sweep(sweep_mode, secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points);
-        if (secondary_error) {
-            return "DC " + sweep_mode + " secondary sweep: " + *secondary_error;
+    // validate each nested sweep
+    for (size_t i = 0; i < sweeps.size(); ++i) {
+        const auto& s = sweeps[i];
+        const std::string prefix = (i == 0) ? "DC " + sweep_mode + " sweep" : "DC " + sweep_mode + " sweep " + std::to_string(i + 1);
+        auto error = validate_sweep(sweep_mode, s.variable, s.start, s.stop, s.step, s.points);
+        if (error) {
+            return prefix + ": " + *error;
         }
     }
     return std::nullopt;

@@ -643,18 +643,35 @@ namespace simulation_parameters_dialog_view
         // push the saved DC parameters into the dialog root's dc-* fields
         void apply_dc_parameters(const WindowHandle& dialog, const DCSimulationParameters& params) {
             dialog->set_dc_sweep_mode_index(choice_index_for(DC_SWEEP_MODE_VALUES, params.sweep_mode));
-            dialog->set_dc_primary_variable(slint::SharedString(params.primary_variable));
-            dialog->set_dc_start(slint::SharedString(params.start));
-            dialog->set_dc_stop(slint::SharedString(params.stop));
-            dialog->set_dc_step(slint::SharedString(params.step));
-            dialog->set_dc_points(slint::SharedString(params.points));
+            const auto& sweeps = params.sweeps;
+            const bool has_primary = sweeps.size() > 0;
+            dialog->set_dc_primary_variable(slint::SharedString(has_primary ? sweeps[0].variable : ""));
+            dialog->set_dc_start(slint::SharedString(has_primary ? sweeps[0].start : ""));
+            dialog->set_dc_stop(slint::SharedString(has_primary ? sweeps[0].stop : ""));
+            dialog->set_dc_step(slint::SharedString(has_primary ? sweeps[0].step : ""));
+            dialog->set_dc_points(slint::SharedString(has_primary ? sweeps[0].points : ""));
             dialog->set_dc_list_values(slint::SharedString(join(params.list_values, " ")));
             dialog->set_dc_data_table(slint::SharedString(params.data_table_name));
-            dialog->set_dc_secondary_variable(slint::SharedString(params.secondary_variable));
-            dialog->set_dc_secondary_start(slint::SharedString(params.secondary_start));
-            dialog->set_dc_secondary_stop(slint::SharedString(params.secondary_stop));
-            dialog->set_dc_secondary_step(slint::SharedString(params.secondary_step));
-            dialog->set_dc_secondary_points(slint::SharedString(params.secondary_points));
+            const bool has_secondary = sweeps.size() > 1;
+            dialog->set_dc_secondary_variable(slint::SharedString(has_secondary ? sweeps[1].variable : ""));
+            dialog->set_dc_secondary_start(slint::SharedString(has_secondary ? sweeps[1].start : ""));
+            dialog->set_dc_secondary_stop(slint::SharedString(has_secondary ? sweeps[1].stop : ""));
+            dialog->set_dc_secondary_step(slint::SharedString(has_secondary ? sweeps[1].step : ""));
+            dialog->set_dc_secondary_points(slint::SharedString(has_secondary ? sweeps[1].points : ""));
+            // additional sweeps (3rd+) serialized as space-separated tuples: var start stop step/points
+            std::string additional;
+            for (size_t i = 2; i < sweeps.size(); ++i) {
+                if (!additional.empty())
+                    additional += " ";
+                const auto& s = sweeps[i];
+                if (params.sweep_mode == "LIN") {
+                    additional += s.variable + " " + s.start + " " + s.stop + " " + s.step;
+                }
+                else {
+                    additional += s.variable + " " + s.start + " " + s.stop + " " + s.points;
+                }
+            }
+            dialog->set_dc_additional_sweeps(slint::SharedString(additional));
             dialog->set_dc_measure(slint::SharedString(format_measure_lines(params.measure_parameters)));
             // print section
             apply_print_section(params.print_parameters, true, true, true, true, DC_PRINT_TYPES,
@@ -702,6 +719,11 @@ namespace simulation_parameters_dialog_view
             else if (sweep_mode == "DATA") {
                 data_table_name = std::string(dialog->get_dc_data_table());
             }
+            // build the sweep vector from primary + secondary UI fields
+            std::vector<DcSweep> sweeps;
+            if (!primary_variable.empty() || !start.empty() || !stop.empty()) {
+                sweeps.push_back(DcSweep{primary_variable, start, stop, step, points});
+            }
             const std::string secondary_variable = std::string(dialog->get_dc_secondary_variable());
             const std::string secondary_start = std::string(dialog->get_dc_secondary_start());
             const std::string secondary_stop = std::string(dialog->get_dc_secondary_stop());
@@ -716,6 +738,22 @@ namespace simulation_parameters_dialog_view
                 secondary_points = std::string(dialog->get_dc_secondary_points());
                 if (secondary_points.empty())
                     secondary_points = std::string(dialog->get_dc_secondary_step());
+            }
+            if (!secondary_variable.empty()) {
+                sweeps.push_back(DcSweep{secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points});
+            }
+            // parse additional sweeps from the text area (space-separated tuples)
+            const std::string additional_text = std::string(dialog->get_dc_additional_sweeps());
+            if (!additional_text.empty()) {
+                const auto _tokens = tokenize_owned(additional_text);
+                for (size_t i = 0; i + 3 < _tokens.size(); i += 4) {
+                    if (sweep_mode == "LIN") {
+                        sweeps.push_back(DcSweep{_tokens[i], _tokens[i + 1], _tokens[i + 2], _tokens[i + 3], ""});
+                    }
+                    else {
+                        sweeps.push_back(DcSweep{_tokens[i], _tokens[i + 1], _tokens[i + 2], "", _tokens[i + 3]});
+                    }
+                }
             }
             // parse .MEASURE directives (one per line)
             auto measure_params = parse_measure_lines(std::string(dialog->get_dc_measure()));
@@ -734,11 +772,11 @@ namespace simulation_parameters_dialog_view
                                                         .extra_options = [&dialog] { return std::string(dialog->get_dc_print_extra_options()); },
                                                         .type_index = [&dialog] { return dialog->get_dc_print_type_index(); },
                                                     });
-            return DCSimulationParameters(std::move(sweep_mode), std::move(primary_variable), std::move(start), std::move(stop), std::move(step), std::move(points), std::move(list_values), std::move(data_table_name), std::move(secondary_variable), std::move(secondary_start), std::move(secondary_stop), std::move(secondary_step), std::move(secondary_points), std::move(print_params), std::move(measure_params), std::nullopt);
+            return DCSimulationParameters(std::move(sweep_mode), std::move(sweeps), std::move(list_values), std::move(data_table_name), std::move(print_params), std::move(measure_params), std::nullopt);
         }
 
         // default DC analysis parameters, used to reset the panel to defaults
-        [[nodiscard]] DCSimulationParameters default_dc_parameters() { return DCSimulationParameters("", "", "", "", "", "", {}, "", "", "", "", "", "", std::nullopt, {}, std::nullopt); }
+        [[nodiscard]] DCSimulationParameters default_dc_parameters() { return DCSimulationParameters("", {}, {}, "", std::nullopt, {}, std::nullopt); }
 
         // --- noise analysis panel ---
 

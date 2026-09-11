@@ -344,6 +344,7 @@ export component MainWindow inherits Window {
     in-out property <string> dc-secondary-stop: "";
     in-out property <string> dc-secondary-step: "";
     in-out property <string> dc-secondary-points: "";
+    in-out property <string> dc-additional-sweeps: "";
     in-out property <string> dc-measure: "";
     in-out property <bool> dc-print-enabled: false;
     in-out property <int> dc-print-type-index: 0;
@@ -733,6 +734,7 @@ export component MainWindow inherits Window {
             dc-secondary-stop <=> root.dc-secondary-stop;
             dc-secondary-step <=> root.dc-secondary-step;
             dc-secondary-points <=> root.dc-secondary-points;
+            dc-additional-sweeps <=> root.dc-additional-sweeps;
             dc-measure <=> root.dc-measure;
             dc-print-enabled <=> root.dc-print-enabled;
             dc-print-type-index <=> root.dc-print-type-index;

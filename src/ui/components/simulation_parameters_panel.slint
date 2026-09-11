@@ -152,6 +152,7 @@ export component SimulationParametersPanel inherits ModalPanel {
     in-out property <string> dc-secondary-stop: "";
     in-out property <string> dc-secondary-step: "";
     in-out property <string> dc-secondary-points: "";
+    in-out property <string> dc-additional-sweeps: "";
     in-out property <string> dc-measure: "";
     in-out property <bool> dc-print-enabled: false;
     in-out property <int> dc-print-type-index: 0;
@@ -385,6 +386,7 @@ export component SimulationParametersPanel inherits ModalPanel {
                     points <=> root.dc-points;
                     list-values <=> root.dc-list-values;
                     data-table <=> root.dc-data-table;
+                    additional-sweeps <=> root.dc-additional-sweeps;
                     secondary-variable <=> root.dc-secondary-variable;
                     secondary-start <=> root.dc-secondary-start;
                     secondary-stop <=> root.dc-secondary-stop;

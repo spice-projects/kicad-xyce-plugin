@@ -24,6 +24,9 @@ export component DcParametersPanel inherits Rectangle {
     in-out property <string> secondary-step: "";
     in-out property <string> secondary-points: "";
 
+    // --- additional sweeps (3rd+) beyond primary/secondary ---
+    in-out property <string> additional-sweeps: "";
+
     // --- .MEASURE directives ---
     in-out property <string> measure: "";
 
@@ -539,6 +542,24 @@ export component DcParametersPanel inherits Rectangle {
                         placeholder-text: "secondary points per decade/octave";
                         text <=> root.secondary-points;
                     }
+                }
+
+                // additional sweeps (3rd nested or beyond)
+                Text {
+                    text: "Additional sweeps (optional)";
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: Palette.foreground.transparentize(0.3);
+                    horizontal-alignment: left;
+                    overflow: elide;
+                }
+
+                TextEdit {
+                    min-height: 48px;
+                    wrap: word-wrap;
+                    placeholder-text: "space-separated var start stop step/points per sweep";
+                    text <=> root.additional-sweeps;
+                    font-size: 12px;
                 }
             }
         }
