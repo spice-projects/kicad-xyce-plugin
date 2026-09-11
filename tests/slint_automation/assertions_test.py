@@ -1,7 +1,7 @@
 import unittest
 
 from slint_automation.assertions import expect
-from slint_automation.errors import SlintAssertionError
+from slint_automation.errors import LocatorError, SlintAssertionError
 from slint_automation.locator import Locator
 
 
@@ -233,3 +233,21 @@ class ExpectationChecks(unittest.TestCase):
         locator = Locator(client, "App::icon")
         # act / assert
         expect(locator).not_.to_have_opacity(1.0, timeout=0.5)
+
+
+class NegationAbsenceChecks(unittest.TestCase):
+
+    def test_negated_assertions_surface_ambiguous_locators(self) -> None:
+        # arrange: a locator matching two elements cannot be asserted safely
+        client = SequencedClient({"App::status": [{"index": "1", "generation": "1"}, {"index": "2", "generation": "1"}]}, [{"accessibleValue": "Ready"}])
+        locator = Locator(client, "App::status")
+        # act / assert
+        with self.assertRaises(LocatorError):
+            expect(locator).not_.to_have_text("Ready", timeout=0.2, poll_interval=0.05)
+
+    def test_negated_assertions_pass_on_absent_elements(self) -> None:
+        # arrange: a locator matching no element
+        client = SequencedClient({"App::status": []}, [])
+        locator = Locator(client, "App::status")
+        # act / assert
+        expect(locator).not_.to_have_text("Ready", timeout=0.2, poll_interval=0.05)

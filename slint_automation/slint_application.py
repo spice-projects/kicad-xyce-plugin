@@ -2,6 +2,7 @@ import json
 import os
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -32,7 +33,7 @@ _LOGGER = logger()
 
 class SlintApplication:
 
-    def __init__(self, process: subprocess.Popen, client: SlintClient, port: int, stdout_file: BinaryIO | None = None, stderr_file: BinaryIO | None = None) -> None:
+    def __init__(self, process: subprocess.Popen, client: SlintClient, port: int, stdout_file: BinaryIO | None = None, stderr_file: BinaryIO | None = None, config_dir: tempfile.TemporaryDirectory | None = None) -> None:
         # process owns the OS process for the Slint application
         self._process = process
         # client provides UI interaction capabilities
@@ -43,6 +44,8 @@ class SlintApplication:
         self._stdout_file = stdout_file
         # stderr_file captures the child standard error when enabled
         self._stderr_file = stderr_file
+        # config_dir isolates the application persistent configuration for this launch
+        self._config_dir = config_dir
 
     def client(self) -> SlintClient:
         # return the SlintClient instance for UI interaction
@@ -115,6 +118,7 @@ class SlintApplication:
         # ignore repeated close calls on an already terminated process
         if self._process.poll() is not None:
             self._close_output_files()
+            self._close_config_dir()
             return
         # terminate the application process gracefully
         self._process.terminate()
@@ -128,6 +132,8 @@ class SlintApplication:
             self._process.wait(timeout=DEFAULT_TERMINATE_TIMEOUT)
         # release the captured output files after the process exited
         self._close_output_files()
+        # remove the isolated configuration directory after the process exited
+        self._close_config_dir()
         # log the shutdown for the correlation label
         _LOGGER.info("[%s] application closed", self._label())
 
@@ -154,6 +160,19 @@ class SlintApplication:
         # drop the references to the closed files
         self._stdout_file = None
         self._stderr_file = None
+
+    def _close_config_dir(self) -> None:
+        # nothing to clean when the launch used no isolated configuration
+        if self._config_dir is None:
+            return
+        # remove the per-launch configuration directory, tolerating cleanup failures
+        try:
+            self._config_dir.cleanup()
+        except OSError:
+            # log the leftover directory at debug level for diagnosis
+            _LOGGER.debug("[%s] configuration directory cleanup failed", self._label())
+        # drop the reference so repeated close calls stay idempotent
+        self._config_dir = None
 
     def _write_screenshot_artifact(self, path: Path) -> None:
         # capture the screenshot best effort without masking the test failure
@@ -223,6 +242,10 @@ def _launch_attempt(executable_path: str, startup_timeout: float, env_overrides:
     # build the controlled child environment with the mcp server port enabled
     env = _child_environment(env_overrides)
     env["SLINT_MCP_PORT"] = str(port)
+    # redirect the persistent configuration into a per-launch temporary directory so
+    # scenarios never read or write the real user configuration (see design §46)
+    config_dir = tempfile.TemporaryDirectory(prefix="xyce-studio-config-")
+    env["XDG_CONFIG_HOME" if sys.platform != "win32" else "APPDATA"] = config_dir.name
     # open spooled temp files capturing the child output streams
     stdout_file = tempfile.TemporaryFile()
     stderr_file = tempfile.TemporaryFile()
@@ -231,7 +254,7 @@ def _launch_attempt(executable_path: str, startup_timeout: float, env_overrides:
     # build the mcp transport and the ui facade on top of it
     mcp = McpClient(port)
     client = SlintClient(mcp)
-    app = SlintApplication(process, client, port, stdout_file, stderr_file)
+    app = SlintApplication(process, client, port, stdout_file, stderr_file, config_dir)
     try:
         # wait until the mcp server answers the initialize handshake
         _wait_until_ready(mcp, startup_timeout, process)

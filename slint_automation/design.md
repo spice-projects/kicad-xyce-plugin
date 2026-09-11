@@ -107,7 +107,7 @@ Do not invent MCP tool names or schemas based on examples from other versions.
 The framework should isolate all Slint/MCP-specific assumptions in one layer.
 
 **Status: complete.** The installed Slint version (`release/1`, verified live) is documented in
-`automation_tests/slint-mcp-api.md`. Key findings that adjust this document:
+`slint_automation/slint-mcp-api.md`. Key findings that adjust this document:
 
 * transport is plain JSON-RPC 2.0 over HTTP POST `/mcp` — no sessions, no SSE, no batch;
 * `tools/call` failures come back as `isError: true` results, never as JSON-RPC errors;
@@ -487,7 +487,7 @@ Locators resolve elements through two mechanisms, in order of preference:
 The `accessible-label` / `accessible-value` properties expose an element's *text content*
 (read back via `get_element_properties`), which is what text assertions check.
 
-Use the element-ID mechanism; see `automation_tests/slint-mcp-api.md` §6 for the full mapping
+Use the element-ID mechanism; see `slint_automation/slint-mcp-api.md` §6 for the full mapping
 between framework concepts and MCP tools.
 
 Do not require tests to locate elements based on screen coordinates.
@@ -764,20 +764,14 @@ In this repository, the framework's own suite and the integration tests use
 unittest (per `STYLE-GUIDE.md`). Applications embedding the framework with
 pytest wire `TestSession` through their own fixtures/hooks.
 
-Test discovery and execution must run with an interpreter that can import
-`automation_tests` — the repository ships a `pyproject.toml` so any
-interpreter gets it through an editable install (`pip install -e .`; the
-project `.venv` is preinstalled). The layered import resolution is:
+Test discovery and execution must run with the repository root as the
+working directory (or the root on `PYTHONPATH`) so the top-level packages
+resolve: `slint_automation` (the framework), `tests` (framework unit tests),
+and `tests_ui` (integration tests). The canonical command is
+`python3 -m unittest discover -v -s . -p "*_test.py"` from the repository
+root; VS Code discovery is configured to the same root.
 
-* `automation_tests/__init__.py` puts the package directory on `sys.path` so
-  `from framework import ...` resolves under any discovery root;
-* `import automation_tests` requires either the repository root on
-  `sys.path` (working directory or `PYTHONPATH`) or the editable install; a
-  missing root yields `ModuleNotFoundError: No module named
-  'automation_tests'` (typically caused by a wrong working directory or an
-  interpreter without the editable install).
-
-The reference template is `automation_tests/integration/smoke_test.py`;
+The reference template is `tests_ui/smoke_test.py`;
 new integration suites must follow it.
 
 Do not put application-specific behavior into the generic base class.
@@ -1432,7 +1426,7 @@ The framework test suite must be **fully (100%) mock based**: no framework
 test may launch the real application or any GUI process. Use mocked HTTP/MCP
 servers, fake process objects, and fake clients. Real-application coverage
 belongs to the xyce-studio integration test suite (the second
-deliverable), which will live under `automation_tests/integration/` and use
+deliverable), which lives under `tests_ui/` and uses
 real UI arrange/act/assert flows.
 
 At minimum test:
@@ -1468,7 +1462,7 @@ Then use a small real Slint application for end-to-end framework tests.
 Superseded by the mock-only policy in §39: the framework test suite is fully
 mock based and does not need a reference Slint application. The real
 application is exercised directly by the plugin integration test suite (the
-second deliverable under `automation_tests/integration/`).
+second deliverable under `tests_ui/`).
 
 This avoids confusing framework failures with application failures.
 
@@ -1547,7 +1541,7 @@ Phase 1  — DONE
   Inspect Slint version
   Inspect actual MCP implementation
   Determine exact protocol/tools
-  → documented in automation_tests/slint-mcp-api.md (verified live)
+  → documented in slint_automation/slint-mcp-api.md (verified live)
 
 Phase 2  — DONE
   Implement MCP client
@@ -1607,7 +1601,7 @@ Phase 7  — DONE
 
 Phase 8  — DONE
   Add real application integration tests
-  → automation_tests/integration/smoke_test.py: application starts, main
+  → tests_ui/smoke_test.py: application starts, main
     window appears, toolbar id located, initial status text asserted via
     get_by_role("Text") per §10 (no test-only ids added to the UI)
 ```
@@ -1736,7 +1730,10 @@ Rules:
 * application state that persists on disk (recent projects, settings, caches)
   must be redirected to a per-test temporary directory through the child
   process environment (`HOME`, `XDG_*`, `APPDATA`, or application-specific
-  flags);
+  flags); the framework implements this by injecting a per-launch
+  `XDG_CONFIG_HOME` (`APPDATA` on Windows) pointing at a temporary directory
+  that is removed when the application closes, so scenarios never read or
+  write the real user configuration;
 * `tearDown` owns removing that temporary directory;
 * if the application cannot isolate its state via environment or flags,
   prefer adding a test-only flag over having tests clean global state;

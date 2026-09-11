@@ -1,6 +1,6 @@
-from typing import Any
+from typing import Any, Callable
 
-from .errors import LocatorError
+from .errors import LocatorError, McpError
 from .slint_client import SlintClient
 from .waiting import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIMEOUT, reports_test_frames, wait_for
 
@@ -65,12 +65,12 @@ class Locator:
         return f"type {self._type_name}{suffix}"
 
     def click(self, action: str = "SingleClick", button: str = "Left") -> None:
-        # click the freshly resolved element handle
-        self._client.click_element(self._matched_handle(), action=action, button=button)
+        # click the freshly resolved element handle, retrying once on a stale handle
+        self._perform(lambda handle: self._client.click_element(handle, action=action, button=button))
 
     def fill(self, text: str) -> None:
-        # set the value on the freshly resolved element handle
-        self._client.set_element_value(self._matched_handle(), text)
+        # set the value on the freshly resolved element handle, retrying once on a stale handle
+        self._perform(lambda handle: self._client.set_element_value(handle, text))
 
     def press(self, key: str, event_type: str = "PressAndRelease") -> None:
         # resolve the element first so missing elements fail fast
@@ -123,6 +123,16 @@ class Locator:
             raise LocatorError(f"ambiguous element: {self.describe()} matched {len(handles)} elements")
         # use the single matched handle
         return handles[0]
+
+    def _perform(self, action: Callable[[dict], None]) -> None:
+        # attempt the action with the freshly resolved element handle
+        try:
+            action(self._matched_handle())
+        except McpError as error:
+            # re-resolve once when the handle went stale between resolution and the action
+            if "invalid handle" not in str(error).lower():
+                raise
+            action(self._matched_handle())
 
 
 class LocatorCollection:

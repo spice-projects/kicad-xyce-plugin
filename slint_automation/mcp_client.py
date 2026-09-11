@@ -58,13 +58,13 @@ class McpClient:
     def call(self, method: str, params: dict | None = None) -> dict:
         # build the json-rpc request envelope with the next sequential id
         request = {"jsonrpc": "2.0", "id": self._next_id, "method": method}
-        # expose the full protocol request at debug level
-        _LOGGER.debug("mcp request: %s", json.dumps(request))
         # consume the request id
         self._next_id += 1
         # attach params when the request carries them
         if params is not None:
             request["params"] = params
+        # expose the full protocol request at debug level
+        _LOGGER.debug("mcp request: %s", json.dumps(request))
         # post the request and keep the raw response body
         body = self._post(request)
         # expose the full protocol response at debug level

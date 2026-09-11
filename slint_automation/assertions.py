@@ -62,6 +62,9 @@ class Expect:
                 # evaluate the positive element state
                 return positive() != self._negate
             except LocatorError:
+                # surface locator defects such as ambiguity instead of treating them as absence
+                if self._locator.exists():
+                    raise
                 # an absent element satisfies negated expectations only
                 return self._negate
         return wrapped

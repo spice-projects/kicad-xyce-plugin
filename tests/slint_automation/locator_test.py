@@ -1,9 +1,81 @@
 import unittest
 from typing import Any
 
-from slint_automation.errors import LocatorError
+from slint_automation.errors import LocatorError, McpError
 from slint_automation.locator import Locator
 from slint_automation.locator import LocatorCollection
+
+
+class StaleHandleClient:
+
+    def __init__(self, handles: list[dict]) -> None:
+        # handles is the canned handle list returned by every resolution
+        self._handles = handles
+        # _click_attempts counts the click invocations including stale ones
+        self._click_attempts = 0
+        # _fill_attempts counts the fill invocations including stale ones
+        self._fill_attempts = 0
+        # _resolve_count counts the element resolutions
+        self._resolve_count = 0
+        # _clicked records the handle of the successful click
+        self._clicked: dict | None = None
+        # _filled records the value of the successful fill
+        self._filled: str | None = None
+
+    def find_elements_by_id(self, elements_id: str) -> list[dict]:
+        # count the resolution
+        self._resolve_count += 1
+        # return the canned handle list
+        return list(self._handles)
+
+    def click_element(self, element_handle: dict, action: str = "SingleClick", button: str = "Left") -> None:
+        # count the attempt
+        self._click_attempts += 1
+        # fail the first attempt with a stale handle like the live server does
+        if self._click_attempts == 1:
+            raise McpError("Error: Invalid handle")
+        # record the handle that the retried click used
+        self._clicked = element_handle
+
+    def set_element_value(self, element_handle: dict, value: str) -> None:
+        # count the attempt
+        self._fill_attempts += 1
+        # fail the first attempt with a stale handle like the live server does
+        if self._fill_attempts == 1:
+            raise McpError("Error: Invalid handle")
+        # record the value that the retried fill used
+        self._filled = value
+
+    def resolve_count(self) -> int:
+        # report how often elements were resolved
+        return self._resolve_count
+
+    def click_attempts(self) -> int:
+        # report how many clicks were attempted
+        return self._click_attempts
+
+    def clicked(self) -> dict | None:
+        # report the handle of the successful click
+        return self._clicked
+
+    def fill_attempts(self) -> int:
+        # report how many fills were attempted
+        return self._fill_attempts
+
+    def filled(self) -> str | None:
+        # report the value of the successful fill
+        return self._filled
+
+
+class UnrelatedErrorClient:
+
+    def find_elements_by_id(self, elements_id: str) -> list[dict]:
+        # return the canned handle list
+        return [{"index": "3", "generation": "1"}]
+
+    def click_element(self, element_handle: dict, action: str = "SingleClick", button: str = "Left") -> None:
+        # fail with an error that must not trigger the stale handle retry
+        raise McpError("connection to 127.0.0.1 failed")
 
 
 class FakeClient:
@@ -425,3 +497,35 @@ class LocatorResolutionChecks(unittest.TestCase):
         # act / assert
         with self.assertRaises(LocatorError):
             Locator(client, elements_id="App::button", scope=tool)
+
+
+class StaleHandleChecks(unittest.TestCase):
+
+    def test_click_retries_once_on_stale_handle(self) -> None:
+        # arrange
+        client = StaleHandleClient([{"index": "3", "generation": "1"}])
+        locator = Locator(client, "App::button")
+        # act
+        locator.click()
+        # assert: the click was retried once with a fresh resolution
+        self.assertEqual(client.click_attempts(), 2)
+        self.assertEqual(client.resolve_count(), 2)
+        self.assertEqual(client.clicked(), {"index": "3", "generation": "1"})
+
+    def test_fill_retries_once_on_stale_handle(self) -> None:
+        # arrange
+        client = StaleHandleClient([{"index": "3", "generation": "1"}])
+        locator = Locator(client, "App::button")
+        # act
+        locator.fill("value")
+        # assert: the fill was retried once with a fresh resolution
+        self.assertEqual(client.fill_attempts(), 2)
+        self.assertEqual(client.filled(), "value")
+
+    def test_click_does_not_retry_on_unrelated_errors(self) -> None:
+        # arrange
+        client = UnrelatedErrorClient()
+        locator = Locator(client, "App::button")
+        # act / assert
+        with self.assertRaises(McpError):
+            locator.click()
