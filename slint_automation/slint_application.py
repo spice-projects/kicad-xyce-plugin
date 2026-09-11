@@ -243,9 +243,18 @@ def _launch_attempt(executable_path: str, startup_timeout: float, env_overrides:
     env = _child_environment(env_overrides)
     env["SLINT_MCP_PORT"] = str(port)
     # redirect the persistent configuration into a per-launch temporary directory so
-    # scenarios never read or write the real user configuration (see design §46)
-    config_dir = tempfile.TemporaryDirectory(prefix="xyce-studio-config-")
-    env["XDG_CONFIG_HOME" if sys.platform != "win32" else "APPDATA"] = config_dir.name
+    # scenarios never read or write the real user configuration (see design §46);
+    # a configuration root supplied by the caller wins so scenarios can share
+    # persistent configuration state across launches
+    config_variable = "APPDATA" if sys.platform == "win32" else "XDG_CONFIG_HOME"
+    if config_variable in env:
+        # keep the caller provided configuration root and skip the isolation
+        config_dir = None
+    else:
+        # create the per-launch isolated configuration directory
+        config_dir = tempfile.TemporaryDirectory(prefix="xyce-studio-config-")
+        # point the configuration root at the isolated directory
+        env[config_variable] = config_dir.name
     # open spooled temp files capturing the child output streams
     stdout_file = tempfile.TemporaryFile()
     stderr_file = tempfile.TemporaryFile()

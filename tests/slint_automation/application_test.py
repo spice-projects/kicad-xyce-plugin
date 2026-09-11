@@ -334,3 +334,38 @@ class ConfigurationIsolationChecks(unittest.TestCase):
         app.close()
         # assert: the isolated directory is removed after the application closed
         self.assertFalse(os.path.exists(config_dir))
+
+
+class CallerConfigurationChecks(unittest.TestCase):
+
+    def setUp(self) -> None:
+        # arrange: start the mock mcp server for the readiness handshake
+        self._server = http.server.HTTPServer(("127.0.0.1", 0), MockMcpHandler)
+        self._server.requests = []
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        self._thread.start()
+        # arrange: fake the application process
+        self._process = FakeProcess()
+        # arrange: point the port allocation at the mock server port
+        port_patcher = mock.patch("slint_automation.slint_application._allocate_port", return_value=self._server.server_address[1])
+        port_patcher.start()
+        self.addCleanup(port_patcher.stop)
+        # arrange: launch the application through the patched popen
+        patcher = mock.patch("slint_automation.slint_application.subprocess.Popen", return_value=self._process)
+        self._popen = patcher.start()
+        self.addCleanup(patcher.stop)
+        # cleanup: shut the mock server down after the test
+        self.addCleanup(self._server.shutdown)
+        self.addCleanup(self._server.server_close)
+
+    def _configuration_variable(self) -> str:
+        # report the environment variable carrying the application configuration root
+        return "APPDATA" if sys.platform == "win32" else "XDG_CONFIG_HOME"
+
+    def test_caller_provided_configuration_root_wins(self) -> None:
+        # arrange: launch the application with an explicit configuration root
+        launch("/fake/xyce-studio", startup_timeout=5.0, env={self._configuration_variable(): "/shared/config"})
+        # act: inspect the environment passed to the spawned process
+        _, kwargs = self._popen.call_args
+        # assert: the caller configuration root reaches the application untouched
+        self.assertEqual(kwargs["env"][self._configuration_variable()], "/shared/config")

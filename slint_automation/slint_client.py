@@ -47,7 +47,9 @@ class SlintClient:
 
     def find_by_type_in(self, element_handle: dict, type_name: str) -> list[dict]:
         # find elements by their slint type name within a subtree in document order
-        tree = self._mcp.call_tool("get_element_tree", {"elementHandle": element_handle, "maxElements": 200})
+        # the server clamps max elements to 1000; large dialogs need the full tree
+        # (the simulation parameters dialog alone spans ~430 elements)
+        tree = self._mcp.call_tool("get_element_tree", {"elementHandle": element_handle, "maxElements": 1000})
         # collect the handles of the elements whose primary type matches
         return [e["handle"] for e in tree.get("elements", []) if e.get("typeNamesAndIds", [{}])[0].get("typeName") == type_name]
 
