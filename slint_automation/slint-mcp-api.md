@@ -251,6 +251,15 @@ for sliders pass the number as a string.
 `PressAndRelease` (default) for typing, `Press`/`Release` for modifiers. Note: takes the
 **window** handle, sends to the focused element.
 
+`text` must be the Slint `KeyEvent` text: the literal character for character keys, or
+the control code behind the `Key.*` constants — `Key.Tab` = `"\t"`, `Key.BackTab` =
+`"\u0019"`, `Key.Escape` = `"\u001b"`, `Key.Return` = `"\n"`, `Key.Space` = `" "`
+(see Slint `internal/common/key_codes.rs`). Key *names* like `"Tab"` or `"Escape"` are
+accepted without error but match nothing: any `key-pressed` handler comparing
+`event.text == Key.Tab` never sees them. Verified live: `"\t"` moves tab focus through
+dialog input controls (when the modal `FocusScope` rejects Tab), `"\x1b"` triggers
+`dismissed()`, while literal `"Tab"`/`"Escape"` are swallowed silently.
+
 #### take_screenshot — `{windowHandle}`
 
 Returns MCP `image` content block (base64 PNG, physical pixel size, RGBA) + metadata text
