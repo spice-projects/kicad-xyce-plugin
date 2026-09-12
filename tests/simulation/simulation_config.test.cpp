@@ -254,7 +254,7 @@ TEST(SimulationConfigFftPathChecks, fft_pattern_is_absent_for_other_analyses) {
 
 TEST(SimulationConfigValidationChecks, validate_passes_when_no_steps) {
     // arrange
-    const SimulationConfig config("DC", DCSimulationParameters("LIN", {DcSweep{"VIN", "0", "5", "0.1", ""}}, {}, "", std::nullopt, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    const SimulationConfig config("DC", DCSimulationParameters("LIN", {DcSweep{"VIN", "0", "5", "0.1", ""}}, "", std::nullopt, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
     // act / assert
     EXPECT_FALSE(config.validate().has_value());
 }
@@ -262,7 +262,7 @@ TEST(SimulationConfigValidationChecks, validate_passes_when_no_steps) {
 TEST(SimulationConfigValidationChecks, validate_passes_when_step_is_disabled) {
     // arrange
     const StepParameters disabled_step("LIN", "R1", "1k", "10k", "1k", "", {}, "", false);
-    const SimulationConfig config("DC", DCSimulationParameters("LIN", {DcSweep{"VIN", "0", "5", "0.1", ""}}, {}, "", std::nullopt, {}, std::nullopt), {disabled_step}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    const SimulationConfig config("DC", DCSimulationParameters("LIN", {DcSweep{"VIN", "0", "5", "0.1", ""}}, "", std::nullopt, {}, std::nullopt), {disabled_step}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
     // act / assert
     EXPECT_FALSE(config.validate().has_value());
 }
@@ -280,7 +280,7 @@ TEST(SimulationConfigValidationChecks, validate_rejects_step_without_analysis) {
 TEST(SimulationConfigValidationChecks, validate_checks_invalid_step_params) {
     // arrange — a step has empty variable
     const StepParameters bad_step("LIST", "", "", "", "", "", {}, "", true);
-    const SimulationConfig config("DC", DCSimulationParameters("LIN", {DcSweep{"VIN", "0", "5", "0.1", ""}}, {}, "", std::nullopt, {}, std::nullopt), {bad_step}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    const SimulationConfig config("DC", DCSimulationParameters("LIN", {DcSweep{"VIN", "0", "5", "0.1", ""}}, "", std::nullopt, {}, std::nullopt), {bad_step}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
     // act / assert
     const auto error = config.validate();
     ASSERT_TRUE(error.has_value());
@@ -290,7 +290,7 @@ TEST(SimulationConfigValidationChecks, validate_checks_invalid_step_params) {
 TEST(SimulationConfigValidationChecks, validate_passes_with_enabled_step_and_analysis) {
     // arrange
     const StepParameters valid_step("LIN", "R1", "1k", "10k", "1k", "", {}, "", true);
-    const SimulationConfig config("DC", DCSimulationParameters("LIN", {DcSweep{"VIN", "0", "5", "0.1", ""}}, {}, "", std::nullopt, {}, std::nullopt), {valid_step}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    const SimulationConfig config("DC", DCSimulationParameters("LIN", {DcSweep{"VIN", "0", "5", "0.1", ""}}, "", std::nullopt, {}, std::nullopt), {valid_step}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
     // act / assert
     EXPECT_FALSE(config.validate().has_value());
 }

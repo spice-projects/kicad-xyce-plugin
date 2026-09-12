@@ -34,7 +34,7 @@ class DCSimulationParameters
 {
 public:
     // construct a DC simulation parameters instance from individual fields
-    DCSimulationParameters(std::string sweep_mode, std::vector<DcSweep> sweeps, std::vector<std::string> list_values, std::string data_table_name, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity);
+    DCSimulationParameters(std::string sweep_mode, std::vector<DcSweep> sweeps, std::string data_table_name, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity);
 
     // parse all directives into a DCSimulationParameters instance;
     // returns nullopt when no .DC directive is found
@@ -54,8 +54,6 @@ public:
     std::string sweep_mode;
     // nested sweep entries (arbitrary nesting per RG §2.1.3)
     std::vector<DcSweep> sweeps;
-    // explicit list of values (LIST sweep only)
-    std::vector<std::string> list_values;
     // data table name (DATA sweep only)
     std::string data_table_name;
     // optional print parameters

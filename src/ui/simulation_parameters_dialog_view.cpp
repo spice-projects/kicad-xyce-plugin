@@ -26,6 +26,7 @@
 #include "../simulation/print_parameters.h"
 #include "../simulation/simulation_config.h"
 #include "../simulation/transient_simulation_parameters.h"
+#include "dc_sweep_rows.h"
 #include "main_window_view_def.h"
 #include "simulation_parameters_dialog_view.h"
 
@@ -640,42 +641,24 @@ namespace simulation_parameters_dialog_view
 
         // --- DC analysis panel ---
 
-        // push the saved DC parameters into the dialog root's dc-* fields
-        void apply_dc_parameters(const WindowHandle& dialog, const DCSimulationParameters& params) {
+        // convert a dialog row projection into its generated model counterpart
+        [[nodiscard]] main_window::DcSweepRow to_slint_row(const DcSweepRowFields& row) { return main_window::DcSweepRow{slint::SharedString(row.variable), slint::SharedString(row.start), slint::SharedString(row.stop), slint::SharedString(row.step), slint::SharedString(row.points), slint::SharedString(row.list_values)}; }
+
+        // convert a generated model row back into its plain-string projection
+        [[nodiscard]] DcSweepRowFields from_slint_row(const main_window::DcSweepRow& row) { return DcSweepRowFields{std::string(row.variable), std::string(row.start), std::string(row.stop), std::string(row.step), std::string(row.points), std::string(row.list_values)}; }
+
+        // push the saved DC parameters into the dialog root's sweep table model
+        void apply_dc_parameters(const WindowHandle& dialog, const std::shared_ptr<slint::VectorModel<main_window::DcSweepRow>>& sweep_rows, const DCSimulationParameters& params) {
             dialog->set_dc_sweep_mode_index(choice_index_for(DC_SWEEP_MODE_VALUES, params.sweep_mode));
-            const auto& sweeps = params.sweeps;
-            const bool has_primary = sweeps.size() > 0;
-            dialog->set_dc_primary_variable(slint::SharedString(has_primary ? sweeps[0].variable : ""));
-            dialog->set_dc_start(slint::SharedString(has_primary ? sweeps[0].start : ""));
-            dialog->set_dc_stop(slint::SharedString(has_primary ? sweeps[0].stop : ""));
-            dialog->set_dc_step(slint::SharedString(has_primary ? sweeps[0].step : ""));
-            dialog->set_dc_points(slint::SharedString(has_primary ? sweeps[0].points : ""));
-            dialog->set_dc_list_values(slint::SharedString(join(has_primary ? sweeps[0].list_values : std::vector<std::string>{}, " ")));
             dialog->set_dc_data_table(slint::SharedString(params.data_table_name));
-            const bool has_secondary = sweeps.size() > 1;
-            dialog->set_dc_secondary_variable(slint::SharedString(has_secondary ? sweeps[1].variable : ""));
-            dialog->set_dc_secondary_start(slint::SharedString(has_secondary ? sweeps[1].start : ""));
-            dialog->set_dc_secondary_stop(slint::SharedString(has_secondary ? sweeps[1].stop : ""));
-            dialog->set_dc_secondary_step(slint::SharedString(has_secondary ? sweeps[1].step : ""));
-            dialog->set_dc_secondary_points(slint::SharedString(has_secondary ? sweeps[1].points : ""));
-            // LIST sweeps: show the secondary list values in the primary list field
-            if (params.sweep_mode == "LIST" && has_secondary) {
-                dialog->set_dc_secondary_start(slint::SharedString(join(sweeps[1].list_values, " ")));
+            // project the sweep entries into the host-owned model rows
+            const auto rows = dc_sweep_rows_from_sweeps(params.sweeps);
+            std::vector<main_window::DcSweepRow> model_rows;
+            model_rows.reserve(rows.size());
+            for (const auto& row : rows) {
+                model_rows.push_back(to_slint_row(row));
             }
-            // additional sweeps (3rd+) serialized as space-separated tuples: var start stop step/points
-            std::string additional;
-            for (size_t i = 2; i < sweeps.size(); ++i) {
-                if (!additional.empty())
-                    additional += " ";
-                const auto& s = sweeps[i];
-                if (params.sweep_mode == "LIN") {
-                    additional += s.variable + " " + s.start + " " + s.stop + " " + s.step;
-                }
-                else {
-                    additional += s.variable + " " + s.start + " " + s.stop + " " + s.points;
-                }
-            }
-            dialog->set_dc_additional_sweeps(slint::SharedString(additional));
+            sweep_rows->set_vector(std::move(model_rows));
             dialog->set_dc_measure(slint::SharedString(format_measure_lines(params.measure_parameters)));
             // print section
             apply_print_section(params.print_parameters, true, true, true, true, DC_PRINT_TYPES,
@@ -694,70 +677,21 @@ namespace simulation_parameters_dialog_view
                                 });
         }
 
-        // read the DC parameters from the dialog root's dc-* fields
-        [[nodiscard]] DCSimulationParameters build_dc_parameters(const WindowHandle& dialog) {
+        // read the DC parameters back from the dialog's sweep table model
+        [[nodiscard]] DCSimulationParameters build_dc_parameters(const WindowHandle& dialog, const std::shared_ptr<slint::VectorModel<main_window::DcSweepRow>>& sweep_rows) {
             const int sweep_mode_index = std::clamp(dialog->get_dc_sweep_mode_index(), 0, static_cast<int>(DC_SWEEP_MODE_VALUES.size()) - 1);
             const std::string sweep_mode = DC_SWEEP_MODE_VALUES[static_cast<size_t>(sweep_mode_index)];
-            const std::string primary_variable = std::string(dialog->get_dc_primary_variable());
-            const std::string start = std::string(dialog->get_dc_start());
-            const std::string stop = std::string(dialog->get_dc_stop());
-            // the primary step / points / list / data-table fields depend on the mode
-            std::string step;
-            std::string points;
-            std::vector<std::string> list_values;
-            std::string data_table_name;
-            std::vector<DcSweep> sweeps;
-            if (!primary_variable.empty() || !start.empty() || !stop.empty()) {
-                if (sweep_mode == "LIN") {
-                    step = std::string(dialog->get_dc_step());
-                    if (step.empty())
-                        step = std::string(dialog->get_dc_points());
-                    sweeps.push_back(DcSweep{primary_variable, start, stop, step, points, {}});
-                }
-                else if (sweep_mode == "DEC" || sweep_mode == "OCT") {
-                    points = std::string(dialog->get_dc_points());
-                    if (points.empty())
-                        points = std::string(dialog->get_dc_step());
-                    sweeps.push_back(DcSweep{primary_variable, start, stop, step, points, {}});
-                }
-                else if (sweep_mode == "LIST") {
-                    // list values as owning tokens (see build_print_section)
-                    std::vector<std::string> primary_list_values = tokenize_owned(dialog->get_dc_list_values());
-                    sweeps.push_back(DcSweep{primary_variable, start, stop, step, points, std::move(primary_list_values)});
-                }
-                else if (sweep_mode == "DATA") {
-                    // DATA sweeps don't have list values
-                    data_table_name = std::string(dialog->get_dc_data_table());
-                }
+            // read the model rows back into plain-string projections
+            std::vector<DcSweepRowFields> rows;
+            rows.reserve(sweep_rows->row_count());
+            for (size_t i = 0; i < sweep_rows->row_count(); ++i) {
+                if (const auto row = sweep_rows->row_data(i))
+                    rows.push_back(from_slint_row(*row));
             }
-            const std::string secondary_variable = std::string(dialog->get_dc_secondary_variable());
-            const std::string secondary_start = std::string(dialog->get_dc_secondary_start());
-            const std::string secondary_stop = std::string(dialog->get_dc_secondary_stop());
-            std::string secondary_step;
-            std::string secondary_points;
-            if (sweep_mode == "LIN") {
-                secondary_step = std::string(dialog->get_dc_secondary_step());
-                if (secondary_step.empty())
-                    secondary_step = std::string(dialog->get_dc_secondary_points());
-            }
-            else if (sweep_mode == "DEC" || sweep_mode == "OCT") {
-                secondary_points = std::string(dialog->get_dc_secondary_points());
-                if (secondary_points.empty())
-                    secondary_points = std::string(dialog->get_dc_secondary_step());
-            }
-            if (!secondary_variable.empty()) {
-                if (sweep_mode == "LIN") {
-                    sweeps.push_back(DcSweep{secondary_variable, secondary_start, secondary_stop, secondary_step, points, {}});
-                }
-                else if (sweep_mode == "DEC" || sweep_mode == "OCT") {
-                    sweeps.push_back(DcSweep{secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, {}});
-                }
-                else if (sweep_mode == "LIST") {
-                    // secondary sweep in LIST mode uses same format as primary
-                    std::vector<std::string> sec_list_values = tokenize_owned(dialog->get_dc_additional_sweeps());
-                    sweeps.push_back(DcSweep{secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, std::move(sec_list_values)});
-                }
-            }
+            // rebuild the sweep entries through the shared row conversion
+            std::vector<DcSweep> sweeps = dc_sweeps_from_rows(rows, sweep_mode);
+            // the data table name only applies to DATA sweeps
+            const std::string data_table_name = sweep_mode == "DATA" ? std::string(dialog->get_dc_data_table()) : "";
             // parse .MEASURE directives (one per line)
             auto measure_params = parse_measure_lines(std::string(dialog->get_dc_measure()));
             // print parameters
@@ -775,51 +709,11 @@ namespace simulation_parameters_dialog_view
                                                         .extra_options = [&dialog] { return std::string(dialog->get_dc_print_extra_options()); },
                                                         .type_index = [&dialog] { return dialog->get_dc_print_type_index(); },
                                                     });
-            // parse additional sweeps from the text area (space-separated tuples)
-            const std::string additional_text = std::string(dialog->get_dc_additional_sweeps());
-            if (!additional_text.empty()) {
-                const auto _tokens = tokenize_owned(additional_text);
-                if (sweep_mode == "LIN") {
-                    if (_tokens.size() % 4 != 0) {
-                        return DCSimulationParameters(std::move(sweep_mode), std::move(sweeps), {}, std::move(data_table_name), std::move(print_params), std::move(measure_params), std::nullopt);
-                    }
-                    for (size_t i = 0; i < _tokens.size(); i += 4) {
-                        sweeps.push_back(DcSweep{_tokens[i], _tokens[i + 1], _tokens[i + 2], _tokens[i + 3], "", {}});
-                    }
-                }
-                else if (sweep_mode == "DEC" || sweep_mode == "OCT") {
-                    if (_tokens.size() % 4 != 0) {
-                        return DCSimulationParameters(std::move(sweep_mode), std::move(sweeps), {}, std::move(data_table_name), std::move(print_params), std::move(measure_params), std::nullopt);
-                    }
-                    for (size_t i = 0; i < _tokens.size(); i += 4) {
-                        sweeps.push_back(DcSweep{_tokens[i], _tokens[i + 1], _tokens[i + 2], _tokens[i + 3], "", {}});
-                    }
-                }
-                else if (sweep_mode == "LIST") {
-                    // parse format: var LIST val [val...] var2 LIST val2 [val...]
-                    size_t i = 0;
-                    while (i + 2 < _tokens.size()) {
-                        std::string var = std::string(_tokens[i]);
-                        if (to_upper(std::string(_tokens[i + 1])) != "LIST") {
-                            break; // malformed - expects "LIST" keyword after variable
-                        }
-                        ++i; // skip variable
-                        ++i; // skip LIST keyword
-                        std::vector<std::string> sweep_values;
-                        while (i < _tokens.size() && !(i + 1 < _tokens.size() && to_upper(std::string(_tokens[i + 1])) == "LIST")) {
-                            sweep_values.push_back(std::string(_tokens[i]));
-                            ++i;
-                        }
-                        sweeps.push_back(DcSweep{var, "", "", "", "", std::move(sweep_values)});
-                        // i is now at the next variable or end
-                    }
-                }
-            }
-            return DCSimulationParameters(std::move(sweep_mode), std::move(sweeps), {}, std::move(data_table_name), std::move(print_params), std::move(measure_params), std::nullopt);
+            return DCSimulationParameters(sweep_mode, std::move(sweeps), data_table_name, print_params, std::move(measure_params), std::nullopt);
         }
 
         // default DC analysis parameters, used to reset the panel to defaults
-        [[nodiscard]] DCSimulationParameters default_dc_parameters() { return DCSimulationParameters("", {}, {}, "", std::nullopt, {}, std::nullopt); }
+        [[nodiscard]] DCSimulationParameters default_dc_parameters() { return DCSimulationParameters("", {}, "", std::nullopt, {}, std::nullopt); }
 
         // --- noise analysis panel ---
 
@@ -1052,11 +946,29 @@ namespace simulation_parameters_dialog_view
         // configuration seeded on show
         SimulationConfig m_config;
 
+        // host-owned row model backing the DC panel's nested sweep table
+        std::shared_ptr<slint::VectorModel<main_window::DcSweepRow>> dc_sweeps;
+
         Impl(WindowHandle w) :
             window(w), m_config(SimulationConfig::from_xyce_directives({})) {
+            // the sweep table model lives here so edits survive panel rebuilds
+            dc_sweeps = std::make_shared<slint::VectorModel<main_window::DcSweepRow>>();
+            window->set_dc_sweeps(dc_sweeps);
             // wire the forwarded callbacks from the inline panel to this view
             window->on_simulation_parameters_accepted([this] { accept(); });
             window->on_simulation_parameters_dismissed([this] { dismiss(); });
+            // append a blank sweep row when the panel requests one
+            window->on_dc_add_sweep([this] { dc_sweeps->push_back(main_window::DcSweepRow{}); });
+            // remove the sweep row at the requested index
+            window->on_dc_remove_sweep([this](int index) {
+                if (index >= 0 && static_cast<size_t>(index) < dc_sweeps->row_count())
+                    dc_sweeps->erase(static_cast<size_t>(index));
+            });
+            // commit an edited sweep row back into the model
+            window->on_dc_sweep_row_updated([this](int index, main_window::DcSweepRow row) {
+                if (index >= 0 && static_cast<size_t>(index) < dc_sweeps->row_count())
+                    dc_sweeps->set_row_data(static_cast<size_t>(index), row);
+            });
         }
 
         void accept() {
@@ -1082,7 +994,7 @@ namespace simulation_parameters_dialog_view
             // read the DC analysis panel back into the analysis variant;
             // reject an invalid DC sweep without closing the panel
             else if (selected_tab == PAGE_DC) {
-                auto dc = build_dc_parameters(window);
+                auto dc = build_dc_parameters(window, dc_sweeps);
                 if (const auto error = dc.validate()) {
                     window->set_simulation_parameters_error_message(slint::SharedString(*error));
                     window->set_simulation_parameters_show_error(true);
@@ -1166,9 +1078,9 @@ namespace simulation_parameters_dialog_view
         // sync the DC analysis panel to the seeded config, or reset it to
         // defaults when a different analysis is currently active
         if (const auto* dc = std::get_if<DCSimulationParameters>(&current.analysis))
-            apply_dc_parameters(m_impl->window, *dc);
+            apply_dc_parameters(m_impl->window, m_impl->dc_sweeps, *dc);
         else
-            apply_dc_parameters(m_impl->window, default_dc_parameters());
+            apply_dc_parameters(m_impl->window, m_impl->dc_sweeps, default_dc_parameters());
         // mirror the replace-ground toggle onto the DC panel state
         m_impl->window->set_dc_replace_ground(current.replace_ground);
         // sync the noise analysis panel to the seeded config, or reset it to

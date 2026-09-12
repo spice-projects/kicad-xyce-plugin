@@ -94,14 +94,13 @@ namespace
     }
 } // namespace
 
-DCSimulationParameters::DCSimulationParameters(std::string sweep_mode, std::vector<DcSweep> sweeps, std::vector<std::string> list_values, std::string data_table_name, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
-    sweep_mode(std::move(sweep_mode)), sweeps(std::move(sweeps)), list_values(std::move(list_values)), data_table_name(std::move(data_table_name)), print_parameters(std::move(print_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
+DCSimulationParameters::DCSimulationParameters(std::string sweep_mode, std::vector<DcSweep> sweeps, std::string data_table_name, std::optional<PrintParameters> print_parameters, std::vector<MeasureEntry> measure_parameters, std::optional<SensParameter> sensitivity) :
+    sweep_mode(std::move(sweep_mode)), sweeps(std::move(sweeps)), data_table_name(std::move(data_table_name)), print_parameters(std::move(print_parameters)), measure_parameters(std::move(measure_parameters)), sensitivity(std::move(sensitivity)) {}
 
 std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // init defaults
     std::string sweep_mode = "LIN";
     std::vector<DcSweep> sweeps;
-    std::vector<std::string> list_values;
     std::string data_table_name;
     std::optional<PrintParameters> print_parameters;
     std::vector<MeasureEntry> measure_parameters;
@@ -219,7 +218,7 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
         return std::nullopt;
     }
 
-    return DCSimulationParameters(sweep_mode, sweeps, list_values, data_table_name, print_parameters, measure_parameters, sensitivity);
+    return DCSimulationParameters(sweep_mode, sweeps, data_table_name, print_parameters, measure_parameters, sensitivity);
 }
 
 std::vector<std::string> DCSimulationParameters::to_xyce_directives(const NetlistTopology& topology) const {
@@ -277,7 +276,7 @@ std::vector<std::string> DCSimulationParameters::to_xyce_directives(const Netlis
 
 bool DCSimulationParameters::operator==(const DCSimulationParameters& other) const {
     // compare all fields for equality
-    return sweep_mode == other.sweep_mode && sweeps == other.sweeps && list_values == other.list_values && data_table_name == other.data_table_name && print_parameters == other.print_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
+    return sweep_mode == other.sweep_mode && sweeps == other.sweeps && data_table_name == other.data_table_name && print_parameters == other.print_parameters && measure_parameters == other.measure_parameters && sensitivity == other.sensitivity;
 }
 
 std::optional<std::string> DCSimulationParameters::validate() const {

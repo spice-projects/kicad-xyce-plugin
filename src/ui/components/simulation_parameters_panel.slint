@@ -5,7 +5,10 @@
 // properties/callbacks are defined here.
 import { Palette, ScrollView } from "std-widgets.slint";
 import { AcParametersPanel } from "../components/ac_parameters_panel.slint";
-import { DcParametersPanel } from "../components/dc_parameters_panel.slint";
+import {
+    DcParametersPanel,
+    DcSweepRow,
+} from "../components/dc_parameters_panel.slint";
 import { HbParametersPanel } from "../components/hb_parameters_panel.slint";
 import { LinParametersPanel } from "../components/lin_parameters_panel.slint";
 import {
@@ -140,19 +143,13 @@ export component SimulationParametersPanel inherits ModalPanel {
     // sub-component. C++ reads/writes these root-level properties (sub-component
     // state is not directly addressable from C++ in this Slint version).
     in-out property <int> dc-sweep-mode-index: 0;
-    in-out property <string> dc-primary-variable: "";
-    in-out property <string> dc-start: "";
-    in-out property <string> dc-stop: "";
-    in-out property <string> dc-step: "";
-    in-out property <string> dc-points: "";
-    in-out property <string> dc-list-values: "";
+    // nested sweep rows — projected from DCSimulationParameters::sweeps by C++
+    in-out property <[DcSweepRow]> dc-sweeps: [];
+    // forwarded DcParametersPanel sweep table actions
+    callback dc-add-sweep();
+    callback dc-remove-sweep(int);
+    callback dc-sweep-row-updated(int, DcSweepRow);
     in-out property <string> dc-data-table: "";
-    in-out property <string> dc-secondary-variable: "";
-    in-out property <string> dc-secondary-start: "";
-    in-out property <string> dc-secondary-stop: "";
-    in-out property <string> dc-secondary-step: "";
-    in-out property <string> dc-secondary-points: "";
-    in-out property <string> dc-additional-sweeps: "";
     in-out property <string> dc-measure: "";
     in-out property <bool> dc-print-enabled: false;
     in-out property <int> dc-print-type-index: 0;
@@ -379,19 +376,11 @@ export component SimulationParametersPanel inherits ModalPanel {
 
                 dc-panel := DcParametersPanel {
                     sweep-mode-index <=> root.dc-sweep-mode-index;
-                    primary-variable <=> root.dc-primary-variable;
-                    start <=> root.dc-start;
-                    stop <=> root.dc-stop;
-                    step <=> root.dc-step;
-                    points <=> root.dc-points;
-                    list-values <=> root.dc-list-values;
+                    sweeps <=> root.dc-sweeps;
                     data-table <=> root.dc-data-table;
-                    additional-sweeps <=> root.dc-additional-sweeps;
-                    secondary-variable <=> root.dc-secondary-variable;
-                    secondary-start <=> root.dc-secondary-start;
-                    secondary-stop <=> root.dc-secondary-stop;
-                    secondary-step <=> root.dc-secondary-step;
-                    secondary-points <=> root.dc-secondary-points;
+                    add-sweep => { root.dc-add-sweep(); }
+                    remove-sweep(index) => { root.dc-remove-sweep(index); }
+                    sweep-row-updated(index, row) => { root.dc-sweep-row-updated(index, row); }
                     measure <=> root.dc-measure;
                     print-enabled <=> root.dc-print-enabled;
                     print-type-index <=> root.dc-print-type-index;
