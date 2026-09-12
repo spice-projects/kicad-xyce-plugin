@@ -14,14 +14,15 @@ export struct HighlightedLine {
 
 // NetlistEditor renders an editable netlist with per-token syntax colouring, a
 // line-number gutter and a cross-platform blinking caret.  The coloured token
-// layer, the caret rectangle and a transparent TextInput share the coordinate
+// layer, the caret rectangle and an alpha-transparent TextInput share the
+// coordinate
 // space of one ScrollView so they scroll in lockstep; the invisible TextInput
 // owns all interaction (caret, selection, clipboard, IME) and drives the caret
 // overlay, which stays visible on every platform (Slint derives the native
 // caret colour from the selection colour on macOS and from the text colour
 // elsewhere, so a transparent text colour would hide it on Linux/Windows).
 export component NetlistEditor inherits Rectangle {
-    // raw netlist text – two-way bound to the transparent TextInput
+    // raw netlist text – two-way bound to the interactive TextInput
     in-out property <string> text: "";
     in property <bool> read-only: false;
     // highlighted lines model; rebuilt by the C++ adapter on load, on edits
@@ -130,17 +131,25 @@ export component NetlistEditor inherits Rectangle {
                 visible: input.has-focus && root.caret-on;
             }
 
-            // layer 3: transparent interactive text input owning the caret,
-            // selection, clipboard and IME
+            // layer 3: interactive text input owning the caret, selection,
+            // clipboard and IME; the text colour uses alpha 1 because a fully
+            // transparent colour (alpha 0) makes the renderer skip the whole
+            // text input draw pass, which would also hide the selection
+            // highlight; alpha 1 is invisible to the eye
             input := TextInput {
                 single-line: false;
                 wrap: no-wrap;
-                color: transparent;
+                color: #00000001;
                 read-only: root.read-only;
                 vertical-alignment: top;
                 horizontal-alignment: left;
                 font-family: "monospace";
                 font-size: root.editor-font-size;
+                // tinted selection highlight so the token colours stay visible
+                // under it; the selected glyphs are drawn transparent for the
+                // same reason
+                selection-background-color: Palette.foreground.transparentize(0.75);
+                selection-foreground-color: transparent;
                 // page height for page-up/page-down scrolling
                 page-height: scroller.visible-height;
                 text <=> root.text;
