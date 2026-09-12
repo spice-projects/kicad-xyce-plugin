@@ -321,16 +321,37 @@ TEST(NetlistLexerChecks, reconstruction_invariant_preserves_exact_source_text) {
     // act
     const auto lines = tokenize_netlist(source);
     std::string reconstructed;
-    for (size_t i = 0; i < lines.size(); ++i) {
-        for (const auto& token : lines[i].m_tokens) {
+    for (const auto& line : lines) {
+        for (const auto& token : line.m_tokens) {
             reconstructed += token.m_text;
         }
-        if (i + 1 < lines.size()) {
-            reconstructed += "\n";
-        }
+        reconstructed += line.m_line_ending;
     }
     // assert
     ASSERT_EQ(reconstructed, source);
+}
+
+TEST(NetlistLexerChecks, reconstruction_invariant_preserves_crlf_line_endings) {
+    // arrange
+    const std::string source = "* Windows netlist\r\n"
+                               "V1 IN 0 DC 5\r\n"
+                               "R1 IN OUT 1k\r\n";
+    // act
+    const auto lines = tokenize_netlist(source);
+    std::string reconstructed;
+    for (const auto& line : lines) {
+        for (const auto& token : line.m_tokens) {
+            reconstructed += token.m_text;
+        }
+        reconstructed += line.m_line_ending;
+    }
+    // assert
+    ASSERT_EQ(reconstructed, source);
+    // every terminated line stores the CRLF delimiter it was written with
+    ASSERT_EQ(lines[0].m_line_ending, "\r\n");
+    ASSERT_EQ(lines[1].m_line_ending, "\r\n");
+    ASSERT_EQ(lines[2].m_line_ending, "\r\n");
+    ASSERT_EQ(lines[3].m_line_ending, "");
 }
 
 TEST(NetlistLexerChecks, handles_crlf_and_lf_newlines) {
@@ -360,6 +381,26 @@ TEST(NetlistLexerChecks, tokenizes_negative_and_exponent_numbers) {
     ASSERT_EQ(lines[1].m_tokens[6].m_text, "1e-6");
     ASSERT_EQ(lines[2].m_tokens[6].m_type, NetlistTokenType::NUMBER);
     ASSERT_EQ(lines[2].m_tokens[6].m_text, "2.5e-12F");
+}
+
+TEST(NetlistLexerChecks, tokenizes_complex_number_literals) {
+    // arrange: complex literals with the imaginary J suffix (Xyce RG 2.2.1);
+    // the unspaced form glues the real and imaginary parts into one word
+    const auto lines = tokenize_netlist(".PARAM A0=1.0+2.0J\nC1 1 0 2.0j\nB1 1 0 I=-1e-3+500mJ");
+    // assert: the unspaced complex literal on the directive line is one NUMBER
+    ASSERT_EQ(lines.size(), 3);
+    ASSERT_EQ(lines[0].m_tokens[4].m_type, NetlistTokenType::NUMBER);
+    ASSERT_EQ(lines[0].m_tokens[4].m_text, "1.0+2.0J");
+    // a bare imaginary literal stays a number
+    ASSERT_EQ(lines[1].m_tokens[6].m_type, NetlistTokenType::NUMBER);
+    ASSERT_EQ(lines[1].m_tokens[6].m_text, "2.0j");
+    // the complex value after the expression assignment is one NUMBER
+    ASSERT_EQ(lines[2].m_tokens[8].m_type, NetlistTokenType::NUMBER);
+    ASSERT_EQ(lines[2].m_tokens[8].m_text, "-1e-3+500mJ");
+    // identifiers with embedded digits and signs are not complex numbers
+    const auto diode_lines = tokenize_netlist("D1 1 0 1N4148");
+    ASSERT_EQ(diode_lines[0].m_tokens[6].m_type, NetlistTokenType::PLAIN_TEXT);
+    ASSERT_EQ(diode_lines[0].m_tokens[6].m_text, "1N4148");
 }
 
 TEST(NetlistLexerChecks, tokenizes_lowercase_device_names) {
@@ -392,6 +433,37 @@ TEST(NetlistLexerChecks, tokenizes_nested_dc_sweeps) {
     ASSERT_EQ(lines[0].m_tokens[6].m_text, "5");
     ASSERT_EQ(lines[0].m_tokens[8].m_type, NetlistTokenType::NUMBER);
     ASSERT_EQ(lines[0].m_tokens[8].m_text, "0.5");
+}
+
+TEST(NetlistLexerChecks, print_output_variables_share_token_type) {
+    // arrange / act: verbatim .PRINT line; V(), I() and P() are all Xyce
+    // output-variable functions (Xyce RG 2.1.39) and must classify alike
+    const auto lines = tokenize_netlist(".PRINT TRAN FORMAT=RAW FILE=tran-simple-01.raw V(*) I(*) P(*)");
+    // assert
+    ASSERT_EQ(lines.size(), 1);
+    ASSERT_EQ(lines[0].m_tokens[12].m_text, "V");
+    ASSERT_EQ(lines[0].m_tokens[17].m_text, "I");
+    ASSERT_EQ(lines[0].m_tokens[22].m_text, "P");
+    ASSERT_EQ(lines[0].m_tokens[12].m_type, NetlistTokenType::KEYWORD);
+    ASSERT_EQ(lines[0].m_tokens[17].m_type, lines[0].m_tokens[12].m_type);
+    ASSERT_EQ(lines[0].m_tokens[22].m_type, lines[0].m_tokens[12].m_type);
+}
+
+TEST(NetlistLexerChecks, print_lead_current_operators_are_keywords) {
+    // arrange / act: verbatim .PRINT line; the lead-current operators are
+    // Xyce output-variable functions alongside V, I and P (Xyce RG 2.1.31.11)
+    const auto lines = tokenize_netlist(".PRINT TRAN FORMAT=RAW FILE=tran-simple-01.raw V(*) I(*) P(*) IB(*) IC(*) IE(*) IS(*) ID(*) IG(*)");
+    // assert: every function name classifies as the same token type as V
+    ASSERT_EQ(lines.size(), 1);
+    int found = 0;
+    for (const auto& token : lines[0].m_tokens) {
+        const std::string& text = token.m_text;
+        if (text == "V" || text == "I" || text == "P" || text == "IB" || text == "IC" || text == "IE" || text == "IS" || text == "ID" || text == "IG") {
+            ++found;
+            ASSERT_EQ(token.m_type, NetlistTokenType::KEYWORD) << "operator " << text;
+        }
+    }
+    ASSERT_EQ(found, 9);
 }
 
 TEST(NetlistLexerChecks, handles_unclosed_string_and_expression_gracefully) {

@@ -23,16 +23,25 @@ namespace
 
     // comprehensive simulation directives, modeling keywords, and builtin functions (Xyce RG Chapter 2)
     const std::set<std::string, std::less<>> KEYWORDS = {
-        "ABS", "AC", "ACOS", "ACOSH", "AGAUSS", "AKIMA", "AM", "ARCTAN", "ASIN", "ASINH", "AT", "ATAN", "ATAN2", "ATANH", "AVG", "BLACKMAN", "BLI", "CEIL", "CONTROL", "COS", "COSH", "CROSS", "CSV", "CUBIC", "DATA", "DB", "DC", "DCVOLT", "DDT", "DDX", "DEC", "DEVICE", "DIAGNOSTIC", "DIST", "DISTOF1", "DISTOF2", "EMBEDDEDSAMPLES", "EMBEDDEDSAMPLING", "END", "ENDDATA", "ENDS", "ERR", "ERR1", "ERR2", "EXP", "FALL", "FALSE", "FASTTABLE", "FFT", "FILE", "FIND", "FLOOR", "FMOD", "FORMAT", "FOUR", "FUNC", "GAUSS", "GLOBAL", "GLOBAL_PARAM", "GOAL", "HAMMING", "HANN", "HB", "HBINT", "IC", "IDB", "IF", "II", "IM", "IMG", "INC", "INCLUDE", "INCL", "INT", "INTEG", "IP", "IR", "LAST", "LEVEL", "LIB", "LIMIT", "LIN", "LINSOL", "LINSOL-AC", "LINSOL-HB", "LN", "LOCA", "LOG", "LOG10", "M", "MAX", "MEAS", "MEASURE", "MIN", "MINVAL", "MODEL", "NINT", "NOISE", "NODESET", "NONLIN", "NONLIN-HB", "NP", "OCT", "OFF", "ON", "OP", "OPTIONS", "OUTPUT", "P", "PARAM", "PARAMS", "PARAMS:", "PARSER", "PCES", "PDB", "PH", "PLOT", "POLY", "POW", "PP", "PREPROCESS", "PRINT", "PROBE", "PULSE", "PWL", "PWR", "PWRS", "R", "RAW", "RE", "RECTANGULAR", "REMOVEUNUSED", "REPLACEGROUND", "RESTART", "RESULT", "RISE", "RMS", "SAMPLES", "SAMPLING", "SAVE", "SDT", "SENS", "SENSITIVITY", "SFFM", "SGN", "SIGN", "SIN", "SINH", "SPICE_EXP", "SPICE_PULSE", "SPICE_SFFM", "SPICE_SIN", "SPLINE", "SQRT", "STD", "STEP", "STP", "SUBCKT", "TABLE", "TABLEFILE", "TAN", "TANH", "TARG", "TD", "TEMP", "TIMEINT", "TITLE", "TRAN", "TRIG", "TRUE", "UNORM", "URAMP", "V", "VAL", "VDB", "VI", "VM", "VP", "VR", "W", "WHEN", "WINDOW", "WODICKA",
+        "ABS", "AC", "ACOS", "ACOSH", "AGAUSS", "AKIMA", "AM", "ARCTAN", "ASIN", "ASINH", "AT", "ATAN", "ATAN2", "ATANH", "AVG", "BLACKMAN", "BLI", "CEIL", "CONTROL", "COS", "COSH", "CROSS", "CSV", "CUBIC", "DATA", "DB", "DC", "DCVOLT", "DDT", "DDX", "DEC", "DEVICE", "DIAGNOSTIC", "DIST", "DISTOF1", "DISTOF2", "EMBEDDEDSAMPLES", "EMBEDDEDSAMPLING", "END", "ENDDATA", "ENDS", "ERR", "ERR1", "ERR2", "EXP", "FALL", "FALSE", "FASTTABLE", "FFT", "FILE", "FIND", "FLOOR", "FMOD", "FORMAT", "FOUR", "FUNC", "GAUSS", "GLOBAL", "GLOBAL_PARAM", "GOAL", "HAMMING", "HANN", "HB", "HBINT", "I", "IB", "IC", "ID", "IDB", "IE", "IF", "IG", "II", "IM", "IMG", "INC", "INCLUDE", "INCL", "INT", "INTEG", "IP", "IR", "IS", "LAST", "LEVEL", "LIB", "LIMIT", "LIN", "LINSOL", "LINSOL-AC", "LINSOL-HB", "LN", "LOCA", "LOG", "LOG10", "M", "MAX", "MEAS", "MEASURE", "MIN", "MINVAL", "MODEL", "NINT", "NOISE", "NODESET", "NONLIN", "NONLIN-HB", "NP", "OCT", "OFF", "ON", "OP", "OPTIONS", "OUTPUT", "P", "PARAM", "PARAMS", "PARAMS:", "PARSER", "PCES", "PDB", "PH", "PLOT", "POLY", "POW", "PP", "PREPROCESS", "PRINT", "PROBE", "PULSE", "PWL", "PWR", "PWRS", "R", "RAW", "RE", "RECTANGULAR", "REMOVEUNUSED", "REPLACEGROUND", "RESTART", "RESULT", "RISE", "RMS", "SAMPLES", "SAMPLING", "SAVE", "SDT", "SENS", "SENSITIVITY", "SFFM", "SGN", "SIGN", "SIN", "SINH", "SPICE_EXP", "SPICE_PULSE", "SPICE_SFFM", "SPICE_SIN", "SPLINE", "SQRT", "STD", "STEP", "STP", "SUBCKT", "TABLE", "TABLEFILE", "TAN", "TANH", "TARG", "TD", "TEMP", "TIMEINT", "TITLE", "TRAN", "TRIG", "TRUE", "UNORM", "URAMP", "V", "VAL", "VDB", "VI", "VM", "VP", "VR", "W", "WHEN", "WINDOW", "WODICKA",
     };
 
-    // split raw text into line string views preserving newlines
-    std::vector<std::string_view> split_lines(std::string_view text) {
+    // a line slice with the delimiter that terminated it
+    struct LineSlice
+    {
+        // line content without the trailing newline bytes
+        std::string_view content;
+        // delimiter ("\n", "\r\n", or "\r"); empty for the final line without one
+        std::string_view ending;
+    };
+
+    // split raw text into line views preserving the newline delimiters
+    std::vector<LineSlice> split_lines(std::string_view text) {
         // empty input yields a single empty line
         if (text.empty())
-            return {""};
+            return {{}};
         // container for extracted lines
-        std::vector<std::string_view> lines;
+        std::vector<LineSlice> lines;
         // start index for line search
         size_t start = 0;
         // iterate through characters searching for newline delimiters
@@ -41,22 +50,25 @@ namespace
             auto pos = text.find_first_of("\r\n", start);
             // handle the final line when no more newlines exist
             if (pos == std::string_view::npos) {
-                // append the remaining text slice
-                lines.emplace_back(text.substr(start));
+                // append the remaining text slice with no delimiter
+                lines.push_back({text.substr(start), {}});
                 // exit the loop
                 break;
             }
             // append line content up to the newline delimiter
-            lines.emplace_back(text.substr(start, pos - start));
             // advance past CRLF sequence or single newline character
-            if (text[pos] == '\r' && pos + 1 < text.size() && text[pos + 1] == '\n')
+            if (text[pos] == '\r' && pos + 1 < text.size() && text[pos + 1] == '\n') {
+                lines.push_back({text.substr(start, pos - start), text.substr(pos, 2)});
                 start = pos + 2;
-            else
+            }
+            else {
+                lines.push_back({text.substr(start, pos - start), text.substr(pos, 1)});
                 start = pos + 1;
+            }
         }
         // trailing newline produces a final empty line
         if (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
-            lines.emplace_back("");
+            lines.push_back({});
         // return the complete set of line views
         return lines;
     }
@@ -121,6 +133,114 @@ namespace
                 return false;
         }
         // string is a valid SPICE number
+        return true;
+    }
+
+    // test whether a string is a complex SPICE numeric literal of the form
+    // <real>(+|-)<imaginary>J (Xyce RG 2.2.1: the imaginary part carries the
+    // suffix letter J, e.g. 1.0+2.0J)
+    bool is_complex_spice_number(std::string_view s) {
+        // empty string cannot be a number
+        if (s.empty())
+            return false;
+        // current scanning index
+        size_t idx = 0;
+        // consume optional leading sign
+        if (s[idx] == '+' || s[idx] == '-')
+            idx++;
+        // track whether at least one digit was encountered in the real part
+        bool has_digits = false;
+        // consume integer digits
+        while (idx < s.size() && std::isdigit(static_cast<unsigned char>(s[idx]))) {
+            // mark that a digit was found
+            has_digits = true;
+            // advance to next character
+            idx++;
+        }
+        // consume optional fractional part
+        if (idx < s.size() && s[idx] == '.') {
+            // advance past the decimal point
+            idx++;
+            // consume fractional digits
+            while (idx < s.size() && std::isdigit(static_cast<unsigned char>(s[idx]))) {
+                // mark that a digit was found
+                has_digits = true;
+                // advance to next character
+                idx++;
+            }
+        }
+        // real part must have at least one digit
+        if (!has_digits)
+            return false;
+        // consume optional scientific exponent in the real part
+        if (idx < s.size() && (s[idx] == 'e' || s[idx] == 'E')) {
+            // tentative exponent index
+            size_t e_idx = idx + 1;
+            // consume optional exponent sign
+            if (e_idx < s.size() && (s[e_idx] == '+' || s[e_idx] == '-'))
+                e_idx++;
+            // verify that digits follow the exponent marker
+            if (e_idx < s.size() && std::isdigit(static_cast<unsigned char>(s[e_idx]))) {
+                // commit exponent start
+                idx = e_idx;
+                // consume exponent digits
+                while (idx < s.size() && std::isdigit(static_cast<unsigned char>(s[idx])))
+                    idx++;
+            }
+        }
+        // a complex literal requires an explicit real/imaginary separator
+        if (idx >= s.size() || (s[idx] != '+' && s[idx] != '-'))
+            return false;
+        // skip the separator
+        idx++;
+        // track whether at least one digit was encountered in the imaginary part
+        bool has_imag_digits = false;
+        // consume imaginary integer digits
+        while (idx < s.size() && std::isdigit(static_cast<unsigned char>(s[idx]))) {
+            // mark that a digit was found
+            has_imag_digits = true;
+            // advance to next character
+            idx++;
+        }
+        // consume optional fractional part
+        if (idx < s.size() && s[idx] == '.') {
+            // advance past the decimal point
+            idx++;
+            // consume fractional digits
+            while (idx < s.size() && std::isdigit(static_cast<unsigned char>(s[idx]))) {
+                // mark that a digit was found
+                has_imag_digits = true;
+                // advance to next character
+                idx++;
+            }
+        }
+        // imaginary part must have at least one digit
+        if (!has_imag_digits)
+            return false;
+        // consume optional scientific exponent in the imaginary part
+        if (idx < s.size() && (s[idx] == 'e' || s[idx] == 'E')) {
+            // tentative exponent index
+            size_t e_idx = idx + 1;
+            // consume optional exponent sign
+            if (e_idx < s.size() && (s[e_idx] == '+' || s[e_idx] == '-'))
+                e_idx++;
+            // verify that digits follow the exponent marker
+            if (e_idx < s.size() && std::isdigit(static_cast<unsigned char>(s[e_idx]))) {
+                // commit exponent start
+                idx = e_idx;
+                // consume exponent digits
+                while (idx < s.size() && std::isdigit(static_cast<unsigned char>(s[idx])))
+                    idx++;
+            }
+        }
+        // consume optional unit/scale suffix characters before the J marker
+        // (e.g. 500mJ); digits end the scan and fail the literal below
+        while (idx < s.size() && s[idx] != 'J' && s[idx] != 'j' && !std::isdigit(static_cast<unsigned char>(s[idx])))
+            idx++;
+        // the imaginary part must carry the J suffix and end the literal
+        if (idx + 1 != s.size() || (s[idx] != 'J' && s[idx] != 'j'))
+            return false;
+        // string is a valid complex SPICE number
         return true;
     }
 
@@ -429,7 +549,7 @@ namespace
                 // emit ground node token
                 result.m_tokens.push_back({std::string(word), NetlistTokenType::NODE});
             }
-            else if (is_spice_number(word)) {
+            else if (is_spice_number(word) || is_complex_spice_number(word)) {
                 // emit numeric literal token
                 result.m_tokens.push_back({std::string(word), NetlistTokenType::NUMBER});
             }
@@ -480,7 +600,7 @@ namespace
                     result.m_tokens[t].m_type = NetlistTokenType::KEYWORD;
                 else if (upper_text == "GND" || upper_text == "GROUND")
                     result.m_tokens[t].m_type = NetlistTokenType::NODE;
-                else if (is_spice_number(result.m_tokens[t].m_text))
+                else if (is_spice_number(result.m_tokens[t].m_text) || is_complex_spice_number(result.m_tokens[t].m_text))
                     result.m_tokens[t].m_type = NetlistTokenType::NUMBER;
                 else
                     result.m_tokens[t].m_type = NetlistTokenType::PLAIN_TEXT;
@@ -493,15 +613,17 @@ namespace
 } // namespace
 
 std::vector<NetlistTokenLine> tokenize_netlist(std::string_view netlist) {
-    // split input text into individual lines
+    // split input text into individual lines with their delimiters
     const auto raw_lines = split_lines(netlist);
     // allocate result line vector
     std::vector<NetlistTokenLine> tokenized_lines;
     tokenized_lines.reserve(raw_lines.size());
-    // tokenize each line independently
+    // tokenize each line independently, preserving the line delimiter
     for (const auto& line : raw_lines) {
         // tokenize single line and add to collection
-        tokenized_lines.emplace_back(tokenize_single_line(line));
+        tokenized_lines.emplace_back(tokenize_single_line(line.content));
+        // record the delimiter so byte-for-byte reconstruction stays possible
+        tokenized_lines.back().m_line_ending = std::string(line.ending);
     }
     // return all tokenized lines
     return tokenized_lines;

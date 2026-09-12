@@ -7,7 +7,7 @@
 // semantic token types for syntax highlighting of Xyce netlists
 enum class NetlistTokenType
 {
-    // comment line starting with '*', ';', or '$', or trailing inline comment
+    // comment line starting with '*' or ';', or trailing inline comment
     COMMENT,
     // simulation or circuit directive starting with '.'
     DIRECTIVE,
@@ -50,7 +50,11 @@ struct NetlistTokenLine
 {
     // ordered sequence of tokens that form the line
     std::vector<NetlistToken> m_tokens;
+    // line ending that terminated this line ("\n", "\r\n", or "\r");
+    // empty for the final line when the input has no trailing newline
+    std::string m_line_ending;
 };
 
 // tokenize a raw netlist string into tokenized lines preserving all whitespace
+// and the line ending of every line
 [[nodiscard]] std::vector<NetlistTokenLine> tokenize_netlist(std::string_view netlist);
