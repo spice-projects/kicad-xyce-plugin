@@ -22,9 +22,11 @@ struct DcSweep
     std::string step;
     // number of points (DEC/OCT sweep only)
     std::string points;
+    // explicit list of values (LIST sweep only)
+    std::vector<std::string> list_values{};
 
     // equality operator for vector comparison
-    [[nodiscard]] bool operator==(const DcSweep& other) const { return variable == other.variable && start == other.start && stop == other.stop && step == other.step && points == other.points; }
+    [[nodiscard]] bool operator==(const DcSweep& other) const { return variable == other.variable && start == other.start && stop == other.stop && step == other.step && points == other.points && list_values == other.list_values; }
 };
 
 // DC simulation parameters class — parses and serializes Xyce .DC directives

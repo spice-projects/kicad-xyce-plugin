@@ -175,14 +175,19 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
         const std::string second = to_upper(tokens[1]);
         const std::string third = tokens.size() > 2 ? to_upper(tokens[2]) : "";
 
-        // detect LIST sweep: .DC var LIST val [val ...]
+        // detect LIST sweep: .DC var LIST val [val ...] [var2 LIST val2 ...]
         if (tokens.size() >= 3 && third == "LIST") {
             sweep_mode = "LIST";
-            DcSweep primary;
-            primary.variable = std::string(tokens[1]);
-            sweeps.push_back(std::move(primary));
-            for (size_t i = 3; i < tokens.size(); ++i) {
-                list_values.push_back(std::string(tokens[i]));
+            size_t i = 1;
+            while (i < tokens.size()) {
+                DcSweep sweep;
+                sweep.variable = std::string(tokens[i]);
+                i += 2; // skip variable and LIST keyword
+                while (i < tokens.size() && !(i + 1 < tokens.size() && to_upper(tokens[i + 1]) == "LIST")) {
+                    sweep.list_values.push_back(std::string(tokens[i]));
+                    ++i;
+                }
+                sweeps.push_back(std::move(sweep));
             }
             continue;
         }
@@ -227,11 +232,11 @@ std::vector<std::string> DCSimulationParameters::to_xyce_directives(const Netlis
         dc_directive += " DATA=" + data_table_name;
     }
     else if (sweep_mode == "LIST") {
-        if (!sweeps.empty()) {
-            dc_directive += " " + sweeps[0].variable + " LIST";
-        }
-        for (const auto& val : list_values) {
-            dc_directive += " " + val;
+        for (size_t i = 0; i < sweeps.size(); ++i) {
+            dc_directive += " " + sweeps[i].variable + " LIST";
+            for (const auto& val : sweeps[i].list_values) {
+                dc_directive += " " + val;
+            }
         }
     }
     else {
@@ -283,15 +288,24 @@ std::optional<std::string> DCSimulationParameters::validate() const {
         }
         return std::nullopt;
     }
-    // list sweeps require a sweep variable and at least one value
+    // list sweeps require at least one sweep variable with values
     if (sweep_mode == "LIST") {
-        if (sweeps.empty() || sweeps[0].variable.empty()) {
-            return "DC LIST sweep requires a sweep variable";
+        if (sweeps.empty()) {
+            return "DC LIST sweep requires at least one sweep variable";
         }
-        if (list_values.empty()) {
-            return "DC LIST sweep requires at least one value";
+        for (size_t i = 0; i < sweeps.size(); ++i) {
+            if (sweeps[i].variable.empty()) {
+                return "DC LIST sweep " + std::to_string(i + 1) + ": sweep variable is required";
+            }
+            if (sweeps[i].list_values.empty()) {
+                return "DC LIST sweep " + std::to_string(i + 1) + ": at least one value is required";
+            }
         }
         return std::nullopt;
+    }
+    // LIN/DEC/OCT sweeps require at least one sweep tuple
+    if (sweeps.empty()) {
+        return "DC " + sweep_mode + " sweep requires at least one sweep variable";
     }
     // validate each nested sweep
     for (size_t i = 0; i < sweeps.size(); ++i) {

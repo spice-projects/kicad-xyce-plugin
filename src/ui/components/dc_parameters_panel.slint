@@ -544,22 +544,26 @@ export component DcParametersPanel inherits Rectangle {
                     }
                 }
 
-                // additional sweeps (3rd nested or beyond)
-                Text {
-                    text: "Additional sweeps (optional)";
-                    font-size: 12px;
-                    font-weight: 500;
-                    color: Palette.foreground.transparentize(0.3);
-                    horizontal-alignment: left;
-                    overflow: elide;
-                }
+                if root.sweep-mode-index == 0 || root.sweep-mode-index == 1 || root.sweep-mode-index == 2: VerticalLayout {
+                    spacing: 8px;
 
-                TextEdit {
-                    min-height: 48px;
-                    wrap: word-wrap;
-                    placeholder-text: "space-separated var start stop step/points per sweep";
-                    text <=> root.additional-sweeps;
-                    font-size: 12px;
+                    // additional sweeps (3rd nested or beyond)
+                    Text {
+                        text: "Additional sweeps (optional)";
+                        font-size: 12px;
+                        font-weight: 500;
+                        color: Palette.foreground.transparentize(0.3);
+                        horizontal-alignment: left;
+                        overflow: elide;
+                    }
+
+                    TextEdit {
+                        min-height: 48px;
+                        wrap: word-wrap;
+                        placeholder-text: "space-separated var start stop step/points per sweep";
+                        text <=> root.additional-sweeps;
+                        font-size: 12px;
+                    }
                 }
             }
         }

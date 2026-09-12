@@ -702,27 +702,29 @@ namespace simulation_parameters_dialog_view
             std::string points;
             std::vector<std::string> list_values;
             std::string data_table_name;
-            if (sweep_mode == "LIN") {
-                step = std::string(dialog->get_dc_step());
-                if (step.empty())
-                    step = std::string(dialog->get_dc_points());
-            }
-            else if (sweep_mode == "DEC" || sweep_mode == "OCT") {
-                points = std::string(dialog->get_dc_points());
-                if (points.empty())
-                    points = std::string(dialog->get_dc_step());
-            }
-            else if (sweep_mode == "LIST") {
-                // list values as owning tokens (see build_print_section)
-                list_values = tokenize_owned(dialog->get_dc_list_values());
-            }
-            else if (sweep_mode == "DATA") {
-                data_table_name = std::string(dialog->get_dc_data_table());
-            }
-            // build the sweep vector from primary + secondary UI fields
             std::vector<DcSweep> sweeps;
             if (!primary_variable.empty() || !start.empty() || !stop.empty()) {
-                sweeps.push_back(DcSweep{primary_variable, start, stop, step, points});
+                if (sweep_mode == "LIN") {
+                    step = std::string(dialog->get_dc_step());
+                    if (step.empty())
+                        step = std::string(dialog->get_dc_points());
+                    sweeps.push_back(DcSweep{primary_variable, start, stop, step, points, {}});
+                }
+                else if (sweep_mode == "DEC" || sweep_mode == "OCT") {
+                    points = std::string(dialog->get_dc_points());
+                    if (points.empty())
+                        points = std::string(dialog->get_dc_step());
+                    sweeps.push_back(DcSweep{primary_variable, start, stop, step, points, {}});
+                }
+                else if (sweep_mode == "LIST") {
+                    // list values as owning tokens (see build_print_section)
+                    std::vector<std::string> primary_list_values = tokenize_owned(dialog->get_dc_list_values());
+                    sweeps.push_back(DcSweep{primary_variable, start, stop, step, points, std::move(primary_list_values)});
+                }
+                else if (sweep_mode == "DATA") {
+                    // DATA sweeps don't have list values
+                    data_table_name = std::string(dialog->get_dc_data_table());
+                }
             }
             const std::string secondary_variable = std::string(dialog->get_dc_secondary_variable());
             const std::string secondary_start = std::string(dialog->get_dc_secondary_start());
@@ -740,19 +742,16 @@ namespace simulation_parameters_dialog_view
                     secondary_points = std::string(dialog->get_dc_secondary_step());
             }
             if (!secondary_variable.empty()) {
-                sweeps.push_back(DcSweep{secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points});
-            }
-            // parse additional sweeps from the text area (space-separated tuples)
-            const std::string additional_text = std::string(dialog->get_dc_additional_sweeps());
-            if (!additional_text.empty()) {
-                const auto _tokens = tokenize_owned(additional_text);
-                for (size_t i = 0; i + 3 < _tokens.size(); i += 4) {
-                    if (sweep_mode == "LIN") {
-                        sweeps.push_back(DcSweep{_tokens[i], _tokens[i + 1], _tokens[i + 2], _tokens[i + 3], ""});
-                    }
-                    else {
-                        sweeps.push_back(DcSweep{_tokens[i], _tokens[i + 1], _tokens[i + 2], "", _tokens[i + 3]});
-                    }
+                if (sweep_mode == "LIN") {
+                    sweeps.push_back(DcSweep{secondary_variable, secondary_start, secondary_stop, secondary_step, points, {}});
+                }
+                else if (sweep_mode == "DEC" || sweep_mode == "OCT") {
+                    sweeps.push_back(DcSweep{secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, {}});
+                }
+                else if (sweep_mode == "LIST") {
+                    // secondary sweep in LIST mode uses same format as primary
+                    std::vector<std::string> sec_list_values = tokenize_owned(dialog->get_dc_additional_sweeps());
+                    sweeps.push_back(DcSweep{secondary_variable, secondary_start, secondary_stop, secondary_step, secondary_points, std::move(sec_list_values)});
                 }
             }
             // parse .MEASURE directives (one per line)
@@ -772,7 +771,47 @@ namespace simulation_parameters_dialog_view
                                                         .extra_options = [&dialog] { return std::string(dialog->get_dc_print_extra_options()); },
                                                         .type_index = [&dialog] { return dialog->get_dc_print_type_index(); },
                                                     });
-            return DCSimulationParameters(std::move(sweep_mode), std::move(sweeps), std::move(list_values), std::move(data_table_name), std::move(print_params), std::move(measure_params), std::nullopt);
+            // parse additional sweeps from the text area (space-separated tuples)
+            const std::string additional_text = std::string(dialog->get_dc_additional_sweeps());
+            if (!additional_text.empty()) {
+                const auto _tokens = tokenize_owned(additional_text);
+                if (sweep_mode == "LIN") {
+                    if (_tokens.size() % 4 != 0) {
+                        return DCSimulationParameters(std::move(sweep_mode), std::move(sweeps), {}, std::move(data_table_name), std::move(print_params), std::move(measure_params), std::nullopt);
+                    }
+                    for (size_t i = 0; i < _tokens.size(); i += 4) {
+                        sweeps.push_back(DcSweep{_tokens[i], _tokens[i + 1], _tokens[i + 2], _tokens[i + 3], "", {}});
+                    }
+                }
+                else if (sweep_mode == "DEC" || sweep_mode == "OCT") {
+                    if (_tokens.size() % 4 != 0) {
+                        return DCSimulationParameters(std::move(sweep_mode), std::move(sweeps), {}, std::move(data_table_name), std::move(print_params), std::move(measure_params), std::nullopt);
+                    }
+                    for (size_t i = 0; i < _tokens.size(); i += 4) {
+                        sweeps.push_back(DcSweep{_tokens[i], _tokens[i + 1], _tokens[i + 2], _tokens[i + 3], "", {}});
+                    }
+                }
+                else if (sweep_mode == "LIST") {
+                    // parse format: var LIST val [val...] var2 LIST val2 [val...]
+                    size_t i = 0;
+                    while (i + 2 < _tokens.size()) {
+                        std::string var = std::string(_tokens[i]);
+                        if (to_upper(std::string(_tokens[i + 1])) != "LIST") {
+                            break; // malformed - expects "LIST" keyword after variable
+                        }
+                        ++i; // skip variable
+                        ++i; // skip LIST keyword
+                        std::vector<std::string> sweep_values;
+                        while (i < _tokens.size() && !(i + 1 < _tokens.size() && to_upper(std::string(_tokens[i + 1])) == "LIST")) {
+                            sweep_values.push_back(std::string(_tokens[i]));
+                            ++i;
+                        }
+                        sweeps.push_back(DcSweep{var, "", "", "", "", std::move(sweep_values)});
+                        // i is now at the next variable or end
+                    }
+                }
+            }
+            return DCSimulationParameters(std::move(sweep_mode), std::move(sweeps), {}, std::move(data_table_name), std::move(print_params), std::move(measure_params), std::nullopt);
         }
 
         // default DC analysis parameters, used to reset the panel to defaults

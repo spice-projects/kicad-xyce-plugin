@@ -54,10 +54,10 @@ TEST(DCSimulationParametersChecks, parses_list_sweep) {
     ASSERT_TRUE(result.has_value());
     ASSERT_EQ(result->sweep_mode, "LIST");
     ASSERT_EQ(result->sweeps[0].variable, "VIN");
-    ASSERT_EQ(result->list_values.size(), 3);
-    ASSERT_EQ(result->list_values[0], "1k");
-    ASSERT_EQ(result->list_values[1], "2k");
-    ASSERT_EQ(result->list_values[2], "5k");
+    ASSERT_EQ(result->sweeps[0].list_values.size(), 3);
+    ASSERT_EQ(result->sweeps[0].list_values[0], "1k");
+    ASSERT_EQ(result->sweeps[0].list_values[1], "2k");
+    ASSERT_EQ(result->sweeps[0].list_values[2], "5k");
 }
 
 TEST(DCSimulationParametersChecks, parses_data_sweep) {
@@ -156,7 +156,7 @@ TEST(DCSimulationParametersChecks, generates_oct_directive) {
 
 TEST(DCSimulationParametersChecks, generates_list_directive) {
     // arrange
-    const DCSimulationParameters params("LIST", {DcSweep{"VIN", "", "", "", ""}}, std::vector<std::string>{"1k", "2k", "5k"}, "", std::nullopt, {}, std::nullopt);
+    const DCSimulationParameters params("LIST", {DcSweep{"VIN", "", "", "", "", {"1k", "2k", "5k"}}}, {}, "", std::nullopt, {}, std::nullopt);
     // act
     const auto directives = params.to_xyce_directives(NetlistTopology{});
     // assert
@@ -182,6 +182,33 @@ TEST(DCSimulationParametersChecks, generates_secondary_sweep) {
     // assert
     ASSERT_EQ(directives.size(), 1);
     ASSERT_EQ(directives[0], ".DC R1 0 3.5 0.05 C1 0 3.5 0.5");
+}
+
+TEST(DCSimulationParametersChecks, generates_three_sweeps_roundtrip) {
+    // arrange: 3 LIN sweeps
+    const DCSimulationParameters params("LIN", {DcSweep{"VIN", "0", "5", "0.1", ""}, DcSweep{"VOUT", "1", "10", "0.5", ""}, DcSweep{"R1", "100", "200", "10", ""}}, std::vector<std::string>{}, "", std::nullopt, {}, std::nullopt);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 1);
+    ASSERT_EQ(directives[0], ".DC VIN 0 5 0.1 VOUT 1 10 0.5 R1 100 200 10");
+    // parse back
+    const auto reparsed = DCSimulationParameters::from_xyce_directives({directives[0]});
+    ASSERT_TRUE(reparsed.has_value());
+    ASSERT_EQ(reparsed->sweep_mode, "LIN");
+    ASSERT_EQ(reparsed->sweeps.size(), 3u);
+    ASSERT_EQ(reparsed->sweeps[0].variable, "VIN");
+    ASSERT_EQ(reparsed->sweeps[0].start, "0");
+    ASSERT_EQ(reparsed->sweeps[0].stop, "5");
+    ASSERT_EQ(reparsed->sweeps[0].step, "0.1");
+    ASSERT_EQ(reparsed->sweeps[1].variable, "VOUT");
+    ASSERT_EQ(reparsed->sweeps[1].start, "1");
+    ASSERT_EQ(reparsed->sweeps[1].stop, "10");
+    ASSERT_EQ(reparsed->sweeps[1].step, "0.5");
+    ASSERT_EQ(reparsed->sweeps[2].variable, "R1");
+    ASSERT_EQ(reparsed->sweeps[2].start, "100");
+    ASSERT_EQ(reparsed->sweeps[2].stop, "200");
+    ASSERT_EQ(reparsed->sweeps[2].step, "10");
 }
 
 TEST(DCSimulationParametersChecks, generates_lin_directive_without_replace_ground) {
@@ -216,12 +243,22 @@ TEST(DCSimulationParametersChecks, generates_oct_directive_without_replace_groun
 
 TEST(DCSimulationParametersChecks, generates_list_directive_without_replace_ground) {
     // arrange
-    const DCSimulationParameters params("LIST", {DcSweep{"TEMP", "", "", "", ""}}, std::vector<std::string>{"10", "15", "18", "27", "33"}, "", std::nullopt, {}, std::nullopt);
+    const DCSimulationParameters params("LIST", {DcSweep{"TEMP", "", "", "", "", {"10", "15", "18", "27", "33"}}}, {}, "", std::nullopt, {}, std::nullopt);
     // act
     const auto directives = params.to_xyce_directives(NetlistTopology{});
     // assert
     ASSERT_EQ(directives.size(), 1);
     ASSERT_EQ(directives[0], ".DC TEMP LIST 10 15 18 27 33");
+}
+
+TEST(DCSimulationParametersChecks, generates_multiple_list_sweeps) {
+    // arrange
+    const DCSimulationParameters params("LIST", {DcSweep{"VDS", "", "", "", "", {"0", "3.5", "0.05"}}, DcSweep{"VGS", "", "", "", "", {"0", "3.5", "0.5"}}}, {}, "", std::nullopt, {}, std::nullopt);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 1);
+    ASSERT_EQ(directives[0], ".DC VDS LIST 0 3.5 0.05 VGS LIST 0 3.5 0.5");
 }
 
 TEST(DCSimulationParametersChecks, generates_data_directive_without_replace_ground) {
@@ -260,6 +297,27 @@ TEST(DCSimulationParametersChecks, parses_dec_sweep_with_secondary) {
     ASSERT_EQ(result->sweeps[1].start, "1");
     ASSERT_EQ(result->sweeps[1].stop, "10");
     ASSERT_EQ(result->sweeps[1].points, "3");
+}
+
+TEST(DCSimulationParametersChecks, parses_three_dec_sweeps_roundtrip) {
+    // arrange
+    const DCSimulationParameters params("DEC", {DcSweep{"VIN", "1", "100", "", "2"}, DcSweep{"R1", "1", "10", "", "0.5"}, DcSweep{"C1", "10", "1000", "", "1"}}, std::vector<std::string>{}, "", std::nullopt, {}, std::nullopt);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    // assert
+    ASSERT_EQ(directives.size(), 1);
+    ASSERT_EQ(directives[0], ".DC DEC VIN 1 100 2 DEC R1 1 10 0.5 DEC C1 10 1000 1");
+    // parse back
+    const auto reparsed = DCSimulationParameters::from_xyce_directives({directives[0]});
+    ASSERT_TRUE(reparsed.has_value());
+    ASSERT_EQ(reparsed->sweep_mode, "DEC");
+    ASSERT_EQ(reparsed->sweeps.size(), 3u);
+    ASSERT_EQ(reparsed->sweeps[0].variable, "VIN");
+    ASSERT_EQ(reparsed->sweeps[0].points, "2");
+    ASSERT_EQ(reparsed->sweeps[1].variable, "R1");
+    ASSERT_EQ(reparsed->sweeps[1].points, "0.5");
+    ASSERT_EQ(reparsed->sweeps[2].variable, "C1");
+    ASSERT_EQ(reparsed->sweeps[2].points, "1");
 }
 
 TEST(DCSimulationParametersChecks, parses_oct_sweep_with_secondary) {
@@ -310,8 +368,8 @@ TEST(DCSimulationParametersChecks, parses_list_sweep_single_value) {
     ASSERT_TRUE(result.has_value());
     ASSERT_EQ(result->sweep_mode, "LIST");
     ASSERT_EQ(result->sweeps[0].variable, "TEMP");
-    ASSERT_EQ(result->list_values.size(), 1);
-    ASSERT_EQ(result->list_values[0], "27");
+    ASSERT_EQ(result->sweeps[0].list_values.size(), 1);
+    ASSERT_EQ(result->sweeps[0].list_values[0], "27");
 }
 
 TEST(DCSimulationParametersChecks, parses_list_sweep_multiple_values) {
@@ -321,12 +379,12 @@ TEST(DCSimulationParametersChecks, parses_list_sweep_multiple_values) {
     ASSERT_TRUE(result.has_value());
     ASSERT_EQ(result->sweep_mode, "LIST");
     ASSERT_EQ(result->sweeps[0].variable, "TEMP");
-    ASSERT_EQ(result->list_values.size(), 5);
-    ASSERT_EQ(result->list_values[0], "10");
-    ASSERT_EQ(result->list_values[1], "15");
-    ASSERT_EQ(result->list_values[2], "18");
-    ASSERT_EQ(result->list_values[3], "27");
-    ASSERT_EQ(result->list_values[4], "33");
+    ASSERT_EQ(result->sweeps[0].list_values.size(), 5);
+    ASSERT_EQ(result->sweeps[0].list_values[0], "10");
+    ASSERT_EQ(result->sweeps[0].list_values[1], "15");
+    ASSERT_EQ(result->sweeps[0].list_values[2], "18");
+    ASSERT_EQ(result->sweeps[0].list_values[3], "27");
+    ASSERT_EQ(result->sweeps[0].list_values[4], "33");
 }
 
 TEST(DCSimulationParametersChecks, parses_data_sweep_with_spaces) {
@@ -708,10 +766,10 @@ TEST(DCSimulationParametersChecks, parses_list) {
     ASSERT_TRUE(result.has_value());
     ASSERT_EQ(result->sweep_mode, "LIST");
     ASSERT_EQ(result->sweeps[0].variable, "VIN");
-    ASSERT_EQ(result->list_values.size(), 3);
-    ASSERT_EQ(result->list_values[0], "1.0");
-    ASSERT_EQ(result->list_values[1], "2.0");
-    ASSERT_EQ(result->list_values[2], "5.0");
+    ASSERT_EQ(result->sweeps[0].list_values.size(), 3);
+    ASSERT_EQ(result->sweeps[0].list_values[0], "1.0");
+    ASSERT_EQ(result->sweeps[0].list_values[1], "2.0");
+    ASSERT_EQ(result->sweeps[0].list_values[2], "5.0");
 }
 
 TEST(DCSimulationParametersChecks, parses_data) {
@@ -963,12 +1021,12 @@ TEST(DCSimulationParametersChecks, reference_guide_example_list_sweep) {
     ASSERT_TRUE(result.has_value());
     ASSERT_EQ(result->sweep_mode, "LIST");
     ASSERT_EQ(result->sweeps[0].variable, "VIN");
-    ASSERT_EQ(result->list_values.size(), 5);
-    ASSERT_EQ(result->list_values[0], "1.0");
-    ASSERT_EQ(result->list_values[1], "2.0");
-    ASSERT_EQ(result->list_values[2], "5.0");
-    ASSERT_EQ(result->list_values[3], "6.0");
-    ASSERT_EQ(result->list_values[4], "10.0");
+    ASSERT_EQ(result->sweeps[0].list_values.size(), 5);
+    ASSERT_EQ(result->sweeps[0].list_values[0], "1.0");
+    ASSERT_EQ(result->sweeps[0].list_values[1], "2.0");
+    ASSERT_EQ(result->sweeps[0].list_values[2], "5.0");
+    ASSERT_EQ(result->sweeps[0].list_values[3], "6.0");
+    ASSERT_EQ(result->sweeps[0].list_values[4], "10.0");
     // verify the directive contains the expected dc line
     const auto generated = result->to_xyce_directives(NetlistTopology{});
     ASSERT_EQ(generated.size(), 1);
@@ -1073,7 +1131,7 @@ TEST(DCSimulationParametersChecks, validate_dec_sweep_missing_points) {
 
 TEST(DCSimulationParametersChecks, validate_list_sweep_valid) {
     // arrange
-    const DCSimulationParameters params("LIST", {DcSweep{"V1", "", "", "", ""}}, {"0.5", "1.0"}, "", std::nullopt, {}, std::nullopt);
+    const DCSimulationParameters params("LIST", {DcSweep{"V1", "", "", "", "", {"0.5", "1.0"}}}, {}, "", std::nullopt, {}, std::nullopt);
     // act
     const auto error = params.validate();
     // assert
