@@ -74,6 +74,54 @@ inline slint::Color token_type_to_color(NetlistTokenType type, bool dark_mode, s
     }
 }
 
+// count UTF-8 code points in a token; the token layer places glyphs on the
+// TextInput's character grid, which advances one cell per code point, not per
+// byte (e.g. an en dash in a comment is 3 bytes but one column)
+[[nodiscard]] inline int utf8_code_point_count(std::string_view s) {
+    // count bytes that are not UTF-8 continuation bytes (10xxxxxx)
+    int count = 0;
+    for (const unsigned char c : s)
+        count += (c & 0xC0) != 0x80 ? 1 : 0;
+    return count;
+}
+
+// convert a single tokenised line into the Slint model row consumed by
+// NetlistEditor; the row carries its 1-based line number and a fresh token model
+[[nodiscard]] inline main_window::HighlightedLine build_netlist_line_model(const NetlistTokenLine& line, int line_number, bool dark_mode, slint::Color foreground) {
+    // per-line token model consumed by the row repeater
+    auto tokens = std::make_shared<slint::VectorModel<main_window::HighlightedToken>>();
+    // running code-point column of the next token
+    int column_offset = 0;
+    for (const auto& token : line.m_tokens) {
+        main_window::HighlightedToken out_token;
+        out_token.text = slint::SharedString(token.m_text);
+        out_token.color = token_type_to_color(token.m_type, dark_mode, foreground);
+        // remember where the token starts so the UI can place it on the
+        // TextInput's fractional character grid
+        out_token.column_offset = column_offset;
+        column_offset += utf8_code_point_count(token.m_text);
+        tokens->push_back(out_token);
+    }
+    main_window::HighlightedLine out_line;
+    out_line.line_number = line_number;
+    out_line.tokens = tokens;
+    return out_line;
+}
+
+// test whether two tokenised lines carry identical token text and types;
+// used to skip unchanged rows when updating the highlight model incrementally
+[[nodiscard]] inline bool netlist_line_tokens_equal(const NetlistTokenLine& a, const NetlistTokenLine& b) {
+    // different token counts are never equal
+    if (a.m_tokens.size() != b.m_tokens.size())
+        return false;
+    for (std::size_t i = 0; i < a.m_tokens.size(); ++i) {
+        // compare raw text and semantic type
+        if (a.m_tokens[i].m_text != b.m_tokens[i].m_text || a.m_tokens[i].m_type != b.m_tokens[i].m_type)
+            return false;
+    }
+    return true;
+}
+
 // convert tokenised lines produced by tokenize_netlist() into the Slint model
 // consumed by NetlistEditor.  called on every netlist load, user edit, and
 // theme change; each line carries a 1-based number and its own token model.
@@ -83,18 +131,8 @@ inline slint::Color token_type_to_color(NetlistTokenType type, bool dark_mode, s
     // 1-based line number for the gutter
     int line_number = 1;
     for (const auto& line : lines) {
-        // per-line token model consumed by the row repeater
-        auto tokens = std::make_shared<slint::VectorModel<main_window::HighlightedToken>>();
-        for (const auto& token : line.m_tokens) {
-            main_window::HighlightedToken out_token;
-            out_token.text = slint::SharedString(token.m_text);
-            out_token.color = token_type_to_color(token.m_type, dark_mode, foreground);
-            tokens->push_back(out_token);
-        }
-        main_window::HighlightedLine out_line;
-        out_line.line_number = line_number++;
-        out_line.tokens = tokens;
-        model->push_back(out_line);
+        // build the row through the shared per-line helper
+        model->push_back(build_netlist_line_model(line, line_number++, dark_mode, foreground));
     }
     return model;
 }

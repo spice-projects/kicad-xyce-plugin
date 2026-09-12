@@ -81,15 +81,18 @@ TEST(NetlistLexerAdapterChecks, line_numbers_are_sequential) {
 
 // build_netlist_highlight_model: no token text is a bare newline
 TEST(NetlistLexerAdapterChecks, bare_newline_tokens_are_dropped) {
-    // arrange
-    const std::string netlist = "* comment";
+    // arrange: multi-line input so every model row is inspected, including the
+    // rows adjacent to the newline delimiters
+    const std::string netlist = "* comment\nR1 1 0 1k\n";
     // act
     const auto model = build_netlist_highlight_model(tokenize_netlist(netlist), false, TEST_FOREGROUND);
-    // assert
-    ASSERT_GE(model->row_count(), 1u);
-    const auto line = model->row_data(0).value();
-    for (std::size_t i = 0; i < line.tokens->row_count(); ++i)
-        ASSERT_NE(std::string(line.tokens->row_data(i).value().text), "\n");
+    // assert: three rows for two content lines plus the trailing empty line
+    ASSERT_EQ(model->row_count(), 3u);
+    for (std::size_t row = 0; row < model->row_count(); ++row) {
+        const auto line = model->row_data(row).value();
+        for (std::size_t i = 0; i < line.tokens->row_count(); ++i)
+            ASSERT_NE(std::string(line.tokens->row_data(i).value().text), "\n");
+    }
 }
 
 // build_netlist_highlight_model: empty string produces exactly one line
@@ -132,6 +135,24 @@ TEST(NetlistLexerAdapterChecks, node_tokens_carry_foreground_colour) {
     const auto node_token = line.tokens->row_data(2).value();
     ASSERT_EQ(std::string(node_token.text), "IN");
     ASSERT_EQ(node_token.color, TEST_FOREGROUND);
+}
+
+// build_netlist_highlight_model: tokens carry their code-point column so the
+// UI can place them on the TextInput's character grid; multi-byte UTF-8
+// characters (3 bytes) advance the column by one, not by their byte count
+TEST(NetlistLexerAdapterChecks, token_columns_count_code_points_not_bytes) {
+    // arrange: the expression token contains an en dash (U+2013, 3 bytes)
+    const std::string netlist = ".TRAN 1u {x\u2013y}";
+    // act
+    const auto model = build_netlist_highlight_model(tokenize_netlist(netlist), false, TEST_FOREGROUND);
+    // assert: tokens are ".TRAN", " ", "1u", " ", "{x-y}" at columns 0,5,6,8,9
+    const auto line = model->row_data(0).value();
+    ASSERT_EQ(line.tokens->row_count(), 5u);
+    ASSERT_EQ(line.tokens->row_data(0).value().column_offset, 0);
+    ASSERT_EQ(line.tokens->row_data(1).value().column_offset, 5);
+    ASSERT_EQ(line.tokens->row_data(2).value().column_offset, 6);
+    ASSERT_EQ(line.tokens->row_data(3).value().column_offset, 8);
+    ASSERT_EQ(line.tokens->row_data(4).value().column_offset, 9);
 }
 
 // build_netlist_highlight_model: rebuilding the 1000-line highlight model runs

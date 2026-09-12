@@ -208,10 +208,11 @@ export component SimulationOutputPanel inherits Rectangle {
                     width: parent.width;
                     height: parent.height;
 
-                    // monospaced log lines; an explicit monospace font family
-                    // keeps the column alignment of the terminal output (the
-                    // generic "monospace" family does not resolve to a real
-                    // monospace font in this slint build)
+                    // monospaced log lines; the bundled "JetBrains Mono"
+                    // family (imported and embedded by main_window.slint)
+                    // keeps columns aligned with identical metrics on every
+                    // platform (the generic "monospace" family does not
+                    // resolve to a real monospace font in this slint build)
                     for line[index] in root.log-lines: log-line := Rectangle {
                         height: root.row-height;
                         background: index >= root.selection-start && index <= root.selection-end
@@ -225,7 +226,7 @@ export component SimulationOutputPanel inherits Rectangle {
                             vertical-alignment: center;
                             horizontal-alignment: left;
                             text: line;
-                            font-family: "Menlo";
+                            font-family: "JetBrains Mono";
                             font-size: 13px;
                             color: Palette.foreground;
                             wrap: no-wrap;

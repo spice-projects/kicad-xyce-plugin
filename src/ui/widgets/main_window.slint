@@ -1,10 +1,19 @@
+// bundled monospace font: compiling this file embeds the font and registers
+// the "JetBrains Mono" family globally, so the netlist editor and the output
+// panel resolve identical glyph metrics on every platform (the netlist editor
+// overlays its token layer on a TextInput's own text layout and depends on
+// both engines agreeing on the same font)
+import "./fonts/JetBrainsMono-Regular.ttf";
 import { Palette } from "std-widgets.slint";
 import { AddPlotPanel } from "../components/add_plot_panel.slint";
 import { ChartsPanel, PlotTabItem } from "../components/charts_panel.slint";
 import { ExpressionItem } from "../components/expression_selector.slint";
 import { FftPanel } from "../components/fft_panel.slint";
 import { PluginConfigPanel } from "../components/plugin_config_panel.slint";
-import { NetlistEditor, HighlightedLine } from "../components/netlist_editor.slint";
+import {
+    NetlistEditor,
+    HighlightedLine,
+} from "../components/netlist_editor.slint";
 import { StepItem, StepToolPanel } from "../components/step_tool_panel.slint";
 import {
     SimulationOutputPanel,
