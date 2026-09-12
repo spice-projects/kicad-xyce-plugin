@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
+
 #include "netlist/netlist_lexer.h"
 #include "netlist/netlist_lexer_adapter.h"
 
@@ -130,4 +132,29 @@ TEST(NetlistLexerAdapterChecks, node_tokens_carry_foreground_colour) {
     const auto node_token = line.tokens->row_data(2).value();
     ASSERT_EQ(std::string(node_token.text), "IN");
     ASSERT_EQ(node_token.color, TEST_FOREGROUND);
+}
+
+// build_netlist_highlight_model: rebuilding the 1000-line highlight model runs
+// on every editor keystroke, so its cost must stay negligible
+TEST(NetlistLexerAdapterChecks, builds_thousand_line_model_within_budget) {
+    // arrange: 1000 generated device lines mixing devices, KiCad net names,
+    // numeric values and comments
+    std::string netlist;
+    netlist.reserve(1000 * 48);
+    for (int i = 0; i < 1000; ++i) {
+        // no trailing newline so the netlist is exactly 1000 lines
+        if (i > 0)
+            netlist += '\n';
+        netlist += "R" + std::to_string(i) + " IN" + std::to_string(i) + " Net-_U303A-G" + std::to_string(i) + "_ " + std::to_string(i) + "k * transient";
+    }
+    // act
+    const auto token_lines = tokenize_netlist(netlist);
+    const auto start = std::chrono::steady_clock::now();
+    const auto model = build_netlist_highlight_model(token_lines, false, TEST_FOREGROUND);
+    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count();
+    // assert: structural correctness and a time budget for unoptimized debug
+    // builds; the measurement is logged so drift stays visible
+    ASSERT_EQ(model->row_count(), 1000u);
+    ASSERT_LT(elapsed, 80000) << "build_netlist_highlight_model(1000 lines) took " << elapsed << "us";
+    SUCCEED() << "build_netlist_highlight_model(1000 lines) took " << elapsed << "us";
 }

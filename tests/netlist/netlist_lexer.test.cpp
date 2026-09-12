@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
+
 #include "netlist/netlist_lexer.h"
 
 TEST(NetlistLexerChecks, tokenizes_empty_string) {
@@ -532,4 +534,27 @@ TEST(NetlistLexerChecks, tokenizes_extended_xyce_directives) {
     ASSERT_EQ(lines[1].m_tokens[0].m_text, ".FUNC");
     ASSERT_EQ(lines[2].m_tokens[0].m_type, NetlistTokenType::DIRECTIVE);
     ASSERT_EQ(lines[2].m_tokens[0].m_text, ".DCVOLT");
+}
+
+TEST(NetlistLexerChecks, tokenizes_thousand_line_netlist_within_budget) {
+    // arrange: 1000 generated device lines mixing devices, KiCad net names,
+    // numeric values and comments; tokenisation runs synchronously on every
+    // editor keystroke, so the cost per rebuild must stay negligible
+    std::string netlist;
+    netlist.reserve(1000 * 48);
+    for (int i = 0; i < 1000; ++i) {
+        // no trailing newline so the netlist is exactly 1000 lines
+        if (i > 0)
+            netlist += '\n';
+        netlist += "R" + std::to_string(i) + " IN" + std::to_string(i) + " Net-_U303A-G" + std::to_string(i) + "_ " + std::to_string(i) + "k * transient";
+    }
+    // act
+    const auto start = std::chrono::steady_clock::now();
+    const auto lines = tokenize_netlist(netlist);
+    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count();
+    // assert: structural correctness and a time budget for unoptimized debug
+    // builds; the measurement is logged so drift stays visible
+    ASSERT_EQ(lines.size(), 1000);
+    ASSERT_LT(elapsed, 60000) << "tokenize_netlist(1000 lines) took " << elapsed << "us";
+    SUCCEED() << "tokenize_netlist(1000 lines) took " << elapsed << "us";
 }
