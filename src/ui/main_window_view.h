@@ -11,6 +11,7 @@
 #include <slint.h>
 
 #include "../config/plugin_config.h"
+#include "../netlist/netlist_lexer.h"
 #include "../netlist/netlist_source.h"
 #include "add_plot_dialog_view.h"
 #include "charts_renderer.h"
@@ -82,6 +83,13 @@ private:
     // copy the buffered log lines [start..end] to the platform clipboard
     void copy_simulation_selection(int start, int end);
 
+    // re-tokenise the current editor text and update the highlight model of
+    // the NetlistEditor; used on netlist loads, on user edits and on theme
+    // changes so colours always match the active palette.  unchanged rows keep
+    // their token models; only rows whose tokens (or the theme palette)
+    // changed are rebuilt
+    void rebuild_netlist_highlight_model();
+
     void show_add_remove_plots_dialog(float chart_position);
 
     // modal dialog lifecycle: dialogs are mutually exclusive (only the main
@@ -112,6 +120,20 @@ private:
     // simulation output log lines, exposed as a model to the output panel's
     // ListView; appending a line only touches the new row (virtualized list)
     std::shared_ptr<slint::VectorModel<slint::SharedString>> m_simulation_log;
+
+    // current theme state; used when (re-)building the highlight model
+    bool m_dark_mode = false;
+
+    // live highlight model of the netlist editor; updated in place on edits so
+    // unchanged rows keep their token models instead of being reallocated
+    std::shared_ptr<slint::VectorModel<main_window::HighlightedLine>> m_netlist_highlight_model;
+    // tokenised snapshot of the rows currently in the highlight model; the
+    // diff against a fresh tokenisation decides which rows to rebuild
+    std::vector<NetlistTokenLine> m_netlist_token_cache;
+    // theme state the cached highlight rows were built with; a mismatch forces
+    // a full row rebuild so colours follow the active palette
+    bool m_netlist_model_dark_mode = false;
+    slint::Color m_netlist_model_foreground;
 
     // platform-neutral charts renderer
     std::unique_ptr<ChartsRenderer> m_charts_renderer;

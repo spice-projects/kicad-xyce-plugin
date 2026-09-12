@@ -10,6 +10,8 @@
 #include <spdlog/spdlog.h>
 
 #include "../app/app.h"
+#include "../netlist/netlist_lexer.h"
+#include "../netlist/netlist_lexer_adapter.h"
 #include "clipboard.h"
 #include "file_dialog.h"
 #include "main_window_view.h"
@@ -18,6 +20,21 @@ SlintMainWindowView::SlintMainWindowView(std::unique_ptr<NetlistSource> /*netlis
     m_window(main_window::MainWindow::create()), m_simulation_log(std::make_shared<slint::VectorModel<slint::SharedString>>()) {
     // expose the log model to the output panel
     m_window->set_simulation_output_log(m_simulation_log);
+    // seed the dark-mode flag from the initial Slint theme state so the first
+    // highlight model is built with the correct colours even before charts are shown
+    m_dark_mode = m_window->get_is_dark();
+    // wire the theme change handler early so theme switches are always tracked
+    // (the charts renderer is updated only once it exists) and the visible
+    // netlist highlight model is rebuilt with the new palette
+    m_window->on_theme_changed([this](bool is_dark) {
+        // keep the adapter colour palette in sync for the next highlight rebuild
+        m_dark_mode = is_dark;
+        // rebuild the highlight model so the loaded netlist picks up the new colours
+        rebuild_netlist_highlight_model();
+        // update the renderer's dark mode state when the slint theme changes
+        if (m_charts_renderer)
+            m_charts_renderer->set_dark_mode(is_dark);
+    });
 }
 
 void SlintMainWindowView::set_event_handler(MainWindowViewDefEvents& handler) {
@@ -50,9 +67,15 @@ void SlintMainWindowView::set_event_handler(MainWindowViewDefEvents& handler) {
         m_window->hide();
     });
 
-    // netlist editor edits are reported live so the presenter can track the
+    // netlist editor edits re-tokenise the text synchronously so the colours
+    // track typing with no perceptible latency, then the presenter tracks the
     // dirty state and content changes
-    actions.on_netlist_edited([this] { m_event_handler->on_netlist_editor_modified(); });
+    actions.on_netlist_edited([this] {
+        // rebuild the highlight model from the current editor text
+        rebuild_netlist_highlight_model();
+        // forward the edit to the event handler
+        m_event_handler->on_netlist_editor_modified();
+    });
 
     // charts context menu actions; chart_position is a float [0..1] from the
     // slint panel, the renderer translates it to an index using its own count
@@ -168,8 +191,65 @@ void SlintMainWindowView::show_charts_view() {
 }
 
 void SlintMainWindowView::set_netlist_editor_content(const std::string& content) {
-    // push the content into the slint editor widget
+    // push the raw text into the slint editor text property
     m_window->set_netlist_text(slint::SharedString(content));
+    // tokenise the new content and rebuild the highlight model
+    rebuild_netlist_highlight_model();
+}
+
+void SlintMainWindowView::rebuild_netlist_highlight_model() {
+    // read the live editor text so rebuilds after user edits or theme flips stay in sync
+    const std::string content(m_window->get_netlist_text());
+    // tokenise the content into typed lines
+    const auto token_lines = tokenize_netlist(content);
+    // resolve the theme foreground so node and plain tokens follow the palette
+    const auto foreground = m_window->get_editor_foreground();
+    // first build: create the model and hand it to the editor
+    if (!m_netlist_highlight_model) {
+        m_netlist_highlight_model = build_netlist_highlight_model(token_lines, m_dark_mode, foreground);
+        m_netlist_token_cache = token_lines;
+        m_netlist_model_dark_mode = m_dark_mode;
+        m_netlist_model_foreground = foreground;
+        m_window->set_netlist_highlighted_lines(m_netlist_highlight_model);
+        return;
+    }
+    // theme change: every row's colours are stale, so rebuild all of them
+    const bool theme_changed = m_dark_mode != m_netlist_model_dark_mode || foreground != m_netlist_model_foreground;
+    auto& model = *m_netlist_highlight_model;
+    const std::size_t old_count = model.row_count();
+    const std::size_t new_count = token_lines.size();
+    // grow the model at the tail with fresh rows
+    for (std::size_t i = old_count; i < new_count; ++i)
+        model.push_back(build_netlist_line_model(token_lines[i], static_cast<int>(i) + 1, m_dark_mode, foreground));
+    // shrink the model from the tail
+    for (std::size_t i = old_count; i > new_count; --i)
+        model.erase(i - 1);
+    // update only rows whose tokens or theme colours changed; rows that merely
+    // shifted position keep their token model and only get a new line number,
+    // so a keystroke never reallocates the unchanged majority of the document
+    const std::size_t common_count = std::min(old_count, new_count);
+    for (std::size_t i = 0; i < common_count; ++i) {
+        // compare against the cached tokenisation to detect content changes
+        const bool tokens_changed = theme_changed || !netlist_line_tokens_equal(token_lines[i], m_netlist_token_cache[i]);
+        // fetch the live row to inspect its gutter number
+        auto row = model.row_data(i).value();
+        // skip rows that are fully up to date
+        if (!tokens_changed && row.line_number == static_cast<int>(i) + 1)
+            continue;
+        if (tokens_changed) {
+            // rebuild the row with fresh token models and colours
+            row = build_netlist_line_model(token_lines[i], static_cast<int>(i) + 1, m_dark_mode, foreground);
+        }
+        else {
+            // position shift only: renumber the gutter, keep the token model
+            row.line_number = static_cast<int>(i) + 1;
+        }
+        model.set_row_data(i, row);
+    }
+    // remember the tokenisation and theme the visible rows were built with
+    m_netlist_token_cache = token_lines;
+    m_netlist_model_dark_mode = m_dark_mode;
+    m_netlist_model_foreground = foreground;
 }
 
 std::string SlintMainWindowView::netlist_editor_content() const {
@@ -454,14 +534,9 @@ void SlintMainWindowView::ensure_charts_renderer() {
         // publish the rendered frame to the slint image property
         m_window->set_charts_image(image);
     });
-    // initialize theme state
+    // initialize theme state; the theme-changed callback itself is wired in the
+    // constructor so theme switches are tracked before the renderer exists
     m_charts_renderer->set_dark_mode(m_window->get_is_dark());
-    // wire theme change callback
-    m_window->on_theme_changed([this](bool is_dark) {
-        // update the renderer's dark mode state when the slint theme changes
-        if (m_charts_renderer)
-            m_charts_renderer->set_dark_mode(is_dark);
-    });
     // wire hover readout to update the status bar
     m_charts_renderer->set_hover_callback([this](const std::string& text) {
         if (text.empty())
