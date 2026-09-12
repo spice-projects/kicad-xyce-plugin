@@ -4,7 +4,7 @@ import { ChartsPanel, PlotTabItem } from "../components/charts_panel.slint";
 import { ExpressionItem } from "../components/expression_selector.slint";
 import { FftPanel } from "../components/fft_panel.slint";
 import { PluginConfigPanel } from "../components/plugin_config_panel.slint";
-import { SchematicPanel } from "../components/schematic_panel.slint";
+import { NetlistEditor, HighlightedLine } from "../components/netlist_editor.slint";
 import { StepItem, StepToolPanel } from "../components/step_tool_panel.slint";
 import {
     SimulationOutputPanel,
@@ -180,6 +180,8 @@ export component MainWindow inherits Window {
     // for the presenter when tracking user edits
     in-out property <string> netlist-text: "";
     in property <bool> netlist-read-only: false;
+    // syntax-highlighted lines model; populated by the C++ adapter after each netlist load
+    in-out property <[HighlightedLine]> netlist-highlighted-lines: [];
 
     // bottom simulation output panel; shown while a simulation runs (or its log
     // holds content), the log is a list of lines model-driven from the view
@@ -550,10 +552,11 @@ export component MainWindow inherits Window {
                 background: Palette.alternate-background;
 
                 VerticalLayout {
-                    if !root.charts-visible: schematic := SchematicPanel {
+                    if !root.charts-visible: schematic := NetlistEditor {
                         vertical-stretch: 1;
                         text <=> root.netlist-text;
                         read-only: root.netlist-read-only;
+                        lines-model <=> root.netlist-highlighted-lines;
                         edited => { MainWindowActions.netlist-edited(); }
                     }
                     if root.charts-visible: charts := ChartsPanel {

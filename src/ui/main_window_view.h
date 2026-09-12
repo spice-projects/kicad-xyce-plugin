@@ -82,6 +82,11 @@ private:
     // copy the buffered log lines [start..end] to the platform clipboard
     void copy_simulation_selection(int start, int end);
 
+    // re-tokenise the current editor text and push a fresh highlight model
+    // into the NetlistEditor; used on netlist loads, on user edits and on
+    // theme changes so colours always match the active palette
+    void rebuild_netlist_highlight_model();
+
     void show_add_remove_plots_dialog(float chart_position);
 
     // modal dialog lifecycle: dialogs are mutually exclusive (only the main
@@ -112,6 +117,9 @@ private:
     // simulation output log lines, exposed as a model to the output panel's
     // ListView; appending a line only touches the new row (virtualized list)
     std::shared_ptr<slint::VectorModel<slint::SharedString>> m_simulation_log;
+
+    // current theme state; used when (re-)building the highlight model
+    bool m_dark_mode = false;
 
     // platform-neutral charts renderer
     std::unique_ptr<ChartsRenderer> m_charts_renderer;

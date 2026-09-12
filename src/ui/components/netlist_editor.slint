@@ -1,0 +1,177 @@
+import { Palette, ScrollView } from "std-widgets.slint";
+
+// a single coloured fragment of netlist text (one lexer token)
+export struct HighlightedToken {
+    text: string,
+    color: color,
+}
+
+// one line of the netlist: its 1-based number and the ordered token fragments
+export struct HighlightedLine {
+    line-number: int,
+    tokens: [HighlightedToken],
+}
+
+// NetlistEditor renders an editable netlist with per-token syntax colouring, a
+// line-number gutter and a cross-platform blinking caret.  The coloured token
+// layer, the caret rectangle and a transparent TextInput share the coordinate
+// space of one ScrollView so they scroll in lockstep; the invisible TextInput
+// owns all interaction (caret, selection, clipboard, IME) and drives the caret
+// overlay, which stays visible on every platform (Slint derives the native
+// caret colour from the selection colour on macOS and from the text colour
+// elsewhere, so a transparent text colour would hide it on Linux/Windows).
+export component NetlistEditor inherits Rectangle {
+    // raw netlist text – two-way bound to the transparent TextInput
+    in-out property <string> text: "";
+    in property <bool> read-only: false;
+    // highlighted lines model; rebuilt by the C++ adapter on load, on edits
+    // and on theme changes
+    in-out property <[HighlightedLine]> lines-model: [];
+    // emitted whenever the user modifies the text
+    callback edited();
+
+    // caret position in content coordinates, tracked from the TextInput
+    property <length> caret-x: 0;
+    property <length> caret-y: 0;
+    // blink phase; forced back on whenever the caret moves
+    property <bool> caret-on: true;
+    // height of one text line, measured from the shared font through the probe
+    property <length> line-height: line-probe.height;
+    // font size shared by the gutter, the token layer and the text input
+    property <length> editor-font-size: 13px;
+
+    background: Palette.alternate-background;
+
+    forward-focus: input;
+
+    // caret blink timer; runs only while the text input is focused
+    Timer {
+        interval: 500ms;
+        running: input.has-focus;
+        triggered => { root.caret-on = !root.caret-on; }
+    }
+
+    HorizontalLayout {
+        // line-number gutter; rows are offset by the content scroll position
+        // (viewport-y is negative when scrolled down) so the numbers stay
+        // aligned with the token layer while scrolling
+        Rectangle {
+            width: 44px;
+            clip: true;
+
+            for line in root.lines-model: Text {
+                y: (line.line-number - 1) * root.line-height + scroller.viewport-y;
+                width: parent.width - 8px;
+                height: root.line-height;
+                horizontal-alignment: right;
+                vertical-alignment: top;
+                text: line.line-number;
+                color: Palette.foreground.transparentize(0.6);
+                font-family: "monospace";
+                font-size: root.editor-font-size;
+            }
+
+            // gutter/content separator
+            Rectangle {
+                x: parent.width - 1px;
+                width: 1px;
+                height: parent.height;
+                background: Palette.foreground.with-alpha(0.12);
+            }
+
+            // zero-size clip container that hides the probe element used to
+            // measure the line height of the shared font (clipped away but
+            // still laid out, so its height matches the TextInput line height)
+            Rectangle {
+                width: 0px;
+                height: 0px;
+                clip: true;
+
+                line-probe := Text {
+                    text: "Xg";
+                    font-family: "monospace";
+                    font-size: root.editor-font-size;
+                }
+            }
+        }
+
+        // shared scrollable coordinate space for the token layer, the caret
+        // and the transparent text input
+        scroller := ScrollView {
+            viewport-width: max(self.visible-width, input.preferred-width);
+            viewport-height: max(self.visible-height, input.preferred-height);
+
+            // layer 1: coloured token fragments, one row per netlist line; the
+            // fixed row height matches the TextInput line height so the layers
+            // stay aligned
+            VerticalLayout {
+                alignment: start;
+
+                for line in root.lines-model: HorizontalLayout {
+                    alignment: start;
+                    height: root.line-height;
+
+                    for token in line.tokens: Text {
+                        text: token.text;
+                        color: token.color;
+                        font-family: "monospace";
+                        font-size: root.editor-font-size;
+                    }
+                }
+            }
+
+            // layer 2: blinking caret rectangle tracking the TextInput cursor
+            Rectangle {
+                x: root.caret-x;
+                y: root.caret-y;
+                width: 2px;
+                height: root.line-height;
+                background: Palette.foreground;
+                visible: input.has-focus && root.caret-on;
+            }
+
+            // layer 3: transparent interactive text input owning the caret,
+            // selection, clipboard and IME
+            input := TextInput {
+                single-line: false;
+                wrap: no-wrap;
+                color: transparent;
+                read-only: root.read-only;
+                vertical-alignment: top;
+                horizontal-alignment: left;
+                font-family: "monospace";
+                font-size: root.editor-font-size;
+                // page height for page-up/page-down scrolling
+                page-height: scroller.visible-height;
+                text <=> root.text;
+
+                changed has-focus => {
+                    // restart the blink phase from the visible state
+                    root.caret-on = true;
+                }
+
+                edited => { root.edited(); }
+
+                cursor-position-changed(cpos) => {
+                    // track the caret for the overlay rectangle
+                    root.caret-x = cpos.x;
+                    root.caret-y = cpos.y;
+                    // keep the caret visible while it moves
+                    root.caret-on = true;
+                    // scroll the caret into view horizontally
+                    if (root.caret-x + scroller.viewport-x < 0px) {
+                        scroller.viewport-x = min(0px, max(scroller.visible-width - self.width, -root.caret-x));
+                    } else if (root.caret-x + scroller.viewport-x > scroller.visible-width) {
+                        scroller.viewport-x = min(0px, max(scroller.visible-width - self.width, scroller.visible-width - root.caret-x));
+                    }
+                    // scroll the caret into view vertically
+                    if (root.caret-y + scroller.viewport-y < 0px) {
+                        scroller.viewport-y = min(0px, max(scroller.visible-height - self.height, -root.caret-y));
+                    } else if (root.caret-y + scroller.viewport-y > scroller.visible-height - root.line-height) {
+                        scroller.viewport-y = min(0px, max(scroller.visible-height - self.height, scroller.visible-height - root.caret-y - root.line-height));
+                    }
+                }
+            }
+        }
+    }
+}
