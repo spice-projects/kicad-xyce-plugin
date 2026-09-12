@@ -2,6 +2,7 @@
 #include <cctype>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <slint.h>
@@ -10,12 +11,23 @@
 
 #include "../core/util.h"
 #include "add_plot_dialog_view.h"
+#include "expression_tree.h"
 
 namespace add_plot_dialog_view
 {
     namespace
     {
         slint::SharedString to_shared_string(std::string value) { return slint::SharedString(value); }
+
+        // convert a visible card into the slint model item
+        main_window::ExpressionItem to_item(const ExpressionCard& card) {
+            return main_window::ExpressionItem{
+                to_shared_string(card.label), to_shared_string(card.kind), to_shared_string(card.type), card.is_scope, card.selected, card.count, to_shared_string(card.full_name),
+            };
+        }
+
+        // convert a breadcrumb entry into the slint model item
+        main_window::BreadcrumbItem to_breadcrumb_item(const BreadcrumbEntry& entry) { return main_window::BreadcrumbItem{to_shared_string(entry.label), static_cast<int>(entry.level)}; }
     } // namespace
 
     struct AddPlotDialogView::Impl
@@ -31,54 +43,62 @@ namespace add_plot_dialog_view
         // the caller releases the modal state from here
         std::function<void()> on_closed;
 
-        // expression model shown in the panel grid; the panel uses the indices
-        // of this model in the expression-clicked callback
+        // scope navigation over the expressions; subcircuit and sheet scopes
+        // collapse into drill-in cards, the filter flattens the results
+        ExpressionTree tree;
+
+        // card model shown in the panel; the panel uses the indices of this
+        // model in the expression-clicked callback
         std::shared_ptr<slint::VectorModel<main_window::ExpressionItem>> expressions;
 
-        // all expressions known to the panel with their selection state
-        std::vector<main_window::ExpressionItem> m_all_items;
-
-        // indices into m_all_items that pass the current filter
-        std::vector<size_t> m_filtered_indices;
+        // breadcrumb model of the browsed scope
+        std::shared_ptr<slint::VectorModel<main_window::BreadcrumbItem>> breadcrumb;
 
         // chart being edited
         size_t chart_index = 0;
+
+        // active filter text, reapplied when the item list changes
+        std::string m_filter_query;
 
         Impl(slint::ComponentHandle<main_window::MainWindow> w, ChartsRenderer& r) :
             window(w), renderer(r) {
             expressions = std::make_shared<slint::VectorModel<main_window::ExpressionItem>>();
             window->set_add_plot_expressions(expressions);
+            breadcrumb = std::make_shared<slint::VectorModel<main_window::BreadcrumbItem>>();
+            window->set_add_plot_breadcrumb(breadcrumb);
             connect_callbacks();
         }
 
         void connect_callbacks() {
             window->on_add_plot_filter_changed([this](slint::SharedString query) { apply_filter(query); });
-            window->on_add_plot_expression_clicked([this](int index) { toggle_expression(index); });
+            window->on_add_plot_expression_clicked([this](int index) { activate_card(index); });
             window->on_add_plot_expression_right_clicked([this](int index) { append_expression_name(index); });
+            window->on_add_plot_breadcrumb_clicked([this](int level) { open_breadcrumb(level); });
+            window->on_add_plot_selected_link_clicked([this] { toggle_show_selected(); });
             window->on_add_plot_custom_add([this] { add_custom_expression(); });
             window->on_add_plot_accepted([this] { accept(); });
             window->on_add_plot_dismissed([this] { dismiss(); });
         }
 
         void populate() {
-            m_all_items.clear();
-            // build the initial expression list from the expression manager
+            // build the (name, type) pairs from the expression manager
+            std::vector<std::pair<std::string, std::string>> items;
             for (AnyExpression* expression : renderer.all_expressions()) {
-                const auto name = expression_name(*expression);
-                m_all_items.push_back(main_window::ExpressionItem{to_shared_string(name), to_shared_string(expression_type(*expression)), false});
+                items.emplace_back(expression_name(*expression), expression_type(*expression));
             }
-            // check the chart's current selection
-            const auto selected = renderer.chart_selected_expressions(chart_index);
+            // rebuild the scope tree and return to the root scope
+            tree.rebuild(items);
             // mark the currently plotted expressions as selected
-            for (auto& item : m_all_items) {
-                item.selected = std::any_of(selected.begin(), selected.end(), [&item](AnyExpression* expression) { return expression_name(*expression) == std::string(item.name); });
+            const auto selected = renderer.chart_selected_expressions(chart_index);
+            for (AnyExpression* expression : selected) {
+                tree.set_selected(expression_name(*expression), true);
             }
             // reset the filter and error state
             m_filter_query.clear();
             window->set_add_plot_filter_text(slint::SharedString(""));
             window->set_add_plot_show_error(false);
-            // rebuild the grid with the empty filter
-            update_filtered();
+            // rebuild the cards with the empty filter
+            refresh_cards();
         }
 
         static std::string expression_name(const AnyExpression& expression) {
@@ -90,46 +110,66 @@ namespace add_plot_dialog_view
             return type.empty() ? "Misc" : type;
         }
 
+        void refresh_cards() {
+            // rebuild the model rows from the tree's visible cards
+            expressions->clear();
+            for (const ExpressionCard& card : tree.cards())
+                expressions->push_back(to_item(card));
+            // rebuild the breadcrumb path of the browsed scope
+            breadcrumb->clear();
+            for (const BreadcrumbEntry& entry : tree.breadcrumb())
+                breadcrumb->push_back(to_breadcrumb_item(entry));
+            // reflect the selected-only view state on the toggle link
+            window->set_add_plot_show_selected(tree.show_selected());
+        }
+
         void apply_filter(const slint::SharedString& query) {
             // remember the active filter, it is reapplied when items change
             m_filter_query = std::string(query);
-            update_filtered();
+            // a non-empty filter flattens every matching expression into cards
+            tree.set_filter(m_filter_query);
+            refresh_cards();
         }
 
-        void update_filtered() {
-            // filter the display indices by a case-insensitive substring of the name
-            const std::string needle = to_lower(m_filter_query);
-            m_filtered_indices.clear();
-            for (size_t i = 0; i < m_all_items.size(); ++i) {
-                if (needle.empty() || to_lower(std::string(m_all_items[i].name)).find(needle) != std::string::npos)
-                    m_filtered_indices.push_back(i);
-            }
-            // rebuild the model rows shown in the grid
-            expressions->clear();
-            for (size_t index : m_filtered_indices)
-                expressions->push_back(m_all_items[index]);
-        }
-
-        void toggle_expression(int index) {
-            // map the model row back to the full item and flip the selection
-            if (index < 0 || static_cast<size_t>(index) >= m_filtered_indices.size())
+        void activate_card(int index) {
+            // scope cards drill into the scope, expression cards toggle the
+            // selection
+            if (index < 0 || static_cast<size_t>(index) >= tree.cards().size())
                 return;
-            const size_t real_index = m_filtered_indices[static_cast<size_t>(index)];
-            m_all_items[real_index].selected = !m_all_items[real_index].selected;
-            // keep the grid in sync
-            expressions->set_row_data(static_cast<size_t>(index), m_all_items[real_index]);
+            tree.activate(static_cast<size_t>(index));
+            refresh_cards();
+        }
+
+        void open_breadcrumb(int level) {
+            // restore the scope stack to the clicked breadcrumb level
+            if (level < 0)
+                return;
+            tree.open_breadcrumb(static_cast<size_t>(level));
+            refresh_cards();
+        }
+
+        void toggle_show_selected() {
+            // toggle the selected-only flat view
+            tree.set_show_selected(!tree.show_selected());
+            refresh_cards();
         }
 
         void append_expression_name(int index) {
-            // copy the right-clicked expression name into the Expression builder,
-            // only when the custom entry is shown
+            // copy the right-clicked expression name into the Expression
+            // builder, only when the custom entry is shown and the card is
+            // an expression
             if (!window->get_add_plot_allow_custom_expressions())
                 return;
-            if (index < 0 || static_cast<size_t>(index) >= m_filtered_indices.size())
+            if (index < 0 || static_cast<size_t>(index) >= tree.cards().size())
                 return;
-            const size_t real_index = m_filtered_indices[static_cast<size_t>(index)];
+            const ExpressionCard& card = tree.cards()[static_cast<size_t>(index)];
+            // scope cards have no expression name to append
+            if (card.is_scope)
+                return;
+            // the builder needs the full expression name, not the
+            // scope-relative display label
             slint::SharedString value = window->get_add_plot_custom_text();
-            value = slint::SharedString(std::string(value) + std::string(m_all_items[real_index].name));
+            value = slint::SharedString(std::string(value) + card.full_name);
             window->set_add_plot_custom_text(value);
         }
 
@@ -152,29 +192,27 @@ namespace add_plot_dialog_view
             // derive name and type
             const std::string name = expression_name(*expression);
             const std::string type = expression_type(*expression);
-            // search for an existing item with the same name
-            const auto it = std::find_if(m_all_items.begin(), m_all_items.end(), [&name](const main_window::ExpressionItem& item) { return std::string(item.name) == name; });
-            if (it != m_all_items.end()) {
-                // expression already exists, mark it as selected
-                it->selected = true;
+            // existing expressions are selected in place, new ones are appended
+            if (tree.contains(name)) {
+                tree.set_selected(name, true);
             }
             else {
-                // append the new expression, selected
-                m_all_items.push_back(main_window::ExpressionItem{to_shared_string(name), to_shared_string(type), true});
+                tree.add_leaf(name, type);
+                tree.set_selected(name, true);
             }
             // clear the custom input for the next entry
             window->set_add_plot_custom_text(slint::SharedString(""));
-            // rebuild the grid, respecting the active filter
-            update_filtered();
+            // rebuild the cards, respecting the active filter
+            refresh_cards();
         }
 
         void accept() {
             // gather the selected expressions by name
+            const auto names = tree.selected_names();
+            const std::set<std::string> name_set(names.begin(), names.end());
             std::set<AnyExpression*> selected;
             for (AnyExpression* expression : renderer.all_expressions()) {
-                const auto name = expression_name(*expression);
-                const auto it = std::find_if(m_all_items.begin(), m_all_items.end(), [&name](const main_window::ExpressionItem& item) { return item.selected && std::string(item.name) == name; });
-                if (it != m_all_items.end())
+                if (name_set.contains(expression_name(*expression)))
                     selected.insert(expression);
             }
             // hide the panel before applying the selection
@@ -193,9 +231,6 @@ namespace add_plot_dialog_view
             if (on_closed)
                 on_closed();
         }
-
-        // active filter text, reapplied when the item list changes
-        std::string m_filter_query;
     };
 
     AddPlotDialogView::AddPlotDialogView(slint::ComponentHandle<main_window::MainWindow> main_window, ChartsRenderer& renderer) :

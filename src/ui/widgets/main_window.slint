@@ -1,7 +1,10 @@
 import { Palette } from "std-widgets.slint";
 import { AddPlotPanel } from "../components/add_plot_panel.slint";
 import { ChartsPanel, PlotTabItem } from "../components/charts_panel.slint";
-import { ExpressionItem } from "../components/expression_selector.slint";
+import {
+    BreadcrumbItem,
+    ExpressionItem,
+} from "../components/expression_selector.slint";
 import { FftPanel } from "../components/fft_panel.slint";
 import { PluginConfigPanel } from "../components/plugin_config_panel.slint";
 import { SchematicPanel } from "../components/schematic_panel.slint";
@@ -209,6 +212,8 @@ export component MainWindow inherits Window {
     // OS window); driven from the view adapter
     in property <bool> add-plot-visible: false;
     in property <[ExpressionItem]> add-plot-expressions: [];
+    in property <[BreadcrumbItem]> add-plot-breadcrumb: [];
+    in property <bool> add-plot-show-selected: false;
     in-out property <string> add-plot-filter-text: "";
     in-out property <string> add-plot-custom-text: "";
     in property <bool> add-plot-allow-custom-expressions: true;
@@ -219,6 +224,8 @@ export component MainWindow inherits Window {
     callback add-plot-dismissed();
     callback add-plot-expression-clicked(int);
     callback add-plot-expression-right-clicked(int);
+    callback add-plot-breadcrumb-clicked(int);
+    callback add-plot-selected-link-clicked();
     callback add-plot-filter-changed(string);
     callback add-plot-custom-add();
 
@@ -248,6 +255,8 @@ export component MainWindow inherits Window {
     in-out property <int> fft-np-index: 2;
     in-out property <string> fft-custom-np: "";
     in property <[ExpressionItem]> fft-expressions: [];
+    in property <[BreadcrumbItem]> fft-breadcrumb: [];
+    in property <bool> fft-show-selected: false;
     in-out property <string> fft-filter-text: "";
     in property <bool> fft-show-error: false;
     in property <string> fft-error-message: "";
@@ -256,6 +265,8 @@ export component MainWindow inherits Window {
     callback fft-accepted();
     callback fft-dismissed();
     callback fft-expression-clicked(int);
+    callback fft-breadcrumb-clicked(int);
+    callback fft-selected-link-clicked();
     callback fft-filter-changed(string);
 
     // step tool panel rendered inline as a modal overlay (no separate OS
@@ -642,6 +653,8 @@ export component MainWindow inherits Window {
             width: 100%;
             height: 100%;
             expressions: root.add-plot-expressions;
+            breadcrumb: root.add-plot-breadcrumb;
+            show-selected: root.add-plot-show-selected;
             filter-text <=> root.add-plot-filter-text;
             custom-text <=> root.add-plot-custom-text;
             allow-custom-expressions: root.add-plot-allow-custom-expressions;
@@ -651,6 +664,8 @@ export component MainWindow inherits Window {
             dismissed => { root.add-plot-dismissed(); }
             expression-clicked(index) => { root.add-plot-expression-clicked(index); }
             expression-right-clicked(index) => { root.add-plot-expression-right-clicked(index); }
+            breadcrumb-clicked(level) => { root.add-plot-breadcrumb-clicked(level); }
+            selected-link-clicked => { root.add-plot-selected-link-clicked(); }
             filter-changed(query) => { root.add-plot-filter-changed(query); }
             custom-add => { root.add-plot-custom-add(); }
         }
@@ -827,12 +842,16 @@ export component MainWindow inherits Window {
         np-index <=> root.fft-np-index;
         custom-np <=> root.fft-custom-np;
         expressions: root.fft-expressions;
+        breadcrumb: root.fft-breadcrumb;
+        show-selected: root.fft-show-selected;
         filter-text <=> root.fft-filter-text;
         show-error: root.fft-show-error;
         error-message: root.fft-error-message;
         accepted => { root.fft-accepted(); }
         dismissed => { root.fft-dismissed(); }
         expression-clicked(index) => { root.fft-expression-clicked(index); }
+        breadcrumb-clicked(level) => { root.fft-breadcrumb-clicked(level); }
+        selected-link-clicked => { root.fft-selected-link-clicked(); }
         filter-changed(query) => { root.fft-filter-changed(query); }
     }
 
