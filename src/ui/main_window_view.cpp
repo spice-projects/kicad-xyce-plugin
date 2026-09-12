@@ -202,9 +202,11 @@ void SlintMainWindowView::rebuild_netlist_highlight_model() {
     const std::string content(m_window->get_netlist_text());
     // tokenise the content into typed lines
     const auto token_lines = tokenize_netlist(content);
+    // resolve the theme foreground so node and plain tokens follow the palette
+    const auto foreground = m_window->get_editor_foreground();
     // build a fresh model with the colours of the active theme; the adapter
     // produces the generated main_window::HighlightedLine types directly
-    m_window->set_netlist_highlighted_lines(build_netlist_highlight_model(token_lines, m_dark_mode));
+    m_window->set_netlist_highlighted_lines(build_netlist_highlight_model(token_lines, m_dark_mode, foreground));
 }
 
 std::string SlintMainWindowView::netlist_editor_content() const {

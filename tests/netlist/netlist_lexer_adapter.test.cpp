@@ -3,32 +3,35 @@
 #include "netlist/netlist_lexer.h"
 #include "netlist/netlist_lexer_adapter.h"
 
-// token_type_to_color: comment tokens are grey in dark mode
-TEST(NetlistLexerAdapterChecks, comment_token_is_grey_dark_mode) {
+// test foreground colour used for tokens that follow the editor text
+static const slint::Color TEST_FOREGROUND = slint::Color::from_rgb_uint8(0x12, 0x34, 0x56);
+
+// token_type_to_color: comment tokens use the light-mode spec colour
+TEST(NetlistLexerAdapterChecks, comment_uses_spec_colour_light_mode) {
     // arrange / act
-    const auto color = token_type_to_color(NetlistTokenType::COMMENT, true);
+    const auto color = token_type_to_color(NetlistTokenType::COMMENT, false, TEST_FOREGROUND);
     // assert
-    ASSERT_EQ(color, slint::Color::from_rgb_uint8(0x6A, 0x6A, 0x6A));
+    ASSERT_EQ(color, slint::Color::from_rgb_uint8(0x6a, 0x73, 0x7d));
 }
 
-// token_type_to_color: comment tokens are grey in light mode
-TEST(NetlistLexerAdapterChecks, comment_token_is_grey_light_mode) {
+// token_type_to_color: comment tokens use the dark-mode spec colour
+TEST(NetlistLexerAdapterChecks, comment_uses_spec_colour_dark_mode) {
     // arrange / act
-    const auto color = token_type_to_color(NetlistTokenType::COMMENT, false);
+    const auto color = token_type_to_color(NetlistTokenType::COMMENT, true, TEST_FOREGROUND);
     // assert
-    ASSERT_EQ(color, slint::Color::from_rgb_uint8(0x6A, 0x6A, 0x6A));
+    ASSERT_EQ(color, slint::Color::from_rgb_uint8(0x8b, 0x94, 0x9e));
 }
 
 // token_type_to_color: directive colour is distinct between themes
 TEST(NetlistLexerAdapterChecks, directive_colour_differs_between_themes) {
     // arrange / act / assert
-    ASSERT_NE(token_type_to_color(NetlistTokenType::DIRECTIVE, true), token_type_to_color(NetlistTokenType::DIRECTIVE, false));
+    ASSERT_NE(token_type_to_color(NetlistTokenType::DIRECTIVE, true, TEST_FOREGROUND), token_type_to_color(NetlistTokenType::DIRECTIVE, false, TEST_FOREGROUND));
 }
 
 // token_type_to_color: plain text colour differs from the directive colour in light mode
 TEST(NetlistLexerAdapterChecks, directive_colour_differs_from_plain_text) {
     // arrange / act / assert
-    ASSERT_NE(token_type_to_color(NetlistTokenType::DIRECTIVE, false), token_type_to_color(NetlistTokenType::PLAIN_TEXT, false));
+    ASSERT_NE(token_type_to_color(NetlistTokenType::DIRECTIVE, false, TEST_FOREGROUND), token_type_to_color(NetlistTokenType::PLAIN_TEXT, false, TEST_FOREGROUND));
 }
 
 // token_type_to_color: model names share the numeric colour so trailing value
@@ -36,12 +39,19 @@ TEST(NetlistLexerAdapterChecks, directive_colour_differs_from_plain_text) {
 // render with the same colour
 TEST(NetlistLexerAdapterChecks, model_colour_matches_number_colour_dark_mode) {
     // arrange / act / assert
-    ASSERT_EQ(token_type_to_color(NetlistTokenType::MODEL, true), token_type_to_color(NetlistTokenType::NUMBER, true));
+    ASSERT_EQ(token_type_to_color(NetlistTokenType::MODEL, true, TEST_FOREGROUND), token_type_to_color(NetlistTokenType::NUMBER, true, TEST_FOREGROUND));
 }
 
 TEST(NetlistLexerAdapterChecks, model_colour_matches_number_colour_light_mode) {
     // arrange / act / assert
-    ASSERT_EQ(token_type_to_color(NetlistTokenType::MODEL, false), token_type_to_color(NetlistTokenType::NUMBER, false));
+    ASSERT_EQ(token_type_to_color(NetlistTokenType::MODEL, false, TEST_FOREGROUND), token_type_to_color(NetlistTokenType::NUMBER, false, TEST_FOREGROUND));
+}
+
+// token_type_to_color: node tokens follow the theme foreground colour
+TEST(NetlistLexerAdapterChecks, node_colour_follows_foreground) {
+    // arrange / act / assert
+    ASSERT_EQ(token_type_to_color(NetlistTokenType::NODE, true, TEST_FOREGROUND), TEST_FOREGROUND);
+    ASSERT_EQ(token_type_to_color(NetlistTokenType::NODE, false, TEST_FOREGROUND), TEST_FOREGROUND);
 }
 
 // build_netlist_highlight_model: model row count equals tokenized line count
@@ -50,7 +60,7 @@ TEST(NetlistLexerAdapterChecks, model_row_count_matches_token_lines) {
     const std::string netlist = "* comment\nR1 1 0 1k";
     // act
     const auto token_lines = tokenize_netlist(netlist);
-    const auto model = build_netlist_highlight_model(token_lines, false);
+    const auto model = build_netlist_highlight_model(token_lines, false, TEST_FOREGROUND);
     // assert
     ASSERT_EQ(model->row_count(), token_lines.size());
 }
@@ -61,7 +71,7 @@ TEST(NetlistLexerAdapterChecks, line_numbers_are_sequential) {
     const std::string netlist = "* a\n* b\n* c";
     // act
     const auto token_lines = tokenize_netlist(netlist);
-    const auto model = build_netlist_highlight_model(token_lines, false);
+    const auto model = build_netlist_highlight_model(token_lines, false, TEST_FOREGROUND);
     // assert
     for (std::size_t i = 0; i < model->row_count(); ++i)
         ASSERT_EQ(model->row_data(i).value().line_number, static_cast<int>(i + 1));
@@ -72,7 +82,7 @@ TEST(NetlistLexerAdapterChecks, bare_newline_tokens_are_dropped) {
     // arrange
     const std::string netlist = "* comment";
     // act
-    const auto model = build_netlist_highlight_model(tokenize_netlist(netlist), false);
+    const auto model = build_netlist_highlight_model(tokenize_netlist(netlist), false, TEST_FOREGROUND);
     // assert
     ASSERT_GE(model->row_count(), 1u);
     const auto line = model->row_data(0).value();
@@ -86,7 +96,7 @@ TEST(NetlistLexerAdapterChecks, empty_netlist_produces_one_line) {
     const std::string netlist;
     // act
     const auto token_lines = tokenize_netlist(netlist);
-    const auto model = build_netlist_highlight_model(token_lines, false);
+    const auto model = build_netlist_highlight_model(token_lines, false, TEST_FOREGROUND);
     // assert
     ASSERT_EQ(model->row_count(), 1u);
 }
@@ -97,12 +107,27 @@ TEST(NetlistLexerAdapterChecks, directive_line_tokens_carry_directive_colour) {
     // arrange
     const std::string netlist = ".tran 1n 10u";
     // act
-    const auto model = build_netlist_highlight_model(tokenize_netlist(netlist), false);
+    const auto model = build_netlist_highlight_model(tokenize_netlist(netlist), false, TEST_FOREGROUND);
     // assert
     ASSERT_GE(model->row_count(), 1u);
     const auto line = model->row_data(0).value();
     ASSERT_GE(line.tokens->row_count(), 1u);
     const auto first = line.tokens->row_data(0).value();
     ASSERT_EQ(std::string(first.text), ".tran");
-    ASSERT_EQ(first.color, token_type_to_color(NetlistTokenType::DIRECTIVE, false));
+    ASSERT_EQ(first.color, token_type_to_color(NetlistTokenType::DIRECTIVE, false, TEST_FOREGROUND));
+}
+
+// build_netlist_highlight_model: node tokens carry the foreground colour
+TEST(NetlistLexerAdapterChecks, node_tokens_carry_foreground_colour) {
+    // arrange
+    const std::string netlist = "R1 IN 0 1k";
+    // act
+    const auto model = build_netlist_highlight_model(tokenize_netlist(netlist), false, TEST_FOREGROUND);
+    // assert
+    ASSERT_GE(model->row_count(), 1u);
+    const auto line = model->row_data(0).value();
+    ASSERT_GE(line.tokens->row_count(), 3u);
+    const auto node_token = line.tokens->row_data(2).value();
+    ASSERT_EQ(std::string(node_token.text), "IN");
+    ASSERT_EQ(node_token.color, TEST_FOREGROUND);
 }

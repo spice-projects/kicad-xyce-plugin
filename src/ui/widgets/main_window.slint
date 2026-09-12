@@ -131,6 +131,9 @@ export component MainWindow inherits Window {
 
     // theme detection
     in property <bool> is-dark: Palette.color-scheme == ColorScheme.dark;
+    // theme foreground colour, read by the view so netlist token colours for
+    // nodes and plain text follow the active palette
+    out property <color> editor-foreground: Palette.foreground;
     callback theme-changed(bool);
 
     init => { root.theme-changed(root.is-dark); }
