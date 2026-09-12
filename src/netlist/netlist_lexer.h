@@ -25,6 +25,9 @@ enum class NetlistTokenType
     CONTINUATION,
     // predefined keyword or function name (e.g. PULSE, SIN, TRAN, FORMAT)
     KEYWORD,
+    // model or subcircuit reference name on a device instance line
+    // (e.g. NPN_MOD after a transistor node list, LM317 after an X node list)
+    MODEL,
     // punctuation and operator symbols (e.g. '=', '(', ')', '+', '-')
     OPERATOR,
     // whitespace sequence (spaces and tabs)

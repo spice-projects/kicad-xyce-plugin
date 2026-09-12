@@ -182,6 +182,68 @@ TEST(NetlistLexerChecks, tokenizes_subcircuit_instance) {
     ASSERT_EQ(lines[0].m_tokens[8].m_text, "GND");
 }
 
+TEST(NetlistLexerChecks, subcircuit_instance_last_token_is_subcircuit_name) {
+    // arrange: Xyce RG 2.3.33 instance form X<name> [node]* <subcircuit name>;
+    // the final token on an X line is the subcircuit name, not a node
+    const std::string netlist = "XU395 1 2 3 4 5 6 7 LM317";
+    // act
+    const auto lines = tokenize_netlist(netlist);
+    // assert
+    ASSERT_EQ(lines.size(), 1);
+    ASSERT_EQ(lines[0].m_tokens.size(), 17);
+    ASSERT_EQ(lines[0].m_tokens[0].m_type, NetlistTokenType::DEVICE);
+    ASSERT_EQ(lines[0].m_tokens[0].m_text, "XU395");
+    // the seven interface nodes
+    ASSERT_EQ(lines[0].m_tokens[2].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[2].m_text, "1");
+    ASSERT_EQ(lines[0].m_tokens[4].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[4].m_text, "2");
+    ASSERT_EQ(lines[0].m_tokens[6].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[6].m_text, "3");
+    ASSERT_EQ(lines[0].m_tokens[8].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[8].m_text, "4");
+    ASSERT_EQ(lines[0].m_tokens[10].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[10].m_text, "5");
+    ASSERT_EQ(lines[0].m_tokens[12].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[12].m_text, "6");
+    ASSERT_EQ(lines[0].m_tokens[14].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[14].m_text, "7");
+    // the subcircuit name must not be classified as a node; it uses the model
+    // type so it shares the colour of numeric value arguments
+    ASSERT_EQ(lines[0].m_tokens[16].m_type, NetlistTokenType::MODEL);
+    ASSERT_EQ(lines[0].m_tokens[16].m_text, "LM317");
+}
+
+TEST(NetlistLexerChecks, subcircuit_instance_with_params_splits_name_from_params) {
+    // arrange: Xyce RG 2.3.33 X<name> [node]* <subcircuit name> [PARAMS: ...];
+    // the subcircuit name is the token before PARAMS: and the trailing
+    // parameter tokens follow their normal classification
+    const std::string netlist = "XFELT 1 2 FILTER PARAMS: CENTER=200kHz";
+    // act
+    const auto lines = tokenize_netlist(netlist);
+    // assert
+    ASSERT_EQ(lines.size(), 1);
+    ASSERT_EQ(lines[0].m_tokens[0].m_type, NetlistTokenType::DEVICE);
+    ASSERT_EQ(lines[0].m_tokens[0].m_text, "XFELT");
+    ASSERT_EQ(lines[0].m_tokens[2].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[2].m_text, "1");
+    ASSERT_EQ(lines[0].m_tokens[4].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[4].m_text, "2");
+    // the subcircuit name sits before PARAMS: and is not a node
+    ASSERT_EQ(lines[0].m_tokens[6].m_type, NetlistTokenType::MODEL);
+    ASSERT_EQ(lines[0].m_tokens[6].m_text, "FILTER");
+    // PARAMS: keeps its keyword classification
+    ASSERT_EQ(lines[0].m_tokens[8].m_type, NetlistTokenType::KEYWORD);
+    ASSERT_EQ(lines[0].m_tokens[8].m_text, "PARAMS:");
+    // the parameter list after PARAMS: is not node-classified
+    ASSERT_EQ(lines[0].m_tokens[10].m_type, NetlistTokenType::PLAIN_TEXT);
+    ASSERT_EQ(lines[0].m_tokens[10].m_text, "CENTER");
+    ASSERT_EQ(lines[0].m_tokens[11].m_type, NetlistTokenType::OPERATOR);
+    ASSERT_EQ(lines[0].m_tokens[11].m_text, "=");
+    ASSERT_EQ(lines[0].m_tokens[12].m_type, NetlistTokenType::NUMBER);
+    ASSERT_EQ(lines[0].m_tokens[12].m_text, "200kHz");
+}
+
 TEST(NetlistLexerChecks, tokenizes_xyce_special_y_devices) {
     // arrange / act
     const auto lines = tokenize_netlist("YMEMRISTOR1 N1 N2 MEM_MODEL");
@@ -401,6 +463,28 @@ TEST(NetlistLexerChecks, tokenizes_devices_with_hyphens) {
     ASSERT_EQ(lines[0].m_tokens[0].m_text, "R-1");
     ASSERT_EQ(lines[0].m_tokens[2].m_type, NetlistTokenType::NODE);
     ASSERT_EQ(lines[0].m_tokens[2].m_text, "1");
+}
+
+TEST(NetlistLexerChecks, tokenizes_kicad_net_name_with_hyphens_and_underscores) {
+    // arrange: KiCad-style net names contain embedded hyphens followed by
+    // underscores (e.g. Net-_U303A-G2_); the name must stay a single node token
+    const std::string netlist = "R318 OT Net-_U303A-G2_ 100";
+    // act
+    const auto lines = tokenize_netlist(netlist);
+    // assert
+    ASSERT_EQ(lines.size(), 1);
+    ASSERT_EQ(lines[0].m_tokens.size(), 7);
+    ASSERT_EQ(lines[0].m_tokens[0].m_type, NetlistTokenType::DEVICE);
+    ASSERT_EQ(lines[0].m_tokens[0].m_text, "R318");
+    ASSERT_EQ(lines[0].m_tokens[1].m_type, NetlistTokenType::WHITESPACE);
+    ASSERT_EQ(lines[0].m_tokens[2].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[2].m_text, "OT");
+    ASSERT_EQ(lines[0].m_tokens[3].m_type, NetlistTokenType::WHITESPACE);
+    ASSERT_EQ(lines[0].m_tokens[4].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[4].m_text, "Net-_U303A-G2_");
+    ASSERT_EQ(lines[0].m_tokens[5].m_type, NetlistTokenType::WHITESPACE);
+    ASSERT_EQ(lines[0].m_tokens[6].m_type, NetlistTokenType::NUMBER);
+    ASSERT_EQ(lines[0].m_tokens[6].m_text, "100");
 }
 
 TEST(NetlistLexerChecks, tokenizes_exponentiation_and_relational_operators) {

@@ -346,7 +346,7 @@ namespace
             // word token scanning
             const size_t start = i;
             // consume characters forming a word or token
-            while (i < n && !std::isspace(static_cast<unsigned char>(line[i])) && line[i] != '=' && line[i] != '(' && line[i] != ')' && line[i] != ',' && line[i] != '^' && line[i] != ';' && line[i] != '{' && line[i] != '"' && line[i] != '\'' && line[i] != ':') {
+            while (i < n && !std::isspace(static_cast<unsigned char>(line[i])) && line[i] != '=' && line[i] != '(' && line[i] != ')' && line[i] != ',' && line[i] != '^' && line[i] != ';' && line[i] != '{' && line[i] != '"' && line[i] != '\'') {
                 // check '+' or '-' inside identifiers vs standalone operators
                 if ((line[i] == '+' || line[i] == '-') && i > start) {
                     const char prev = line[i - 1];
@@ -360,11 +360,25 @@ namespace
                         i++;
                         break;
                     }
-                    // embedded hyphen in device or node name e.g. R-1, NET-A (Xyce RG 2.3.2)
-                    if (std::isalnum(static_cast<unsigned char>(line[i + 1]))) {
+                    // embedded hyphen in device or node name e.g. R-1, NET-A (Xyce RG 2.3.2);
+                    // KiCad net names may also continue with an underscore (Net-_U303A-G2_)
+                    if (std::isalnum(static_cast<unsigned char>(line[i + 1])) || line[i + 1] == '_') {
                         i++;
                         continue;
                     }
+                    break;
+                }
+                // colon handling: a trailing colon (followed by a word boundary)
+                // belongs to the word e.g. the PARAMS: keyword (Xyce RG 2.3.33);
+                // a mid-word colon is a hierarchical separator e.g. X1:IN (Xyce RG 2.3.1.2)
+                if (line[i] == ':') {
+                    const char next = (i + 1 < n) ? line[i + 1] : ' ';
+                    const bool trailing = std::isspace(static_cast<unsigned char>(next)) || next == '=' || next == '(' || next == ')' || next == ',' || next == '^' || next == ';' || next == '{' || next == '"' || next == '\'' || next == ':';
+                    // mid-word colon ends the word before the separator
+                    if (!trailing)
+                        break;
+                    // trailing colon is consumed and ends the word
+                    i++;
                     break;
                 }
                 i++;
@@ -422,6 +436,54 @@ namespace
             else {
                 // emit default plain text token
                 result.m_tokens.push_back({std::string(word), NetlistTokenType::PLAIN_TEXT});
+            }
+        }
+        // X-device instance lines carry the subcircuit name as a trailing token
+        // (Xyce RG 2.3.33: X<name> [node]* <subcircuit name> [PARAMS: ...]),
+        // which must not be classified as a node
+        if (expected_nodes < 0 && !result.m_tokens.empty()) {
+            // locate the trailing parameter keyword; when present, the subcircuit
+            // name is the token right before it and the rest is the parameter list
+            std::size_t params_index = result.m_tokens.size();
+            for (std::size_t t = 0; t < result.m_tokens.size(); ++t) {
+                // ignore whitespace and comments when searching for the keyword
+                if (result.m_tokens[t].m_type == NetlistTokenType::WHITESPACE || result.m_tokens[t].m_type == NetlistTokenType::COMMENT)
+                    continue;
+                const std::string upper_text = to_upper(result.m_tokens[t].m_text);
+                if (upper_text == "PARAMS:" || upper_text == "PARAMS") {
+                    params_index = t;
+                    break;
+                }
+            }
+            // locate the subcircuit name: the last non-whitespace, non-comment
+            // token before PARAMS: (or at the end of the line)
+            const std::size_t limit = (params_index < result.m_tokens.size()) ? params_index : result.m_tokens.size();
+            std::size_t name_index = result.m_tokens.size();
+            for (std::size_t t = limit; t-- > 0;) {
+                // ignore whitespace and comments when searching for the name
+                if (result.m_tokens[t].m_type == NetlistTokenType::WHITESPACE || result.m_tokens[t].m_type == NetlistTokenType::COMMENT)
+                    continue;
+                name_index = t;
+                break;
+            }
+            // reclassify the subcircuit name; the node guard skips lines without
+            // a name token (e.g. a bare device reference)
+            if (name_index < limit && result.m_tokens[name_index].m_type == NetlistTokenType::NODE)
+                result.m_tokens[name_index].m_type = NetlistTokenType::MODEL;
+            // reclassify the parameter list tokens through the standard fallback
+            for (std::size_t t = params_index; t < result.m_tokens.size(); ++t) {
+                // only node-classified tokens need reclassification
+                if (result.m_tokens[t].m_type != NetlistTokenType::NODE)
+                    continue;
+                const std::string upper_text = to_upper(result.m_tokens[t].m_text);
+                if (is_keyword(result.m_tokens[t].m_text))
+                    result.m_tokens[t].m_type = NetlistTokenType::KEYWORD;
+                else if (upper_text == "GND" || upper_text == "GROUND")
+                    result.m_tokens[t].m_type = NetlistTokenType::NODE;
+                else if (is_spice_number(result.m_tokens[t].m_text))
+                    result.m_tokens[t].m_type = NetlistTokenType::NUMBER;
+                else
+                    result.m_tokens[t].m_type = NetlistTokenType::PLAIN_TEXT;
             }
         }
         // return completed tokenized line
