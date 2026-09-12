@@ -13,25 +13,17 @@
 namespace
 {
 
-    // Y-prefix device types supported by Xyce with multi-letter codes
+    // Y-prefix device types supported by Xyce with multi-letter codes (Xyce RG Table 2-35)
     const std::vector<std::string_view> Y_PREFIXES = {"YMEMRISTOR", "YPDE", "YACC", "YLIN"};
 
-    // standard node counts for single-letter device types
+    // standard node counts for single-letter device types (Xyce RG Table 2-35)
     const std::map<char, int, std::less<>> NODE_COUNTS = {
         {'B', 2}, {'C', 2}, {'D', 2}, {'E', 4}, {'F', 2}, {'G', 4}, {'H', 2}, {'I', 2}, {'J', 3}, {'K', 0}, {'L', 2}, {'M', 4}, {'O', 4}, {'P', 2}, {'Q', 3}, {'R', 2}, {'S', 4}, {'T', 4}, {'U', 2}, {'V', 2}, {'W', 2}, {'Z', 3},
     };
 
-    // recognized simulation and modeling keywords in Xyce and SPICE
+    // comprehensive simulation directives, modeling keywords, and builtin functions (Xyce RG Chapter 2)
     const std::set<std::string, std::less<>> KEYWORDS = {
-        "AC", "AM", "BLACKMAN", "CSV", "DATA", "DC", "DEC", "DEVICE", "DISTOF1", "DISTOF2",
-        "END", "ENDDATA", "ENDS", "EXP", "FALSE", "FFT", "FILE", "FORMAT", "FOUR",
-        "GLOBAL", "HAMMING", "HANN", "HB", "HBINT", "IC", "IDB", "II", "IM", "INC",
-        "INCLUDE", "IP", "IR", "LIB", "LIN", "LINSOL", "LINSOL-HB", "MEAS", "MEASURE",
-        "MODEL", "NOISE", "NODESET", "NONLIN", "NONLIN-HB", "NP", "OCT", "OFF", "ON",
-        "OP", "OPTIONS", "P", "PARAM", "PARAMS", "PARAMS:", "PDB", "PLOT", "PREPROCESS",
-        "PRINT", "PROBE", "PULSE", "PWL", "RAW", "RECTANGULAR", "REPLACEGROUND", "SAVE",
-        "SENS", "SFFM", "SIN", "STD", "STEP", "SUBCKT", "TEMP", "TIMEINT", "TITLE",
-        "TRAN", "TRUE", "UNORM", "V", "VDB", "VI", "VM", "VP", "VR", "WINDOW",
+        "ABS", "AC", "ACOS", "ACOSH", "AGAUSS", "AKIMA", "AM", "ARCTAN", "ASIN", "ASINH", "AT", "ATAN", "ATAN2", "ATANH", "AVG", "BLACKMAN", "BLI", "CEIL", "CONTROL", "COS", "COSH", "CROSS", "CSV", "CUBIC", "DATA", "DB", "DC", "DCVOLT", "DDT", "DDX", "DEC", "DEVICE", "DIAGNOSTIC", "DIST", "DISTOF1", "DISTOF2", "EMBEDDEDSAMPLES", "EMBEDDEDSAMPLING", "END", "ENDDATA", "ENDS", "ERR", "ERR1", "ERR2", "EXP", "FALL", "FALSE", "FASTTABLE", "FFT", "FILE", "FIND", "FLOOR", "FMOD", "FORMAT", "FOUR", "FUNC", "GAUSS", "GLOBAL", "GLOBAL_PARAM", "GOAL", "HAMMING", "HANN", "HB", "HBINT", "IC", "IDB", "IF", "II", "IM", "IMG", "INC", "INCLUDE", "INCL", "INT", "INTEG", "IP", "IR", "LAST", "LEVEL", "LIB", "LIMIT", "LIN", "LINSOL", "LINSOL-AC", "LINSOL-HB", "LN", "LOCA", "LOG", "LOG10", "M", "MAX", "MEAS", "MEASURE", "MIN", "MINVAL", "MODEL", "NINT", "NOISE", "NODESET", "NONLIN", "NONLIN-HB", "NP", "OCT", "OFF", "ON", "OP", "OPTIONS", "OUTPUT", "P", "PARAM", "PARAMS", "PARAMS:", "PARSER", "PCES", "PDB", "PH", "PLOT", "POLY", "POW", "PP", "PREPROCESS", "PRINT", "PROBE", "PULSE", "PWL", "PWR", "PWRS", "R", "RAW", "RE", "RECTANGULAR", "REMOVEUNUSED", "REPLACEGROUND", "RESTART", "RESULT", "RISE", "RMS", "SAMPLES", "SAMPLING", "SAVE", "SDT", "SENS", "SENSITIVITY", "SFFM", "SGN", "SIGN", "SIN", "SINH", "SPICE_EXP", "SPICE_PULSE", "SPICE_SFFM", "SPICE_SIN", "SPLINE", "SQRT", "STD", "STEP", "STP", "SUBCKT", "TABLE", "TABLEFILE", "TAN", "TANH", "TARG", "TD", "TEMP", "TIMEINT", "TITLE", "TRAN", "TRIG", "TRUE", "UNORM", "URAMP", "V", "VAL", "VDB", "VI", "VM", "VP", "VR", "W", "WHEN", "WINDOW", "WODICKA",
     };
 
     // split raw text into line string views preserving newlines
@@ -69,7 +61,7 @@ namespace
         return lines;
     }
 
-    // test whether a string view represents a SPICE numeric literal with optional unit
+    // test whether a string view represents a SPICE numeric literal with optional scale/unit or imaginary J
     bool is_spice_number(std::string_view s) {
         // empty string cannot be a number
         if (s.empty())
@@ -122,9 +114,9 @@ namespace
                     idx++;
             }
         }
-        // any remaining characters represent scale factor and units and must not contain digits
+        // any remaining characters represent scale factor, units, or imaginary 'j'/'J' and must not contain digits
         for (size_t k = idx; k < s.size(); ++k) {
-            // reject if alphanumeric part contains embedded digits
+            // reject if alphanumeric suffix contains embedded digits (e.g. 1N4148 is a diode model, not a number)
             if (std::isdigit(static_cast<unsigned char>(s[k])))
                 return false;
         }
@@ -169,8 +161,8 @@ namespace
         // empty string cannot be a device
         if (s.empty())
             return false;
-        // reject if starts with a digit or dot
-        if (std::isdigit(static_cast<unsigned char>(s[0])) || s[0] == '.')
+        // reject if starts with a digit, dot, or global prefix '$'
+        if (std::isdigit(static_cast<unsigned char>(s[0])) || s[0] == '.' || s[0] == '$')
             return false;
         // convert to uppercase
         const std::string upper = to_upper(s);
@@ -214,9 +206,9 @@ namespace
             result.m_tokens.push_back({std::string(line), NetlistTokenType::WHITESPACE});
             return result;
         }
-        // full comment line begins with '*', ';', or '$'
+        // full comment line begins with '*' or ';' (Xyce RG 2.1.39)
         const char first_char = line[first_non_ws];
-        if (first_char == '*' || first_char == ';' || first_char == '$') {
+        if (first_char == '*' || first_char == ';') {
             // emit leading whitespace if present
             if (first_non_ws > 0)
                 result.m_tokens.push_back({std::string(line.substr(0, first_non_ws)), NetlistTokenType::WHITESPACE});
@@ -229,6 +221,7 @@ namespace
         const bool is_directive_line = (first_char == '.');
         // tracking state for device instance lines
         bool has_emitted_device = is_continuation || is_directive_line;
+        bool is_expecting_y_device_name = false;
         int expected_nodes = 0;
         int nodes_consumed = 0;
         // current scan index
@@ -246,13 +239,13 @@ namespace
                 result.m_tokens.push_back({std::string(line.substr(start, i - start)), NetlistTokenType::WHITESPACE});
                 continue;
             }
-            // inline comment begins with ';' or '$'
-            if (line[i] == ';' || line[i] == '$') {
+            // inline comment begins with ';' (Xyce RG 2.1.39.2)
+            if (line[i] == ';') {
                 // emit the rest of the line as an inline comment
                 result.m_tokens.push_back({std::string(line.substr(i)), NetlistTokenType::COMMENT});
                 break;
             }
-            // mathematical expression enclosed in curly braces
+            // mathematical expression enclosed in curly braces (Xyce RG 2.2)
             if (line[i] == '{') {
                 // start of expression
                 const size_t start = i;
@@ -266,7 +259,7 @@ namespace
                 i = end;
                 continue;
             }
-            // quoted string literal
+            // quoted string literal or single-quoted expression (Xyce RG 2.2)
             if (line[i] == '"' || line[i] == '\'') {
                 // quote delimiter
                 const char quote = line[i];
@@ -282,7 +275,7 @@ namespace
                 i = end;
                 continue;
             }
-            // continuation character at start of continuation line
+            // continuation character at start of continuation line (Xyce RG 2.1.39.3)
             if (is_continuation && i == first_non_ws && line[i] == '+') {
                 // emit continuation token
                 result.m_tokens.push_back({std::string(line.substr(i, 1)), NetlistTokenType::CONTINUATION});
@@ -290,28 +283,44 @@ namespace
                 i++;
                 continue;
             }
-            // simulation directive starting with '.'
+            // simulation directive starting with '.' (Xyce RG 2.1)
             if (line[i] == '.' && (i + 1 < n && !std::isdigit(static_cast<unsigned char>(line[i + 1])))) {
                 // start of directive
                 const size_t start = i;
                 // advance past leading dot
                 i++;
                 // consume directive name characters
-                while (i < n && !std::isspace(static_cast<unsigned char>(line[i])) && line[i] != '=' && line[i] != '(' && line[i] != ')' && line[i] != ';' && line[i] != '$')
+                while (i < n && !std::isspace(static_cast<unsigned char>(line[i])) && line[i] != '=' && line[i] != '(' && line[i] != ')' && line[i] != ';')
                     i++;
                 // emit directive token
                 result.m_tokens.push_back({std::string(line.substr(start, i - start)), NetlistTokenType::DIRECTIVE});
                 continue;
             }
+            // exponentiation operator '**' (Xyce RG Table 2-32)
+            if (line[i] == '*' && i + 1 < n && line[i + 1] == '*') {
+                // emit exponentiation operator
+                result.m_tokens.push_back({std::string(line.substr(i, 2)), NetlistTokenType::OPERATOR});
+                // advance two characters
+                i += 2;
+                continue;
+            }
+            // relational operators '==', '!=', '<=', '>=' (Xyce RG Table 2-32)
+            if ((line[i] == '=' || line[i] == '!' || line[i] == '<' || line[i] == '>') && i + 1 < n && line[i + 1] == '=') {
+                // emit relational operator
+                result.m_tokens.push_back({std::string(line.substr(i, 2)), NetlistTokenType::OPERATOR});
+                // advance two characters
+                i += 2;
+                continue;
+            }
             // single character operators and delimiters
-            if (line[i] == '=' || line[i] == '(' || line[i] == ')' || line[i] == ',' || line[i] == '^') {
+            if (line[i] == '=' || line[i] == '(' || line[i] == ')' || line[i] == ',' || line[i] == '^' || line[i] == '?' || line[i] == '~' || line[i] == '|' || line[i] == '&' || line[i] == '<' || line[i] == '>') {
                 // emit operator token
                 result.m_tokens.push_back({std::string(line.substr(i, 1)), NetlistTokenType::OPERATOR});
                 // advance index
                 i++;
                 continue;
             }
-            // colon operator (unless part of PARAMS: keyword)
+            // colon operator (hierarchy separator or ternary separator)
             if (line[i] == ':') {
                 // emit operator token
                 result.m_tokens.push_back({std::string(line.substr(i, 1)), NetlistTokenType::OPERATOR});
@@ -319,7 +328,7 @@ namespace
                 i++;
                 continue;
             }
-            // arithmetic operators '+', '-', '*', '/' when not leading numbers
+            // arithmetic operators '+', '-', '*', '/' when standalone
             if ((line[i] == '+' || line[i] == '-') && (i + 1 >= n || (!std::isdigit(static_cast<unsigned char>(line[i + 1])) && line[i + 1] != '.'))) {
                 // emit operator token
                 result.m_tokens.push_back({std::string(line.substr(i, 1)), NetlistTokenType::OPERATOR});
@@ -337,19 +346,50 @@ namespace
             // word token scanning
             const size_t start = i;
             // consume characters forming a word or token
-            while (i < n && !std::isspace(static_cast<unsigned char>(line[i])) && line[i] != '=' && line[i] != '(' && line[i] != ')' && line[i] != ',' && line[i] != '^' && line[i] != ';' && line[i] != '$' && line[i] != '{' && line[i] != '"' && line[i] != '\'') {
-                // stop at standalone operators if not start of number or scientific exponent
+            while (i < n && !std::isspace(static_cast<unsigned char>(line[i])) && line[i] != '=' && line[i] != '(' && line[i] != ')' && line[i] != ',' && line[i] != '^' && line[i] != ';' && line[i] != '{' && line[i] != '"' && line[i] != '\'' && line[i] != ':') {
+                // check '+' or '-' inside identifiers vs standalone operators
                 if ((line[i] == '+' || line[i] == '-') && i > start) {
                     const char prev = line[i - 1];
-                    if (prev != 'e' && prev != 'E')
+                    // scientific exponent e.g. 1e-6, 2.5e+3
+                    if (prev == 'e' || prev == 'E') {
+                        i++;
+                        continue;
+                    }
+                    // terminal suffix in pin/node names e.g. IN+, IN-, 1+, 1- (Xyce RG 2.3.2)
+                    if (i + 1 == n || std::isspace(static_cast<unsigned char>(line[i + 1])) || line[i + 1] == ')' || line[i + 1] == ',' || line[i + 1] == ';') {
+                        i++;
                         break;
+                    }
+                    // embedded hyphen in device or node name e.g. R-1, NET-A (Xyce RG 2.3.2)
+                    if (std::isalnum(static_cast<unsigned char>(line[i + 1]))) {
+                        i++;
+                        continue;
+                    }
+                    break;
                 }
                 i++;
             }
             // extracted word view
             const std::string_view word = line.substr(start, i - start);
+            const std::string upper_word = to_upper(word);
             // classify word token
-            if (!has_emitted_device && is_device_name(word)) {
+            if (is_expecting_y_device_name) {
+                // reset Y-device expectation flag
+                is_expecting_y_device_name = false;
+                // mark that device was emitted
+                has_emitted_device = true;
+                // emit Y-device instance name
+                result.m_tokens.push_back({std::string(word), NetlistTokenType::DEVICE});
+            }
+            else if (!has_emitted_device && (upper_word == "YMEMRISTOR" || upper_word == "YLIN" || upper_word == "YACC" || upper_word == "YPDE")) {
+                // set Y-device instance expectation flag
+                is_expecting_y_device_name = true;
+                // record expected node count
+                expected_nodes = get_device_node_count(word);
+                // emit Y-device type token
+                result.m_tokens.push_back({std::string(word), NetlistTokenType::DEVICE});
+            }
+            else if (!has_emitted_device && is_device_name(word)) {
                 // mark that device was emitted
                 has_emitted_device = true;
                 // record expected node count
@@ -357,9 +397,9 @@ namespace
                 // emit device token
                 result.m_tokens.push_back({std::string(word), NetlistTokenType::DEVICE});
             }
-            else if (is_keyword(word)) {
-                // emit keyword token
-                result.m_tokens.push_back({std::string(word), NetlistTokenType::KEYWORD});
+            else if (word.size() >= 2 && word[0] == '$' && (word[1] == 'G' || word[1] == 'g')) {
+                // global nodes begin with '$G' (Xyce RG 2.3.1.1 & 2.3.2)
+                result.m_tokens.push_back({std::string(word), NetlistTokenType::NODE});
             }
             else if (has_emitted_device && !is_directive_line && (expected_nodes < 0 || nodes_consumed < expected_nodes)) {
                 // increment consumed nodes counter
@@ -367,7 +407,11 @@ namespace
                 // emit node token
                 result.m_tokens.push_back({std::string(word), NetlistTokenType::NODE});
             }
-            else if (to_upper(word) == "GND" || to_upper(word) == "GROUND") {
+            else if (is_keyword(word)) {
+                // emit keyword token
+                result.m_tokens.push_back({std::string(word), NetlistTokenType::KEYWORD});
+            }
+            else if (upper_word == "GND" || upper_word == "GROUND") {
                 // emit ground node token
                 result.m_tokens.push_back({std::string(word), NetlistTokenType::NODE});
             }

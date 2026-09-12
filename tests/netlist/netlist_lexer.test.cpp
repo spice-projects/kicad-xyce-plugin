@@ -40,14 +40,13 @@ TEST(NetlistLexerChecks, tokenizes_full_line_comment_with_semicolon) {
     ASSERT_EQ(lines[0].m_tokens[0].m_text, "; Semicolon style comment");
 }
 
-TEST(NetlistLexerChecks, tokenizes_full_line_comment_with_dollar) {
+TEST(NetlistLexerChecks, does_not_treat_dollar_sign_as_comment) {
     // arrange / act
-    const auto lines = tokenize_netlist("$ Dollar style comment");
+    const auto lines = tokenize_netlist("$G_1 1 0 1k");
     // assert
     ASSERT_EQ(lines.size(), 1);
-    ASSERT_EQ(lines[0].m_tokens.size(), 1);
-    ASSERT_EQ(lines[0].m_tokens[0].m_type, NetlistTokenType::COMMENT);
-    ASSERT_EQ(lines[0].m_tokens[0].m_text, "$ Dollar style comment");
+    ASSERT_EQ(lines[0].m_tokens[0].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[0].m_text, "$G_1");
 }
 
 TEST(NetlistLexerChecks, tokenizes_full_line_comment_with_leading_whitespace) {
@@ -198,13 +197,13 @@ TEST(NetlistLexerChecks, tokenizes_xyce_special_y_devices) {
 
 TEST(NetlistLexerChecks, tokenizes_inline_comments) {
     // arrange / act
-    const auto lines = tokenize_netlist("R1 1 0 1k ; load resistor\nC1 2 0 10u $ filtering");
+    const auto lines = tokenize_netlist("R1 1 0 1k ; load resistor\nC1 2 0 10u ; filtering capacitor");
     // assert
     ASSERT_EQ(lines.size(), 2);
     ASSERT_EQ(lines[0].m_tokens.back().m_type, NetlistTokenType::COMMENT);
     ASSERT_EQ(lines[0].m_tokens.back().m_text, "; load resistor");
     ASSERT_EQ(lines[1].m_tokens.back().m_type, NetlistTokenType::COMMENT);
-    ASSERT_EQ(lines[1].m_tokens.back().m_text, "$ filtering");
+    ASSERT_EQ(lines[1].m_tokens.back().m_text, "; filtering capacitor");
 }
 
 TEST(NetlistLexerChecks, tokenizes_mathematical_expressions) {
@@ -244,18 +243,17 @@ TEST(NetlistLexerChecks, tokenizes_engineering_scale_factors) {
 
 TEST(NetlistLexerChecks, reconstruction_invariant_preserves_exact_source_text) {
     // arrange
-    const std::string source =
-        "* Simple RLC Series Circuit - Transient Analysis Test\n"
-        "V1 IN 0 PULSE(0 5 0 1n 1n 10m 20m)\n"
-        "R1 IN N1 100 ; current limiting resistor\n"
-        "L1 N1 N2 10mH\n"
-        "C1 N2 0 1uF\n"
-        "\n"
-        ".PREPROCESS REPLACEGROUND TRUE\n"
-        ".TRAN 1u 20m 0\n"
-        ".PRINT TRAN FORMAT=RAW FILE=tran-simple-01.raw V(*) I(*)\n"
-        "+ NP=1024 WINDOW=HANN\n"
-        ".END\n";
+    const std::string source = "* Simple RLC Series Circuit - Transient Analysis Test\n"
+                               "V1 IN 0 PULSE(0 5 0 1n 1n 10m 20m)\n"
+                               "R1 IN N1 100 ; current limiting resistor\n"
+                               "L1 N1 N2 10mH\n"
+                               "C1 N2 0 1uF\n"
+                               "\n"
+                               ".PREPROCESS REPLACEGROUND TRUE\n"
+                               ".TRAN 1u 20m 0\n"
+                               ".PRINT TRAN FORMAT=RAW FILE=tran-simple-01.raw V(*) I(*)\n"
+                               "+ NP=1024 WINDOW=HANN\n"
+                               ".END\n";
     // act
     const auto lines = tokenize_netlist(source);
     std::string reconstructed;
@@ -364,4 +362,90 @@ TEST(NetlistLexerChecks, tokenizes_pulse_source_parameters) {
     ASSERT_EQ(lines[0].m_tokens[20].m_text, "20m");
     ASSERT_EQ(lines[0].m_tokens[21].m_type, NetlistTokenType::OPERATOR);
     ASSERT_EQ(lines[0].m_tokens[21].m_text, ")");
+}
+
+TEST(NetlistLexerChecks, tokenizes_global_nodes_starting_with_dollar_g) {
+    // arrange / act
+    const auto lines = tokenize_netlist("Vpin1 $G_GlobalNode1 0 1\nVpin2 $GVDD 0 5");
+    // assert
+    ASSERT_EQ(lines.size(), 2);
+    ASSERT_EQ(lines[0].m_tokens[2].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[2].m_text, "$G_GlobalNode1");
+    ASSERT_EQ(lines[1].m_tokens[2].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[1].m_tokens[2].m_text, "$GVDD");
+}
+
+TEST(NetlistLexerChecks, tokenizes_differential_pins_with_plus_and_minus) {
+    // arrange / act
+    const auto lines = tokenize_netlist("R1 IN+ IN- 100\nV1 1+ 1- 5.0");
+    // assert
+    ASSERT_EQ(lines.size(), 2);
+    ASSERT_EQ(lines[0].m_tokens[2].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[2].m_text, "IN+");
+    ASSERT_EQ(lines[0].m_tokens[4].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[4].m_text, "IN-");
+    ASSERT_EQ(lines[0].m_tokens[6].m_type, NetlistTokenType::NUMBER);
+    ASSERT_EQ(lines[0].m_tokens[6].m_text, "100");
+    ASSERT_EQ(lines[1].m_tokens[2].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[1].m_tokens[2].m_text, "1+");
+    ASSERT_EQ(lines[1].m_tokens[4].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[1].m_tokens[4].m_text, "1-");
+}
+
+TEST(NetlistLexerChecks, tokenizes_devices_with_hyphens) {
+    // arrange / act
+    const auto lines = tokenize_netlist("R-1 1 0 1k");
+    // assert
+    ASSERT_EQ(lines.size(), 1);
+    ASSERT_EQ(lines[0].m_tokens[0].m_type, NetlistTokenType::DEVICE);
+    ASSERT_EQ(lines[0].m_tokens[0].m_text, "R-1");
+    ASSERT_EQ(lines[0].m_tokens[2].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[2].m_text, "1");
+}
+
+TEST(NetlistLexerChecks, tokenizes_exponentiation_and_relational_operators) {
+    // arrange / act
+    const auto lines = tokenize_netlist(".PARAM P = { A ** 2 + (B == C) + (D != E) + (F <= G) }");
+    // assert
+    ASSERT_EQ(lines.size(), 1);
+    ASSERT_EQ(lines[0].m_tokens.back().m_type, NetlistTokenType::EXPRESSION);
+}
+
+TEST(NetlistLexerChecks, tokenizes_complex_numbers_with_j_suffix) {
+    // arrange / act
+    const auto lines = tokenize_netlist(".PARAM a0 = 2.0J\n.PARAM b0 = 1.5e-3j");
+    // assert
+    ASSERT_EQ(lines.size(), 2);
+    ASSERT_EQ(lines[0].m_tokens[6].m_type, NetlistTokenType::NUMBER);
+    ASSERT_EQ(lines[0].m_tokens[6].m_text, "2.0J");
+    ASSERT_EQ(lines[1].m_tokens[6].m_type, NetlistTokenType::NUMBER);
+    ASSERT_EQ(lines[1].m_tokens[6].m_text, "1.5e-3j");
+}
+
+TEST(NetlistLexerChecks, tokenizes_xyce_y_device_separate_name_syntax) {
+    // arrange / act
+    const auto lines = tokenize_netlist("YMEMRISTOR M1 1 2 MEM_MODEL");
+    // assert
+    ASSERT_EQ(lines.size(), 1);
+    ASSERT_EQ(lines[0].m_tokens[0].m_type, NetlistTokenType::DEVICE);
+    ASSERT_EQ(lines[0].m_tokens[0].m_text, "YMEMRISTOR");
+    ASSERT_EQ(lines[0].m_tokens[2].m_type, NetlistTokenType::DEVICE);
+    ASSERT_EQ(lines[0].m_tokens[2].m_text, "M1");
+    ASSERT_EQ(lines[0].m_tokens[4].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[4].m_text, "1");
+    ASSERT_EQ(lines[0].m_tokens[6].m_type, NetlistTokenType::NODE);
+    ASSERT_EQ(lines[0].m_tokens[6].m_text, "2");
+}
+
+TEST(NetlistLexerChecks, tokenizes_extended_xyce_directives) {
+    // arrange / act
+    const auto lines = tokenize_netlist(".GLOBAL_PARAM TEMP=27\n.FUNC MY_FN(X) {X*2}\n.DCVOLT 1 0.5");
+    // assert
+    ASSERT_EQ(lines.size(), 3);
+    ASSERT_EQ(lines[0].m_tokens[0].m_type, NetlistTokenType::DIRECTIVE);
+    ASSERT_EQ(lines[0].m_tokens[0].m_text, ".GLOBAL_PARAM");
+    ASSERT_EQ(lines[1].m_tokens[0].m_type, NetlistTokenType::DIRECTIVE);
+    ASSERT_EQ(lines[1].m_tokens[0].m_text, ".FUNC");
+    ASSERT_EQ(lines[2].m_tokens[0].m_type, NetlistTokenType::DIRECTIVE);
+    ASSERT_EQ(lines[2].m_tokens[0].m_text, ".DCVOLT");
 }
