@@ -650,7 +650,7 @@ namespace simulation_parameters_dialog_view
             dialog->set_dc_stop(slint::SharedString(has_primary ? sweeps[0].stop : ""));
             dialog->set_dc_step(slint::SharedString(has_primary ? sweeps[0].step : ""));
             dialog->set_dc_points(slint::SharedString(has_primary ? sweeps[0].points : ""));
-            dialog->set_dc_list_values(slint::SharedString(join(params.list_values, " ")));
+            dialog->set_dc_list_values(slint::SharedString(join(has_primary ? sweeps[0].list_values : std::vector<std::string>{}, " ")));
             dialog->set_dc_data_table(slint::SharedString(params.data_table_name));
             const bool has_secondary = sweeps.size() > 1;
             dialog->set_dc_secondary_variable(slint::SharedString(has_secondary ? sweeps[1].variable : ""));
@@ -658,6 +658,10 @@ namespace simulation_parameters_dialog_view
             dialog->set_dc_secondary_stop(slint::SharedString(has_secondary ? sweeps[1].stop : ""));
             dialog->set_dc_secondary_step(slint::SharedString(has_secondary ? sweeps[1].step : ""));
             dialog->set_dc_secondary_points(slint::SharedString(has_secondary ? sweeps[1].points : ""));
+            // LIST sweeps: show the secondary list values in the primary list field
+            if (params.sweep_mode == "LIST" && has_secondary) {
+                dialog->set_dc_secondary_start(slint::SharedString(join(sweeps[1].list_values, " ")));
+            }
             // additional sweeps (3rd+) serialized as space-separated tuples: var start stop step/points
             std::string additional;
             for (size_t i = 2; i < sweeps.size(); ++i) {

@@ -261,6 +261,23 @@ TEST(DCSimulationParametersChecks, generates_multiple_list_sweeps) {
     ASSERT_EQ(directives[0], ".DC VDS LIST 0 3.5 0.05 VGS LIST 0 3.5 0.5");
 }
 
+TEST(DCSimulationParametersChecks, parses_multiple_list_sweeps_roundtrip) {
+    // arrange — RG §2.1.3.4 example
+    const DCSimulationParameters params("LIST", {DcSweep{"VDS", "", "", "", "", {"0", "3.5", "0.05"}}, DcSweep{"VGS", "", "", "", "", {"0", "3.5", "0.5"}}}, {}, "", std::nullopt, {}, std::nullopt);
+    // act
+    const auto directives = params.to_xyce_directives(NetlistTopology{});
+    const auto reparsed = DCSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_TRUE(reparsed.has_value());
+    ASSERT_EQ(reparsed->sweep_mode, "LIST");
+    ASSERT_EQ(reparsed->sweeps.size(), 2u);
+    ASSERT_EQ(reparsed->sweeps[0].variable, "VDS");
+    ASSERT_EQ(reparsed->sweeps[0].list_values, std::vector<std::string>({"0", "3.5", "0.05"}));
+    ASSERT_EQ(reparsed->sweeps[1].variable, "VGS");
+    ASSERT_EQ(reparsed->sweeps[1].list_values, std::vector<std::string>({"0", "3.5", "0.5"}));
+    ASSERT_TRUE(*reparsed == params);
+}
+
 TEST(DCSimulationParametersChecks, generates_data_directive_without_replace_ground) {
     // arrange
     const DCSimulationParameters params("DATA", {DcSweep{"", "", "", "", ""}}, std::vector<std::string>{}, "myCustomTable", std::nullopt, {}, std::nullopt);
