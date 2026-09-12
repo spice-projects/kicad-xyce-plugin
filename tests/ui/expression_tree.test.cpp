@@ -597,3 +597,58 @@ TEST(ExpressionTreeChecks, reopen_dialog_flow_marks_plotted_compound_selected) {
     }
     ASSERT_TRUE(found);
 }
+
+TEST(ExpressionTreeChecks, distinguishes_subcircuit_and_sheet_with_same_label) {
+    // arrange: subcircuit XU1 and sheet XU1 share the label but have different kinds
+    ExpressionTree tree;
+    tree.rebuild({{"V(XU1:23)", "Voltage"}, {"V(/XU1/net1)", "Voltage"}});
+    // act: root should have two separate scope cards (one subcircuit, one sheet)
+    const auto& root_cards = tree.cards();
+    ASSERT_EQ(root_cards.size(), 2);
+    // assert: both are scopes, different kinds, each contains one expression
+    bool saw_subcircuit = false;
+    bool saw_sheet = false;
+    for (const ExpressionCard& card : root_cards) {
+        ASSERT_TRUE(card.is_scope);
+        ASSERT_EQ(card.label, "XU1");
+        ASSERT_EQ(card.count, 1);
+        if (card.kind == "subcircuit")
+            saw_subcircuit = true;
+        else if (card.kind == "sheet")
+            saw_sheet = true;
+    }
+    ASSERT_TRUE(saw_subcircuit);
+    ASSERT_TRUE(saw_sheet);
+}
+
+TEST(ExpressionTreeChecks, differential_probe_prefix_stripped_per_operand) {
+    // arrange: differential probe with both nodes under the same subcircuit
+    ExpressionTree tree;
+    tree.rebuild({{"V(XU1:1,XU1:2)", "Voltage"}});
+    // act: drill into the XU1 scope
+    tree.activate(0);
+    const auto& cards = tree.cards();
+    // assert: both operands are stripped to scope-relative form
+    ASSERT_EQ(cards.size(), 1);
+    ASSERT_FALSE(cards[0].is_scope);
+    ASSERT_EQ(cards[0].label, "V(1,2)");
+    ASSERT_EQ(cards[0].full_name, "V(XU1:1,XU1:2)");
+}
+
+TEST(ExpressionTreeChecks, rebuild_clears_filter) {
+    // arrange: tree with a filter active
+    ExpressionTree tree;
+    tree.rebuild({{"V(1)", "Voltage"}, {"V(XU1:23)", "Voltage"}});
+    tree.set_filter("XU1");
+    // filter is active: cards are flattened
+    ASSERT_EQ(tree.cards().size(), 1);
+    // act: rebuild the tree
+    tree.rebuild({{"V(1)", "Voltage"}, {"V(XU1:23)", "Voltage"}});
+    // assert: filter is cleared, scoped view restored
+    const auto& cards = tree.cards();
+    ASSERT_EQ(cards.size(), 2);
+    ASSERT_FALSE(cards[0].is_scope);
+    ASSERT_EQ(cards[0].label, "V(1)");
+    ASSERT_TRUE(cards[1].is_scope);
+    ASSERT_EQ(cards[1].label, "XU1");
+}

@@ -164,7 +164,7 @@ void ExpressionTree::insert(Leaf leaf) {
         // find the existing child scope for this segment
         Group* child = nullptr;
         for (Group& candidate : group->children) {
-            if (candidate.label == segment) {
+            if (candidate.label == segment && candidate.kind == kind) {
                 child = &candidate;
                 break;
             }
@@ -243,11 +243,26 @@ std::string ExpressionTree::display_label(const Leaf& leaf) const {
     }
     // trail the prefix with the kind separator
     prefix += kind == GroupKind::Sheet ? "/" : ":";
-    // strip the browsed scope prefix from the argument
-    if (inside.rfind(prefix, 0) == 0)
-        inside = inside.substr(prefix.size());
+    // strip the browsed scope prefix from each comma-separated probe operand
+    std::string result;
+    size_t start = 0;
+    while (start < inside.size()) {
+        // locate the next comma (operand separator)
+        const size_t comma = inside.find(',', start);
+        const size_t end = comma == std::string::npos ? inside.size() : comma;
+        // strip the prefix from this operand
+        std::string operand = inside.substr(start, end - start);
+        if (operand.rfind(prefix, 0) == 0)
+            operand = operand.substr(prefix.size());
+        // append the operand, separated from the previous one by a comma
+        if (!result.empty())
+            result += ",";
+        result += operand;
+        // advance past the comma
+        start = comma == std::string::npos ? inside.size() : comma + 1;
+    }
     // rebuild the display label with the shortened argument
-    return function_prefix + "(" + inside + ")";
+    return function_prefix + "(" + result + ")";
 }
 
 void ExpressionTree::emit_scope_cards() {
@@ -362,6 +377,7 @@ void ExpressionTree::rebuild(const std::vector<std::pair<std::string, std::strin
     m_next_order = 0;
     m_scope_stack.clear();
     m_show_selected = false;
+    m_filter.clear();
     m_cards.clear();
     m_card_meta.clear();
     m_breadcrumb.clear();
