@@ -27,7 +27,7 @@ class ConfigureSimulationChecks(unittest.TestCase):
             app.client().click_element(ok)
             # assert: the dialog closed and the netlist directive was rewritten
             fields.nth(0).wait_for_gone()
-            tran_lines = [line for line in app.get_by_type("TextEdit").nth(0).text().splitlines() if line.strip().startswith(".TRAN")]
+            tran_lines = [line for line in app.get_by_id("NetlistEditor::input").text().splitlines() if line.strip().startswith(".TRAN")]
             self.assertEqual(tran_lines, [".TRAN 1u 25m 0"])
             # step 3: reopen the dialog to verify the accepted values persisted
             app.get_by_type("ToolbarButton").nth(6).click()

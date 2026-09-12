@@ -18,7 +18,7 @@ class NetlistEditorChecks(unittest.TestCase):
             # arrange: launch the application with the working copy
             with TestSession(launch(args=["--netlist", str(working_copy)]), self.id()) as app:
                 # arrange: locate the netlist editor and the toolbar tools
-                editor = app.get_by_type("TextEdit").nth(0)
+                editor = app.get_by_id("NetlistEditor::input")
                 tools = app.get_by_type("ToolbarButton")
                 # assert: the editor shows the netlist file content
                 expect(editor).to_have_text(netlist.read_text())
