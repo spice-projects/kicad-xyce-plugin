@@ -120,6 +120,100 @@ TEST(DCSimulationParametersChecks, no_dc_directive_returns_none) {
     ASSERT_FALSE(result.has_value());
 }
 
+TEST(DCSimulationParametersChecks, duplicate_dc_directives_last_wins_lin) {
+    // arrange
+    const std::vector<std::string> directives = {".DC VIN 0 5 0.1", ".DC VGG -2 2 0.05"};
+    // act
+    const auto result = DCSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->sweep_mode, "LIN");
+    ASSERT_EQ(result->sweeps.size(), 1);
+    ASSERT_EQ(result->sweeps[0].variable, "VGG");
+    ASSERT_EQ(result->sweeps[0].start, "-2");
+    ASSERT_EQ(result->sweeps[0].stop, "2");
+    ASSERT_EQ(result->sweeps[0].step, "0.05");
+}
+
+TEST(DCSimulationParametersChecks, duplicate_dc_directives_last_wins_across_modes) {
+    // arrange
+    const std::vector<std::string> directives = {".DC DEC VIN 1k 100MEG 10", ".DC RLOAD 0 3.5 0.05"};
+    // act
+    const auto result = DCSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->sweep_mode, "LIN");
+    ASSERT_EQ(result->sweeps.size(), 1);
+    ASSERT_EQ(result->sweeps[0].variable, "RLOAD");
+    ASSERT_EQ(result->sweeps[0].start, "0");
+    ASSERT_EQ(result->sweeps[0].stop, "3.5");
+    ASSERT_EQ(result->sweeps[0].step, "0.05");
+}
+
+TEST(DCSimulationParametersChecks, duplicate_dc_directives_last_wins_list_over_lin) {
+    // arrange
+    const std::vector<std::string> directives = {".DC VIN 0 5 0.1", ".DC VBIAS LIST 1k 2k 5k"};
+    // act
+    const auto result = DCSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->sweep_mode, "LIST");
+    ASSERT_EQ(result->sweeps.size(), 1);
+    ASSERT_EQ(result->sweeps[0].variable, "VBIAS");
+    ASSERT_EQ(result->sweeps[0].list_values.size(), 3);
+    ASSERT_EQ(result->sweeps[0].list_values[0], "1k");
+    ASSERT_EQ(result->sweeps[0].list_values[1], "2k");
+    ASSERT_EQ(result->sweeps[0].list_values[2], "5k");
+}
+
+TEST(DCSimulationParametersChecks, duplicate_dc_directives_last_wins_lin_over_data) {
+    // arrange
+    const std::vector<std::string> directives = {".DC DATA=myTable", ".DC VDS 0 10 0.5"};
+    // act
+    const auto result = DCSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->sweep_mode, "LIN");
+    ASSERT_EQ(result->data_table_name.empty(), true);
+    ASSERT_EQ(result->sweeps.size(), 1);
+    ASSERT_EQ(result->sweeps[0].variable, "VDS");
+}
+
+TEST(DCSimulationParametersChecks, duplicate_dc_directives_last_wins_data_over_lin) {
+    // arrange
+    const std::vector<std::string> directives = {".DC VIN 0 5 0.1", ".DC DATA=sweepData"};
+    // act
+    const auto result = DCSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->sweep_mode, "DATA");
+    ASSERT_EQ(result->data_table_name, "sweepData");
+    ASSERT_EQ(result->sweeps.empty(), true);
+}
+
+TEST(DCSimulationParametersChecks, duplicate_dc_directives_last_wins_data_over_data) {
+    // arrange
+    const std::vector<std::string> directives = {".DC DATA=firstTable", ".DC DATA=secondTable"};
+    // act
+    const auto result = DCSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->sweep_mode, "DATA");
+    ASSERT_EQ(result->data_table_name, "secondTable");
+}
+
+TEST(DCSimulationParametersChecks, duplicate_dc_directives_serialize_single_line) {
+    // arrange
+    const std::vector<std::string> directives = {".DC VIN 0 5 0.1", ".DC VDS 0 10 0.5"};
+    // act
+    const auto result = DCSimulationParameters::from_xyce_directives(directives);
+    // assert
+    ASSERT_TRUE(result.has_value());
+    const auto serialized = result->to_xyce_directives(NetlistTopology{});
+    ASSERT_EQ(serialized.size(), 1);
+    ASSERT_EQ(serialized[0], ".DC VDS 0 10 0.5");
+}
+
 // ========================================================================================
 // to_xyce_directives
 // ========================================================================================

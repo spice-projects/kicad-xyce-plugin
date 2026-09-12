@@ -159,6 +159,11 @@ std::optional<DCSimulationParameters> DCSimulationParameters::from_xyce_directiv
         // flag indicating a valid DC directive was found
         found = true;
 
+        // a new .DC directive supersedes any previously parsed one: reset sweep
+        // state so duplicate directives do not merge into a combined analysis
+        sweeps.clear();
+        data_table_name.clear();
+
         // handle DATA sweep: .DC DATA=<tablename>
         if (tokens.size() == 2 && tokens[1].find('=') != std::string::npos && to_upper(tokens[1].substr(0, 5)) == "DATA=") {
             // set sweep mode and data table name
