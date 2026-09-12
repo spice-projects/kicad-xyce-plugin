@@ -407,7 +407,7 @@ TEST(ExpressionManagerChecks, evaluate_uses_provided_name) {
     ASSERT_EQ(extract_name(*result), "my_result");
 }
 
-TEST(ExpressionManagerChecks, evaluate_without_name_uses_formatted_expression) {
+TEST(ExpressionManagerChecks, evaluate_without_name_keeps_the_expression_text_as_name) {
     // arrange
     std::vector<AnyExpression> expressions;
     expressions.emplace_back(make_real_expression("v(a)", {2.0}, "V"));
@@ -418,7 +418,7 @@ TEST(ExpressionManagerChecks, evaluate_without_name_uses_formatted_expression) {
     const auto result = manager.evaluate("v(a)*i(r1)");
     // assert
     ASSERT_NE(result, nullptr);
-    ASSERT_EQ(extract_name(*result), "(v(a)*i(r1))");
+    ASSERT_EQ(extract_name(*result), "v(a)*i(r1)");
 }
 
 TEST(ExpressionManagerChecks, evaluate_infers_unit_volts_times_amps) {
@@ -575,4 +575,72 @@ TEST(ExpressionManagerChecks, infer_unit_current_probe) {
     const auto result = manager.infer_unit("I(R1)");
     // assert
     ASSERT_EQ(result, "A");
+}
+
+TEST(ExpressionManagerChecks, compound_evaluate_keeps_requested_name_and_current_type) {
+    // arrange
+    const std::string compound = "I(XU301:X1:X1:E1)-I(XU301:X1:X1:C3)";
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(make_real_expression("time", {0.0, 1.0, 2.0}, "s"));
+    expressions.emplace_back(make_real_expression("I(XU301:X1:X1:E1)", {1.0, 2.0, 3.0}, "A"));
+    expressions.emplace_back(make_real_expression("I(XU301:X1:X1:C3)", {3.0, 2.0, 1.0}, "A"));
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    ExpressionManager manager(expressions, slices);
+    // act
+    auto* expression = manager.evaluate(compound, compound);
+    // assert
+    ASSERT_NE(expression, nullptr);
+    ASSERT_EQ(extract_name(*expression), compound);
+    ASSERT_EQ(extract_unit(*expression), "A");
+    ASSERT_EQ(std::get<Expression<double>>(*expression).variable_type(), "current");
+}
+
+TEST(ExpressionManagerChecks, compound_reevaluation_without_name_returns_same_expression) {
+    // arrange
+    const std::string compound = "I(XU301:X1:X1:E1)-I(XU301:X1:X1:C3)";
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(make_real_expression("time", {0.0, 1.0, 2.0}, "s"));
+    expressions.emplace_back(make_real_expression("I(XU301:X1:X1:E1)", {1.0, 2.0, 3.0}, "A"));
+    expressions.emplace_back(make_real_expression("I(XU301:X1:X1:C3)", {3.0, 2.0, 1.0}, "A"));
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    ExpressionManager manager(expressions, slices);
+    auto* created = manager.evaluate(compound, compound);
+    ASSERT_NE(created, nullptr);
+    // act
+    auto* resolved = manager.evaluate(compound);
+    // assert
+    ASSERT_EQ(resolved, created);
+    ASSERT_EQ(extract_name(*resolved), compound);
+}
+
+TEST(ExpressionManagerChecks, compound_reevaluation_after_context_loss_keeps_requested_text_as_name) {
+    // arrange: a fresh manager like after a simulation re-run, the chart
+    // re-resolves the plotted series name against it
+    const std::string compound = "I(XU301:X1:X1:E1)-I(XU301:X1:X1:C3)";
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(make_real_expression("time", {0.0, 1.0, 2.0}, "s"));
+    expressions.emplace_back(make_real_expression("I(XU301:X1:X1:E1)", {1.0, 2.0, 3.0}, "A"));
+    expressions.emplace_back(make_real_expression("I(XU301:X1:X1:C3)", {3.0, 2.0, 1.0}, "A"));
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 3}};
+    ExpressionManager manager(expressions, slices);
+    // act
+    auto* expression = manager.evaluate(compound);
+    // assert
+    ASSERT_NE(expression, nullptr);
+    ASSERT_EQ(extract_name(*expression), compound);
+}
+
+TEST(ExpressionManagerChecks, evaluated_voltage_difference_gets_voltage_type) {
+    // arrange
+    std::vector<AnyExpression> expressions;
+    expressions.emplace_back(make_real_expression("time", {0.0, 1.0}, "s"));
+    expressions.emplace_back(make_real_expression("V(1)", {1.0, 2.0}, "V"));
+    expressions.emplace_back(make_real_expression("V(2)", {2.0, 1.0}, "V"));
+    std::vector<std::pair<size_t, size_t>> slices = {{0, 2}};
+    ExpressionManager manager(expressions, slices);
+    // act
+    auto* expression = manager.evaluate("V(1)-V(2)", "V(1)-V(2)");
+    // assert
+    ASSERT_NE(expression, nullptr);
+    ASSERT_EQ(std::get<Expression<double>>(*expression).variable_type(), "voltage");
 }

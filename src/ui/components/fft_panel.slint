@@ -10,6 +10,8 @@ import {
     Palette,
 } from "std-widgets.slint";
 import {
+    Breadcrumb,
+    BreadcrumbItem,
     ExpressionItem,
     ExpressionGrid,
     Legend,
@@ -33,10 +35,14 @@ export component FftPanel inherits ModalPanel {
     in-out property <int> np-index: 2;
     in-out property <string> custom-np: "";
     in property <[ExpressionItem]> expressions: [];
+    in property <[BreadcrumbItem]> breadcrumb: [];
+    in property <bool> show-selected: false;
     in-out property <string> filter-text: "";
 
     // forwarded from the panel to MainWindow for the view adapter
     callback expression-clicked(int);
+    callback breadcrumb-clicked(int);
+    callback selected-link-clicked();
     callback filter-changed(string);
 
     function range-index(label: string) -> int {
@@ -59,6 +65,36 @@ export component FftPanel inherits ModalPanel {
         edited => { root.filter-changed(self.text); }
     }
 
+    // breadcrumb path of the browsed scope with the selected-only toggle
+    // aligned on the right
+    HorizontalLayout {
+        spacing: 8px;
+
+        Breadcrumb {
+            horizontal-stretch: 1;
+            items: root.breadcrumb;
+            segment-clicked(level) => { root.breadcrumb-clicked(level); }
+        }
+
+        Rectangle {
+            HorizontalLayout {
+                Text {
+                    text: "(selected)";
+                    font-size: 12px;
+                    font-weight: root.show-selected ? 700 : 400;
+                    color: Palette.accent-background;
+                    vertical-alignment: center;
+                }
+            }
+
+            tap := TouchArea {
+                enabled: root.filter-text == "";
+                mouse-cursor: pointer;
+                clicked => { root.selected-link-clicked(); }
+            }
+        }
+    }
+
     ExpressionGrid {
         vertical-stretch: 1;
         expressions: root.expressions;
@@ -74,10 +110,12 @@ export component FftPanel inherits ModalPanel {
         items: [
             { label: "Voltage", color: #5b9bd5 },
             { label: "Current", color: #7cb342 },
-            { label: "Freq", color: #e57373 },
+            { label: "Frequency", color: #e57373 },
             { label: "Time", color: #ba68c8 },
             { label: "Power", color: #ffb74d },
             { label: "Misc", color: #3a3d4a },
+            { label: "Subcircuit", color: #8e6dd9 },
+            { label: "Sheet", color: #4dd0e1 },
         ];
     }
 

@@ -14,6 +14,34 @@
 #include "unit_utils.h"
 #include "xyce_evaluator.h"
 
+namespace
+{
+    // map a measurement unit to the signal type vocabulary used by the raw
+    // file parser; unknown units keep no type
+    std::string variable_type_from_unit(const std::string& unit) {
+        // voltage
+        if (unit == "V")
+            return "voltage";
+        // current
+        if (unit == "A")
+            return "current";
+        // frequency
+        if (unit == "Hz")
+            return "frequency";
+        // time
+        if (unit == "s")
+            return "time";
+        // power
+        if (unit == "W")
+            return "power";
+        // phase
+        if (unit == "°")
+            return "phase";
+        // dimensionless or unknown
+        return "";
+    }
+} // namespace
+
 ExpressionManager::ExpressionManager(std::vector<AnyExpression>& expressions, std::vector<std::pair<size_t, size_t>>& step_slices) :
     m_expressions(std::make_move_iterator(expressions.begin()), std::make_move_iterator(expressions.end())), m_step_slices(std::move(step_slices)) {
     // ensure step are non empty
@@ -88,7 +116,7 @@ AnyExpression* ExpressionManager::evaluate(const std::string& expression, const 
         // infer the unit of the result expression
         auto inferred_unit = ::infer_unit(*ast, unit_context);
         // derive the result name
-        auto result_name = name.value_or(format_expression(*ast));
+        auto result_name = name.value_or(expression);
         // create expression
         auto* result = build_expression(evaluated, result_name, inferred_unit);
         // update context
@@ -132,8 +160,10 @@ std::string ExpressionManager::infer_unit(const std::string& expression) {
 }
 
 AnyExpression* ExpressionManager::build_expression(XyceValue& value, const std::string& name, const std::string& unit) {
+    // signal type derived from the measurement unit
+    const std::string variable_type = variable_type_from_unit(unit);
     // factory
-    auto l = [this, &name, &unit]<typename T0>(T0&& arg) -> AnyExpression* {
+    auto l = [this, &name, &unit, &variable_type]<typename T0>(T0&& arg) -> AnyExpression* {
         // actual parameter type
         using TX = std::decay_t<T0>;
         // double
@@ -145,7 +175,7 @@ AnyExpression* ExpressionManager::build_expression(XyceValue& value, const std::
             // create vector to hold the scalar value repeated for each step
             std::vector<double> data(total_points, arg);
             // create expression, append it to expressions
-            m_expressions.emplace_back(Expression<double>{name, std::move(data), m_step_slices, unit, "expression manager"});
+            m_expressions.emplace_back(Expression<double>{name, std::move(data), m_step_slices, unit, "expression manager", variable_type});
             // return expression
             return &m_expressions.back();
         }
@@ -158,21 +188,21 @@ AnyExpression* ExpressionManager::build_expression(XyceValue& value, const std::
             // create vector to hold the scalar value repeated for each step
             std::vector<std::complex<double>> data(total_points, arg);
             // create expression, append it to expressions
-            m_expressions.emplace_back(Expression<std::complex<double>>{name, std::move(data), m_step_slices, unit, "expression manager"});
+            m_expressions.emplace_back(Expression<std::complex<double>>{name, std::move(data), m_step_slices, unit, "expression manager", variable_type});
             // return expression
             return &m_expressions.back();
         }
         // View<double>
         if constexpr (std::is_same_v<TX, std::shared_ptr<View<double>>>) {
             // create expression, append it to expressions
-            m_expressions.emplace_back(Expression<double>{name, std::move(*arg), m_step_slices, unit, "expression manager"});
+            m_expressions.emplace_back(Expression<double>{name, std::move(*arg), m_step_slices, unit, "expression manager", variable_type});
             // return expression
             return &m_expressions.back();
         }
         // vector<complex>
         else if constexpr (std::is_same_v<TX, std::shared_ptr<View<std::complex<double>>>>) {
             // create expression, append it to expressions
-            m_expressions.emplace_back(Expression<std::complex<double>>{name, std::move(*arg), m_step_slices, unit, "expression manager"});
+            m_expressions.emplace_back(Expression<std::complex<double>>{name, std::move(*arg), m_step_slices, unit, "expression manager", variable_type});
             // return expression
             return &m_expressions.back();
         }

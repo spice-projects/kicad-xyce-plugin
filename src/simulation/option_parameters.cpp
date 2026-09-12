@@ -30,8 +30,8 @@ static std::map<std::string, std::string> parse_option_tokens(const std::vector<
     return options;
 }
 
-OptionParameters::OptionParameters(std::map<std::string, std::string> device, std::map<std::string, std::string> timeint, std::map<std::string, std::string> nonlin, std::map<std::string, std::string> linsol, std::map<std::string, std::string> fft, std::map<std::string, std::string> diagnostic, std::map<std::string, std::string> parser, std::map<std::string, std::string> linsol_ac, std::map<std::string, std::string> loca, std::map<std::string, std::string> dist) :
-    device(std::move(device)), timeint(std::move(timeint)), nonlin(std::move(nonlin)), linsol(std::move(linsol)), fft(std::move(fft)), diagnostic(std::move(diagnostic)), parser(std::move(parser)), linsol_ac(std::move(linsol_ac)), loca(std::move(loca)), dist(std::move(dist)) {}
+OptionParameters::OptionParameters(std::map<std::string, std::string> device, std::map<std::string, std::string> timeint, std::map<std::string, std::string> nonlin, std::map<std::string, std::string> linsol, std::map<std::string, std::string> fft, std::map<std::string, std::string> diagnostic, std::map<std::string, std::string> parser, std::map<std::string, std::string> linsol_ac, std::map<std::string, std::string> loca, std::map<std::string, std::string> dist, std::map<std::string, std::string> measure) :
+    device(std::move(device)), timeint(std::move(timeint)), nonlin(std::move(nonlin)), linsol(std::move(linsol)), fft(std::move(fft)), diagnostic(std::move(diagnostic)), parser(std::move(parser)), linsol_ac(std::move(linsol_ac)), loca(std::move(loca)), dist(std::move(dist)), measure(std::move(measure)) {}
 
 OptionParameters OptionParameters::from_xyce_directives(const std::vector<std::string>& directives) {
     // init option groups
@@ -45,6 +45,7 @@ OptionParameters OptionParameters::from_xyce_directives(const std::vector<std::s
     std::map<std::string, std::string> linsol_ac;
     std::map<std::string, std::string> loca;
     std::map<std::string, std::string> dist;
+    std::map<std::string, std::string> measure;
 
     // parse each directive looking for supported option packages
     for (const auto& directive : directives) {
@@ -118,9 +119,13 @@ OptionParameters OptionParameters::from_xyce_directives(const std::vector<std::s
             dist = parse_option_tokens(std::vector<std::string>(tokens.begin() + 2, tokens.end()));
             continue;
         }
+        if (package == "MEASURE") {
+            measure = parse_option_tokens(std::vector<std::string>(tokens.begin() + 2, tokens.end()));
+            continue;
+        }
     }
 
-    return OptionParameters(device, timeint, nonlin, linsol, fft, diagnostic, parser, linsol_ac, loca, dist);
+    return OptionParameters(device, timeint, nonlin, linsol, fft, diagnostic, parser, linsol_ac, loca, dist, measure);
 }
 
 std::vector<std::string> OptionParameters::to_xyce_directives(const NetlistTopology& topology) const {
@@ -175,11 +180,14 @@ std::vector<std::string> OptionParameters::to_xyce_directives(const NetlistTopol
     if (!dist.empty()) {
         directives.push_back(".OPTIONS DIST " + format_options(dist));
     }
+    if (!measure.empty()) {
+        directives.push_back(".OPTIONS MEASURE " + format_options(measure));
+    }
 
     return directives;
 }
 
 bool OptionParameters::operator==(const OptionParameters& other) const {
     // compare all fields for equality
-    return device == other.device && timeint == other.timeint && nonlin == other.nonlin && linsol == other.linsol && fft == other.fft && diagnostic == other.diagnostic && parser == other.parser && linsol_ac == other.linsol_ac && loca == other.loca && dist == other.dist;
+    return device == other.device && timeint == other.timeint && nonlin == other.nonlin && linsol == other.linsol && fft == other.fft && diagnostic == other.diagnostic && parser == other.parser && linsol_ac == other.linsol_ac && loca == other.loca && dist == other.dist && measure == other.measure;
 }
