@@ -182,10 +182,15 @@ void SlintMainWindowPresenter::on_run_simulation() {
             // exit
             return;
         }
-        // initialize the simulation config from the parsed directives, keep existing config if netlist does not contain any analysis directives
-        const auto simulation_config = SimulationConfig::from_xyce_directives(topology.m_directives);
-        if (!std::holds_alternative<std::monostate>(simulation_config.analysis))
-            m_simulation_config = simulation_config;
+        // initialize the simulation config from the parsed directives only when the netlist
+        // content actually changed since the last parse; a schematic re-export carrying the
+        // same content (e.g. KiCad autosave) must not discard the user's accepted dialog
+        // configuration, the schematic does not hold the edited directives back
+        if (content != m_pending_original_netlist) {
+            const auto simulation_config = SimulationConfig::from_xyce_directives(topology.m_directives);
+            if (!std::holds_alternative<std::monostate>(simulation_config.analysis))
+                m_simulation_config = simulation_config;
+        }
         // remember the parse result for the launch (always updated when the
         m_pending_sanitized_netlist = sanitized_netlist;
         m_pending_topology = topology;
@@ -255,11 +260,12 @@ void SlintMainWindowPresenter::on_configure_simulation() {
     // parse the netlist and extract the topology
     const auto [sanitized_netlist, topology] = parse_netlist(content);
     // build the simulation config from the parsed directives; only overwrite
-    // the user's saved config when the schematic actually carries new
-    // directives — preserving the existing config when the schematic is
-    // directive-less
+    // the user's saved config when the netlist content actually changed since
+    // the last parse — a schematic re-export carrying the same content (e.g.
+    // KiCad autosave) must not revert the dialog to the schematic directives
+    // and discard the user's accepted configuration
     const auto parsed_config = SimulationConfig::from_xyce_directives(topology.m_directives);
-    if (!std::holds_alternative<std::monostate>(parsed_config.analysis))
+    if (content != m_pending_original_netlist && !std::holds_alternative<std::monostate>(parsed_config.analysis))
         m_simulation_config = parsed_config;
     // remember the parse result so the accepted config can rebuild the netlist
     m_pending_sanitized_netlist = sanitized_netlist;

@@ -132,6 +132,8 @@ Tests are built alongside the plugin. Run the test executable directly:
 python3 -m unittest discover -v -s . -p "*_test.py"
 ```
 
+The KiCad plugin mode scenario in `tests_ui/kicad_reconfigure_test.py` requires the `pynng` package (`pip install pynng`); it simulates the KiCad API server with an in-process mock.
+
 ## Configuration
 
 At runtime, the plugin expects a valid path to the Xyce executable. Configure it in the plugin UI via the Configuration dialog, along with analysis-specific simulation settings.
