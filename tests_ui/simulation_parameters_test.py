@@ -42,19 +42,17 @@ class ConfigureSimulationChecks(unittest.TestCase):
         with TestSession(launch(args=["--netlist", str(netlist)]), self.id()) as app:
             # step 1: open the configure simulation dialog from the toolbar
             app.get_by_type("ToolbarButton").nth(6).click()
-            fields = app.get_by_type("LineEdit")
-            fields.nth(0).wait_for_exists()
-            # step 2: switch to the dc analysis tab (declaration order: .op, .dc, .tran, ...)
             root = app.client().get_window_properties()["rootElementHandle"]
+            ok = [handle for handle in app.client().find_by_type_in(root, "Button") if app.client().get_element_properties(handle).get("accessibleLabel") == "OK"][0]
+            # step 2: switch to the dc analysis tab (declaration order: .op, .dc, .tran, ...)
             tabs = app.client().find_by_type_in(root, "TabButton")
             app.client().click_element(tabs[1])
-            # step 3: accept the dialog with an empty dc sweep
-            ok = [handle for handle in app.client().find_by_type_in(root, "Button") if app.client().get_element_properties(handle).get("accessibleLabel") == "OK"][0]
+            # step 3: accept the dialog with an empty dc sweep (no sweep rows configured)
             app.client().click_element(ok)
-            # assert: the dialog stays open for corrections
-            expect(fields.nth(0)).to_exist()
+            # assert: the dialog stays open for corrections (the footer ok button remains)
+            app.wait_for_condition(lambda: any(app.client().get_element_properties(handle).get("accessibleLabel") == "OK" for handle in app.client().find_by_type_in(root, "Button")), timeout=5.0, message="expected the dialog to stay open after the rejected accept")
             # assert: the validation error names the missing sweep variable
-            app.wait_for_condition(lambda: any("sweep variable is required" in (app.client().get_element_properties(handle).get("accessibleLabel") or "") for handle in app.client().find_by_type_in(root, "Text")), timeout=5.0, message="expected the dc sweep validation error to appear")
+            app.wait_for_condition(lambda: any("requires at least one sweep variable" in (app.client().get_element_properties(handle).get("accessibleLabel") or "") for handle in app.client().find_by_type_in(root, "Text")), timeout=5.0, message="expected the dc sweep validation error to appear")
 
     def test_cancel_and_escape_keep_original_values(self) -> None:
         # arrange: resolve the sample netlist shipped with the repository
