@@ -4,7 +4,6 @@ import socket
 import stat
 import tempfile
 import threading
-import time
 import unittest
 from pathlib import Path
 
@@ -149,6 +148,7 @@ class MockKiCadApiServer:
         # close the socket and join the serving thread
         self._running = False
         if self._rep is not None:
+            # close may raise when the socket is already gone from a failed recv
             try:
                 self._rep.close()
             except Exception:
@@ -205,61 +205,64 @@ class KiCadPluginReconfigureChecks(unittest.TestCase):
         if xyce is None:
             self.skipTest("Xyce executable not found")
         # arrange: build a fake KiCad project holding a schematic with the simulation directives
-        project_dir = Path(tempfile.mkdtemp(prefix="xyce-kicad-project-"))
-        schematic = project_dir / "demo.kicad_sch"
-        schematic.write_text("(kicad_sch (version 8))")
-        (project_dir / "demo.kicad_pro").write_text("{}")
-        # arrange: build a fake kicad-cli exporting the schematic spice netlist
-        kicad_cli = Path(tempfile.mkdtemp(prefix="xyce-kicad-cli-")) / "kicad-cli"
-        kicad_cli.write_text("#!/bin/sh\nout=\"\"\nprev=\"\"\nfor arg in \"$@\"; do\n  if [ \"$prev\" = \"--output\" ]; then out=\"$arg\"; fi\n  prev=\"$arg\"\ndone\ncat > \"$out\" <<'EOF'\n" + MOCK_NETLIST + "EOF\nexit 0\n")
-        kicad_cli.chmod(kicad_cli.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-        # arrange: start the mock KiCad API server the plugin dials on launch
-        server = MockKiCadApiServer(str(kicad_cli))
-        server.start()
-        try:
-            # arrange: launch the application as a KiCad plugin session
-            environment = {
-                "KICAD_API_SOCKET": server.socket_url(),
-                "KICAD_API_TOKEN": "integration-test-token",
-                "KIPRJMOD": str(project_dir),
-            }
-            with TestSession(launch(env=environment, args=["--xyce", xyce]), self.id()) as app:
-                # arrange: locate the status bar text and the toolbar tools
-                status = app.get_by_id("MainWindow::statusbar").child("Text")
-                tools = app.get_by_type("ToolbarButton")
-                # step 1: run the simulation and wait for the final status message
-                tools.nth(5).click()
-                expect(status).to_have_property("accessibleLabel", "Simulation finished successfully", timeout=30.0)
-                # step 2: open the configure simulation dialog from the toolbar
-                tools.nth(6).click()
-                # arrange: locate the transient analysis form fields
-                fields = app.get_by_type("LineEdit")
-                fields.nth(0).wait_for_exists()
-                # assert: the dialog shows the schematic directive values before the edit
-                expect(fields.nth(0)).to_have_text("1u")
-                expect(fields.nth(1)).to_have_text("20m")
-                # step 3: edit the simulation end time and accept the dialog
-                fields.nth(1).fill("25m")
-                root = app.client().get_window_properties()["rootElementHandle"]
-                ok = [handle for handle in app.client().find_by_type_in(root, "Button") if app.client().get_element_properties(handle).get("accessibleLabel") == "OK"][0]
-                app.client().click_element(ok)
-                # assert: the dialog closed
-                fields.nth(0).wait_for_gone()
-                # step 4: KiCad autosaves the schematic, changing its modification time
-                time.sleep(0.05)
-                os.utime(schematic, (time.time(), time.time()))
-                # step 5: run the simulation again and wait for the final status message
-                tools.nth(5).click()
-                expect(status).to_have_property("accessibleLabel", "Simulation finished successfully", timeout=30.0)
-                # step 6: show the netlist view to inspect the effective directives
-                tools.nth(2).click()
-                editor = app.get_by_id("NetlistEditor::input")
-                editor.wait_for_exists()
-                # assert: the netlist shows the edited transient parameters
-                tran_lines = [line for line in editor.text().splitlines() if line.strip().upper().startswith(".TRAN")]
-                self.assertEqual(tran_lines, [".TRAN 1u 25m 0"])
-        finally:
-            server.stop()
+        with tempfile.TemporaryDirectory(prefix="xyce-kicad-project-") as project_root, tempfile.TemporaryDirectory(prefix="xyce-kicad-cli-") as cli_root:
+            project_dir = Path(project_root)
+            schematic = project_dir / "demo.kicad_sch"
+            schematic.write_text("(kicad_sch (version 8))")
+            (project_dir / "demo.kicad_pro").write_text("{}")
+            # arrange: build a fake kicad-cli exporting the schematic spice netlist
+            kicad_cli = Path(cli_root) / "kicad-cli"
+            kicad_cli.write_text("#!/bin/sh\nout=\"\"\nprev=\"\"\nfor arg in \"$@\"; do\n  if [ \"$prev\" = \"--output\" ]; then out=\"$arg\"; fi\n  prev=\"$arg\"\ndone\ncat > \"$out\" <<'EOF'\n" + MOCK_NETLIST + "EOF\nexit 0\n")
+            kicad_cli.chmod(kicad_cli.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+            # arrange: start the mock KiCad API server the plugin dials on launch
+            server = MockKiCadApiServer(str(kicad_cli))
+            server.start()
+            try:
+                # arrange: launch the application as a KiCad plugin session
+                environment = {
+                    "KICAD_API_SOCKET": server.socket_url(),
+                    "KICAD_API_TOKEN": "integration-test-token",
+                    "KIPRJMOD": str(project_dir),
+                }
+                with TestSession(launch(env=environment, args=["--xyce", xyce]), self.id()) as app:
+                    # arrange: locate the status bar text and the toolbar tools
+                    status = app.get_by_id("MainWindow::statusbar").child("Text")
+                    tools = app.get_by_type("ToolbarButton")
+                    # step 1: run the simulation and wait for the final status message
+                    tools.nth(5).click()
+                    expect(status).to_have_property("accessibleLabel", "Simulation finished successfully", timeout=30.0)
+                    # step 2: open the configure simulation dialog from the toolbar
+                    tools.nth(6).click()
+                    # arrange: locate the transient analysis form fields
+                    fields = app.get_by_type("LineEdit")
+                    fields.nth(0).wait_for_exists()
+                    # assert: the dialog shows the schematic directive values before the edit
+                    expect(fields.nth(0)).to_have_text("1u")
+                    expect(fields.nth(1)).to_have_text("20m")
+                    # step 3: edit the simulation end time and accept the dialog
+                    fields.nth(1).fill("25m")
+                    root = app.client().get_window_properties()["rootElementHandle"]
+                    ok = [handle for handle in app.client().find_by_type_in(root, "Button") if app.client().get_element_properties(handle).get("accessibleLabel") == "OK"][0]
+                    app.client().click_element(ok)
+                    # assert: the dialog closed
+                    fields.nth(0).wait_for_gone()
+                    # step 4: KiCad autosaves the schematic, changing its modification time;
+                    # set the mtime deterministically into the future so the re-export is
+                    # guaranteed even on filesystems with coarse timestamp resolution
+                    first_export_time = schematic.stat().st_mtime
+                    os.utime(schematic, (first_export_time + 10.0, first_export_time + 10.0))
+                    # step 5: run the simulation again and wait for the final status message
+                    tools.nth(5).click()
+                    expect(status).to_have_property("accessibleLabel", "Simulation finished successfully", timeout=30.0)
+                    # step 6: show the netlist view to inspect the effective directives
+                    tools.nth(2).click()
+                    editor = app.get_by_id("NetlistEditor::input")
+                    editor.wait_for_exists()
+                    # assert: the netlist shows the edited transient parameters
+                    tran_lines = [line for line in editor.text().splitlines() if line.strip().upper().startswith(".TRAN")]
+                    self.assertEqual(tran_lines, [".TRAN 1u 25m 0"])
+            finally:
+                server.stop()
 
 
 if __name__ == "__main__":

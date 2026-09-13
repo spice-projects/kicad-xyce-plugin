@@ -462,6 +462,49 @@ TEST(SlintMainWindowPresenterChecks, schematic_reexport_with_identical_content_d
     std::filesystem::remove(view.m_started_netlist_path, ec);
 }
 
+TEST(SlintMainWindowPresenterChecks, schematic_change_with_directives_overwrites_saved_config) {
+    // arrange — a schematic netlist carrying the transient directives (KiCad plugin mode)
+    RecordingView view;
+    StubNetlistSource* source = new StubNetlistSource("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 20m\n.END\n", std::filesystem::temp_directory_path());
+    source->m_reloaded = true;
+    SlintMainWindowPresenter presenter(view, std::unique_ptr<StubNetlistSource>(source), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    // act — run the simulation once with the schematic directives
+    presenter.on_run_simulation();
+    ASSERT_TRUE(view.m_started);
+    const auto first_netlist_path = view.m_started_netlist_path;
+    // act — edit the transient end time through the configure dialog and accept it
+    presenter.on_configure_simulation();
+    ASSERT_EQ(view.m_simulation_dialog_requests, 1);
+    const SimulationConfig edited("TRAN", TransientSimulationParameters("1u", "25m", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    presenter.on_simulation_parameters_dialog_result(edited);
+    presenter.on_simulation_finished(0, false);
+    view.m_started = false;
+    // arrange — the schematic itself changed (a real directive edit in KiCad);
+    // the re-export now carries a different transient end time
+    source->m_content = "V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 50m\n.END\n";
+    source->m_reloaded = true;
+    // act — run the simulation again
+    presenter.on_run_simulation();
+    // assert — the changed schematic directives win over the saved dialog config,
+    // the next run and the reopened dialog both use the new schematic value
+    ASSERT_TRUE(view.m_started);
+    EXPECT_NE(view.m_started_netlist_path, first_netlist_path);
+    {
+        std::ifstream second_run(view.m_started_netlist_path);
+        const std::string second_content((std::istreambuf_iterator<char>(second_run)), std::istreambuf_iterator<char>());
+        EXPECT_NE(second_content.find(".TRAN 1u 50m"), std::string::npos);
+        EXPECT_EQ(second_content.find(".TRAN 1u 25m"), std::string::npos);
+    }
+    presenter.on_configure_simulation();
+    ASSERT_TRUE(view.m_last_simulation_config_seed.has_value());
+    EXPECT_FALSE(std::holds_alternative<std::monostate>(view.m_last_simulation_config_seed->analysis));
+    EXPECT_EQ(std::get<TransientSimulationParameters>(view.m_last_simulation_config_seed->analysis).final_time_value, "50m");
+    // cleanup both temp netlists
+    std::error_code ec;
+    std::filesystem::remove(first_netlist_path, ec);
+    std::filesystem::remove(view.m_started_netlist_path, ec);
+}
+
 TEST(SlintMainWindowPresenterChecks, configure_result_updates_netlist_without_launching) {
     // arrange
     RecordingView view;
