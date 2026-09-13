@@ -24,6 +24,7 @@ import {
 import {
     SimulationParametersPanel,
 } from "../components/simulation_parameters_panel.slint";
+import { DcSweepRow } from "../components/dc_parameters_panel.slint";
 export {
     ChartsPanelActions,
     PlotTabItem,
@@ -357,18 +358,13 @@ export component MainWindow inherits Window {
     in-out property <bool> tran-replace-ground: true;
 
     in-out property <int> dc-sweep-mode-index: 0;
-    in-out property <string> dc-primary-variable: "";
-    in-out property <string> dc-start: "";
-    in-out property <string> dc-stop: "";
-    in-out property <string> dc-step: "";
-    in-out property <string> dc-points: "";
-    in-out property <string> dc-list-values: "";
+    // nested sweep rows — projected from DCSimulationParameters::sweeps by C++
+    in-out property <[DcSweepRow]> dc-sweeps: [];
+    // forwarded DcParametersPanel sweep table actions
+    callback dc-add-sweep();
+    callback dc-remove-sweep(int);
+    callback dc-sweep-row-updated(int, DcSweepRow);
     in-out property <string> dc-data-table: "";
-    in-out property <string> dc-secondary-variable: "";
-    in-out property <string> dc-secondary-start: "";
-    in-out property <string> dc-secondary-stop: "";
-    in-out property <string> dc-secondary-step: "";
-    in-out property <string> dc-secondary-points: "";
     in-out property <string> dc-measure: "";
     in-out property <bool> dc-print-enabled: false;
     in-out property <int> dc-print-type-index: 0;
@@ -751,18 +747,11 @@ export component MainWindow inherits Window {
             tran-print-extra-options <=> root.tran-print-extra-options;
             tran-replace-ground <=> root.tran-replace-ground;
             dc-sweep-mode-index <=> root.dc-sweep-mode-index;
-            dc-primary-variable <=> root.dc-primary-variable;
-            dc-start <=> root.dc-start;
-            dc-stop <=> root.dc-stop;
-            dc-step <=> root.dc-step;
-            dc-points <=> root.dc-points;
-            dc-list-values <=> root.dc-list-values;
+            dc-sweeps <=> root.dc-sweeps;
             dc-data-table <=> root.dc-data-table;
-            dc-secondary-variable <=> root.dc-secondary-variable;
-            dc-secondary-start <=> root.dc-secondary-start;
-            dc-secondary-stop <=> root.dc-secondary-stop;
-            dc-secondary-step <=> root.dc-secondary-step;
-            dc-secondary-points <=> root.dc-secondary-points;
+            dc-add-sweep => { root.dc-add-sweep(); }
+            dc-remove-sweep(index) => { root.dc-remove-sweep(index); }
+            dc-sweep-row-updated(index, row) => { root.dc-sweep-row-updated(index, row); }
             dc-measure <=> root.dc-measure;
             dc-print-enabled <=> root.dc-print-enabled;
             dc-print-type-index <=> root.dc-print-type-index;

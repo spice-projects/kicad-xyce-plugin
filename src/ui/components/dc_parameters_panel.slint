@@ -1,4 +1,5 @@
 import {
+    Button,
     CheckBox,
     ComboBox,
     LineEdit,
@@ -6,23 +7,231 @@ import {
     TextEdit,
 } from "std-widgets.slint";
 
+// one row of the nested DC sweep table
+export struct DcSweepRow {
+    variable: string,
+    start: string,
+    stop: string,
+    step: string,
+    points: string,
+    list-values: string,
+}
+
+// one editable row of the nested sweep table; text is displayed one-way
+// from the host-owned model and committed back through the edited callback
+component DcSweepRowEditor inherits Rectangle {
+
+    border-width: 1px;
+    border-color: Palette.border;
+    border-radius: 4px;
+    background: Palette.background;
+
+    // index of this row within the sweeps model
+    in property <int> sweep-index;
+    // 0 = LIN, 1 = DEC, 2 = OCT, 3 = LIST, 4 = DATA
+    in property <int> mode-index;
+    // the row values owned by the host model
+    in property <DcSweepRow> row-data;
+    // a committed field edit; carries the full updated row
+    callback edited(int, DcSweepRow);
+    // the remove button was pressed for this row
+    callback remove-requested(int);
+
+    // scratch copy used to build the updated row on commit
+    private property <DcSweepRow> pending;
+
+    VerticalLayout {
+        padding: 8px;
+        spacing: 6px;
+
+        // row header with the per-row remove action
+        HorizontalLayout {
+            spacing: 8px;
+
+            Text {
+                text: "Sweep \{sweep-index + 1}";
+                font-size: 12px;
+                font-weight: 600;
+                color: Palette.foreground;
+                vertical-alignment: center;
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+            }
+
+            Button {
+                text: "Remove";
+                height: 24px;
+                clicked => { root.remove-requested(sweep-index); }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: "Variable";
+                font-size: 13px;
+                color: Palette.foreground;
+                min-width: 120px;
+                vertical-alignment: center;
+                horizontal-alignment: left;
+                overflow: elide;
+            }
+
+            LineEdit {
+                height: 28px;
+                placeholder-text: "e.g. V1";
+                text: root.row-data.variable;
+                edited(new-text) => {
+                    root.pending = root.row-data;
+                    root.pending.variable = new-text;
+                    root.edited(root.sweep-index, root.pending);
+                }
+            }
+        }
+
+        // start value for linear and log sweeps
+        if root.mode-index == 0 || root.mode-index == 1 || root.mode-index == 2: HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: "Start";
+                font-size: 13px;
+                color: Palette.foreground;
+                min-width: 120px;
+                vertical-alignment: center;
+                horizontal-alignment: left;
+                overflow: elide;
+            }
+
+            LineEdit {
+                height: 28px;
+                placeholder-text: "start value (e.g. 0)";
+                text: root.row-data.start;
+                edited(new-text) => {
+                    root.pending = root.row-data;
+                    root.pending.start = new-text;
+                    root.edited(root.sweep-index, root.pending);
+                }
+            }
+        }
+
+        // stop value for linear and log sweeps
+        if root.mode-index == 0 || root.mode-index == 1 || root.mode-index == 2: HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: "Stop";
+                font-size: 13px;
+                color: Palette.foreground;
+                min-width: 120px;
+                vertical-alignment: center;
+                horizontal-alignment: left;
+                overflow: elide;
+            }
+
+            LineEdit {
+                height: 28px;
+                placeholder-text: "stop value (e.g. 5)";
+                text: root.row-data.stop;
+                edited(new-text) => {
+                    root.pending = root.row-data;
+                    root.pending.stop = new-text;
+                    root.edited(root.sweep-index, root.pending);
+                }
+            }
+        }
+
+        // step size for LIN sweeps
+        if root.mode-index == 0: HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: "Step";
+                font-size: 13px;
+                color: Palette.foreground;
+                min-width: 120px;
+                vertical-alignment: center;
+                horizontal-alignment: left;
+                overflow: elide;
+            }
+
+            LineEdit {
+                height: 28px;
+                placeholder-text: "step size (e.g. 0.1)";
+                text: root.row-data.step;
+                edited(new-text) => {
+                    root.pending = root.row-data;
+                    root.pending.step = new-text;
+                    root.edited(root.sweep-index, root.pending);
+                }
+            }
+        }
+
+        // points for DEC/OCT log sweeps
+        if root.mode-index == 1 || root.mode-index == 2: HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: "Points";
+                font-size: 13px;
+                color: Palette.foreground;
+                min-width: 120px;
+                vertical-alignment: center;
+                horizontal-alignment: left;
+                overflow: elide;
+            }
+
+            LineEdit {
+                height: 28px;
+                placeholder-text: "points per decade/octave";
+                text: root.row-data.points;
+                edited(new-text) => {
+                    root.pending = root.row-data;
+                    root.pending.points = new-text;
+                    root.edited(root.sweep-index, root.pending);
+                }
+            }
+        }
+
+        // space-separated values for LIST sweeps
+        if root.mode-index == 3: HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: "List values";
+                font-size: 13px;
+                color: Palette.foreground;
+                min-width: 120px;
+                vertical-alignment: center;
+                horizontal-alignment: left;
+                overflow: elide;
+            }
+
+            LineEdit {
+                height: 28px;
+                placeholder-text: "space-separated values (e.g. 0 1 2 5)";
+                text: root.row-data.list-values;
+                edited(new-text) => {
+                    root.pending = root.row-data;
+                    root.pending.list-values = new-text;
+                    root.edited(root.sweep-index, root.pending);
+                }
+            }
+        }
+    }
+}
+
 export component DcParametersPanel inherits Rectangle {
 
     // --- sweep configuration ---
     // 0 = LIN, 1 = DEC, 2 = OCT, 3 = LIST, 4 = DATA
     in-out property <int> sweep-mode-index: 0;
-    in-out property <string> primary-variable: "";
-    in-out property <string> start: "";
-    in-out property <string> stop: "";
-    in-out property <string> step: "";
-    in-out property <string> points: "";
-    in-out property <string> list-values: "";
+    // nested sweep rows — one per sweep tuple, any count (0..N)
+    in-out property <[DcSweepRow]> sweeps: [];
+    // request a new blank sweep row
+    callback add-sweep();
+    // remove the sweep row at the given index
+    callback remove-sweep(int);
+    // a row's field was committed; deliver the updated row to the host
+    callback sweep-row-updated(int, DcSweepRow);
     in-out property <string> data-table: "";
-    in-out property <string> secondary-variable: "";
-    in-out property <string> secondary-start: "";
-    in-out property <string> secondary-stop: "";
-    in-out property <string> secondary-step: "";
-    in-out property <string> secondary-points: "";
 
     // --- .MEASURE directives ---
     in-out property <string> measure: "";
@@ -273,144 +482,6 @@ export component DcParametersPanel inherits Rectangle {
                         height: 28px;
                         model: ["LIN", "DEC", "OCT", "LIST", "DATA"];
                         current-index <=> root.sweep-mode-index;
-                        selected(current-value) => {
-                            // carry the numeric value between the step and points
-                            // fields when switching modes
-                            if current-value == "LIN" {
-                                if root.step == "" && root.points != "" { root.step = root.points; }
-                                if root.secondary-step == "" && root.secondary-points != "" { root.secondary-step = root.secondary-points; }
-                            } else if current-value == "DEC" || current-value == "OCT" {
-                                if root.points == "" && root.step != "" { root.points = root.step; }
-                                if root.secondary-points == "" && root.secondary-step != "" { root.secondary-points = root.secondary-step; }
-                            }
-                        }
-                    }
-                }
-
-                // primary sweep section
-                Text {
-                    text: "Primary sweep";
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: Palette.foreground;
-                    horizontal-alignment: left;
-                    overflow: elide;
-                }
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Primary variable";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "e.g. V1";
-                        text <=> root.primary-variable;
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Start";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "start value (e.g. 0)";
-                        text <=> root.start;
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Stop";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "stop value (e.g. 5)";
-                        text <=> root.stop;
-                    }
-                }
-
-                // step size for LIN sweeps
-                if root.sweep-mode-index == 0: HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Step";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "step size (e.g. 0.1)";
-                        text <=> root.step;
-                    }
-                }
-
-                // points for DEC/OCT log sweeps
-                if root.sweep-mode-index == 1 || root.sweep-mode-index == 2: HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Points";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "points per decade/octave";
-                        text <=> root.points;
-                    }
-                }
-
-                // explicit list of values for LIST sweeps
-                if root.sweep-mode-index == 3: HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "List values";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "space-separated values (e.g. 0 1 2 5)";
-                        text <=> root.list-values;
                     }
                 }
 
@@ -434,110 +505,50 @@ export component DcParametersPanel inherits Rectangle {
                     }
                 }
 
-                // secondary sweep section
-                Text {
-                    text: "Secondary sweep";
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: Palette.foreground;
-                    horizontal-alignment: left;
-                    overflow: elide;
-                }
-
-                HorizontalLayout {
+                // nested sweep table — one row card per sweep tuple, any count
+                if root.sweep-mode-index != 4: VerticalLayout {
                     spacing: 8px;
-                    Text {
-                        text: "Secondary variable";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
+
+                    // table header with the global add-sweep action
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        Text {
+                            text: "Nested sweeps";
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: Palette.foreground;
+                            vertical-alignment: center;
+                        }
+
+                        // spacer pushes the add button to the trailing edge
+                        Rectangle {
+                            horizontal-stretch: 1;
+                        }
+
+                        Button {
+                            text: "Add Sweep";
+                            height: 26px;
+                            clicked => { root.add-sweep(); }
+                        }
+                    }
+
+                    // empty-state hint when no sweeps are configured
+                    if root.sweeps.length == 0: Text {
+                        text: "No sweeps configured — use Add Sweep";
+                        font-size: 12px;
+                        font-italic: true;
+                        color: Palette.foreground.transparentize(0.4);
                         horizontal-alignment: left;
                         overflow: elide;
                     }
 
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "e.g. V2";
-                        text <=> root.secondary-variable;
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Secondary start";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "secondary start value";
-                        text <=> root.secondary-start;
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Secondary stop";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "secondary stop value";
-                        text <=> root.secondary-stop;
-                    }
-                }
-
-                // secondary step size for LIN sweeps
-                if root.sweep-mode-index == 0: HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Secondary step";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "secondary step size";
-                        text <=> root.secondary-step;
-                    }
-                }
-
-                // secondary points for DEC/OCT log sweeps
-                if root.sweep-mode-index == 1 || root.sweep-mode-index == 2: HorizontalLayout {
-                    spacing: 8px;
-                    Text {
-                        text: "Secondary points";
-                        font-size: 13px;
-                        color: Palette.foreground;
-                        min-width: 120px;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
-                    }
-
-                    LineEdit {
-                        height: 28px;
-                        placeholder-text: "secondary points per decade/octave";
-                        text <=> root.secondary-points;
+                    for row[idx] in root.sweeps: DcSweepRowEditor {
+                        sweep-index: idx;
+                        mode-index: root.sweep-mode-index;
+                        row-data: row;
+                        edited(index, updated-row) => { root.sweep-row-updated(index, updated-row); }
+                        remove-requested(index) => { root.remove-sweep(index); }
                     }
                 }
             }
