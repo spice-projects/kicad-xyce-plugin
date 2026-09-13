@@ -386,6 +386,82 @@ TEST(SlintMainWindowPresenterChecks, schematic_change_without_directives_preserv
     std::filesystem::remove(view.m_started_netlist_path, ec);
 }
 
+TEST(SlintMainWindowPresenterChecks, schematic_reexport_with_identical_content_keeps_edited_transient_config) {
+    // arrange — a schematic netlist carrying the transient directives (KiCad plugin mode)
+    RecordingView view;
+    StubNetlistSource* source = new StubNetlistSource("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 20m 0\n.END\n", std::filesystem::temp_directory_path());
+    source->m_reloaded = true;
+    SlintMainWindowPresenter presenter(view, std::unique_ptr<StubNetlistSource>(source), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    // act — run the simulation once with the schematic directives
+    presenter.on_run_simulation();
+    ASSERT_TRUE(view.m_started);
+    // assert — the first run used the schematic values
+    {
+        std::ifstream first_run(view.m_started_netlist_path);
+        const std::string first_content((std::istreambuf_iterator<char>(first_run)), std::istreambuf_iterator<char>());
+        EXPECT_NE(first_content.find(".TRAN 1u 20m 0"), std::string::npos);
+    }
+    const auto first_netlist_path = view.m_started_netlist_path;
+    presenter.on_simulation_finished(0, false);
+    view.m_started = false;
+    // act — edit the transient end time through the configure dialog and accept it
+    presenter.on_configure_simulation();
+    ASSERT_EQ(view.m_simulation_dialog_requests, 1);
+    const SimulationConfig edited("TRAN", TransientSimulationParameters("1u", "25m", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    presenter.on_simulation_parameters_dialog_result(edited);
+    // assert — the editor reflects the edited parameters
+    EXPECT_NE(view.m_editor_content.find(".TRAN 1u 25m"), std::string::npos);
+    // arrange — KiCad autosaves the schematic and re-exports it; the exported
+    // content is identical because the schematic still holds the old directives
+    source->m_reloaded = true;
+    // act — run the simulation again
+    presenter.on_run_simulation();
+    // assert — the second run keeps the edited parameters, the re-export must
+    // not resurrect the schematic directives over the accepted dialog config
+    ASSERT_TRUE(view.m_started);
+    EXPECT_NE(view.m_started_netlist_path, first_netlist_path);
+    {
+        std::ifstream second_run(view.m_started_netlist_path);
+        const std::string second_content((std::istreambuf_iterator<char>(second_run)), std::istreambuf_iterator<char>());
+        EXPECT_NE(second_content.find(".TRAN 1u 25m"), std::string::npos);
+        EXPECT_EQ(second_content.find(".TRAN 1u 20m"), std::string::npos);
+    }
+    EXPECT_NE(view.m_editor_content.find(".TRAN 1u 25m"), std::string::npos);
+    EXPECT_EQ(view.m_editor_content.find(".TRAN 1u 20m"), std::string::npos);
+    // cleanup both temp netlists
+    std::error_code ec;
+    std::filesystem::remove(first_netlist_path, ec);
+    std::filesystem::remove(view.m_started_netlist_path, ec);
+}
+
+TEST(SlintMainWindowPresenterChecks, schematic_reexport_with_identical_content_does_not_revert_dialog_to_schematic_values) {
+    // arrange — a schematic netlist carrying the transient directives (KiCad plugin mode)
+    RecordingView view;
+    StubNetlistSource* source = new StubNetlistSource("V1 1 0 5\nR1 1 0 1K\n.TRAN 1u 20m\n.END\n", std::filesystem::temp_directory_path());
+    source->m_reloaded = true;
+    SlintMainWindowPresenter presenter(view, std::unique_ptr<StubNetlistSource>(source), PluginConfig(testing::internal::GetArgvs()[0]), nullptr);
+    // act — run the simulation once with the schematic directives
+    presenter.on_run_simulation();
+    ASSERT_TRUE(view.m_started);
+    // act — edit the transient end time through the configure dialog and accept it
+    presenter.on_configure_simulation();
+    ASSERT_EQ(view.m_simulation_dialog_requests, 1);
+    const SimulationConfig edited("TRAN", TransientSimulationParameters("1u", "25m", "", "", "", {}, std::nullopt, {}, {}, {}, std::nullopt), {}, {}, OptionParameters({}, {}, {}, {}, {}), {}, true);
+    presenter.on_simulation_parameters_dialog_result(edited);
+    // arrange — KiCad autosaves the schematic and re-exports it; the exported
+    // content is identical because the schematic still holds the old directives
+    source->m_reloaded = true;
+    // act — reopen the configure dialog
+    presenter.on_configure_simulation();
+    // assert — the dialog is seeded with the edited values, not the schematic directives
+    ASSERT_TRUE(view.m_last_simulation_config_seed.has_value());
+    EXPECT_FALSE(std::holds_alternative<std::monostate>(view.m_last_simulation_config_seed->analysis));
+    EXPECT_EQ(std::get<TransientSimulationParameters>(view.m_last_simulation_config_seed->analysis).final_time_value, "25m");
+    // cleanup
+    std::error_code ec;
+    std::filesystem::remove(view.m_started_netlist_path, ec);
+}
+
 TEST(SlintMainWindowPresenterChecks, configure_result_updates_netlist_without_launching) {
     // arrange
     RecordingView view;
